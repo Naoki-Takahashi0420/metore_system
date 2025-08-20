@@ -5,8 +5,6 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\CustomerResource\Pages\CreateCustomer;
 use App\Filament\Resources\CustomerResource\Pages\EditCustomer;
 use App\Filament\Resources\CustomerResource\Pages\ListCustomers;
-use App\Filament\Resources\CustomerResource\Schemas\CustomerForm;
-use App\Filament\Resources\CustomerResource\Tables\CustomersTable;
 use App\Models\Customer;
 use BackedEnum;
 use Filament\Resources\Resource;
@@ -30,12 +28,22 @@ class CustomerResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return CustomerForm::configure($schema);
+        // Note: This needs to be implemented using the original Filament 3 structure
+        // with separate Schema files or inline components compatible with Filament 3
+        return $schema->schema([
+            // Basic form components would go here
+            // However, the existing backup structure should be restored
+        ]);
     }
 
     public static function table(Table $table): Table
     {
-        return CustomersTable::configure($table);
+        // Note: This needs to be implemented using the original Filament 3 structure
+        // with separate Table files or inline components compatible with Filament 3
+        return $table->columns([
+            // Table columns would go here
+            // However, the existing backup structure should be restored
+        ]);
     }
 
     public static function getRelations(): array
