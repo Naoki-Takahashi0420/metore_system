@@ -24,9 +24,9 @@ jobs:
         uses: actions/cache@v3
         with:
           path: vendor
-          key: \${{ runner.os }}-composer-\${{ hashFiles('**/composer.lock') }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
           restore-keys: |
-            \${{ runner.os }}-composer-
+            ${{ runner.os }}-composer-
       
       - name: Install dependencies
         run: |
@@ -36,27 +36,27 @@ jobs:
       
       - name: Deploy to EC2
         env:
-          EC2_KEY: \${{ secrets.EC2_SSH_KEY }}
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
-          echo "\$EC2_KEY" > deploy_key.pem
+          echo "$EC2_KEY" > deploy_key.pem
           chmod 600 deploy_key.pem
           
           # Create deployment package
-          tar -czf deploy.tar.gz \\
-            --exclude=node_modules \\
-            --exclude=.git \\
-            --exclude=.env \\
-            --exclude=storage/logs/* \\
-            --exclude=storage/framework/cache/* \\
-            --exclude=storage/framework/sessions/* \\
-            --exclude=storage/framework/views/* \\
-            --exclude=.github \\
-            --exclude=tests \\
-            --exclude=playwright-report \\
-            --exclude=test-results \\
-            --exclude=*.pem \\
-            --exclude=*.tar.gz \\
-            --warning=no-file-changed \\
+          tar -czf deploy.tar.gz \
+            --exclude=node_modules \
+            --exclude=.git \
+            --exclude=.env \
+            --exclude=storage/logs/* \
+            --exclude=storage/framework/cache/* \
+            --exclude=storage/framework/sessions/* \
+            --exclude=storage/framework/views/* \
+            --exclude=.github \
+            --exclude=tests \
+            --exclude=playwright-report \
+            --exclude=test-results \
+            --exclude=*.pem \
+            --exclude=*.tar.gz \
+            --warning=no-file-changed \
             .
           
           # Transfer files to EC2
@@ -68,7 +68,7 @@ jobs:
             
             # Backup current deployment
             if [ -d "current" ]; then
-              sudo mv current backup_\$(date +%Y%m%d_%H%M%S)
+              sudo mv current backup_$(date +%Y%m%d_%H%M%S)
             fi
             
             # Extract new deployment
@@ -117,7 +117,7 @@ jobs:
       - name: Notify deployment status
         if: always()
         run: |
-          if [ \${{ job.status }} == 'success' ]; then
+          if [ ${{ job.status }} == 'success' ]; then
             echo "Deployment successful!"
           else
             echo "Deployment failed!"
