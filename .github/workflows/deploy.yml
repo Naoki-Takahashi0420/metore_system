@@ -24,9 +24,9 @@ jobs:
         uses: actions/cache@v3
         with:
           path: vendor
-          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          key: \${{ runner.os }}-composer-\${{ hashFiles('**/composer.lock') }}
           restore-keys: |
-            ${{ runner.os }}-composer-
+            \${{ runner.os }}-composer-
       
       - name: Install dependencies
         run: |
@@ -37,51 +37,49 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-access-key-id: \${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: \${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-1
       
       - name: Deploy to EC2
         env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USER: ubuntu
-          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_KEY: \${{ secrets.EC2_SSH_KEY }}
         run: |
-          echo "$EC2_KEY" > deploy_key.pem
+          echo "\$EC2_KEY" > deploy_key.pem
           chmod 600 deploy_key.pem
           
           # Create deployment package
-          tar -czf deploy.tar.gz \
-            --exclude=node_modules \
-            --exclude=.git \
-            --exclude=.env \
-            --exclude=storage/logs/* \
-            --exclude=storage/framework/cache/* \
-            --exclude=storage/framework/sessions/* \
-            --exclude=storage/framework/views/* \
-            --exclude=.github \
-            --exclude=tests \
-            --exclude=playwright-report \
-            --exclude=test-results \
-            --exclude=*.pem \
-            --exclude=*.tar.gz \
-            --warning=no-file-changed \
+          tar -czf deploy.tar.gz \\
+            --exclude=node_modules \\
+            --exclude=.git \\
+            --exclude=.env \\
+            --exclude=storage/logs/* \\
+            --exclude=storage/framework/cache/* \\
+            --exclude=storage/framework/sessions/* \\
+            --exclude=storage/framework/views/* \\
+            --exclude=.github \\
+            --exclude=tests \\
+            --exclude=playwright-report \\
+            --exclude=test-results \\
+            --exclude=*.pem \\
+            --exclude=*.tar.gz \\
+            --warning=no-file-changed \\
             .
           
           # Transfer files to EC2
-          scp -o StrictHostKeyChecking=no -i deploy_key.pem deploy.tar.gz ubuntu@$EC2_HOST:/tmp/
+          scp -o StrictHostKeyChecking=no -i deploy_key.pem deploy.tar.gz ubuntu@13.115.38.179:/tmp/
           
           # Deploy on EC2
-          ssh -o StrictHostKeyChecking=no -i deploy_key.pem ubuntu@$EC2_HOST << 'EOF'
+          ssh -o StrictHostKeyChecking=no -i deploy_key.pem ubuntu@13.115.38.179 << 'DEPLOY_EOF'
             cd /var/www/html
             
             # Backup current deployment
             if [ -d "current" ]; then
-              sudo mv current backup_$(date +%Y%m%d_%H%M%S)
+              sudo mv current backup_\$(date +%Y%m%d_%H%M%S)
             fi
             
             # Extract new deployment
-            sudo mkdir current
+            sudo mkdir -p current
             sudo tar -xzf /tmp/deploy.tar.gz -C current
             sudo chown -R ubuntu:ubuntu current
             
@@ -119,14 +117,14 @@ jobs:
             rm /tmp/deploy.tar.gz
             
             echo "Deployment completed successfully!"
-          EOF
+          DEPLOY_EOF
           
           rm deploy_key.pem
       
       - name: Notify deployment status
         if: always()
         run: |
-          if [ ${{ job.status }} == 'success' ]; then
+          if [ \${{ job.status }} == 'success' ]; then
             echo "Deployment successful!"
           else
             echo "Deployment failed!"
