@@ -1,0 +1,114 @@
+name: Deploy to AWS EC2
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, xml, ctype, iconv, intl, pdo, pdo_mysql, dom, filter, gd, json, mbstring, xml
+      
+      - name: Cache Composer dependencies
+        uses: actions/cache@v3
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+      
+      - name: Install dependencies
+        run: |
+          composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
+          npm ci
+          npm run build
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-1
+      
+      - name: Deploy to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > deploy_key.pem
+          chmod 600 deploy_key.pem
+          
+          # Create deployment package
+          tar -czf deploy.tar.gz \
+            --exclude=node_modules \
+            --exclude=.git \
+            --exclude=.env \
+            --exclude=storage/logs/* \
+            --exclude=storage/framework/cache/* \
+            --exclude=storage/framework/sessions/* \
+            --exclude=storage/framework/views/* \
+            .
+          
+          # Transfer files to EC2
+          scp -o StrictHostKeyChecking=no -i deploy_key.pem deploy.tar.gz $EC2_USER@$EC2_HOST:/tmp/
+          
+          # Deploy on EC2
+          ssh -o StrictHostKeyChecking=no -i deploy_key.pem $EC2_USER@$EC2_HOST << 'EOF'
+            cd /var/www/html
+            
+            # Backup current deployment
+            if [ -d "current" ]; then
+              mv current backup_$(date +%Y%m%d_%H%M%S)
+            fi
+            
+            # Extract new deployment
+            mkdir current
+            tar -xzf /tmp/deploy.tar.gz -C current
+            
+            # Copy environment file
+            cp .env.production current/.env
+            
+            # Set permissions
+            cd current
+            sudo chown -R www-data:www-data storage bootstrap/cache
+            sudo chmod -R 775 storage bootstrap/cache
+            
+            # Run Laravel commands
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            php artisan migrate --force
+            php artisan storage:link
+            
+            # Restart services
+            sudo systemctl reload php8.2-fpm
+            sudo systemctl reload nginx
+            
+            # Cleanup
+            rm /tmp/deploy.tar.gz
+            
+            echo "Deployment completed successfully!"
+          EOF
+          
+          rm deploy_key.pem
+      
+      - name: Notify deployment status
+        if: always()
+        run: |
+          if [ ${{ job.status }} == 'success' ]; then
+            echo "Deployment successful!"
+          else
+            echo "Deployment failed!"
+          fi
