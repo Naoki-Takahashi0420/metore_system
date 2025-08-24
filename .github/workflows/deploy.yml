@@ -13,8 +13,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-        with:
-          submodules: false
       
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -28,6 +26,27 @@ jobs:
           npm ci
           npm run build
       
+      - name: Create deployment archive
+        run: |
+          # Copy files to a temporary directory to avoid "file changed as we read it" error
+          mkdir -p /tmp/deploy_temp
+          rsync -av --progress . /tmp/deploy_temp \
+            --exclude '.git' \
+            --exclude 'node_modules' \
+            --exclude '.env' \
+            --exclude '.github' \
+            --exclude 'tests' \
+            --exclude '*.pem' \
+            --exclude '*.tar.gz' \
+            --exclude 'storage/logs/*' \
+            --exclude 'storage/framework/cache/*' \
+            --exclude 'storage/framework/sessions/*' \
+            --exclude 'storage/framework/views/*'
+          
+          # Create tarball from the copy
+          cd /tmp && tar -czf deploy.tar.gz deploy_temp
+          mv /tmp/deploy.tar.gz $GITHUB_WORKSPACE/deploy.tar.gz
+      
       - name: Deploy to EC2
         env:
           EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
@@ -35,21 +54,6 @@ jobs:
           # Setup SSH key
           echo "$EC2_KEY" > key.pem
           chmod 600 key.pem
-          
-          # Create tarball excluding unnecessary files
-          find . -name ".DS_Store" -delete 2>/dev/null || true
-          tar --exclude='.git' \
-              --exclude='node_modules' \
-              --exclude='.env' \
-              --exclude='.github' \
-              --exclude='tests' \
-              --exclude='*.pem' \
-              --exclude='*.tar.gz' \
-              --exclude='storage/logs/*' \
-              --exclude='storage/framework/cache/*' \
-              --exclude='storage/framework/sessions/*' \
-              --exclude='storage/framework/views/*' \
-              -czf deploy.tar.gz .
           
           # Transfer to EC2
           scp -o StrictHostKeyChecking=no -i key.pem deploy.tar.gz ubuntu@13.115.38.179:/tmp/
@@ -69,11 +73,16 @@ jobs:
             
             # Create new deployment directory
             sudo mkdir -p current
-            sudo chown ubuntu:ubuntu current
             
-            # Extract files
-            cd current
-            tar -xzf /tmp/deploy.tar.gz
+            # Extract files (remove the deploy_temp directory level)
+            cd /tmp
+            tar -xzf deploy.tar.gz
+            sudo mv deploy_temp/* /var/www/html/current/
+            sudo mv deploy_temp/.[^.]* /var/www/html/current/ 2>/dev/null || true
+            rm -rf deploy_temp
+            
+            # Change to deployment directory
+            cd /var/www/html/current
             
             # Setup environment
             if [ -f /var/www/html/.env.production ]; then
@@ -93,8 +102,9 @@ jobs:
             mkdir -p bootstrap/cache
             
             # Set permissions
-            sudo chown -R www-data:www-data storage bootstrap/cache
+            sudo chown -R www-data:www-data storage bootstrap/cache .env
             sudo chmod -R 775 storage bootstrap/cache
+            sudo chmod 644 .env
             
             # Clear and rebuild caches
             sudo -u www-data php artisan config:clear
