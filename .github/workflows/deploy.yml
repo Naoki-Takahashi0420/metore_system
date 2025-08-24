@@ -28,15 +28,16 @@ jobs:
       
       - name: Create deployment package
         run: |
-          tar -czf deploy.tar.gz \
-            --exclude=node_modules \
-            --exclude=.git \
-            --exclude=.env \
-            --exclude=.github \
-            --exclude=tests \
-            --exclude=*.pem \
-            --exclude=*.tar.gz \
+          tar -czf /tmp/deploy.tar.gz \
+            --exclude='./node_modules' \
+            --exclude='./.git' \
+            --exclude='./.env' \
+            --exclude='./.github' \
+            --exclude='./tests' \
+            --exclude='./deploy.tar.gz' \
+            --exclude='./*.pem' \
             .
+          mv /tmp/deploy.tar.gz deploy.tar.gz
       
       - name: Deploy to EC2
         env:
