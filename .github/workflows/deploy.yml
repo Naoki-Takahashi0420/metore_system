@@ -1,4 +1,4 @@
-name: Deploy to AWS EC2
+name: Simple Deploy to AWS EC2
 
 on:
   push:
@@ -20,14 +20,6 @@ jobs:
           php-version: '8.3'
           extensions: mbstring, xml, ctype, iconv, intl, pdo, pdo_mysql, dom, filter, gd, json, mbstring, xml
       
-      - name: Cache Composer dependencies
-        uses: actions/cache@v3
-        with:
-          path: vendor
-          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-composer-
-      
       - name: Install dependencies
         run: |
           composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
@@ -41,84 +33,31 @@ jobs:
           echo "$EC2_KEY" > deploy_key.pem
           chmod 600 deploy_key.pem
           
-          # Create deployment package
-          tar -czf deploy.tar.gz \
-            --exclude=node_modules \
-            --exclude=.git \
-            --exclude=.env \
-            --exclude=storage/logs/* \
-            --exclude=storage/framework/cache/* \
-            --exclude=storage/framework/sessions/* \
-            --exclude=storage/framework/views/* \
-            --exclude=.github \
-            --exclude=tests \
-            --exclude=playwright-report \
-            --exclude=test-results \
-            --exclude=*.pem \
-            --exclude=*.tar.gz \
-            --warning=no-file-changed \
-            .
+          # Create deployment package (simplified)
+          tar -czf deploy.tar.gz .
           
           # Transfer files to EC2
           scp -o StrictHostKeyChecking=no -i deploy_key.pem deploy.tar.gz ubuntu@13.115.38.179:/tmp/
           
-          # Deploy on EC2
-          ssh -o StrictHostKeyChecking=no -i deploy_key.pem ubuntu@13.115.38.179 << 'DEPLOY_EOF'
-            cd /var/www/html
-            
-            # Backup current deployment
-            if [ -d "current" ]; then
-              sudo mv current backup_$(date +%Y%m%d_%H%M%S)
-            fi
-            
-            # Extract new deployment
-            sudo mkdir -p current
-            sudo tar -xzf /tmp/deploy.tar.gz -C current
-            sudo chown -R ubuntu:ubuntu current
-            
-            # Copy environment file
-            if [ -f .env.production ]; then
-              cp .env.production current/.env
-            fi
-            
-            # Set up directories
-            cd current
-            mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache
-            
-            # Remove Laravel Pail from bootstrap cache if exists
-            rm -rf bootstrap/cache/*
-            
-            # Install dependencies
-            composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
-            
-            # Set permissions
-            sudo chown -R www-data:www-data storage bootstrap/cache
-            sudo chmod -R 775 storage bootstrap/cache
-            
-            # Run Laravel commands
-            php artisan config:cache
-            php artisan route:cache
-            php artisan view:cache
-            php artisan migrate --force
-            php artisan storage:link
-            
-            # Restart services  
-            sudo systemctl reload php8.3-fpm
-            sudo systemctl reload nginx
-            
-            # Cleanup
-            rm /tmp/deploy.tar.gz
-            
-            echo "Deployment completed successfully!"
-          DEPLOY_EOF
+          # Simple deploy script
+          ssh -o StrictHostKeyChecking=no -i deploy_key.pem ubuntu@13.115.38.179 "
+            cd /var/www/html && \
+            sudo rm -rf current.old && \
+            [ -d current ] && sudo mv current current.old || true && \
+            sudo mkdir current && \
+            sudo tar -xzf /tmp/deploy.tar.gz -C current && \
+            sudo chown -R www-data:www-data current && \
+            [ -f .env.production ] && sudo cp .env.production current/.env || true && \
+            cd current && \
+            sudo -u www-data php artisan config:cache && \
+            sudo -u www-data php artisan route:cache && \
+            sudo -u www-data php artisan view:cache && \
+            sudo -u www-data php artisan migrate --force && \
+            sudo -u www-data php artisan storage:link && \
+            sudo systemctl reload php8.3-fpm && \
+            sudo systemctl reload nginx && \
+            rm /tmp/deploy.tar.gz && \
+            echo 'Deployment completed!'
+          "
           
           rm deploy_key.pem
-      
-      - name: Notify deployment status
-        if: always()
-        run: |
-          if [ ${{ job.status }} == 'success' ]; then
-            echo "Deployment successful!"
-          else
-            echo "Deployment failed!"
-          fi
