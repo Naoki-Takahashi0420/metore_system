@@ -1,0 +1,25 @@
+name: Test Deploy Connection
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test EC2 Connection
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "Testing connection to EC2..."
+          echo "EC2_HOST is set: ${{ secrets.EC2_HOST != '' }}"
+          
+          # Create key file
+          echo "$EC2_KEY" > test_key.pem
+          chmod 600 test_key.pem
+          
+          # Test SSH connection
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i test_key.pem ubuntu@13.115.38.179 "echo 'Connection successful'" || echo "Connection failed"
+          
+          rm test_key.pem
