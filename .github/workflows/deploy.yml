@@ -28,7 +28,6 @@ jobs:
       
       - name: Create deployment archive
         run: |
-          # Copy files to a temporary directory to avoid "file changed as we read it" error
           mkdir -p /tmp/deploy_temp
           rsync -av --progress . /tmp/deploy_temp \
             --exclude '.git' \
@@ -43,7 +42,6 @@ jobs:
             --exclude 'storage/framework/sessions/*' \
             --exclude 'storage/framework/views/*'
           
-          # Create tarball from the copy
           cd /tmp && tar -czf deploy.tar.gz deploy_temp
           mv /tmp/deploy.tar.gz $GITHUB_WORKSPACE/deploy.tar.gz
       
@@ -51,84 +49,62 @@ jobs:
         env:
           EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
-          # Setup SSH key
           echo "$EC2_KEY" > key.pem
           chmod 600 key.pem
           
-          # Transfer to EC2
           scp -o StrictHostKeyChecking=no -i key.pem deploy.tar.gz ubuntu@13.115.38.179:/tmp/
           
-          # Deploy on EC2
           ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 'bash -s' << 'SCRIPT'
             set -e
             
-            # Navigate to web directory
             cd /var/www/html
             
-            # Backup current deployment
             if [ -d "current" ]; then
               sudo rm -rf backup_old 2>/dev/null || true
               sudo mv current backup_old
             fi
             
-            # Create new deployment directory
             sudo mkdir -p current
             
-            # Extract files (remove the deploy_temp directory level)
             cd /tmp
             tar -xzf deploy.tar.gz
-            sudo mv deploy_temp/* /var/www/html/current/
-            sudo mv deploy_temp/.[^.]* /var/www/html/current/ 2>/dev/null || true
+            sudo cp -r deploy_temp/* /var/www/html/current/
+            sudo cp -r deploy_temp/.[^.]* /var/www/html/current/ 2>/dev/null || true
             rm -rf deploy_temp
             
-            # Change to deployment directory
             cd /var/www/html/current
             
-            # Setup environment
+            # Fix ownership first
+            sudo chown -R ubuntu:ubuntu /var/www/html/current
+            
             if [ -f /var/www/html/.env.production ]; then
               cp /var/www/html/.env.production .env
-            else
-              cp .env.example .env 2>/dev/null || true
             fi
             
-            # Generate app key if needed
-            if ! grep -q "^APP_KEY=base64:" .env; then
+            if ! grep -q "^APP_KEY=base64:" .env 2>/dev/null; then
               php artisan key:generate --force
             fi
             
-            # Create necessary directories
             mkdir -p storage/framework/{cache/data,sessions,views}
             mkdir -p storage/logs
             mkdir -p bootstrap/cache
             
-            # Set permissions
-            sudo chown -R www-data:www-data storage bootstrap/cache .env
+            sudo chown -R www-data:www-data storage bootstrap/cache
             sudo chmod -R 775 storage bootstrap/cache
-            sudo chmod 644 .env
             
-            # Clear and rebuild caches
-            sudo -u www-data php artisan config:clear
-            sudo -u www-data php artisan cache:clear 2>/dev/null || true
             sudo -u www-data php artisan config:cache
             sudo -u www-data php artisan route:cache
             sudo -u www-data php artisan view:cache
-            
-            # Run migrations
             sudo -u www-data php artisan migrate --force
-            
-            # Create storage link
             sudo -u www-data php artisan storage:link --force
             
-            # Restart services
             sudo systemctl reload php8.3-fpm
             sudo systemctl reload nginx
             
-            # Cleanup
             rm /tmp/deploy.tar.gz
             
             echo "Deployment completed successfully!"
           SCRIPT
           
-          # Cleanup
           rm key.pem
           rm deploy.tar.gz
