@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          submodules: false
       
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -26,56 +28,86 @@ jobs:
           npm ci
           npm run build
       
-      - name: Create deployment package
-        run: |
-          tar -czf /tmp/deploy.tar.gz \
-            --exclude='./node_modules' \
-            --exclude='./.git' \
-            --exclude='./.env' \
-            --exclude='./.github' \
-            --exclude='./tests' \
-            --exclude='./deploy.tar.gz' \
-            --exclude='./*.pem' \
-            .
-          mv /tmp/deploy.tar.gz deploy.tar.gz
-      
       - name: Deploy to EC2
         env:
           EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
+          # Setup SSH key
           echo "$EC2_KEY" > key.pem
           chmod 600 key.pem
           
-          # Transfer files
+          # Create tarball excluding unnecessary files
+          find . -name ".DS_Store" -delete 2>/dev/null || true
+          tar --exclude='.git' \
+              --exclude='node_modules' \
+              --exclude='.env' \
+              --exclude='.github' \
+              --exclude='tests' \
+              --exclude='*.pem' \
+              --exclude='*.tar.gz' \
+              --exclude='storage/logs/*' \
+              --exclude='storage/framework/cache/*' \
+              --exclude='storage/framework/sessions/*' \
+              --exclude='storage/framework/views/*' \
+              -czf deploy.tar.gz .
+          
+          # Transfer to EC2
           scp -o StrictHostKeyChecking=no -i key.pem deploy.tar.gz ubuntu@13.115.38.179:/tmp/
           
-          # Deploy script
-          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 '
+          # Deploy on EC2
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 'bash -s' << 'SCRIPT'
+            set -e
+            
+            # Navigate to web directory
             cd /var/www/html
             
-            # Backup and extract
-            [ -d current ] && sudo mv current backup_$(date +%Y%m%d_%H%M%S)
-            sudo mkdir current
-            sudo tar -xzf /tmp/deploy.tar.gz -C current
-            sudo chown -R ubuntu:ubuntu current
+            # Backup current deployment
+            if [ -d "current" ]; then
+              sudo rm -rf backup_old 2>/dev/null || true
+              sudo mv current backup_old
+            fi
             
-            # Setup Laravel
+            # Create new deployment directory
+            sudo mkdir -p current
+            sudo chown ubuntu:ubuntu current
+            
+            # Extract files
             cd current
-            [ -f /var/www/html/.env.production ] && cp /var/www/html/.env.production .env
+            tar -xzf /tmp/deploy.tar.gz
             
-            # Create directories
-            mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache
+            # Setup environment
+            if [ -f /var/www/html/.env.production ]; then
+              cp /var/www/html/.env.production .env
+            else
+              cp .env.example .env 2>/dev/null || true
+            fi
             
-            # Permissions
+            # Generate app key if needed
+            if ! grep -q "^APP_KEY=base64:" .env; then
+              php artisan key:generate --force
+            fi
+            
+            # Create necessary directories
+            mkdir -p storage/framework/{cache/data,sessions,views}
+            mkdir -p storage/logs
+            mkdir -p bootstrap/cache
+            
+            # Set permissions
             sudo chown -R www-data:www-data storage bootstrap/cache
             sudo chmod -R 775 storage bootstrap/cache
             
-            # Laravel commands
-            php artisan config:cache
-            php artisan route:cache
-            php artisan view:cache
-            php artisan migrate --force
-            php artisan storage:link
+            # Clear and rebuild caches
+            sudo -u www-data php artisan config:clear
+            sudo -u www-data php artisan cache:clear 2>/dev/null || true
+            sudo -u www-data php artisan config:cache
+            sudo -u www-data php artisan route:cache
+            sudo -u www-data php artisan view:cache
+            
+            # Run migrations
+            sudo -u www-data php artisan migrate --force
+            
+            # Create storage link
+            sudo -u www-data php artisan storage:link --force
             
             # Restart services
             sudo systemctl reload php8.3-fpm
@@ -84,7 +116,9 @@ jobs:
             # Cleanup
             rm /tmp/deploy.tar.gz
             
-            echo "Deploy success!"
-          '
+            echo "Deployment completed successfully!"
+          SCRIPT
           
+          # Cleanup
           rm key.pem
+          rm deploy.tar.gz
