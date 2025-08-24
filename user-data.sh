@@ -1,6 +1,12 @@
 #!/bin/bash
 yum update -y
-yum install -y nginx php82 php82-fpm php82-mysqlnd php82-bcmath php82-xml php82-mbstring php82-gd php82-curl php82-zip git
+yum install -y nginx git
+
+# Install PHP 8.3
+dnf install -y https://rpms.remirepo.net/enterprise/remi-release-9.rpm
+dnf module reset php -y
+dnf module enable php:remi-8.3 -y
+dnf install -y php php-fpm php-mysqlnd php-bcmath php-xml php-mbstring php-gd php-curl php-zip php-intl php-opcache
 
 # Install Composer
 curl -sS https://getcomposer.org/installer | php

@@ -47,4 +47,22 @@ class CustomerController extends Controller
     {
         //
     }
+
+    /**
+     * 顧客のカルテ（医療記録）取得
+     */
+    public function getMedicalRecords(Request $request)
+    {
+        $customer = $request->user();
+        
+        $medicalRecords = $customer->medicalRecords()
+            ->with(['reservation.store', 'reservation.menu', 'createdBy'])
+            ->orderBy('record_date', 'desc')
+            ->get();
+
+        return response()->json([
+            'message' => 'カルテを取得しました',
+            'data' => $medicalRecords
+        ]);
+    }
 }

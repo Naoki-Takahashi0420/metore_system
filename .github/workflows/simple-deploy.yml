@@ -1,0 +1,87 @@
+name: Simple Deploy to EC2
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.4
+
+      - name: Install dependencies
+        run: |
+          composer install --no-dev --optimize-autoloader
+          npm install && npm run build
+
+      - name: Create simple deployment
+        run: |
+          tar -czf app.tar.gz \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='tests' \
+            --exclude='.env.example' \
+            .
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /var/www/html
+            
+            # Backup
+            sudo cp -r . ../backup-$(date +%s) 2>/dev/null || true
+            
+            # Deploy
+            sudo rm -rf /tmp/deploy
+            mkdir /tmp/deploy
+            cd /tmp/deploy
+            
+            # Download and extract
+            curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                 -L "https://api.github.com/repos/${{ github.repository }}/tarball/main" \
+                 -o app.tar.gz
+            tar -xzf app.tar.gz --strip-components=1
+            
+            # Set up environment
+            cp /var/www/html/.env . || cp .env.example .env
+            
+            # Install and optimize
+            composer install --no-dev --optimize-autoloader
+            php artisan migrate --force
+            php artisan config:cache
+            php artisan route:cache
+            
+            # Replace files
+            sudo rsync -av --exclude='.env' . /var/www/html/
+            sudo chown -R www-data:www-data /var/www/html
+            sudo chmod -R 755 /var/www/html
+            sudo chmod -R 775 /var/www/html/storage
+            
+            # Restart services
+            sudo systemctl reload nginx
+            sudo systemctl restart php8.4-fpm
+            
+            # Cleanup
+            rm -rf /tmp/deploy
+
+      - name: Simple health check
+        run: |
+          sleep 10
+          if curl -f http://${{ secrets.EC2_HOST }}/health; then
+            echo "✅ Deployment successful!"
+          else
+            echo "❌ Deployment failed"
+            exit 1
+          fi

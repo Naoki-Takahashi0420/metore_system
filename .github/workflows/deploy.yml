@@ -17,7 +17,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: '8.3'
           extensions: mbstring, xml, ctype, iconv, intl, pdo, pdo_mysql, dom, filter, gd, json, mbstring, xml
       
       - name: Cache Composer dependencies
@@ -93,7 +93,7 @@ jobs:
             php artisan storage:link
             
             # Restart services
-            sudo systemctl reload php8.2-fpm
+            sudo systemctl reload php-fpm
             sudo systemctl reload nginx
             
             # Cleanup

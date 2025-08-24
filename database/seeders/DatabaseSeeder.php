@@ -17,6 +17,9 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             StoreSeeder::class,
             MenuSeeder::class,
+            CustomerSeeder::class,
+            ReservationSeeder::class,
+            MedicalRecordSeeder::class,
         ]);
     }
 }

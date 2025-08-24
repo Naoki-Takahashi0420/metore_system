@@ -14,6 +14,8 @@ class Reservation extends Model
         'reservation_number',
         'store_id',
         'customer_id',
+        'menu_id',
+        'shift_id',
         'staff_id',
         'reservation_date',
         'start_time',
@@ -26,6 +28,8 @@ class Reservation extends Model
         'payment_status',
         'menu_items',
         'notes',
+        'internal_notes',
+        'source',
         'cancel_reason',
         'confirmed_at',
         'cancelled_at',
@@ -58,7 +62,7 @@ class Reservation extends Model
     /**
      * 予約番号生成
      */
-    private static function generateReservationNumber(): string
+    public static function generateReservationNumber(): string
     {
         do {
             $number = 'R' . date('Ymd') . strtoupper(Str::random(6));
@@ -92,11 +96,37 @@ class Reservation extends Model
     }
 
     /**
+     * リレーション: メニュー
+     */
+    public function menu()
+    {
+        return $this->belongsTo(Menu::class);
+    }
+
+    /**
+     * リレーション: シフト
+     */
+    public function shift()
+    {
+        return $this->belongsTo(Shift::class);
+    }
+
+    /**
      * リレーション: カルテ
      */
     public function medicalRecords()
     {
         return $this->hasMany(MedicalRecord::class);
+    }
+
+    /**
+     * リレーション: オプションメニュー
+     */
+    public function optionMenus()
+    {
+        return $this->belongsToMany(Menu::class, 'reservation_menu_options')
+            ->withPivot('price', 'duration')
+            ->withTimestamps();
     }
 
     /**

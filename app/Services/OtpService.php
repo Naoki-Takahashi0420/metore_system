@@ -101,6 +101,11 @@ class OtpService
      */
     private function generateOtp(): string
     {
+        // 開発環境では固定のOTPコード "123456" を使用
+        if (app()->environment('local')) {
+            return '123456';
+        }
+        
         return str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
     }
 }

@@ -13,19 +13,32 @@ class MedicalRecord extends Model
         'customer_id',
         'staff_id',
         'reservation_id',
-        'visit_date',
+        'record_date',
+        'chief_complaint',
         'symptoms',
         'diagnosis',
         'treatment',
+        'prescription',
         'medications',
+        'medical_history',
         'notes',
+        'images',
+        'image_notes',
         'next_visit_date',
+        'actual_reservation_date',
+        'date_difference_days',
+        'reservation_status',
+        'reminder_sent_at',
+        'created_by',
     ];
 
     protected $casts = [
-        'visit_date' => 'date',
+        'record_date' => 'date',
         'next_visit_date' => 'date',
+        'actual_reservation_date' => 'date',
+        'reminder_sent_at' => 'datetime',
         'medications' => 'array',
+        'images' => 'array',
     ];
 
     /**
@@ -53,10 +66,18 @@ class MedicalRecord extends Model
     }
 
     /**
+     * リレーション: 記録作成者
+     */
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
      * スコープ: 日付範囲
      */
     public function scopeBetweenDates($query, $startDate, $endDate)
     {
-        return $query->whereBetween('visit_date', [$startDate, $endDate]);
+        return $query->whereBetween('record_date', [$startDate, $endDate]);
     }
 }

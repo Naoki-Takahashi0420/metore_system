@@ -141,6 +141,8 @@ class CustomerAuthController extends Controller
                 'customer' => [
                     'id' => $customer->id,
                     'name' => $customer->full_name,
+                    'last_name' => $customer->last_name,
+                    'first_name' => $customer->first_name,
                     'phone' => $customer->phone,
                     'email' => $customer->email,
                 ],
@@ -218,6 +220,8 @@ class CustomerAuthController extends Controller
                 'customer' => [
                     'id' => $customer->id,
                     'name' => $customer->full_name,
+                    'last_name' => $customer->last_name,
+                    'first_name' => $customer->first_name,
                     'phone' => $customer->phone,
                     'email' => $customer->email,
                 ],

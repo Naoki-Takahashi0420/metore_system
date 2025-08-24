@@ -13,14 +13,14 @@ class StoreSeeder extends Seeder
     public function run(): void
     {
         Store::create([
-            'name' => 'Xsyumeno 東京本店',
-            'name_kana' => 'エックスシューメノ トウキョウホンテン',
+            'name' => '目のトレーニング 東京本店',
+            'name_kana' => 'メノトレーニング トウキョウホンテン',
             'postal_code' => '106-0032',
             'prefecture' => '東京都',
             'city' => '港区',
             'address' => '六本木1-1-1',
             'phone' => '03-1234-5678',
-            'email' => 'tokyo@xsyumeno.com',
+            'email' => 'tokyo@eye-training.com',
             'opening_hours' => [
                 'monday' => ['open' => '09:00', 'close' => '18:00'],
                 'tuesday' => ['open' => '09:00', 'close' => '18:00'],
@@ -43,14 +43,14 @@ class StoreSeeder extends Seeder
         ]);
 
         Store::create([
-            'name' => 'Xsyumeno 大阪支店',
-            'name_kana' => 'エックスシューメノ オオサカシテン',
+            'name' => '目のトレーニング 大阪支店',
+            'name_kana' => 'メノトレーニング オオサカシテン',
             'postal_code' => '542-0081',
             'prefecture' => '大阪府',
             'city' => '大阪市中央区',
             'address' => '南船場3-3-3',
             'phone' => '06-2345-6789',
-            'email' => 'osaka@xsyumeno.com',
+            'email' => 'osaka@eye-training.com',
             'opening_hours' => [
                 'monday' => ['open' => '10:00', 'close' => '19:00'],
                 'tuesday' => ['open' => '10:00', 'close' => '19:00'],

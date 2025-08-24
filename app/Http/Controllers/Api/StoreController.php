@@ -14,7 +14,7 @@ class StoreController extends Controller
     public function index()
     {
         $stores = Store::where('is_active', true)
-            ->select(['id', 'name', 'name_kana', 'prefecture', 'city', 'address', 'phone', 'opening_hours', 'holidays'])
+            ->select(['id', 'name', 'name_kana', 'prefecture', 'city', 'address', 'phone', 'image_path', 'opening_hours', 'holidays'])
             ->get();
 
         return response()->json([

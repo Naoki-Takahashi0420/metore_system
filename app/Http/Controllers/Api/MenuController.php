@@ -72,6 +72,31 @@ class MenuController extends Controller
     }
 
     /**
+     * アップセル用メニュー取得
+     */
+    public function upsell(Request $request)
+    {
+        $query = Menu::where('is_available', true)
+            ->where('show_in_upsell', true);
+        
+        // 除外するメニューID
+        if ($request->has('exclude')) {
+            $excludeIds = is_array($request->exclude) ? $request->exclude : [$request->exclude];
+            $query->whereNotIn('id', $excludeIds);
+        }
+        
+        // 店舗IDでフィルター
+        if ($request->has('store_id')) {
+            $query->where('store_id', $request->store_id);
+        }
+        
+        $upsellMenus = $query->orderBy('display_order')
+            ->get(['id', 'name', 'description', 'upsell_description', 'price', 'duration', 'category']);
+
+        return response()->json($upsellMenus);
+    }
+
+    /**
      * Remove the specified resource from storage.
      */
     public function destroy(Menu $menu)

@@ -12,27 +12,44 @@ class Store extends Model
     protected $fillable = [
         'name',
         'name_kana',
+        'code',
         'postal_code',
         'prefecture',
         'city',
         'address',
         'phone',
+        'image_path',
         'email',
+        'description',
+        'access',
         'opening_hours',
+        'business_hours',
         'holidays',
         'capacity',
         'settings',
         'reservation_settings',
+        'payment_methods',
+        'reservation_slot_duration',
+        'max_advance_days',
+        'cancellation_deadline_hours',
+        'require_confirmation',
         'is_active',
+        'status',
     ];
 
     protected $casts = [
         'opening_hours' => 'array',
+        'business_hours' => 'array',
         'holidays' => 'array',
         'settings' => 'array',
         'reservation_settings' => 'array',
+        'payment_methods' => 'array',
         'is_active' => 'boolean',
+        'require_confirmation' => 'boolean',
         'capacity' => 'integer',
+        'reservation_slot_duration' => 'integer',
+        'max_advance_days' => 'integer',
+        'cancellation_deadline_hours' => 'integer',
     ];
 
     /**
@@ -68,6 +85,18 @@ class Store extends Model
     }
 
     /**
+     * 店舗コードを自動生成
+     */
+    public static function generateStoreCode(): string
+    {
+        do {
+            $code = 'ST' . str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
+        } while (static::where('code', $code)->exists());
+        
+        return $code;
+    }
+
+    /**
      * 営業中かチェック
      */
     public function isOpen(): bool
@@ -89,5 +118,16 @@ class Store extends Model
         $closeTime = $now->copy()->setTimeFromTimeString($hours['close']);
 
         return $now->between($openTime, $closeTime);
+    }
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($store) {
+            if (empty($store->code)) {
+                $store->code = static::generateStoreCode();
+            }
+        });
     }
 }
