@@ -59,6 +59,13 @@ jobs:
             --exclude=storage/framework/cache/* \
             --exclude=storage/framework/sessions/* \
             --exclude=storage/framework/views/* \
+            --exclude=.github \
+            --exclude=tests \
+            --exclude=playwright-report \
+            --exclude=test-results \
+            --exclude=*.pem \
+            --exclude=*.tar.gz \
+            --warning=no-file-changed \
             .
           
           # Transfer files to EC2
