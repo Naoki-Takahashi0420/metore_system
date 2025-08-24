@@ -99,8 +99,8 @@ jobs:
             php artisan migrate --force
             php artisan storage:link
             
-            # Restart services
-            sudo systemctl reload php-fpm
+            # Restart services  
+            sudo systemctl reload php8.3-fpm
             sudo systemctl reload nginx
             
             # Cleanup
