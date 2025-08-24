@@ -1,4 +1,4 @@
-name: Simple Deploy to AWS EC2
+name: Deploy to AWS EC2
 
 on:
   push:
@@ -26,38 +26,64 @@ jobs:
           npm ci
           npm run build
       
+      - name: Create deployment package
+        run: |
+          tar -czf deploy.tar.gz \
+            --exclude=node_modules \
+            --exclude=.git \
+            --exclude=.env \
+            --exclude=.github \
+            --exclude=tests \
+            --exclude=*.pem \
+            --exclude=*.tar.gz \
+            .
+      
       - name: Deploy to EC2
         env:
           EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
-          echo "$EC2_KEY" > deploy_key.pem
-          chmod 600 deploy_key.pem
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
           
-          # Create deployment package (simplified)
-          tar -czf deploy.tar.gz .
+          # Transfer files
+          scp -o StrictHostKeyChecking=no -i key.pem deploy.tar.gz ubuntu@13.115.38.179:/tmp/
           
-          # Transfer files to EC2
-          scp -o StrictHostKeyChecking=no -i deploy_key.pem deploy.tar.gz ubuntu@13.115.38.179:/tmp/
+          # Deploy script
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 '
+            cd /var/www/html
+            
+            # Backup and extract
+            [ -d current ] && sudo mv current backup_$(date +%Y%m%d_%H%M%S)
+            sudo mkdir current
+            sudo tar -xzf /tmp/deploy.tar.gz -C current
+            sudo chown -R ubuntu:ubuntu current
+            
+            # Setup Laravel
+            cd current
+            [ -f /var/www/html/.env.production ] && cp /var/www/html/.env.production .env
+            
+            # Create directories
+            mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache
+            
+            # Permissions
+            sudo chown -R www-data:www-data storage bootstrap/cache
+            sudo chmod -R 775 storage bootstrap/cache
+            
+            # Laravel commands
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            php artisan migrate --force
+            php artisan storage:link
+            
+            # Restart services
+            sudo systemctl reload php8.3-fpm
+            sudo systemctl reload nginx
+            
+            # Cleanup
+            rm /tmp/deploy.tar.gz
+            
+            echo "Deploy success!"
+          '
           
-          # Simple deploy script
-          ssh -o StrictHostKeyChecking=no -i deploy_key.pem ubuntu@13.115.38.179 "
-            cd /var/www/html && \
-            sudo rm -rf current.old && \
-            [ -d current ] && sudo mv current current.old || true && \
-            sudo mkdir current && \
-            sudo tar -xzf /tmp/deploy.tar.gz -C current && \
-            sudo chown -R www-data:www-data current && \
-            [ -f .env.production ] && sudo cp .env.production current/.env || true && \
-            cd current && \
-            sudo -u www-data php artisan config:cache && \
-            sudo -u www-data php artisan route:cache && \
-            sudo -u www-data php artisan view:cache && \
-            sudo -u www-data php artisan migrate --force && \
-            sudo -u www-data php artisan storage:link && \
-            sudo systemctl reload php8.3-fpm && \
-            sudo systemctl reload nginx && \
-            rm /tmp/deploy.tar.gz && \
-            echo 'Deployment completed!'
-          "
-          
-          rm deploy_key.pem
+          rm key.pem
