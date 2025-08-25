@@ -1,0 +1,45 @@
+name: Test Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Test EC2 Connection
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+      run: |
+        echo "$EC2_KEY" > key.pem
+        chmod 600 key.pem
+        
+        ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@3.112.39.129 << 'TEST'
+        echo "=== Testing EC2 Connection ==="
+        
+        # Check current directory
+        echo "Current directory:"
+        pwd
+        
+        # Check web directory
+        echo -e "\nWeb directory contents:"
+        ls -la /var/www/html/
+        
+        # Check if Laravel exists
+        echo -e "\nLaravel public directory:"
+        ls -la /var/www/html/public/ 2>/dev/null || echo "Public directory not found"
+        
+        # Check Nginx config
+        echo -e "\nNginx root directory:"
+        grep "root" /etc/nginx/sites-available/default
+        
+        # Create test file
+        echo -e "\nCreating test file..."
+        echo "<?php phpinfo(); ?>" | sudo tee /var/www/html/public/info.php
+        sudo chmod 644 /var/www/html/public/info.php
+        
+        echo -e "\n=== Test Complete ==="
+        TEST
+        
+        rm key.pem
