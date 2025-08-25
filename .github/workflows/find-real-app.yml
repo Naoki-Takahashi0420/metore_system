@@ -1,0 +1,74 @@
+name: Find Real Application Location
+
+on:
+  workflow_dispatch:
+
+jobs:
+  find:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Find where application is actually running
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            echo "=== Finding Laravel Application ==="
+            
+            # Nginxの設定から実際のドキュメントルートを確認
+            echo "=== Nginx Document Root ==="
+            grep -r "root" /etc/nginx/sites-enabled/ 2>/dev/null | grep -v "#"
+            
+            # 各候補ディレクトリを確認
+            echo -e "\n=== Checking /var/www/html/current ==="
+            ls -la /var/www/html/current 2>/dev/null | head -5
+            
+            echo -e "\n=== Checking /var/www/html ==="
+            ls -la /var/www/html 2>/dev/null | head -10
+            
+            echo -e "\n=== Checking /home/ubuntu/xsyumeno ==="
+            ls -la /home/ubuntu/xsyumeno 2>/dev/null | head -5
+            
+            # artisanファイルを探す
+            echo -e "\n=== Searching for active artisan ==="
+            find /var/www -name "artisan" -type f 2>/dev/null | while read artisan; do
+              dir=$(dirname "$artisan")
+              echo "Found: $artisan"
+              if [ -f "$dir/.env" ]; then
+                echo "  Has .env: YES"
+                grep "APP_NAME\|DB_HOST" "$dir/.env" | head -2
+              fi
+            done
+            
+            # PHPプロセスの作業ディレクトリ確認
+            echo -e "\n=== PHP-FPM Pool Configuration ==="
+            grep -E "chdir|prefix" /etc/php/8.3/fpm/pool.d/www.conf 2>/dev/null | grep -v ";"
+            
+            # 実行中のプロセス確認
+            echo -e "\n=== Running Processes ==="
+            ps aux | grep -E "artisan|php" | grep -v grep | head -5
+            
+            # 本番で動いているかテスト
+            echo -e "\n=== Testing Web Response ==="
+            curl -I http://localhost/ 2>/dev/null | head -5
+            
+            echo -e "\n=== Most likely location ==="
+            if [ -f "/var/www/html/current/artisan" ]; then
+              echo "Application is at: /var/www/html/current"
+              cd /var/www/html/current
+              pwd
+              ls -la | head -10
+            elif [ -f "/var/www/html/artisan" ]; then
+              echo "Application is at: /var/www/html"
+              cd /var/www/html
+              pwd
+              ls -la | head -10
+            else
+              echo "Application not found in standard locations!"
+            fi
+          EOF
+          
+          rm key.pem
