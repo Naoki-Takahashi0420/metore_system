@@ -1,0 +1,89 @@
+name: Restore Correct Application
+
+on:
+  workflow_dispatch:
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Restore application correctly
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            echo "=== Restoring Application ==="
+            
+            # 最新のバックアップから復元
+            cd /var/www/html
+            
+            # backup_oldディレクトリが実際のバックアップの場合
+            if [ -f "backup_old/artisan" ]; then
+              echo "Restoring from backup_old..."
+              sudo cp -r backup_old/* ./
+              sudo cp -r backup_old/.* ./ 2>/dev/null || true
+            # backup_20250825_000925が最新の場合
+            elif [ -f "backup_20250825_000925/artisan" ]; then
+              echo "Restoring from backup_20250825_000925..."
+              sudo cp -r backup_20250825_000925/* ./
+              sudo cp -r backup_20250825_000925/.* ./ 2>/dev/null || true
+            else
+              echo "Error: No valid backup found with artisan file!"
+              ls -la backup_*/artisan 2>/dev/null
+              exit 1
+            fi
+            
+            # 権限設定
+            sudo chown -R ubuntu:ubuntu /var/www/html
+            sudo chmod -R 755 /var/www/html
+            sudo chmod -R 777 /var/www/html/storage
+            sudo chmod -R 777 /var/www/html/bootstrap/cache
+            
+            # .env設定
+            if [ -f ".env.production" ] && [ ! -f ".env" ]; then
+              echo "Setting up .env from .env.production"
+              cp .env.production .env
+            fi
+            
+            # Composerパッケージ確認と更新
+            if [ -f "composer.json" ]; then
+              echo "Installing/updating composer packages..."
+              composer install --no-dev --optimize-autoloader
+            fi
+            
+            # Laravel最適化
+            echo "Optimizing Laravel..."
+            php artisan config:clear
+            php artisan cache:clear
+            php artisan view:clear
+            php artisan route:clear
+            
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            
+            # サービス再起動
+            sudo systemctl restart nginx
+            sudo systemctl restart php8.3-fpm
+            
+            # 動作確認
+            echo -e "\n=== Application Status ==="
+            ls -la | head -10
+            
+            echo -e "\n=== Testing HTTP Response ==="
+            curl -I http://localhost/ 2>/dev/null | head -10
+            
+            echo -e "\n=== Checking Logs ==="
+            tail -n 30 storage/logs/laravel.log 2>/dev/null || echo "No logs yet"
+            
+            echo -e "\n=== Environment Check ==="
+            php artisan tinker --execute="echo 'APP_ENV: ' . config('app.env');"
+            php artisan tinker --execute="echo 'APP_DEBUG: ' . config('app.debug');"
+            php artisan tinker --execute="echo 'DB: ' . (DB::connection()->getPdo() ? 'Connected' : 'Failed');"
+          EOF
+          
+          rm key.pem
