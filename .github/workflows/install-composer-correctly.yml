@@ -1,0 +1,61 @@
+name: Install Composer Correctly
+
+on:
+  workflow_dispatch:
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Install Composer and Dependencies
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+      run: |
+        echo "$EC2_KEY" > key.pem
+        chmod 600 key.pem
+        
+        ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@54.249.2.157 << 'COMPOSER'
+        echo "=== Installing Composer Correctly on 54.249.2.157 ==="
+        
+        # Install composer in home directory first
+        cd ~
+        curl -sS https://getcomposer.org/installer | php
+        sudo mv composer.phar /usr/local/bin/composer
+        sudo chmod 755 /usr/local/bin/composer
+        
+        # Verify composer
+        echo "Composer version:"
+        composer --version
+        
+        # Now install Laravel dependencies
+        cd /var/www/html
+        
+        # Run composer as www-data user
+        sudo -u www-data composer install --no-dev --optimize-autoloader 2>&1 || \
+          sudo composer install --no-dev --optimize-autoloader
+        
+        # Verify vendor directory
+        echo -e "\nChecking vendor directory:"
+        ls -la vendor/ | head -5
+        
+        # Fix permissions
+        sudo chown -R www-data:www-data /var/www/html
+        sudo chmod -R 755 /var/www/html
+        sudo chmod -R 775 storage bootstrap/cache
+        
+        # Clear cache
+        sudo php artisan config:clear
+        sudo php artisan cache:clear
+        
+        # Restart services
+        sudo systemctl restart nginx php8.1-fpm
+        
+        echo -e "\n=== Testing ==="
+        sleep 2
+        curl -I http://localhost/
+        
+        echo "=== DONE ==="
+        COMPOSER
+        
+        rm key.pem
