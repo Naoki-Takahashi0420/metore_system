@@ -95,92 +95,8 @@
                     {
                       "workerIndex": 0,
                       "parallelIndex": 0,
-                      "status": "failed",
-                      "duration": 31970,
-                      "error": {
-                        "message": "TimeoutError: locator.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[type=\"email\"]')\u001b[22m\n",
-                        "stack": "TimeoutError: locator.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[type=\"email\"]')\u001b[22m\n\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/debug-login.spec.ts:41:22",
-                        "location": {
-                          "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/debug-login.spec.ts",
-                          "column": 22,
-                          "line": 41
-                        },
-                        "snippet": "  39 |     \n  40 |     console.log('3. ログイン情報を入力...');\n> 41 |     await emailInput.fill('admin@xsyumeno.com');\n     |                      ^\n  42 |     await passwordInput.fill('password');\n  43 |     await page.screenshot({ path: 'test-results/2-filled-form.png' });\n  44 |     "
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/debug-login.spec.ts",
-                            "column": 22,
-                            "line": 41
-                          },
-                          "message": "TimeoutError: locator.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[type=\"email\"]')\u001b[22m\n\n\n  39 |     \n  40 |     console.log('3. ログイン情報を入力...');\n> 41 |     await emailInput.fill('admin@xsyumeno.com');\n     |                      ^\n  42 |     await passwordInput.fill('password');\n  43 |     await page.screenshot({ path: 'test-results/2-filled-form.png' });\n  44 |     \n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/debug-login.spec.ts:41:22"
-                        }
-                      ],
-                      "stdout": [
-                        {
-                          "text": "1. ログインページにアクセス...\n"
-                        },
-                        {
-                          "text": "HTTP Error 500: http://13.115.38.179/admin/login\n"
-                        },
-                        {
-                          "text": "Browser console: Failed to load resource: the server responded with a status of 500 (Internal Server Error)\n"
-                        },
-                        {
-                          "text": "ページタイトル: Server Error\n"
-                        },
-                        {
-                          "text": "2. フォーム要素の確認...\n"
-                        },
-                        {
-                          "text": "Email input visible: \u001b[33mfalse\u001b[39m\n"
-                        },
-                        {
-                          "text": "Password input visible: \u001b[33mfalse\u001b[39m\n"
-                        },
-                        {
-                          "text": "Submit button visible: \u001b[33mfalse\u001b[39m\n"
-                        },
-                        {
-                          "text": "Livewire scripts found: \u001b[33m0\u001b[39m\n"
-                        },
-                        {
-                          "text": "3. ログイン情報を入力...\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2025-08-25T03:01:02.269Z",
-                      "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-debug-login-ログイン問題デバッグ-詳細なログインデバッグ-chromium/test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-debug-login-ログイン問題デバッグ-詳細なログインデバッグ-chromium/video.webm"
-                        },
-                        {
-                          "name": "error-context",
-                          "contentType": "text/markdown",
-                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-debug-login-ログイン問題デバッグ-詳細なログインデバッグ-chromium/error-context.md"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/debug-login.spec.ts",
-                        "column": 22,
-                        "line": 41
-                      }
-                    },
-                    {
-                      "workerIndex": 1,
-                      "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 7433,
+                      "duration": 6881,
                       "errors": [],
                       "stdout": [
                         {
@@ -242,146 +158,18 @@
                         }
                       ],
                       "stderr": [],
-                      "retry": 1,
-                      "startTime": "2025-08-25T03:01:35.673Z",
+                      "retry": 0,
+                      "startTime": "2025-08-25T03:05:47.707Z",
                       "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "trace",
-                          "contentType": "application/zip",
-                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-debug-login-ログイン問題デバッグ-詳細なログインデバッグ-chromium-retry1/trace.zip"
-                        }
-                      ]
+                      "attachments": []
                     }
                   ],
-                  "status": "flaky"
+                  "status": "expected"
                 }
               ],
               "id": "108e98fe4a680f0529f4-b74d6991c79900bb9a94",
               "file": "e2e/debug-login.spec.ts",
               "line": 6,
-              "column": 3
-            },
-            {
-              "title": "CURLでのログインテスト",
-              "ok": false,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 60000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 1,
-                      "parallelIndex": 0,
-                      "status": "failed",
-                      "duration": 334,
-                      "error": {
-                        "message": "ReferenceError: require is not defined",
-                        "stack": "ReferenceError: require is not defined\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/debug-login.spec.ts:103:22",
-                        "location": {
-                          "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/debug-login.spec.ts",
-                          "column": 22,
-                          "line": 103
-                        },
-                        "snippet": "  101 |\n  102 |   test('CURLでのログインテスト', async ({ page }) => {\n> 103 |     const { exec } = require('child_process');\n      |                      ^\n  104 |     const util = require('util');\n  105 |     const execPromise = util.promisify(exec);\n  106 |     "
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/debug-login.spec.ts",
-                            "column": 22,
-                            "line": 103
-                          },
-                          "message": "ReferenceError: require is not defined\n\n  101 |\n  102 |   test('CURLでのログインテスト', async ({ page }) => {\n> 103 |     const { exec } = require('child_process');\n      |                      ^\n  104 |     const util = require('util');\n  105 |     const execPromise = util.promisify(exec);\n  106 |     \n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/debug-login.spec.ts:103:22"
-                        }
-                      ],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2025-08-25T03:01:43.602Z",
-                      "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-debug-login-ログイン問題デバッグ-CURLでのログインテスト-chromium/test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-debug-login-ログイン問題デバッグ-CURLでのログインテスト-chromium/video.webm"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/debug-login.spec.ts",
-                        "column": 22,
-                        "line": 103
-                      }
-                    },
-                    {
-                      "workerIndex": 2,
-                      "parallelIndex": 0,
-                      "status": "failed",
-                      "duration": 457,
-                      "error": {
-                        "message": "ReferenceError: require is not defined",
-                        "stack": "ReferenceError: require is not defined\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/debug-login.spec.ts:103:22",
-                        "location": {
-                          "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/debug-login.spec.ts",
-                          "column": 22,
-                          "line": 103
-                        },
-                        "snippet": "  101 |\n  102 |   test('CURLでのログインテスト', async ({ page }) => {\n> 103 |     const { exec } = require('child_process');\n      |                      ^\n  104 |     const util = require('util');\n  105 |     const execPromise = util.promisify(exec);\n  106 |     "
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/debug-login.spec.ts",
-                            "column": 22,
-                            "line": 103
-                          },
-                          "message": "ReferenceError: require is not defined\n\n  101 |\n  102 |   test('CURLでのログインテスト', async ({ page }) => {\n> 103 |     const { exec } = require('child_process');\n      |                      ^\n  104 |     const util = require('util');\n  105 |     const execPromise = util.promisify(exec);\n  106 |     \n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/debug-login.spec.ts:103:22"
-                        }
-                      ],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 1,
-                      "startTime": "2025-08-25T03:01:44.491Z",
-                      "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-debug-login-ログイン問題デバッグ-CURLでのログインテスト-chromium-retry1/test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-debug-login-ログイン問題デバッグ-CURLでのログインテスト-chromium-retry1/video.webm"
-                        },
-                        {
-                          "name": "trace",
-                          "contentType": "application/zip",
-                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-debug-login-ログイン問題デバッグ-CURLでのログインテスト-chromium-retry1/trace.zip"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/debug-login.spec.ts",
-                        "column": 22,
-                        "line": 103
-                      }
-                    }
-                  ],
-                  "status": "unexpected"
-                }
-              ],
-              "id": "108e98fe4a680f0529f4-c303635ae1125ef8bc14",
-              "file": "e2e/debug-login.spec.ts",
-              "line": 102,
               "column": 3
             }
           ]
@@ -391,11 +179,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-08-25T03:01:01.958Z",
-    "duration": 43456.296,
-    "expected": 0,
+    "startTime": "2025-08-25T03:05:47.395Z",
+    "duration": 7673.836,
+    "expected": 1,
     "skipped": 0,
-    "unexpected": 1,
-    "flaky": 1
+    "unexpected": 0,
+    "flaky": 0
   }
 }
