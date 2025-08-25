@@ -40,6 +40,13 @@ jobs:
         ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@$TARGET_IP << 'DEPLOY'
         echo "=== Deploying to xsyumeno-server (54.249.2.157) ==="
         
+        # Install PHP MySQL extension if needed
+        if ! php -m | grep -q mysql; then
+          sudo apt-get update
+          sudo apt-get install -y php8.1-mysql php8.1-mbstring php8.1-xml php8.1-curl php8.1-zip
+          sudo systemctl restart php8.1-fpm
+        fi
+        
         # Clean and create directory
         sudo rm -rf /var/www/html
         sudo mkdir -p /var/www/html
@@ -54,7 +61,7 @@ jobs:
         APP_NAME=Xsyumeno
         APP_ENV=production
         APP_KEY=base64:FhDmJJEPuQPAz6t5HMt6qTVSYLs7pJg7xLDgBEcVHHg=
-        APP_DEBUG=false
+        APP_DEBUG=true
         APP_URL=http://54.249.2.157
         
         DB_CONNECTION=mysql
@@ -66,8 +73,16 @@ jobs:
         
         LOG_CHANNEL=stack
         CACHE_DRIVER=file
-        SESSION_DRIVER=file
-        QUEUE_CONNECTION=sync
+        SESSION_DRIVER=database
+        QUEUE_CONNECTION=database
+        
+        BROADCAST_CONNECTION=log
+        FILESYSTEM_DISK=local
+        
+        AWS_DEFAULT_REGION=ap-northeast-1
+        
+        SMS_ENABLED=true
+        SMS_FROM_NAME=Xsyumeno
         ENV
         
         # Install composer if needed
