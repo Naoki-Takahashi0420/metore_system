@@ -1,0 +1,131 @@
+name: Final 500 Error Fix
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Final fix for 500 error
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            echo "=== Checking Current Status ==="
+            
+            # Nginxが正しいディレクトリを指しているか確認
+            echo "Nginx root config:"
+            grep "root" /etc/nginx/sites-enabled/* | head -1
+            
+            # 実際のディレクトリ確認
+            echo -e "\nChecking /var/www/html/current/public:"
+            ls -la /var/www/html/current/public 2>/dev/null | head -5 || echo "Not found"
+            
+            # publicディレクトリがない場合は作成
+            if [ ! -d "/var/www/html/current/public" ]; then
+              echo "public directory missing! Checking current structure..."
+              ls -la /var/www/html/current/ | head -10
+              
+              # Laravelのpublicディレクトリ構造を確認
+              if [ -f "/var/www/html/current/index.php" ]; then
+                echo "Laravel files are in root, not in public!"
+                echo "Updating Nginx to serve from /var/www/html/current"
+                
+                # Nginx設定を修正
+                sudo tee /etc/nginx/sites-available/xsyumeno-fixed > /dev/null << 'NGINX'
+          server {
+              listen 80 default_server;
+              listen [::]:80 default_server;
+              
+              root /var/www/html/current;
+              index index.php index.html;
+              
+              server_name _;
+              
+              location / {
+                  try_files $uri $uri/ /index.php?$query_string;
+              }
+              
+              location ~ \.php$ {
+                  fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
+                  fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+                  include fastcgi_params;
+              }
+              
+              location ~ /\.(?!well-known).* {
+                  deny all;
+              }
+          }
+          NGINX
+                
+                sudo rm -f /etc/nginx/sites-enabled/*
+                sudo ln -s /etc/nginx/sites-available/xsyumeno-fixed /etc/nginx/sites-enabled/
+                sudo nginx -t
+                sudo systemctl restart nginx
+              fi
+            fi
+            
+            # PHP設定確認
+            echo -e "\n=== PHP Configuration ==="
+            php -v
+            php -m | grep -E "pdo|mysql|mbstring|openssl|tokenizer|xml|ctype|json"
+            
+            # Laravel環境確認
+            cd /var/www/html/current
+            
+            echo -e "\n=== Laravel Environment ==="
+            if [ -f ".env" ]; then
+              grep -E "APP_KEY|APP_DEBUG|DB_" .env | head -10
+            else
+              echo ".env file missing!"
+              if [ -f ".env.example" ]; then
+                cp .env.example .env
+                php artisan key:generate
+              fi
+            fi
+            
+            # Composerパッケージ確認
+            echo -e "\n=== Checking Composer Packages ==="
+            if [ ! -d "vendor" ]; then
+              echo "Vendor directory missing! Installing..."
+              composer install --no-dev --optimize-autoloader
+            else
+              echo "Vendor exists"
+            fi
+            
+            # ストレージ権限修正
+            echo -e "\n=== Fixing Permissions ==="
+            sudo chown -R www-data:www-data .
+            sudo chmod -R 755 .
+            sudo chmod -R 777 storage bootstrap/cache
+            
+            # キャッシュクリア
+            echo -e "\n=== Clearing All Caches ==="
+            php artisan config:clear
+            php artisan cache:clear
+            php artisan view:clear
+            php artisan route:clear
+            
+            # エラーログ詳細
+            echo -e "\n=== PHP Error Log ==="
+            sudo tail -20 /var/log/php8.3-fpm.log 2>/dev/null || echo "No PHP-FPM log"
+            
+            echo -e "\n=== Nginx Error Log ==="
+            sudo tail -20 /var/log/nginx/error.log
+            
+            # 最終テスト
+            echo -e "\n=== Final Test ==="
+            curl -I http://localhost/
+            curl -I http://localhost/admin/login
+            
+            # PHPinfo for debugging
+            echo '<?php phpinfo(); ?>' > phpinfo.php
+            echo -e "\nPHP Info available at: http://13.115.38.179/phpinfo.php"
+          EOF
+          
+          rm key.pem
