@@ -1,0 +1,75 @@
+name: Fix Vendor Completely
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Complete vendor fix
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            cd /var/www/html/current
+            
+            echo "=== Current Vendor Status ==="
+            ls -la vendor/ | head -10
+            
+            echo -e "\n=== Checking Missing Package ==="
+            ls -la vendor/laravel/ 2>/dev/null | grep prompts || echo "laravel/prompts missing!"
+            
+            echo -e "\n=== Complete Vendor Rebuild ==="
+            # vendorディレクトリを完全に削除して再構築
+            sudo rm -rf vendor
+            
+            # composer.lockも削除して完全リセット
+            rm -f composer.lock
+            
+            # Composerキャッシュクリア
+            composer clear-cache
+            
+            # 完全再インストール
+            echo "Installing all packages..."
+            composer install --no-interaction --prefer-dist --optimize-autoloader
+            
+            # 確認
+            echo -e "\n=== Verifying Installation ==="
+            ls -la vendor/laravel/ | grep prompts
+            
+            # オートローダー再生成
+            composer dump-autoload -o
+            
+            # 権限修正
+            sudo chown -R www-data:www-data .
+            sudo chmod -R 755 .
+            sudo chmod -R 777 storage bootstrap/cache
+            
+            # キャッシュクリア
+            php artisan config:clear
+            php artisan cache:clear
+            php artisan view:clear
+            php artisan route:clear
+            
+            # サービス再起動
+            sudo systemctl restart php8.3-fpm
+            sudo systemctl restart nginx
+            
+            # テスト
+            echo -e "\n=== Testing ==="
+            php artisan --version
+            
+            curl -s -o /dev/null -w "Homepage: %{http_code}\n" http://localhost/
+            curl -s -o /dev/null -w "Admin: %{http_code}\n" http://localhost/admin/login
+            
+            # エラーログ確認
+            echo -e "\n=== Recent Errors ==="
+            tail -10 /var/log/nginx/error.log | grep -i "error\|fatal" || echo "No recent errors"
+          EOF
+          
+          rm key.pem
