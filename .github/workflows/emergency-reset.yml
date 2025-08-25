@@ -1,0 +1,86 @@
+name: Emergency Reset
+
+on:
+  workflow_dispatch:
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Emergency complete reset
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 << 'SSHEOF'
+            echo "=== 緊急リセット開始 ==="
+            
+            # サービス停止
+            sudo systemctl stop nginx php8.3-fpm || true
+            
+            # ディレクトリ完全削除
+            sudo rm -rf /var/www/html/current || true
+            
+            # 新規ディレクトリ作成
+            sudo mkdir -p /var/www/html/current
+            cd /var/www/html/current
+            
+            # 最新コードをGitHubから取得
+            git clone https://github.com/Naoki-Takahashi0420/metore_system.git . || exit 1
+            
+            # 必要最小限の.env
+            cat > .env << 'ENVEOF'
+APP_NAME=Xsyumeno
+APP_ENV=production
+APP_KEY=base64:VGhpc0lzQVNlY3JldEtleUZvckVuY3J5cHRpb24=
+APP_DEBUG=true
+APP_URL=http://13.115.38.179
+DB_CONNECTION=mysql
+DB_HOST=xsyumeno-db.cbq0ywo44b0p.ap-northeast-1.rds.amazonaws.com
+DB_PORT=3306
+DB_DATABASE=xsyumenodb
+DB_USERNAME=admin
+DB_PASSWORD=Xsyumeno2024#!
+CACHE_DRIVER=array
+SESSION_DRIVER=file
+QUEUE_CONNECTION=sync
+MAIL_MAILER=log
+ENVEOF
+            
+            # 最小権限設定
+            sudo chown -R www-data:www-data .
+            sudo chmod -R 755 .
+            sudo chmod -R 775 storage bootstrap/cache
+            
+            # Composer（最小構成）
+            composer install --no-dev --no-cache --optimize-autoloader
+            
+            # Laravel最小セットアップ
+            sudo -u www-data php artisan migrate:fresh --force
+            
+            # 管理者作成（シンプル）
+            sudo -u www-data php artisan tinker --execute="
+              \\$admin = new \\App\\Models\\User();
+              \\$admin->name = 'Administrator';
+              \\$admin->email = 'admin@xsyumeno.com';
+              \\$admin->password = bcrypt('password');
+              \\$admin->role = 'superadmin';
+              \\$admin->is_active = true;
+              \\$admin->email_verified_at = now();
+              \\$admin->save();
+              echo 'Admin ID: ' . \\$admin->id;
+            "
+            
+            # サービス開始
+            sudo systemctl start php8.3-fpm nginx
+            
+            echo "=== リセット完了 ==="
+            echo "URL: http://13.115.38.179/admin/login"
+            echo "Email: admin@xsyumeno.com"
+            echo "Password: password"
+          SSHEOF
+          
+          rm key.pem
