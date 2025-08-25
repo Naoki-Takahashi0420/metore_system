@@ -1,0 +1,49 @@
+name: Check EC2 Account
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Check EC2 instance details
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            echo "=== EC2 Instance Information ==="
+            echo "Public IP:"
+            curl -s http://checkip.amazonaws.com
+            
+            echo ""
+            echo "Instance ID:"
+            ec2-metadata --instance-id 2>/dev/null || curl -s http://169.254.169.254/latest/meta-data/instance-id
+            
+            echo ""
+            echo "Region:"
+            ec2-metadata --availability-zone 2>/dev/null || curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone
+            
+            echo ""
+            echo "Account ID (from instance profile):"
+            curl -s http://169.254.169.254/latest/meta-data/identity-credentials/ec2/info 2>/dev/null | grep -o '"accountId":"[^"]*"' | cut -d'"' -f4 || echo "No instance profile attached"
+            
+            echo ""
+            echo "Hostname:"
+            hostname
+            
+            echo ""
+            echo "System info:"
+            uname -a
+            
+            echo ""
+            echo "Current directory:"
+            pwd
+            ls -la /var/www/html/
+          EOF
+          
+          rm key.pem
