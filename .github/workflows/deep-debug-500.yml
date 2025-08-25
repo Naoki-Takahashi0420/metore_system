@@ -1,0 +1,124 @@
+name: Deep Debug 500 Error
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Deep investigation of 500 error
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            cd /var/www/html/current
+            
+            echo "=== Creating Debug Script ==="
+            cat > test_login.php << 'SCRIPT'
+            <?php
+            error_reporting(E_ALL);
+            ini_set('display_errors', 1);
+            
+            require __DIR__.'/vendor/autoload.php';
+            $app = require_once __DIR__.'/bootstrap/app.php';
+            $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+            
+            echo "1. Bootstrap OK\n";
+            
+            try {
+                // DB接続テスト
+                $db = \DB::connection()->getPdo();
+                echo "2. Database connection OK\n";
+                
+                // Livewireコンポーネント確認
+                $components = app('livewire')->getComponentClass('filament.admin.auth.login');
+                echo "3. Livewire component found: " . ($components ? 'YES' : 'NO') . "\n";
+                
+                // セッション確認
+                $session = app('session');
+                echo "4. Session driver: " . config('session.driver') . "\n";
+                
+                // ビューファイル確認
+                $viewPath = resource_path('views/filament/admin/auth/login.blade.php');
+                echo "5. Login view exists: " . (file_exists($viewPath) ? 'YES' : 'NO') . "\n";
+                
+                // Filament確認
+                echo "6. Filament installed: " . (class_exists('\Filament\Filament') ? 'YES' : 'NO') . "\n";
+                
+            } catch (\Exception $e) {
+                echo "ERROR: " . $e->getMessage() . "\n";
+                echo "File: " . $e->getFile() . "\n";
+                echo "Line: " . $e->getLine() . "\n";
+            }
+            SCRIPT
+            
+            echo "=== Running Debug Script ==="
+            php test_login.php
+            
+            echo -e "\n=== Checking Nginx Error Logs ==="
+            sudo tail -n 20 /var/log/nginx/error.log
+            
+            echo -e "\n=== Checking PHP-FPM Error Logs ==="
+            sudo tail -n 20 /var/log/php8.3-fpm.log
+            
+            echo -e "\n=== Laravel Error Log (Last 100 lines) ==="
+            tail -n 100 storage/logs/laravel.log 2>/dev/null || echo "No Laravel log"
+            
+            echo -e "\n=== Checking Vendor Directory ==="
+            ls -la vendor/ | head -10
+            
+            echo -e "\n=== Checking Filament Installation ==="
+            ls -la vendor/filament/ 2>/dev/null || echo "Filament not in vendor"
+            
+            echo -e "\n=== Checking Routes ==="
+            php artisan route:list | grep admin | head -5
+            
+            echo -e "\n=== Environment Variables ==="
+            grep -E "APP_|DB_|SESSION_|CACHE_" .env | head -20
+            
+            echo -e "\n=== Testing with curl verbose ==="
+            curl -v http://localhost/admin/login 2>&1 | head -30
+            
+            echo -e "\n=== Checking Storage Permissions ==="
+            ls -la storage/framework/
+            ls -la storage/framework/sessions/ | head -5
+            
+            echo -e "\n=== PHP Info ==="
+            php -v
+            php -m | grep -E "pdo|mysql|session|mbstring|openssl"
+            
+            # 緊急修正試行
+            echo -e "\n=== Emergency Fix Attempt ==="
+            
+            # Composerパッケージ再インストール
+            composer install --no-dev --optimize-autoloader
+            
+            # Filament再インストール
+            php artisan filament:install --panels
+            
+            # 完全リセット
+            php artisan config:clear
+            php artisan cache:clear
+            php artisan view:clear
+            php artisan route:clear
+            
+            # 権限再設定
+            sudo chown -R www-data:www-data storage bootstrap/cache
+            sudo chmod -R 777 storage bootstrap/cache
+            
+            # サービス再起動
+            sudo systemctl restart php8.3-fpm
+            sudo systemctl restart nginx
+            
+            echo -e "\n=== Final Test ==="
+            curl -I http://localhost/admin/login
+            
+            rm test_login.php
+          EOF
+          
+          rm key.pem
