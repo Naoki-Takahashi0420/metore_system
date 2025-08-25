@@ -15,16 +15,30 @@ jobs:
           echo "$EC2_KEY" > key.pem
           chmod 600 key.pem
           
-          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 << 'EOF'
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i key.pem ubuntu@13.115.38.179 << 'EOF'
             cd /var/www/html/current
             
-            echo "Clearing test store data..."
+            echo "Clearing all test data completely..."
+            
+            # Delete stores using multiple methods
             sudo -u www-data php artisan tinker --execute="
-            \App\Models\Store::truncate();
-            echo 'Test stores deleted successfully!';
+            \App\Models\Store::query()->delete();
+            \DB::table('stores')->truncate();
+            echo 'All stores deleted!';
             "
             
-            echo "Test data cleared, admin users preserved"
+            # Also clear any related data
+            sudo -u www-data php artisan tinker --execute="
+            \DB::table('customers')->delete();
+            \DB::table('reservations')->delete();
+            echo 'Related data cleared!';
+            "
+            
+            # Clear application caches
+            sudo -u www-data php artisan cache:clear
+            sudo -u www-data php artisan view:clear
+            
+            echo "All test data completely cleared, admin users preserved"
           EOF
           
           rm key.pem
