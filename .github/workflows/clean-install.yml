@@ -1,0 +1,135 @@
+name: Clean Install Laravel
+
+on:
+  workflow_dispatch:
+
+jobs:
+  clean-install:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Deploy fresh application
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          # ローカルをEC2に転送してクリーンインストール
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            echo "=== Backing up current state ==="
+            cd /var/www/html
+            sudo mv current current_broken_$(date +%Y%m%d_%H%M%S)
+            
+            echo "=== Creating fresh directory ==="
+            sudo mkdir -p current
+            sudo chown ubuntu:ubuntu current
+            cd current
+            
+            echo "=== Cloning from GitHub ==="
+            git clone https://github.com/Naoki-Takahashi0420/metore_system.git .
+            
+            echo "=== Installing Composer dependencies ==="
+            composer install --no-interaction --prefer-dist --optimize-autoloader
+            
+            echo "=== Setting up environment ==="
+            cp .env.example .env
+            
+            # 本番環境設定
+            sed -i 's/APP_ENV=local/APP_ENV=production/' .env
+            sed -i 's/APP_DEBUG=true/APP_DEBUG=false/' .env
+            sed -i 's|APP_URL=.*|APP_URL=http://13.115.38.179|' .env
+            
+            # データベース設定（RDS）
+            sed -i 's/DB_CONNECTION=sqlite/DB_CONNECTION=mysql/' .env
+            sed -i 's/DB_HOST=.*/DB_HOST=xsyumeno-db.cbq0ywo44b0p.ap-northeast-1.rds.amazonaws.com/' .env
+            sed -i 's/DB_PORT=.*/DB_PORT=3306/' .env
+            sed -i 's/DB_DATABASE=.*/DB_DATABASE=xsyumenodb/' .env
+            sed -i 's/DB_USERNAME=.*/DB_USERNAME=admin/' .env
+            sed -i 's/DB_PASSWORD=.*/DB_PASSWORD=Xsyumeno2024#!/' .env
+            
+            # キー生成
+            php artisan key:generate
+            
+            echo "=== Running migrations ==="
+            php artisan migrate --force
+            
+            echo "=== Creating admin user ==="
+            php artisan tinker --execute="
+              \$user = \App\Models\User::firstOrCreate(
+                ['email' => 'admin@xsyumeno.com'],
+                [
+                  'name' => 'Admin',
+                  'password' => Hash::make('password')
+                ]
+              );
+              echo 'Admin user ready';
+            "
+            
+            echo "=== Setting permissions ==="
+            sudo chown -R www-data:www-data .
+            sudo chmod -R 755 .
+            sudo chmod -R 777 storage bootstrap/cache
+            
+            echo "=== Optimizing ==="
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            
+            echo "=== Nginx configuration ==="
+            # publicディレクトリの有無を確認
+            if [ -d "public" ]; then
+              ROOT_DIR="/var/www/html/current/public"
+            else
+              ROOT_DIR="/var/www/html/current"
+            fi
+            
+            sudo tee /etc/nginx/sites-available/xsyumeno > /dev/null << NGINX
+          server {
+              listen 80 default_server;
+              listen [::]:80 default_server;
+              
+              root $ROOT_DIR;
+              index index.php index.html;
+              
+              server_name _;
+              
+              location / {
+                  try_files \$uri \$uri/ /index.php?\$query_string;
+              }
+              
+              location ~ \.php$ {
+                  fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
+                  fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+                  include fastcgi_params;
+              }
+              
+              location ~ /\.(?!well-known).* {
+                  deny all;
+              }
+          }
+          NGINX
+            
+            sudo rm -f /etc/nginx/sites-enabled/*
+            sudo ln -s /etc/nginx/sites-available/xsyumeno /etc/nginx/sites-enabled/
+            
+            echo "=== Restarting services ==="
+            sudo nginx -t
+            sudo systemctl restart nginx
+            sudo systemctl restart php8.3-fpm
+            
+            echo "=== Testing ==="
+            sleep 2
+            curl -s -o /dev/null -w "Homepage: %{http_code}\n" http://localhost/
+            curl -s -o /dev/null -w "Admin Login: %{http_code}\n" http://localhost/admin/login
+            
+            echo -e "\n=== Installation Complete ==="
+            echo "URL: http://13.115.38.179/admin/login"
+            echo "Email: admin@xsyumeno.com"
+            echo "Password: password"
+          EOF
+          
+          rm key.pem
