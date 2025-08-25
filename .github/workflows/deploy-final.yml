@@ -13,12 +13,12 @@ jobs:
         
       - name: Deploy Laravel
         env:
-          EC2_KEY: ${{ secrets.EC2_SSH_KEY_NEW }}
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
           echo "$EC2_KEY" > key.pem
           chmod 600 key.pem
           
-          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -i key.pem ubuntu@43.207.25.85 << 'EOF'
+          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -i key.pem ubuntu@13.115.38.179 << 'EOF'
             cd /var/www/html
             sudo rm -rf current
             git clone https://github.com/Naoki-Takahashi0420/metore_system.git current
@@ -29,7 +29,7 @@ jobs:
           APP_ENV=production
           APP_KEY=base64:FhDmJJEPuQPAz6t5HMt6qTVSYLs7pJg7xLDgBEcVHHg=
           APP_DEBUG=false
-          APP_URL=http://43.207.25.85
+          APP_URL=http://13.115.38.179
           
           DB_CONNECTION=mysql
           DB_HOST=xsyumeno-db.cbq0ywo44b0p.ap-northeast-1.rds.amazonaws.com
