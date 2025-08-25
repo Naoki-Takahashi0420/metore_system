@@ -1,0 +1,171 @@
+name: Complete Nginx Fix and E2E Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      
+      - name: Fix Nginx and Test
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          # Nginx修正
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            echo "=== Creating Nginx Configuration ==="
+            
+            sudo tee /etc/nginx/sites-available/xsyumeno > /dev/null << 'NGINX_CONFIG'
+          server {
+              listen 80 default_server;
+              listen [::]:80 default_server;
+              
+              root /var/www/html/current/public;
+              index index.php index.html index.htm;
+              
+              server_name _;
+              
+              charset utf-8;
+              
+              location / {
+                  try_files $uri $uri/ /index.php?$query_string;
+              }
+              
+              location = /favicon.ico { access_log off; log_not_found off; }
+              location = /robots.txt  { access_log off; log_not_found off; }
+              
+              error_page 404 /index.php;
+              
+              location ~ \.php$ {
+                  fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
+                  fastcgi_index index.php;
+                  fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+                  include fastcgi_params;
+              }
+              
+              location ~ /\.(?!well-known).* {
+                  deny all;
+              }
+          }
+          NGINX_CONFIG
+            
+            # 既存の設定を削除して新しいものを有効化
+            sudo rm -f /etc/nginx/sites-enabled/*
+            sudo ln -s /etc/nginx/sites-available/xsyumeno /etc/nginx/sites-enabled/xsyumeno
+            
+            # Nginx設定テスト
+            echo -e "\n=== Testing Nginx Configuration ==="
+            sudo nginx -t
+            
+            # Nginx再起動
+            echo -e "\n=== Restarting Nginx ==="
+            sudo systemctl restart nginx
+            
+            # 確認
+            echo -e "\n=== Verifying Setup ==="
+            echo "Document root:"
+            grep "root" /etc/nginx/sites-enabled/xsyumeno
+            
+            echo -e "\nApplication location:"
+            ls -la /var/www/html/current/public | head -5
+            
+            echo -e "\n=== Quick Test ==="
+            curl -s -o /dev/null -w "Homepage: %{http_code}\n" http://localhost/
+            curl -s -o /dev/null -w "Admin Login: %{http_code}\n" http://localhost/admin/login
+          EOF
+          
+          rm key.pem
+          
+      - name: Install Playwright
+        run: |
+          npm init -y
+          npm install @playwright/test
+          npx playwright install chromium
+          
+      - name: Create E2E Test
+        run: |
+          mkdir -p tests
+          cat > tests/admin-login.spec.js << 'TEST'
+          const { test, expect } = require('@playwright/test');
+          
+          test.describe('Admin Login E2E Test', () => {
+            test('should load admin login page', async ({ page }) => {
+              console.log('Navigating to admin login...');
+              await page.goto('http://13.115.38.179/admin/login');
+              
+              // ページが読み込まれるまで待機
+              await page.waitForLoadState('networkidle');
+              
+              // タイトル確認
+              const title = await page.title();
+              console.log('Page title:', title);
+              
+              // ログインフォームの存在確認
+              const emailInput = await page.locator('input[type="email"], input[name="email"]').count();
+              const passwordInput = await page.locator('input[type="password"], input[name="password"]').count();
+              
+              console.log('Email input found:', emailInput > 0);
+              console.log('Password input found:', passwordInput > 0);
+              
+              expect(emailInput).toBeGreaterThan(0);
+              expect(passwordInput).toBeGreaterThan(0);
+              
+              // スクリーンショット保存
+              await page.screenshot({ path: 'login-page.png' });
+              console.log('Screenshot saved as login-page.png');
+            });
+            
+            test('should attempt login', async ({ page }) => {
+              await page.goto('http://13.115.38.179/admin/login');
+              await page.waitForLoadState('networkidle');
+              
+              // ログイン試行
+              await page.fill('input[type="email"], input[name="email"]', 'admin@xsyumeno.com');
+              await page.fill('input[type="password"], input[name="password"]', 'password');
+              
+              // ログインボタンクリック
+              await page.click('button[type="submit"]');
+              
+              // 結果を待つ（リダイレクトまたはエラー）
+              await page.waitForTimeout(3000);
+              
+              const currentUrl = page.url();
+              console.log('Current URL after login:', currentUrl);
+              
+              // スクリーンショット
+              await page.screenshot({ path: 'after-login.png' });
+              
+              // ダッシュボードにリダイレクトされたか確認
+              if (currentUrl.includes('dashboard') || currentUrl.includes('admin') && !currentUrl.includes('login')) {
+                console.log('Login successful!');
+              } else {
+                console.log('Login failed or still on login page');
+              }
+            });
+          });
+          TEST
+          
+      - name: Run E2E Tests
+        run: |
+          npx playwright test --reporter=list
+          
+      - name: Upload Screenshots
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-screenshots
+          path: |
+            login-page.png
+            after-login.png
