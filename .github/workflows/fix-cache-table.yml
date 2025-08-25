@@ -1,0 +1,82 @@
+name: Fix Cache Table
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix-cache:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Create cache table and fix configuration
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            cd /var/www/html/current
+            
+            echo "=== 現在のキャッシュドライバー確認 ==="
+            grep CACHE_DRIVER .env
+            
+            echo ""
+            echo "=== キャッシュドライバーをfileに変更 ==="
+            sudo sed -i 's/CACHE_DRIVER=.*/CACHE_DRIVER=file/' .env
+            grep CACHE_DRIVER .env
+            
+            echo ""
+            echo "=== セッションドライバーもfileに変更 ==="
+            sudo sed -i 's/SESSION_DRIVER=.*/SESSION_DRIVER=file/' .env
+            grep SESSION_DRIVER .env
+            
+            echo ""
+            echo "=== キャッシュクリア ==="
+            sudo rm -rf bootstrap/cache/*.php
+            sudo rm -rf storage/framework/cache/data/*
+            sudo rm -rf storage/framework/sessions/*
+            sudo rm -rf storage/framework/views/*
+            
+            echo ""
+            echo "=== ディレクトリ権限確保 ==="
+            sudo mkdir -p storage/framework/cache/data
+            sudo mkdir -p storage/framework/sessions
+            sudo mkdir -p storage/framework/views
+            sudo chown -R www-data:www-data storage
+            sudo chmod -R 775 storage
+            
+            echo ""
+            echo "=== キャッシュ再構築 ==="
+            sudo -u www-data php artisan config:cache
+            sudo -u www-data php artisan route:cache
+            sudo -u www-data php artisan view:cache
+            
+            echo ""
+            echo "=== Livewireマニフェスト再生成 ==="
+            sudo -u www-data php artisan livewire:discover
+            
+            echo ""
+            echo "=== サービス再起動 ==="
+            sudo systemctl restart php8.3-fpm
+            sudo systemctl restart nginx
+            
+            echo ""
+            echo "=== テスト実行 ==="
+            curl -I http://localhost/admin/login
+            
+            echo ""
+            echo "=== Laravel ログ確認 ==="
+            if [ -f storage/logs/laravel.log ]; then
+              sudo tail -20 storage/logs/laravel.log | grep -v "cache" || echo "No new errors"
+            fi
+            
+            echo ""
+            echo "================================"
+            echo "CACHE FIX COMPLETE!"
+            echo "================================"
+            echo "Test at: http://13.115.38.179/admin/login"
+            echo "================================"
+          EOF
+          
+          rm key.pem
