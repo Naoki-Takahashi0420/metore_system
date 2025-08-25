@@ -1,0 +1,66 @@
+name: Real Time Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Real time error check
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            echo "=== Current Time: $(date) ==="
+            
+            echo -e "\n=== Testing from server itself ==="
+            curl -I http://localhost/admin/login
+            
+            echo -e "\n=== Testing Livewire specifically ==="
+            # Livewireの/updateエンドポイントをテスト
+            curl -X POST http://localhost/livewire/update \
+              -H "Content-Type: application/json" \
+              -H "X-Livewire: true" \
+              -d '{"fingerprint":{"id":"test","name":"test"},"serverMemo":{},"updates":[]}' \
+              -w "\nStatus: %{http_code}\n" \
+              -s | head -20
+            
+            echo -e "\n=== Real-time Nginx Access Log ==="
+            sudo tail -f /var/log/nginx/access.log &
+            PID=$!
+            sleep 3
+            kill $PID 2>/dev/null
+            
+            echo -e "\n=== Real-time Nginx Error Log ==="
+            sudo tail -20 /var/log/nginx/error.log
+            
+            echo -e "\n=== PHP-FPM Error Log ==="
+            sudo tail -20 /var/log/php8.3-fpm.log
+            
+            echo -e "\n=== Laravel Log (last 50 lines) ==="
+            cd /var/www/html/current
+            tail -50 storage/logs/laravel.log 2>/dev/null || echo "No Laravel log"
+            
+            echo -e "\n=== Check Livewire Components ==="
+            find app -name "*Login*.php" -type f 2>/dev/null | head -5
+            
+            echo -e "\n=== Check Livewire Config ==="
+            cat config/livewire.php 2>/dev/null | grep -A 2 -B 2 "update_uri\|class_namespace" || echo "No livewire config"
+            
+            echo -e "\n=== Check APP_KEY ==="
+            grep "APP_KEY" .env
+            
+            echo -e "\n=== Browser Test URL ==="
+            echo "Please access this URL in your browser and check console:"
+            echo "http://13.115.38.179/admin/login"
+            echo ""
+            echo "If you see 500 error in browser but 200 here,"
+            echo "it might be a JavaScript/Livewire issue."
+          EOF
+          
+          rm key.pem
