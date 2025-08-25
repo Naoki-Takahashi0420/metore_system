@@ -1,0 +1,30 @@
+name: Clear Test Data
+
+on:
+  workflow_dispatch:
+
+jobs:
+  clear-data:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Clear test data on EC2
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            cd /var/www/html/current
+            
+            echo "Clearing test store data..."
+            sudo -u www-data php artisan tinker --execute="
+            \App\Models\Store::truncate();
+            echo 'Test stores deleted successfully!';
+            "
+            
+            echo "Test data cleared, admin users preserved"
+          EOF
+          
+          rm key.pem
