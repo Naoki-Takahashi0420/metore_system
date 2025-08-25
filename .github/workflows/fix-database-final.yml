@@ -1,0 +1,100 @@
+name: Fix Database Final
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix-db:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Fix database and create admin
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            cd /var/www/html/current
+            
+            echo "=== 現在のテーブル確認 ==="
+            php artisan db:show
+            
+            echo ""
+            echo "=== マイグレーション実行 ==="
+            sudo -u www-data php artisan migrate --force
+            
+            echo ""
+            echo "=== 管理者アカウント作成（PHPで直接） ==="
+            php -r "
+            require 'vendor/autoload.php';
+            \$app = require 'bootstrap/app.php';
+            \$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+            
+            try {
+                // 既存ユーザーを削除
+                \$app['db']->table('users')->where('email', 'admin@xsyumeno.com')->delete();
+                
+                // 新規作成
+                \$id = \$app['db']->table('users')->insertGetId([
+                    'name' => 'Administrator',
+                    'email' => 'admin@xsyumeno.com',
+                    'password' => '\$2y\$10\$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+                    'role' => 'superadmin',
+                    'is_active' => 1,
+                    'email_verified_at' => date('Y-m-d H:i:s'),
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s')
+                ]);
+                
+                echo 'Admin created with ID: ' . \$id . '\n';
+                
+                // 検証
+                \$admin = \$app['db']->table('users')->where('email', 'admin@xsyumeno.com')->first();
+                if (\$admin) {
+                    echo 'SUCCESS: Admin exists - ID: ' . \$admin->id . ', Email: ' . \$admin->email . '\n';
+                } else {
+                    echo 'ERROR: Admin creation failed!\n';
+                }
+                
+                // 全ユーザー表示
+                \$allUsers = \$app['db']->table('users')->get();
+                echo 'Total users in database: ' . count(\$allUsers) . '\n';
+                foreach (\$allUsers as \$user) {
+                    echo '  - ' . \$user->email . ' (role: ' . \$user->role . ')\n';
+                }
+                
+            } catch (Exception \$e) {
+                echo 'Error: ' . \$e->getMessage() . '\n';
+            }
+            "
+            
+            echo ""
+            echo "=== キャッシュクリア ==="
+            sudo rm -rf bootstrap/cache/*.php
+            sudo rm -rf storage/framework/cache/data/*
+            sudo rm -rf storage/framework/sessions/*
+            sudo rm -rf storage/framework/views/*
+            
+            sudo -u www-data php artisan config:cache
+            sudo -u www-data php artisan route:cache
+            sudo -u www-data php artisan view:cache
+            
+            echo ""
+            echo "=== サービス再起動 ==="
+            sudo systemctl restart php8.3-fpm
+            sudo systemctl restart nginx
+            
+            echo ""
+            echo "================================"
+            echo "DATABASE FIX COMPLETE!"
+            echo "================================"
+            echo "Login credentials:"
+            echo "URL: http://13.115.38.179/admin/login"
+            echo "Email: admin@xsyumeno.com"
+            echo "Password: password"
+            echo "================================"
+          EOF
+          
+          rm key.pem
