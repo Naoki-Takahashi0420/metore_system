@@ -13,7 +13,7 @@ jobs:
         run: |
           echo "$EC2_KEY" > key.pem
           chmod 600 key.pem
-          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 'cd /var/www/html/current && git clone https://github.com/Naoki-Takahashi0420/metore_system.git . --quiet || true && sudo chown -R www-data:www-data . && composer install --no-dev --quiet && sudo -u www-data php artisan key:generate --force && sudo tee /etc/nginx/sites-available/default > /dev/null << "NGINX"
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@35.73.211.108 'cd /var/www/html && sudo rm -rf current && git clone https://github.com/Naoki-Takahashi0420/metore_system.git current && cd current && composer install --no-dev --optimize-autoloader && cp .env.example .env && php artisan key:generate && sudo chown -R www-data:www-data /var/www/html/current && sudo chmod -R 775 storage bootstrap/cache && sudo tee /etc/nginx/sites-available/default > /dev/null << "NGINX"
 server {
     listen 80 default_server;
     root /var/www/html/current/public;
