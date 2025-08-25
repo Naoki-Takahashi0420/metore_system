@@ -1,0 +1,107 @@
+name: Safe Deploy to xsyumeno-server ONLY
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Safe Deploy to 3.112.39.129 ONLY
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+      run: |
+        echo "$EC2_KEY" > key.pem
+        chmod 600 key.pem
+        
+        # SAFETY CHECK: Confirm we're connecting to the right server
+        TARGET_IP="3.112.39.129"
+        echo "Deploying ONLY to xsyumeno-server at $TARGET_IP"
+        
+        # Create deployment package locally
+        echo "Creating deployment package..."
+        tar -czf deploy.tar.gz \
+          --exclude=node_modules \
+          --exclude=.git \
+          --exclude=.github \
+          --exclude=.env \
+          --exclude=deploy.tar.gz \
+          --exclude=storage/logs/* \
+          .
+        
+        # Upload to EC2
+        echo "Uploading to $TARGET_IP..."
+        scp -o StrictHostKeyChecking=no -i key.pem deploy.tar.gz ubuntu@$TARGET_IP:/tmp/
+        
+        # Deploy on EC2
+        ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@$TARGET_IP << 'SAFE_DEPLOY'
+        echo "=== SAFE DEPLOYMENT START ==="
+        
+        # Create directories
+        sudo mkdir -p /var/www/html
+        
+        # Clean old files
+        sudo rm -rf /var/www/html/*
+        
+        # Extract new files
+        cd /var/www/html
+        sudo tar -xzf /tmp/deploy.tar.gz
+        rm /tmp/deploy.tar.gz
+        
+        # Create .env
+        sudo tee .env << 'ENV' > /dev/null
+        APP_NAME=Xsyumeno
+        APP_ENV=production
+        APP_KEY=base64:FhDmJJEPuQPAz6t5HMt6qTVSYLs7pJg7xLDgBEcVHHg=
+        APP_DEBUG=true
+        APP_URL=http://3.112.39.129
+        
+        DB_CONNECTION=mysql
+        DB_HOST=xsyumeno-db.cbq0ywo44b0p.ap-northeast-1.rds.amazonaws.com
+        DB_PORT=3306
+        DB_DATABASE=xsyumenodb
+        DB_USERNAME=admin
+        DB_PASSWORD=Xsyumeno2024#!
+        ENV
+        
+        # Install composer if needed
+        if ! command -v composer &> /dev/null; then
+          curl -sS https://getcomposer.org/installer | php
+          sudo mv composer.phar /usr/local/bin/composer
+        fi
+        
+        # Install dependencies
+        sudo -u www-data composer install --no-dev --optimize-autoloader || \
+          sudo composer install --no-dev --optimize-autoloader
+        
+        # Laravel setup
+        sudo php artisan key:generate
+        sudo php artisan storage:link
+        sudo php artisan config:cache
+        
+        # Set permissions
+        sudo chown -R www-data:www-data /var/www/html
+        sudo chmod -R 755 /var/www/html
+        sudo chmod -R 775 storage bootstrap/cache
+        
+        # Restart services
+        sudo systemctl restart nginx php8.3-fpm
+        
+        echo "=== Verification ==="
+        echo "Directory contents:"
+        ls -la /var/www/html/public/ | head -5
+        
+        echo "Test access:"
+        curl -I http://localhost/
+        
+        echo "=== SAFE DEPLOYMENT END ==="
+        SAFE_DEPLOY
+        
+        # Cleanup
+        rm key.pem deploy.tar.gz
+        
+        echo "Deployed to xsyumeno-server at $TARGET_IP"
