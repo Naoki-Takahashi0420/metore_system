@@ -19,8 +19,15 @@ jobs:
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+          echo "Testing SSH key format..."
+          ssh-keygen -l -f ~/.ssh/deploy_key || echo "Key format check failed"
+      
+      - name: Test SSH Connection
+        run: |
+          ssh -v -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful!'" || echo "SSH failed"
       
       - name: Deploy to EC2
+        if: success()
         run: |
           ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
             # Create app directory if not exists
