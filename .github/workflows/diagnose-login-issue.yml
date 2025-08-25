@@ -1,0 +1,110 @@
+name: Diagnose Login Issue
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Comprehensive login diagnosis
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            cd /var/www/html/current
+            
+            echo "=== 1. Check Session Configuration ==="
+            grep -E "SESSION_DRIVER|SESSION_LIFETIME" .env
+            ls -la storage/framework/sessions/ | head -5
+            
+            echo ""
+            echo "=== 2. Check Database Connection ==="
+            php -r "
+            require 'vendor/autoload.php';
+            \$app = require 'bootstrap/app.php';
+            try {
+                \$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+                \$pdo = \$app['db']->connection()->getPdo();
+                echo 'Database: CONNECTED\n';
+                \$count = \$app['db']->table('users')->count();
+                echo 'Users in database: ' . \$count . '\n';
+            } catch (Exception \$e) {
+                echo 'Database ERROR: ' . \$e->getMessage() . '\n';
+            }
+            "
+            
+            echo ""
+            echo "=== 3. Check Livewire/Filament Routes ==="
+            sudo -u www-data php artisan route:list | grep -E "login|logout|livewire" | head -10
+            
+            echo ""
+            echo "=== 4. Test Login POST Route ==="
+            curl -X POST http://localhost/admin/login \
+              -H "Content-Type: application/json" \
+              -d '{"test":"test"}' \
+              -w "\nHTTP Status: %{http_code}\n" \
+              -s | head -5
+            
+            echo ""
+            echo "=== 5. Check Error Logs After Login Attempt ==="
+            # Trigger a login attempt
+            curl -X POST http://localhost/admin/login \
+              -H "Content-Type: application/x-www-form-urlencoded" \
+              -d "email=admin@xsyumeno.com&password=password" \
+              -s > /dev/null 2>&1
+            
+            echo "Latest Laravel errors:"
+            tail -20 storage/logs/laravel.log | grep -E "ERROR|Exception" | tail -5
+            
+            echo ""
+            echo "=== 6. Check Permissions ==="
+            echo "Session directory:"
+            ls -la storage/framework/sessions/
+            echo "Cache directory:"
+            ls -la storage/framework/cache/
+            echo "Bootstrap cache:"
+            ls -la bootstrap/cache/
+            
+            echo ""
+            echo "=== 7. Check APP_KEY ==="
+            grep APP_KEY .env | head -1
+            php -r "echo 'Key length: ' . strlen(env('APP_KEY')) . '\n';"
+            
+            echo ""
+            echo "=== 8. Test Filament Panel Access ==="
+            php -r "
+            require 'vendor/autoload.php';
+            \$app = require 'bootstrap/app.php';
+            \$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+            try {
+                \$panel = \Filament\Facades\Filament::getPanel('admin');
+                echo 'Filament panel: FOUND\n';
+                echo 'Login enabled: ' . (\$panel->hasLogin() ? 'YES' : 'NO') . '\n';
+            } catch (Exception \$e) {
+                echo 'Filament ERROR: ' . \$e->getMessage() . '\n';
+            }
+            "
+            
+            echo ""
+            echo "=== 9. Recreate Session Directory ==="
+            sudo rm -rf storage/framework/sessions/*
+            sudo -u www-data touch storage/framework/sessions/.gitkeep
+            sudo chown -R www-data:www-data storage/framework/sessions
+            sudo chmod 775 storage/framework/sessions
+            
+            echo ""
+            echo "=== 10. Clear Everything and Restart ==="
+            sudo -u www-data php artisan optimize:clear
+            sudo -u www-data php artisan config:cache
+            sudo -u www-data php artisan route:cache
+            sudo systemctl restart php8.3-fpm nginx
+            
+            echo "Diagnosis complete!"
+          EOF
+          
+          rm key.pem
