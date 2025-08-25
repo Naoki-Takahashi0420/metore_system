@@ -1,0 +1,22 @@
+name: Simple Fix
+
+on:
+  push:
+    paths:
+      - '.github/workflows/simple-fix.yml'
+
+jobs:
+  simple-fix:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Simple database fix
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i key.pem ubuntu@13.115.38.179 "cd /var/www/html/current && sudo -u www-data php artisan migrate:fresh --force && sudo -u www-data php artisan tinker --execute=\"\\\$user = \\\App\\\Models\\\User::create(['name' => 'Administrator', 'email' => 'admin@xsyumeno.com', 'password' => \\\Illuminate\\\Support\\\Facades\\\Hash::make('password'), 'role' => 'superadmin', 'is_active' => true, 'email_verified_at' => now()]); echo 'Admin created: ' . \\\$user->id;\""
+          
+          rm key.pem
