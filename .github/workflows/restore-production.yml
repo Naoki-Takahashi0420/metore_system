@@ -1,0 +1,90 @@
+name: Restore Production Application
+
+on:
+  workflow_dispatch:
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Restore from backup
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            echo "=== Checking Current Status ==="
+            
+            # 現在の状態確認
+            echo "Current /var/www/html contents:"
+            ls -la /var/www/html/
+            
+            # 最新のバックアップを探す
+            LATEST_BACKUP=$(ls -t /var/www/html/backup_* 2>/dev/null | head -1)
+            
+            if [ -z "$LATEST_BACKUP" ]; then
+              echo "Error: No backup found!"
+              exit 1
+            fi
+            
+            echo "Latest backup: $LATEST_BACKUP"
+            
+            # 本番ディレクトリが存在しない場合、バックアップから復元
+            if [ ! -f "/var/www/html/artisan" ]; then
+              echo "Production app missing! Restoring from backup..."
+              
+              # バックアップから復元
+              sudo cp -r $LATEST_BACKUP/* /var/www/html/
+              sudo cp -r $LATEST_BACKUP/.* /var/www/html/ 2>/dev/null || true
+              
+              # 権限設定
+              sudo chown -R ubuntu:ubuntu /var/www/html
+              sudo chmod -R 755 /var/www/html
+              sudo chmod -R 777 /var/www/html/storage
+              sudo chmod -R 777 /var/www/html/bootstrap/cache
+              
+              # .envファイル確認
+              if [ ! -f "/var/www/html/.env" ]; then
+                echo "Creating .env from example..."
+                cp /var/www/html/.env.example /var/www/html/.env 2>/dev/null || echo ".env.example not found"
+              fi
+              
+              cd /var/www/html
+              
+              # Composerインストール
+              echo "Installing dependencies..."
+              composer install --no-dev --optimize-autoloader
+              
+              # キャッシュクリア
+              php artisan config:clear
+              php artisan cache:clear
+              php artisan view:clear
+              php artisan route:clear
+              
+              # キャッシュ再生成
+              php artisan config:cache
+              php artisan route:cache
+              php artisan view:cache
+              
+              # Nginx再起動
+              sudo systemctl restart nginx
+              sudo systemctl restart php8.3-fpm
+              
+              echo "Restoration complete!"
+            else
+              echo "Application exists at /var/www/html"
+            fi
+            
+            # 動作確認
+            echo -e "\n=== Testing Application ==="
+            curl -I http://localhost/ 2>/dev/null | head -5
+            
+            # ログ確認
+            echo -e "\n=== Latest Error Logs ==="
+            tail -n 20 /var/www/html/storage/logs/laravel.log 2>/dev/null || echo "No logs found"
+          EOF
+          
+          rm key.pem
