@@ -1,0 +1,102 @@
+name: Emergency Admin Fix
+
+on:
+  workflow_dispatch:
+
+jobs:
+  emergency-fix:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Emergency admin account creation
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            cd /var/www/html/current
+            
+            echo "=== Emergency Admin Fix Starting ==="
+            
+            # Create simple PHP script to add admin
+            cat > /tmp/emergency_admin.php << 'PHPEND'
+            <?php
+            $_SERVER['HTTP_HOST'] = 'localhost';
+            $_SERVER['REQUEST_URI'] = '/';
+            $_SERVER['REQUEST_METHOD'] = 'GET';
+            require_once '/var/www/html/current/vendor/autoload.php';
+            $app = require_once '/var/www/html/current/bootstrap/app.php';
+            
+            echo "Starting emergency admin creation...\n";
+            
+            try {
+                $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+                
+                // Use Laravel DB facade
+                $connection = $app['db'];
+                
+                // Delete existing admin
+                $connection->table('users')->where('email', 'admin@xsyumeno.com')->delete();
+                echo "Deleted existing admin\n";
+                
+                // Insert new admin with simple password
+                $connection->table('users')->insert([
+                    'name' => 'Administrator',
+                    'email' => 'admin@xsyumeno.com',
+                    'password' => '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // password
+                    'role' => 'superadmin',
+                    'is_active' => 1,
+                    'email_verified_at' => date('Y-m-d H:i:s'),
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s')
+                ]);
+                echo "Created new admin user\n";
+                
+                // Verify
+                $admin = $connection->table('users')->where('email', 'admin@xsyumeno.com')->first();
+                if ($admin) {
+                    echo "SUCCESS: Admin created with ID {$admin->id}\n";
+                    echo "Email: {$admin->email}\n";
+                    echo "Role: {$admin->role}\n";
+                    echo "Active: {$admin->is_active}\n";
+                } else {
+                    echo "ERROR: Admin not found after creation\n";
+                }
+                
+            } catch (Exception $e) {
+                echo "ERROR: " . $e->getMessage() . "\n";
+                echo "Trace: " . $e->getTraceAsString() . "\n";
+            }
+            
+            echo "Emergency admin script completed\n";
+            PHPEND
+            
+            # Run the emergency script
+            sudo -u www-data php /tmp/emergency_admin.php
+            
+            # Cleanup
+            rm -f /tmp/emergency_admin.php
+            
+            # Clear caches
+            echo "Clearing caches..."
+            sudo -u www-data php artisan config:clear
+            sudo -u www-data php artisan cache:clear
+            
+            # Restart services
+            echo "Restarting services..."
+            sudo systemctl restart php8.3-fpm
+            sudo systemctl restart nginx
+            
+            echo "=== EMERGENCY ADMIN FIX COMPLETE ==="
+            echo ""
+            echo "Login credentials:"
+            echo "URL: http://13.115.38.179/admin/login"
+            echo "Email: admin@xsyumeno.com"
+            echo "Password: password"
+            echo ""
+            echo "Try logging in now!"
+          EOF
+          
+          rm key.pem
