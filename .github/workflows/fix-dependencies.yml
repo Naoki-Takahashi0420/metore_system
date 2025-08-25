@@ -1,0 +1,81 @@
+name: Fix Dependencies
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-dependencies.yml'
+
+jobs:
+  fix-deps:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Fix composer dependencies and create admin
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i key.pem ubuntu@13.115.38.179 << 'EOF'
+          cd /var/www/html/current
+          
+          echo "=== Fixing composer dependencies ==="
+          sudo -u www-data composer install --no-dev --optimize-autoloader
+          
+          echo "=== Running migrations ==="
+          sudo -u www-data php artisan migrate:fresh --force
+          
+          echo "=== Creating admin user via direct PHP ==="
+          sudo -u www-data php -r "
+          require '/var/www/html/current/vendor/autoload.php';
+          \$app = require_once '/var/www/html/current/bootstrap/app.php';
+          \$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+          
+          \$user = \App\Models\User::create([
+              'name' => 'Administrator',
+              'email' => 'admin@xsyumeno.com',
+              'password' => \Illuminate\Support\Facades\Hash::make('password'),
+              'role' => 'superadmin',
+              'is_active' => true,
+              'email_verified_at' => now()
+          ]);
+          echo 'Admin user created with ID: ' . \$user->id . PHP_EOL;
+          "
+          
+          echo "=== Verify database ==="
+          sudo -u www-data php -r "
+          require '/var/www/html/current/vendor/autoload.php';
+          \$app = require_once '/var/www/html/current/bootstrap/app.php';
+          \$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+          
+          \$users = \App\Models\User::all();
+          echo 'Total users: ' . \$users->count() . PHP_EOL;
+          \$admin = \$users->where('email', 'admin@xsyumeno.com')->first();
+          if (\$admin) {
+              echo 'Admin found: ' . \$admin->email . ' (Role: ' . \$admin->role . ')' . PHP_EOL;
+          }
+          "
+          
+          echo "=== Clear caches manually ==="
+          sudo rm -rf bootstrap/cache/*
+          sudo rm -rf storage/framework/cache/data/*
+          sudo rm -rf storage/framework/sessions/*
+          sudo rm -rf storage/framework/views/*
+          
+          sudo chown -R www-data:www-data storage bootstrap/cache
+          sudo chmod -R 775 storage bootstrap/cache
+          
+          echo "=== Restart services ==="
+          sudo systemctl restart php8.3-fpm nginx
+          
+          echo "========================================"
+          echo "DEPENDENCIES FIXED!"
+          echo "========================================"
+          echo "Login URL: http://13.115.38.179/admin/login"  
+          echo "Email: admin@xsyumeno.com"
+          echo "Password: password"
+          echo "========================================"
+          EOF
+          
+          rm key.pem
