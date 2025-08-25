@@ -1,0 +1,91 @@
+name: Simple Admin Fix
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix-admin:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Simple admin fix using PHP
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            cd /var/www/html/current
+            
+            echo "=== Current directory and files ==="
+            pwd
+            ls -la .env* || echo "No .env files found"
+            
+            echo ""
+            echo "=== Check database config ==="
+            cat .env | grep DB_ | head -5 || echo "Cannot read .env"
+            
+            echo ""
+            echo "=== Fix using PHP directly ==="
+            cat > fix_admin.php << 'PHPCODE'
+            <?php
+            require_once 'vendor/autoload.php';
+            $app = require_once 'bootstrap/app.php';
+            
+            try {
+                // Test database connection
+                $pdo = $app->make('db')->connection()->getPdo();
+                echo "Database connection: OK\n";
+                
+                // Check existing users
+                $users = $app->make('db')->table('users')->get();
+                echo "Total users in database: " . count($users) . "\n";
+                
+                // Delete existing admin
+                $app->make('db')->table('users')->where('email', 'admin@xsyumeno.com')->delete();
+                
+                // Create new admin
+                $app->make('db')->table('users')->insert([
+                    'name' => 'Administrator',
+                    'email' => 'admin@xsyumeno.com',
+                    'password' => password_hash('password', PASSWORD_BCRYPT),
+                    'role' => 'superadmin',
+                    'is_active' => 1,
+                    'email_verified_at' => date('Y-m-d H:i:s'),
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s')
+                ]);
+                
+                echo "New admin user created successfully!\n";
+                
+                // Verify
+                $admin = $app->make('db')->table('users')->where('email', 'admin@xsyumeno.com')->first();
+                if ($admin) {
+                    echo "Verification - ID: {$admin->id}, Email: {$admin->email}, Role: {$admin->role}\n";
+                }
+                
+            } catch (Exception $e) {
+                echo "Error: " . $e->getMessage() . "\n";
+            }
+            PHPCODE
+            
+            sudo -u www-data php fix_admin.php
+            
+            echo ""
+            echo "=== Clean up and restart ==="
+            rm -f fix_admin.php
+            sudo -u www-data php artisan config:clear
+            sudo -u www-data php artisan cache:clear
+            sudo systemctl restart php8.3-fpm nginx
+            
+            echo ""
+            echo "=== Final test ==="
+            curl -s -I http://localhost/admin/login | head -2
+            
+            echo ""
+            echo "Admin fix complete!"
+            echo "Try logging in with: admin@xsyumeno.com / password"
+          EOF
+          
+          rm key.pem
