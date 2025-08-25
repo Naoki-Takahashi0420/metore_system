@@ -1,0 +1,140 @@
+name: Emergency Restore Application
+
+on:
+  workflow_dispatch:
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Restore application from backup
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            echo "=== 現在の状態確認 ==="
+            ls -la /var/www/html/
+            
+            echo ""
+            echo "=== バックアップリスト ==="
+            ls -la /var/www/html/ | grep backup
+            
+            echo ""
+            echo "=== 最新のバックアップから復元 ==="
+            if [ -d "/var/www/html/backup_20250825_003451" ]; then
+              echo "Using backup_20250825_003451"
+              
+              # 現在のcurrentを削除（存在する場合）
+              sudo rm -rf /var/www/html/current_broken
+              [ -d "/var/www/html/current" ] && sudo mv /var/www/html/current /var/www/html/current_broken
+              
+              # バックアップから復元
+              sudo cp -r /var/www/html/backup_20250825_003451 /var/www/html/current
+              
+              # 権限設定
+              sudo chown -R www-data:www-data /var/www/html/current
+              sudo chmod -R 755 /var/www/html/current
+              sudo chmod -R 775 /var/www/html/current/storage
+              sudo chmod -R 775 /var/www/html/current/bootstrap/cache
+              
+              cd /var/www/html/current
+              
+              echo ""
+              echo "=== .envファイルの確認 ==="
+              if [ -f .env ]; then
+                echo ".env exists"
+                grep -E "APP_KEY|APP_URL|DB_HOST" .env | head -3
+              else
+                echo ".env missing - copying from backup"
+                [ -f /var/www/html/backup_old/.env ] && sudo cp /var/www/html/backup_old/.env .env
+              fi
+              
+              echo ""
+              echo "=== Composerインストール ==="
+              sudo -u www-data composer install --no-dev --optimize-autoloader
+              
+              echo ""
+              echo "=== APP_KEY生成 ==="
+              sudo -u www-data php artisan key:generate --force
+              
+              echo ""
+              echo "=== キャッシュクリア ==="
+              sudo rm -rf bootstrap/cache/*.php
+              sudo rm -rf storage/framework/cache/data/*
+              sudo rm -rf storage/framework/sessions/*
+              sudo rm -rf storage/framework/views/*
+              
+              echo ""
+              echo "=== Livewireマニフェスト再生成 ==="
+              sudo -u www-data php artisan livewire:discover
+              
+              echo ""
+              echo "=== キャッシュ再構築 ==="
+              sudo -u www-data php artisan config:cache
+              sudo -u www-data php artisan route:cache
+              sudo -u www-data php artisan view:cache
+              
+              echo ""
+              echo "=== データベース接続確認 ==="
+              sudo -u www-data php artisan db:show
+              
+              echo ""
+              echo "=== 管理者アカウント再作成 ==="
+              sudo -u www-data php artisan tinker --execute="
+                \$user = \App\Models\User::where('email', 'admin@xsyumeno.com')->first();
+                if (!\$user) {
+                  \$user = \App\Models\User::create([
+                    'name' => 'Administrator',
+                    'email' => 'admin@xsyumeno.com',
+                    'password' => bcrypt('password'),
+                    'role' => 'superadmin',
+                    'is_active' => true,
+                    'email_verified_at' => now()
+                  ]);
+                  echo 'Admin created: ' . \$user->id;
+                } else {
+                  \$user->password = bcrypt('password');
+                  \$user->save();
+                  echo 'Admin password reset: ' . \$user->id;
+                }
+              "
+              
+              echo ""
+              echo "=== サービス再起動 ==="
+              sudo systemctl restart php8.3-fpm
+              sudo systemctl restart nginx
+              
+              echo ""
+              echo "=== アプリケーション確認 ==="
+              [ -f /var/www/html/current/artisan ] && echo "✅ artisan exists" || echo "❌ artisan missing"
+              [ -d /var/www/html/current/app ] && echo "✅ app directory exists" || echo "❌ app directory missing"
+              [ -d /var/www/html/current/vendor ] && echo "✅ vendor directory exists" || echo "❌ vendor directory missing"
+              
+              echo ""
+              echo "=== HTTPテスト ==="
+              curl -I http://localhost/admin/login
+              
+            else
+              echo "❌ No backup found at /var/www/html/backup_20250825_003451"
+              echo "Available backups:"
+              ls -la /var/www/html/ | grep backup
+            fi
+            
+            echo ""
+            echo "================================"
+            echo "RESTORE COMPLETE!"
+            echo "================================"
+            echo "Test login at: http://13.115.38.179/admin/login"
+            echo "Email: admin@xsyumeno.com"
+            echo "Password: password"
+            echo "================================"
+          EOF
+          
+          rm key.pem
