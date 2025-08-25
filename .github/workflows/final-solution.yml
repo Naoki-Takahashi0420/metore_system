@@ -1,0 +1,95 @@
+name: Final Solution - Force Install Vendor
+
+on:
+  workflow_dispatch:
+
+jobs:
+  final:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Force Install Everything
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+      run: |
+        echo "$EC2_KEY" > key.pem
+        chmod 600 key.pem
+        
+        # Create package locally with vendor
+        echo "Installing vendor locally..."
+        composer install --no-dev --optimize-autoloader
+        
+        echo "Creating deployment package with vendor..."
+        tar -czf /tmp/deploy-with-vendor.tar.gz \
+          --exclude=node_modules \
+          --exclude=.git \
+          --exclude=.github \
+          --exclude=.env \
+          .
+        
+        echo "Uploading to 54.249.2.157..."
+        scp -o StrictHostKeyChecking=no -i key.pem /tmp/deploy-with-vendor.tar.gz ubuntu@54.249.2.157:/tmp/
+        
+        ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@54.249.2.157 << 'FINAL'
+        echo "=== FINAL DEPLOYMENT WITH VENDOR ==="
+        
+        # Clean and extract
+        sudo rm -rf /var/www/html
+        sudo mkdir -p /var/www/html
+        cd /var/www/html
+        sudo tar -xzf /tmp/deploy-with-vendor.tar.gz
+        rm /tmp/deploy-with-vendor.tar.gz
+        
+        # Create .env
+        sudo tee .env << 'ENV' > /dev/null
+        APP_NAME=Xsyumeno
+        APP_ENV=production
+        APP_KEY=base64:FhDmJJEPuQPAz6t5HMt6qTVSYLs7pJg7xLDgBEcVHHg=
+        APP_DEBUG=true
+        APP_URL=http://54.249.2.157
+        
+        DB_CONNECTION=mysql
+        DB_HOST=xsyumeno-db.cbq0ywo44b0p.ap-northeast-1.rds.amazonaws.com
+        DB_PORT=3306
+        DB_DATABASE=xsyumenodb
+        DB_USERNAME=admin
+        DB_PASSWORD=Xsyumeno2024#!
+        
+        LOG_CHANNEL=stack
+        CACHE_DRIVER=file
+        SESSION_DRIVER=database
+        QUEUE_CONNECTION=database
+        ENV
+        
+        # Verify vendor exists
+        echo "Checking vendor directory:"
+        ls -la vendor/ | head -5
+        
+        # Laravel setup
+        sudo php artisan key:generate
+        sudo php artisan storage:link
+        sudo php artisan config:clear
+        sudo php artisan migrate --force
+        
+        # Permissions
+        sudo chown -R www-data:www-data /var/www/html
+        sudo chmod -R 755 /var/www/html
+        sudo chmod -R 775 storage bootstrap/cache
+        
+        # Restart
+        sudo systemctl restart nginx php8.1-fpm
+        
+        echo -e "\n=== TESTING ==="
+        sleep 2
+        curl -I http://localhost/
+        
+        echo "=== COMPLETE ==="
+        FINAL
+        
+        rm key.pem /tmp/deploy-with-vendor.tar.gz
+        
+        echo "Testing from outside..."
+        curl -I http://54.249.2.157/
