@@ -1,0 +1,121 @@
+name: Simple Fix Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Quick Fix Deploy
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+      run: |
+        echo "$EC2_KEY" > key.pem
+        chmod 600 key.pem
+        
+        # Deploy to 54.249.2.157
+        ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@54.249.2.157 << 'FIX'
+        echo "=== Quick Fix for 54.249.2.157 ==="
+        
+        # Check current status
+        echo "Current status:"
+        ls -la /var/www/ || echo "No /var/www directory"
+        
+        # If no html directory, clone it
+        if [ ! -d /var/www/html ]; then
+          echo "Creating Laravel app..."
+          cd /var/www
+          sudo git clone https://github.com/Naoki-Takahashi0420/metore_system.git html
+        fi
+        
+        cd /var/www/html
+        
+        # Create proper .env
+        sudo tee .env << 'ENV' > /dev/null
+        APP_NAME=Xsyumeno
+        APP_ENV=production
+        APP_KEY=base64:FhDmJJEPuQPAz6t5HMt6qTVSYLs7pJg7xLDgBEcVHHg=
+        APP_DEBUG=true
+        APP_URL=http://54.249.2.157
+        
+        DB_CONNECTION=mysql
+        DB_HOST=xsyumeno-db.cbq0ywo44b0p.ap-northeast-1.rds.amazonaws.com
+        DB_PORT=3306
+        DB_DATABASE=xsyumenodb
+        DB_USERNAME=admin
+        DB_PASSWORD=Xsyumeno2024#!
+        
+        LOG_CHANNEL=stack
+        CACHE_DRIVER=file
+        SESSION_DRIVER=file
+        QUEUE_CONNECTION=sync
+        ENV
+        
+        # Install PHP MySQL if needed
+        if ! php -m | grep -q mysql; then
+          echo "Installing PHP MySQL..."
+          sudo apt-get update
+          sudo apt-get install -y php8.1-mysql
+          sudo systemctl restart php8.1-fpm
+        fi
+        
+        # Install composer if needed
+        if ! command -v composer &> /dev/null; then
+          curl -sS https://getcomposer.org/installer | php
+          sudo mv composer.phar /usr/local/bin/composer
+        fi
+        
+        # Install dependencies
+        sudo composer install --no-dev --optimize-autoloader
+        
+        # Laravel setup
+        sudo php artisan key:generate
+        sudo php artisan storage:link
+        sudo php artisan config:clear
+        
+        # Set permissions
+        sudo chown -R www-data:www-data /var/www/html
+        sudo chmod -R 755 /var/www/html
+        sudo chmod -R 775 storage bootstrap/cache
+        
+        # Fix Nginx config for PHP 8.1
+        sudo tee /etc/nginx/sites-available/default << 'NGINX' > /dev/null
+        server {
+            listen 80 default_server;
+            listen [::]:80 default_server;
+            
+            root /var/www/html/public;
+            index index.php index.html;
+            
+            server_name _;
+            
+            location / {
+                try_files \$uri \$uri/ /index.php?\$query_string;
+            }
+            
+            location ~ \.php$ {
+                include snippets/fastcgi-php.conf;
+                fastcgi_pass unix:/var/run/php/php8.1-fpm.sock;
+            }
+            
+            location ~ /\.ht {
+                deny all;
+            }
+        }
+        NGINX
+        
+        # Restart services
+        sudo systemctl restart nginx php8.1-fpm
+        
+        echo "=== Fix Complete ==="
+        echo "Testing..."
+        sleep 2
+        curl -I http://localhost/
+        FIX
+        
+        rm key.pem
