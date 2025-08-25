@@ -1,0 +1,84 @@
+name: Fix Livewire Final
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Fix Livewire 500 Error
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            cd /var/www/html
+            
+            echo "=== Fixing Livewire Error ==="
+            
+            # 1. APP_KEYが設定されているか確認
+            if ! grep -q "^APP_KEY=base64:" .env; then
+              echo "Generating APP_KEY..."
+              php artisan key:generate
+            fi
+            
+            # 2. Livewireのキャッシュをクリア
+            echo "Clearing all caches..."
+            php artisan config:clear
+            php artisan cache:clear
+            php artisan view:clear
+            php artisan route:clear
+            rm -rf bootstrap/cache/*
+            rm -rf storage/framework/cache/data/*
+            rm -rf storage/framework/sessions/*
+            rm -rf storage/framework/views/*
+            
+            # 3. セッションとキャッシュディレクトリの権限修正
+            echo "Fixing permissions..."
+            sudo chown -R www-data:www-data storage
+            sudo chown -R www-data:www-data bootstrap/cache
+            sudo chmod -R 777 storage
+            sudo chmod -R 777 bootstrap/cache
+            
+            # 4. Livewireコンポーネントの再発行
+            echo "Re-publishing Livewire assets..."
+            php artisan livewire:publish --force
+            
+            # 5. オートローダー再生成
+            echo "Regenerating autoloader..."
+            composer dump-autoload
+            
+            # 6. 設定キャッシュ再生成（DEBUGモードで）
+            echo "Setting debug mode temporarily..."
+            sed -i 's/APP_DEBUG=false/APP_DEBUG=true/' .env
+            
+            # 7. PHP-FPMとNginx再起動
+            echo "Restarting services..."
+            sudo systemctl restart php8.3-fpm
+            sudo systemctl restart nginx
+            
+            # 8. エラーログ確認
+            echo -e "\n=== Latest Error Details ==="
+            tail -n 100 storage/logs/laravel.log | grep -A 10 "livewire\|Livewire\|500"
+            
+            # 9. Livewireコンポーネント存在確認
+            echo -e "\n=== Checking Livewire Components ==="
+            find app -name "*Login*" -type f | head -10
+            
+            # 10. テスト
+            echo -e "\n=== Testing Livewire Endpoint ==="
+            curl -X POST http://localhost/livewire/update \
+              -H "Content-Type: application/json" \
+              -d '{"fingerprint":{"id":"test","name":"test"},"serverMemo":{},"updates":[]}' \
+              2>/dev/null | head -20
+            
+            echo -e "\n=== Fix Complete ==="
+            echo "Admin login: admin@xsyumeno.com / password"
+            echo "URL: http://13.115.38.179/admin/login"
+          EOF
+          
+          rm key.pem
