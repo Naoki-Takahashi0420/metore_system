@@ -1,0 +1,106 @@
+name: Fix 500 Error Final
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Fix 500 error completely
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            echo "=== Checking Current Status ==="
+            cd /var/www/html/current
+            pwd
+            
+            echo -e "\n=== Vendor Directory Issue ==="
+            # vendorディレクトリの問題を確認
+            if [ -d "vendor" ]; then
+              echo "Vendor exists, checking for missing packages..."
+              ls -la vendor/laravel/ 2>/dev/null | grep prompts || echo "laravel/prompts MISSING!"
+            else
+              echo "Vendor directory missing!"
+            fi
+            
+            echo -e "\n=== Complete Reinstall ==="
+            # vendorを完全に削除して再インストール
+            sudo rm -rf vendor
+            rm -f composer.lock
+            
+            # Composerキャッシュクリア
+            composer clear-cache
+            
+            # 新規インストール
+            echo "Installing fresh packages..."
+            composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
+            
+            # 確認
+            echo -e "\n=== Verify laravel/prompts ==="
+            ls -la vendor/laravel/ | grep prompts
+            
+            echo -e "\n=== Fix Permissions ==="
+            sudo chown -R www-data:www-data .
+            sudo chmod -R 755 .
+            sudo chmod -R 777 storage bootstrap/cache
+            
+            echo -e "\n=== Clear Everything ==="
+            php artisan config:clear
+            php artisan cache:clear
+            php artisan view:clear
+            php artisan route:clear
+            rm -rf bootstrap/cache/*.php
+            rm -rf storage/framework/cache/data/*
+            rm -rf storage/framework/sessions/*
+            rm -rf storage/framework/views/*.php
+            
+            echo -e "\n=== Rebuild Cache ==="
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            
+            echo -e "\n=== Restart Services ==="
+            sudo systemctl restart php8.3-fpm
+            sudo systemctl restart nginx
+            
+            echo -e "\n=== Test Results ==="
+            sleep 2
+            
+            # ホームページテスト
+            echo "Homepage test:"
+            curl -s -o /dev/null -w "Status: %{http_code}\n" http://localhost/
+            
+            # 管理画面テスト
+            echo "Admin login test:"
+            curl -s -o /dev/null -w "Status: %{http_code}\n" http://localhost/admin/login
+            
+            # Livewireテスト（詳細）
+            echo -e "\nLivewire endpoint test:"
+            curl -X POST http://localhost/livewire/update \
+              -H "Content-Type: application/json" \
+              -H "X-Livewire: true" \
+              -d '{"fingerprint":{"id":"test","name":"test"},"serverMemo":{},"updates":[]}' \
+              -w "Status: %{http_code}\n" \
+              -s -v 2>&1 | grep -E "HTTP|Error|Fatal" | head -10
+            
+            echo -e "\n=== Check Error Logs ==="
+            tail -15 /var/log/nginx/error.log 2>/dev/null | grep -i "error\|fatal" || echo "No nginx errors"
+            
+            echo -e "\n=== Laravel Error Log ==="
+            tail -20 storage/logs/laravel.log 2>/dev/null || echo "No Laravel log"
+            
+            echo -e "\n=== PHP Error Log ==="
+            sudo tail -10 /var/log/php8.3-fpm.log 2>/dev/null || echo "No PHP-FPM log"
+            
+            echo -e "\n=== Final Status ==="
+            echo "URL: http://13.115.38.179/admin/login"
+            echo "If still 500, check browser console for details"
+          EOF
+          
+          rm key.pem
