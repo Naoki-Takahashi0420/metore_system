@@ -1,0 +1,52 @@
+name: Fix Vendor Directory
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Install Composer Dependencies
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+      run: |
+        echo "$EC2_KEY" > key.pem
+        chmod 600 key.pem
+        
+        ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@54.249.2.157 << 'VENDOR'
+        echo "=== Installing vendor directory on 54.249.2.157 ==="
+        
+        cd /var/www/html
+        
+        echo "1. Install composer if needed:"
+        if ! command -v composer &> /dev/null; then
+          curl -sS https://getcomposer.org/installer | php
+          sudo mv composer.phar /usr/local/bin/composer
+        fi
+        
+        echo -e "\n2. Install dependencies:"
+        sudo composer install --no-dev --optimize-autoloader
+        
+        echo -e "\n3. Fix permissions:"
+        sudo chown -R www-data:www-data /var/www/html
+        sudo chmod -R 755 /var/www/html
+        sudo chmod -R 775 storage bootstrap/cache
+        
+        echo -e "\n4. Clear Laravel cache:"
+        sudo php artisan config:clear
+        sudo php artisan cache:clear
+        sudo php artisan view:clear
+        
+        echo -e "\n5. Restart services:"
+        sudo systemctl restart nginx php8.1-fpm
+        
+        echo -e "\n6. Test:"
+        sleep 2
+        curl -I http://localhost/
+        
+        echo "=== FIX COMPLETE ==="
+        VENDOR
+        
+        rm key.pem
