@@ -14,6 +14,7 @@ jobs:
       - name: Deploy Laravel
         env:
           EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "$EC2_KEY" > key.pem
           chmod 600 key.pem
@@ -21,7 +22,7 @@ jobs:
           ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -i key.pem ubuntu@13.230.197.250 << 'EOF'
             cd /var/www/html
             sudo rm -rf current
-            git clone https://github.com/Naoki-Takahashi0420/metore_system.git current
+            git clone https://${{ secrets.GITHUB_TOKEN }}@github.com/Naoki-Takahashi0420/metore_system.git current
             cd current
             
             cat > .env << 'ENV'
