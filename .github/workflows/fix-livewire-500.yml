@@ -1,0 +1,106 @@
+name: Fix Livewire 500 Error
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix-livewire:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Fix Livewire 500 error
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            cd /var/www/html/current
+            
+            echo "=== Checking Livewire error ==="
+            tail -50 storage/logs/laravel.log | grep -A 10 -B 5 "livewire\|500" | tail -30
+            
+            echo ""
+            echo "=== Fix APP_KEY issue ==="
+            # APP_KEYが正しく設定されているか確認
+            if ! grep -q "APP_KEY=base64:" .env; then
+              echo "Generating new APP_KEY..."
+              php artisan key:generate --force
+            fi
+            
+            echo ""
+            echo "=== Fix Livewire manifest ==="
+            # Livewireのマニフェストを再生成
+            sudo -u www-data php artisan livewire:discover
+            
+            echo ""
+            echo "=== Clear and rebuild caches ==="
+            # 全キャッシュをクリア
+            sudo rm -rf bootstrap/cache/*.php
+            sudo rm -rf storage/framework/cache/data/*
+            sudo rm -rf storage/framework/sessions/*
+            sudo rm -rf storage/framework/views/*
+            
+            # ディレクトリを作成
+            mkdir -p storage/framework/cache/data
+            mkdir -p storage/framework/sessions  
+            mkdir -p storage/framework/views
+            mkdir -p bootstrap/cache
+            
+            # 権限設定
+            sudo chown -R www-data:www-data storage
+            sudo chown -R www-data:www-data bootstrap/cache
+            sudo chmod -R 775 storage
+            sudo chmod -R 775 bootstrap/cache
+            
+            echo ""
+            echo "=== Optimize application ==="
+            # アプリケーションを最適化
+            sudo -u www-data php artisan config:cache
+            sudo -u www-data php artisan route:cache
+            sudo -u www-data php artisan view:cache
+            
+            echo ""
+            echo "=== Check Livewire routes ==="
+            sudo -u www-data php artisan route:list | grep livewire
+            
+            echo ""
+            echo "=== Fix session config ==="
+            # セッション設定を確認
+            sed -i "s/'secure' => env('SESSION_SECURE_COOKIE'),/'secure' => false,/" config/session.php || true
+            sed -i "s/'same_site' => 'lax',/'same_site' => null,/" config/session.php || true
+            
+            # 設定を再キャッシュ
+            sudo -u www-data php artisan config:cache
+            
+            echo ""
+            echo "=== Restart services ==="
+            sudo systemctl restart php8.3-fpm
+            sudo systemctl restart nginx
+            
+            echo ""
+            echo "=== Test Livewire endpoint ==="
+            # Livewireエンドポイントをテスト
+            curl -X POST http://localhost/livewire/update \
+              -H "Content-Type: application/json" \
+              -d '{"test":"test"}' \
+              -w "\nHTTP Status: %{http_code}\n" \
+              -s | tail -3
+            
+            echo ""
+            echo "=== Check latest errors ==="
+            tail -10 storage/logs/laravel.log | grep -E "ERROR|Exception" || echo "No recent errors"
+            
+            echo ""
+            echo "================================"
+            echo "LIVEWIRE FIX COMPLETE!"
+            echo "================================"
+            echo "Try logging in again at:"
+            echo "http://13.115.38.179/admin/login"
+            echo "Email: admin@xsyumeno.com"
+            echo "Password: password"
+            echo "================================"
+          EOF
+          
+          rm key.pem
