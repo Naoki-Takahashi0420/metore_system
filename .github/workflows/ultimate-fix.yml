@@ -1,0 +1,104 @@
+name: Ultimate Fix
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ultimate-fix:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Ultimate login fix with full redeploy
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          # まず現在のコードをEC2に転送
+          tar -czf code.tar.gz \
+            --exclude=node_modules \
+            --exclude=.git \
+            --exclude=.env \
+            --exclude=vendor \
+            app bootstrap config database public resources routes \
+            composer.json composer.lock artisan
+          
+          scp -o StrictHostKeyChecking=no -i key.pem code.tar.gz ubuntu@13.115.38.179:/tmp/
+          
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            cd /var/www/html/current
+            
+            echo "=== Extracting latest code ==="
+            sudo tar -xzf /tmp/code.tar.gz -C /var/www/html/current
+            sudo chown -R ubuntu:ubuntu /var/www/html/current
+            
+            echo "=== Installing dependencies ==="
+            composer install --no-dev --optimize-autoloader
+            
+            echo "=== Clearing everything ==="
+            sudo rm -rf bootstrap/cache/*
+            sudo rm -rf storage/framework/cache/*
+            sudo rm -rf storage/framework/sessions/*
+            sudo rm -rf storage/framework/views/*
+            
+            echo "=== Creating required directories ==="
+            mkdir -p storage/framework/{cache/data,sessions,views}
+            mkdir -p storage/logs
+            mkdir -p bootstrap/cache
+            
+            echo "=== Setting permissions ==="
+            sudo chown -R www-data:www-data storage bootstrap/cache
+            sudo chmod -R 775 storage bootstrap/cache
+            
+            echo "=== Publishing Filament assets ==="
+            sudo -u www-data php artisan filament:assets
+            sudo -u www-data php artisan livewire:publish --assets
+            
+            echo "=== Optimizing ==="
+            sudo -u www-data php artisan optimize
+            sudo -u www-data php artisan filament:cache-components
+            
+            echo "=== Creating test admin ==="
+            sudo -u www-data php artisan tinker --execute="
+            \App\Models\User::updateOrCreate(
+                ['email' => 'admin@xsyumeno.com'],
+                [
+                    'name' => 'Administrator',
+                    'password' => \Hash::make('password'),
+                    'role' => 'superadmin',
+                    'is_active' => true,
+                    'email_verified_at' => now()
+                ]
+            );
+            echo 'Admin ready';
+            "
+            
+            echo "=== Restarting everything ==="
+            sudo systemctl restart php8.3-fpm
+            sudo systemctl restart nginx
+            
+            echo "=== Testing endpoints ==="
+            echo "GET /admin/login:"
+            curl -s -o /dev/null -w "%{http_code}\n" http://localhost/admin/login
+            
+            echo "GET /livewire/livewire.js:"
+            curl -s -o /dev/null -w "%{http_code}\n" http://localhost/livewire/livewire.js
+            
+            echo ""
+            echo "================================"
+            echo "DEPLOYMENT COMPLETE!"
+            echo "================================"
+            echo "Please try logging in at:"
+            echo "http://13.115.38.179/admin/login"
+            echo "Email: admin@xsyumeno.com"
+            echo "Password: password"
+            echo "================================"
+            
+            rm /tmp/code.tar.gz
+          EOF
+          
+          rm key.pem code.tar.gz
