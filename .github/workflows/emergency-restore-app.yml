@@ -1,0 +1,137 @@
+name: Emergency Restore App
+
+on:
+  workflow_dispatch:
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Emergency restore application
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            echo "🚨 EMERGENCY RESTORE 🚨"
+            
+            # 現在の状態確認
+            echo "Current /var/www/html:"
+            ls -la /var/www/html/
+            
+            # アプリケーション復元
+            echo -e "\n=== RESTORING APPLICATION ==="
+            cd /var/www/html
+            
+            # 既存削除
+            sudo rm -rf current
+            
+            # GitHubから新規クローン
+            git clone https://github.com/Naoki-Takahashi0420/metore_system.git current
+            cd current
+            
+            # 環境設定
+            cat > .env << 'ENVFILE'
+          APP_NAME=Xsyumeno
+          APP_ENV=production
+          APP_KEY=
+          APP_DEBUG=true
+          APP_URL=http://13.115.38.179
+          
+          LOG_CHANNEL=stack
+          LOG_LEVEL=debug
+          
+          DB_CONNECTION=mysql
+          DB_HOST=xsyumeno-db.cbq0ywo44b0p.ap-northeast-1.rds.amazonaws.com
+          DB_PORT=3306
+          DB_DATABASE=xsyumenodb
+          DB_USERNAME=admin
+          DB_PASSWORD=Xsyumeno2024#!
+          
+          CACHE_DRIVER=file
+          FILESYSTEM_DISK=local
+          QUEUE_CONNECTION=sync
+          SESSION_DRIVER=file
+          SESSION_LIFETIME=120
+          ENVFILE
+            
+            # Composer インストール
+            echo -e "\n=== COMPOSER INSTALL ==="
+            composer install --no-dev --optimize-autoloader
+            
+            # Laravel 初期設定
+            echo -e "\n=== LARAVEL SETUP ==="
+            php artisan key:generate
+            php artisan storage:link
+            
+            # 権限設定
+            echo -e "\n=== PERMISSIONS ==="
+            sudo chown -R www-data:www-data /var/www/html/current
+            sudo chmod -R 755 /var/www/html/current
+            sudo chmod -R 777 storage bootstrap/cache
+            
+            # Nginx設定
+            echo -e "\n=== NGINX CONFIG ==="
+            sudo tee /etc/nginx/sites-available/default > /dev/null << 'NGINX'
+          server {
+              listen 80 default_server;
+              listen [::]:80 default_server;
+              
+              server_name _;
+              root /var/www/html/current/public;
+              index index.php index.html;
+              
+              location / {
+                  try_files $uri $uri/ /index.php?$query_string;
+              }
+              
+              location ~ \.php$ {
+                  include snippets/fastcgi-php.conf;
+                  fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
+                  fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+                  include fastcgi_params;
+              }
+              
+              location ~ /\.(?!well-known).* {
+                  deny all;
+              }
+          }
+          NGINX
+            
+            # サービス再起動
+            echo -e "\n=== RESTART SERVICES ==="
+            sudo nginx -t
+            sudo systemctl restart nginx
+            sudo systemctl restart php8.3-fpm
+            
+            # データベースとユーザー作成
+            echo -e "\n=== DATABASE & USER ==="
+            php artisan migrate:fresh --force
+            php artisan tinker --execute="
+              \$user = \App\Models\User::create([
+                'name' => 'Admin',
+                'email' => 'admin@xsyumeno.com', 
+                'password' => Hash::make('password')
+              ]);
+              echo 'Admin created: ' . \$user->email;
+            "
+            
+            # 最終テスト
+            echo -e "\n=== FINAL TEST ==="
+            sleep 3
+            curl -I http://localhost/
+            curl -I http://localhost/admin/login
+            
+            echo -e "\n🚨 EMERGENCY RESTORE COMPLETE 🚨"
+            echo "URL: http://13.115.38.179/admin/login"
+            echo "Email: admin@xsyumeno.com"
+            echo "Password: password"
+          EOF
+          
+          rm key.pem
