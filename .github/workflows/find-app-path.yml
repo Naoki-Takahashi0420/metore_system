@@ -1,0 +1,45 @@
+name: Find Application Path
+
+on:
+  workflow_dispatch:
+
+jobs:
+  find:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Find Laravel application
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            echo "=== Finding Laravel Application ==="
+            
+            # 一般的なディレクトリを確認
+            echo "Checking /var/www/:"
+            ls -la /var/www/ 2>/dev/null || echo "Not found"
+            
+            echo -e "\nChecking /home/ubuntu/:"
+            ls -la /home/ubuntu/ 2>/dev/null | head -20
+            
+            # Laravelファイルを探す
+            echo -e "\n=== Searching for artisan file ==="
+            find / -name "artisan" -type f 2>/dev/null | head -5
+            
+            # Nginxの設定を確認
+            echo -e "\n=== Nginx Configuration ==="
+            grep -r "root\|server_name" /etc/nginx/sites-enabled/ 2>/dev/null
+            
+            # Apacheの設定を確認
+            echo -e "\n=== Apache Configuration ==="
+            grep -r "DocumentRoot" /etc/apache2/sites-enabled/ 2>/dev/null || echo "Apache not found"
+            
+            # 実行中のPHPプロセス確認
+            echo -e "\n=== PHP Processes ==="
+            ps aux | grep php-fpm
+          EOF
+          
+          rm key.pem
