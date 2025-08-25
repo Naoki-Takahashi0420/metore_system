@@ -1,0 +1,188 @@
+name: Debug Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Deploy with Full Debug
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+      run: |
+        # Setup SSH key
+        echo "$EC2_KEY" > key.pem
+        chmod 600 key.pem
+        
+        # Deploy with error handling
+        ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@3.112.39.129 'bash -s' << 'DEPLOY'
+        set -e  # Exit on any error
+        set -x  # Show all commands
+        
+        echo "=== Starting Deploy ==="
+        
+        # Check disk space
+        echo "Disk space:"
+        df -h
+        
+        # Create web directory
+        echo "Creating web directory..."
+        sudo mkdir -p /var/www
+        
+        # Check if git is installed
+        if ! command -v git &> /dev/null; then
+          echo "Installing git..."
+          sudo apt-get update
+          sudo apt-get install -y git
+        fi
+        
+        # Clone repository
+        echo "Cloning repository..."
+        cd /var/www
+        if [ -d html ]; then
+          echo "Removing old html directory..."
+          sudo rm -rf html
+        fi
+        
+        sudo git clone https://github.com/Naoki-Takahashi0420/metore_system.git html 2>&1 || {
+          echo "ERROR: Git clone failed!"
+          echo "Trying alternative method..."
+          
+          # Alternative: Download as archive
+          cd /tmp
+          wget https://github.com/Naoki-Takahashi0420/metore_system/archive/refs/heads/main.zip
+          unzip main.zip
+          sudo mv metore_system-main /var/www/html
+          cd /var/www/html
+        }
+        
+        # Verify clone
+        if [ ! -f /var/www/html/composer.json ]; then
+          echo "ERROR: Repository not cloned correctly!"
+          ls -la /var/www/
+          exit 1
+        fi
+        
+        cd /var/www/html
+        
+        # Install PHP and dependencies if needed
+        if ! command -v php &> /dev/null; then
+          echo "Installing PHP..."
+          sudo apt-get update
+          sudo apt-get install -y php8.3-fpm php8.3-mysql php8.3-curl php8.3-xml php8.3-mbstring php8.3-zip unzip
+        fi
+        
+        # Install Nginx if needed
+        if ! command -v nginx &> /dev/null; then
+          echo "Installing Nginx..."
+          sudo apt-get install -y nginx
+        fi
+        
+        # Install Composer if needed
+        if ! command -v composer &> /dev/null; then
+          echo "Installing Composer..."
+          curl -sS https://getcomposer.org/installer | php
+          sudo mv composer.phar /usr/local/bin/composer
+        fi
+        
+        # Create .env file
+        echo "Creating .env file..."
+        sudo tee .env << 'ENV'
+        APP_NAME=Xsyumeno
+        APP_ENV=production
+        APP_KEY=base64:FhDmJJEPuQPAz6t5HMt6qTVSYLs7pJg7xLDgBEcVHHg=
+        APP_DEBUG=true
+        APP_URL=http://3.112.39.129
+        
+        DB_CONNECTION=mysql
+        DB_HOST=xsyumeno-db.cbq0ywo44b0p.ap-northeast-1.rds.amazonaws.com
+        DB_PORT=3306
+        DB_DATABASE=xsyumenodb
+        DB_USERNAME=admin
+        DB_PASSWORD=Xsyumeno2024#!
+        
+        LOG_CHANNEL=stack
+        CACHE_DRIVER=file
+        SESSION_DRIVER=file
+        QUEUE_CONNECTION=sync
+        ENV
+        
+        # Install dependencies
+        echo "Installing Composer dependencies..."
+        sudo composer install --no-dev --optimize-autoloader 2>&1 || {
+          echo "ERROR: Composer install failed!"
+          echo "Trying with more memory..."
+          sudo php -d memory_limit=-1 /usr/local/bin/composer install --no-dev --optimize-autoloader
+        }
+        
+        # Laravel setup
+        echo "Setting up Laravel..."
+        sudo php artisan key:generate
+        sudo php artisan storage:link || true
+        sudo php artisan config:clear
+        sudo php artisan config:cache
+        sudo php artisan route:cache || true
+        sudo php artisan view:cache || true
+        
+        # Set permissions
+        echo "Setting permissions..."
+        sudo chown -R www-data:www-data /var/www/html
+        sudo chmod -R 755 /var/www/html
+        sudo chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+        
+        # Configure Nginx
+        echo "Configuring Nginx..."
+        sudo tee /etc/nginx/sites-available/default << 'NGINX'
+        server {
+            listen 80 default_server;
+            listen [::]:80 default_server;
+            
+            root /var/www/html/public;
+            index index.php index.html;
+            
+            server_name _;
+            
+            location / {
+                try_files \$uri \$uri/ /index.php?\$query_string;
+            }
+            
+            location ~ \.php$ {
+                include snippets/fastcgi-php.conf;
+                fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
+            }
+            
+            location ~ /\.ht {
+                deny all;
+            }
+        }
+        NGINX
+        
+        # Test Nginx config
+        echo "Testing Nginx config..."
+        sudo nginx -t
+        
+        # Restart services
+        echo "Restarting services..."
+        sudo systemctl restart nginx php8.3-fpm
+        
+        # Verify deployment
+        echo "=== Verification ==="
+        echo "Checking web directory:"
+        ls -la /var/www/html/public/
+        
+        echo "Testing local access:"
+        curl -I http://localhost/ || true
+        
+        echo "=== Deploy Complete ==="
+        DEPLOY
+        
+        # Cleanup
+        rm key.pem
+        
+        echo "=== Checking result from outside ==="
+        curl -I http://3.112.39.129/ || echo "Site not accessible yet"
