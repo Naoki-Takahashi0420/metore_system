@@ -1,0 +1,77 @@
+name: Fix Admin Direct
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix-admin:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Fix admin user directly
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            cd /var/www/html/current
+            
+            echo "=== Check database connection ==="
+            DB_HOST=$(grep DB_HOST .env | cut -d= -f2)
+            DB_DATABASE=$(grep DB_DATABASE .env | cut -d= -f2)
+            DB_USERNAME=$(grep DB_USERNAME .env | cut -d= -f2)
+            DB_PASSWORD=$(grep DB_PASSWORD .env | cut -d= -f2)
+            
+            echo "Database: $DB_DATABASE on $DB_HOST"
+            
+            # Test database connection
+            mysql -h$DB_HOST -u$DB_USERNAME -p$DB_PASSWORD -e "SELECT 1;" $DB_DATABASE 2>/dev/null && echo "Database connection: OK" || echo "Database connection: FAILED"
+            
+            echo ""
+            echo "=== Check users table ==="
+            mysql -h$DB_HOST -u$DB_USERNAME -p$DB_PASSWORD -e "SELECT id, email, role, is_active FROM users;" $DB_DATABASE 2>/dev/null || echo "Users table query failed"
+            
+            echo ""
+            echo "=== Delete existing admin and create new one ==="
+            mysql -h$DB_HOST -u$DB_USERNAME -p$DB_PASSWORD $DB_DATABASE << 'SQL'
+            DELETE FROM users WHERE email = 'admin@xsyumeno.com';
+            
+            INSERT INTO users (name, email, password, role, is_active, email_verified_at, created_at, updated_at) 
+            VALUES (
+                'Administrator',
+                'admin@xsyumeno.com',
+                '$2y$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+                'superadmin',
+                1,
+                NOW(),
+                NOW(),
+                NOW()
+            );
+            SQL
+            
+            echo "Admin user recreated with standard password hash"
+            
+            echo ""
+            echo "=== Verify new admin user ==="
+            mysql -h$DB_HOST -u$DB_USERNAME -p$DB_PASSWORD -e "SELECT id, email, role, is_active FROM users WHERE email = 'admin@xsyumeno.com';" $DB_DATABASE
+            
+            echo ""
+            echo "=== Clear all caches ==="
+            sudo -u www-data php artisan config:clear
+            sudo -u www-data php artisan cache:clear
+            sudo -u www-data php artisan view:clear
+            sudo -u www-data php artisan config:cache
+            
+            echo ""
+            echo "=== Test login page ==="
+            curl -s -I http://localhost/admin/login | head -3
+            
+            echo ""
+            echo "Admin fix complete - try logging in with:"
+            echo "Email: admin@xsyumeno.com"
+            echo "Password: password"
+          EOF
+          
+          rm key.pem
