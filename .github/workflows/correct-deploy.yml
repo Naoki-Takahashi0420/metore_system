@@ -1,0 +1,153 @@
+name: Deploy to CORRECT EC2 (54.249.2.157)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Deploy to 54.249.2.157
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+      run: |
+        echo "$EC2_KEY" > key.pem
+        chmod 600 key.pem
+        
+        # CORRECT EC2 IP - Account: 273021981629
+        TARGET_IP="54.249.2.157"
+        echo "Deploying to the CORRECT xsyumeno-server at $TARGET_IP"
+        
+        # Create deployment package
+        tar -czf /tmp/deploy.tar.gz \
+          --exclude=node_modules \
+          --exclude=.git \
+          --exclude=.github \
+          --exclude=.env \
+          --exclude=deploy.tar.gz \
+          . || true
+        
+        # Upload to CORRECT EC2
+        scp -o StrictHostKeyChecking=no -i key.pem /tmp/deploy.tar.gz ubuntu@$TARGET_IP:/tmp/
+        
+        # Deploy on CORRECT EC2
+        ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@$TARGET_IP << 'DEPLOY'
+        echo "=== Deploying to xsyumeno-server (54.249.2.157) ==="
+        
+        # Clean and create directory
+        sudo rm -rf /var/www/html
+        sudo mkdir -p /var/www/html
+        
+        # Extract files
+        cd /var/www/html
+        sudo tar -xzf /tmp/deploy.tar.gz
+        rm /tmp/deploy.tar.gz
+        
+        # Create .env
+        sudo tee .env << 'ENV' > /dev/null
+        APP_NAME=Xsyumeno
+        APP_ENV=production
+        APP_KEY=base64:FhDmJJEPuQPAz6t5HMt6qTVSYLs7pJg7xLDgBEcVHHg=
+        APP_DEBUG=false
+        APP_URL=http://54.249.2.157
+        
+        DB_CONNECTION=mysql
+        DB_HOST=xsyumeno-db.cbq0ywo44b0p.ap-northeast-1.rds.amazonaws.com
+        DB_PORT=3306
+        DB_DATABASE=xsyumenodb
+        DB_USERNAME=admin
+        DB_PASSWORD=Xsyumeno2024#!
+        
+        LOG_CHANNEL=stack
+        CACHE_DRIVER=file
+        SESSION_DRIVER=file
+        QUEUE_CONNECTION=sync
+        ENV
+        
+        # Install composer if needed
+        if ! command -v composer &> /dev/null; then
+          curl -sS https://getcomposer.org/installer | php
+          sudo mv composer.phar /usr/local/bin/composer
+        fi
+        
+        # Install dependencies
+        sudo composer install --no-dev --optimize-autoloader
+        
+        # Laravel setup
+        sudo php artisan key:generate
+        sudo php artisan storage:link
+        sudo php artisan config:cache
+        sudo php artisan route:cache
+        sudo php artisan view:cache
+        sudo php artisan migrate --force
+        
+        # Create admin user
+        sudo php artisan tinker --execute="
+        try {
+          \$user = App\Models\User::firstOrCreate(
+            ['email' => 'admin@xsyumeno.com'],
+            [
+              'name' => 'Administrator',
+              'password' => Hash::make('password'),
+              'role' => 'superadmin',
+              'is_active' => true,
+              'email_verified_at' => now()
+            ]
+          );
+          echo 'Admin user ready';
+        } catch (Exception \$e) {
+          echo 'User: ' . \$e->getMessage();
+        }"
+        
+        # Set permissions
+        sudo chown -R www-data:www-data /var/www/html
+        sudo chmod -R 755 /var/www/html
+        sudo chmod -R 775 storage bootstrap/cache
+        
+        # Configure Nginx
+        sudo tee /etc/nginx/sites-available/default << 'NGINX' > /dev/null
+        server {
+            listen 80 default_server;
+            listen [::]:80 default_server;
+            
+            root /var/www/html/public;
+            index index.php index.html;
+            
+            server_name _;
+            
+            location / {
+                try_files \$uri \$uri/ /index.php?\$query_string;
+            }
+            
+            location ~ \.php$ {
+                include snippets/fastcgi-php.conf;
+                fastcgi_pass unix:/var/run/php/php8.1-fpm.sock;
+            }
+            
+            location ~ /\.ht {
+                deny all;
+            }
+        }
+        NGINX
+        
+        # Restart services
+        sudo systemctl restart nginx php8.1-fpm
+        
+        echo "=== DEPLOYMENT SUCCESSFUL! ==="
+        echo "URL: http://54.249.2.157"
+        echo "Admin: http://54.249.2.157/admin/login"
+        echo "Email: admin@xsyumeno.com"
+        echo "Password: password"
+        DEPLOY
+        
+        # Cleanup
+        rm key.pem /tmp/deploy.tar.gz
+        
+        echo "Testing site..."
+        curl -I http://54.249.2.157/
