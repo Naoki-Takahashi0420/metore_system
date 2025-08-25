@@ -1,0 +1,106 @@
+name: Upload Files and Install
+
+on:
+  workflow_dispatch:
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Upload and install
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          # 必要なファイルをアップロード
+          scp -o StrictHostKeyChecking=no -i key.pem composer.json ubuntu@13.115.38.179:/tmp/
+          scp -o StrictHostKeyChecking=no -i key.pem .env.example ubuntu@13.115.38.179:/tmp/
+          
+          # EC2で処理
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            cd /var/www/html/current
+            
+            echo "=== Copy composer.json ==="
+            sudo cp /tmp/composer.json .
+            sudo chown ubuntu:ubuntu composer.json
+            
+            echo "=== Copy .env.example ==="
+            sudo cp /tmp/.env.example .
+            sudo chown ubuntu:ubuntu .env.example
+            
+            # .env作成
+            if [ ! -f ".env" ]; then
+              cp .env.example .env
+              
+              # 本番設定
+              sed -i 's/APP_ENV=local/APP_ENV=production/' .env
+              sed -i 's/APP_DEBUG=true/APP_DEBUG=false/' .env
+              sed -i 's|APP_URL=.*|APP_URL=http://13.115.38.179|' .env
+              
+              # DB設定
+              sed -i 's/DB_CONNECTION=sqlite/DB_CONNECTION=mysql/' .env
+              sed -i 's/# DB_HOST=.*/DB_HOST=xsyumeno-db.cbq0ywo44b0p.ap-northeast-1.rds.amazonaws.com/' .env
+              sed -i 's/# DB_PORT=.*/DB_PORT=3306/' .env
+              sed -i 's/# DB_DATABASE=.*/DB_DATABASE=xsyumenodb/' .env
+              sed -i 's/# DB_USERNAME=.*/DB_USERNAME=admin/' .env
+              sed -i 's/# DB_PASSWORD=.*/DB_PASSWORD=Xsyumeno2024#!/' .env
+              
+              php artisan key:generate
+            fi
+            
+            echo "=== Install Composer Dependencies ==="
+            rm -rf vendor
+            composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
+            
+            echo "=== Verify Installation ==="
+            ls -la vendor/ | head -5
+            ls -la vendor/laravel/ | head -5
+            
+            echo "=== Set Permissions ==="
+            sudo chown -R www-data:www-data .
+            sudo chmod -R 755 .
+            sudo chmod -R 777 storage bootstrap/cache
+            
+            echo "=== Clear and Rebuild Cache ==="
+            php artisan config:clear
+            php artisan cache:clear
+            php artisan view:clear
+            php artisan route:clear
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            
+            echo "=== Restart Services ==="
+            sudo systemctl restart php8.3-fpm
+            sudo systemctl restart nginx
+            
+            echo "=== Test ==="
+            sleep 2
+            curl -s -o /dev/null -w "Homepage: %{http_code}\n" http://localhost/
+            curl -s -o /dev/null -w "Admin: %{http_code}\n" http://localhost/admin/login
+            
+            echo -e "\n=== Create Admin User ==="
+            php artisan tinker --execute="
+              \$user = \App\Models\User::firstOrCreate(
+                ['email' => 'admin@xsyumeno.com'],
+                [
+                  'name' => 'Admin',
+                  'password' => Hash::make('password')
+                ]
+              );
+              echo 'Admin user: ' . \$user->email;
+            "
+            
+            echo -e "\n=== Final Status ==="
+            echo "URL: http://13.115.38.179/admin/login"
+            echo "Email: admin@xsyumeno.com"
+            echo "Password: password"
+          EOF
+          
+          rm key.pem
