@@ -1,0 +1,77 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+      
+      - name: Test SSH Connection
+        run: |
+          ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful!'" || echo "Direct SSH failed, trying alternative method..."
+      
+      - name: Deploy Application
+        run: |
+          # Try direct SSH first
+          ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF' || {
+            echo "Direct SSH failed. Please deploy manually or fix network configuration."
+            exit 1
+          }
+            cd /var/www/html || sudo mkdir -p /var/www/html && cd /var/www/html
+            
+            # Pull latest code
+            if [ -d ".git" ]; then
+              sudo git pull origin main
+            else
+              sudo git clone https://github.com/Naoki-Takahashi0420/metore_system.git .
+            fi
+            
+            # Install dependencies
+            [ -f "composer.json" ] && sudo composer install --no-dev --optimize-autoloader
+            
+            # Laravel specific
+            if [ -f "artisan" ]; then
+              sudo php artisan migrate --force
+              sudo php artisan config:cache
+              sudo php artisan route:cache
+              sudo php artisan view:cache
+            fi
+            
+            # Set permissions
+            sudo chown -R www-data:www-data /var/www/html
+            sudo chmod -R 755 /var/www/html
+            [ -d "storage" ] && sudo chmod -R 775 storage
+            [ -d "bootstrap/cache" ] && sudo chmod -R 775 bootstrap/cache
+            
+            # Restart services
+            sudo systemctl restart php8.3-fpm || sudo systemctl restart php-fpm
+            sudo systemctl restart nginx
+            
+            echo "✅ Deployment completed!"
+          EOF
+      
+      - name: Verify Deployment
+        if: always()
+        run: |
+          sleep 5
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.EC2_HOST }})
+          echo "HTTP Response: $response"
+          if [ $response -eq 200 ] || [ $response -eq 301 ] || [ $response -eq 302 ]; then
+            echo "✅ Site is accessible!"
+          else
+            echo "⚠️ Site returned HTTP $response"
+          fi
