@@ -24,18 +24,18 @@ jobs:
         
         # Create deployment package locally
         echo "Creating deployment package..."
-        tar -czf deploy.tar.gz \
+        tar -czf /tmp/deploy.tar.gz \
           --exclude=node_modules \
           --exclude=.git \
           --exclude=.github \
           --exclude=.env \
           --exclude=deploy.tar.gz \
           --exclude=storage/logs/* \
-          .
+          . || true
         
         # Upload to EC2
         echo "Uploading to $TARGET_IP..."
-        scp -o StrictHostKeyChecking=no -i key.pem deploy.tar.gz ubuntu@$TARGET_IP:/tmp/
+        scp -o StrictHostKeyChecking=no -i key.pem /tmp/deploy.tar.gz ubuntu@$TARGET_IP:/tmp/
         
         # Deploy on EC2
         ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@$TARGET_IP << 'SAFE_DEPLOY'
@@ -102,6 +102,6 @@ jobs:
         SAFE_DEPLOY
         
         # Cleanup
-        rm key.pem deploy.tar.gz
+        rm key.pem /tmp/deploy.tar.gz
         
         echo "Deployed to xsyumeno-server at $TARGET_IP"
