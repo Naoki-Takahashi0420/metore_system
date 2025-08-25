@@ -56,7 +56,7 @@ jobs:
         APP_ENV=production
         APP_KEY=base64:FhDmJJEPuQPAz6t5HMt6qTVSYLs7pJg7xLDgBEcVHHg=
         APP_DEBUG=false
-        APP_URL=http://$EC2_IP
+        APP_URL=http://3.112.39.129
         
         DB_CONNECTION=mysql
         DB_HOST=xsyumeno-db.cbq0ywo44b0p.ap-northeast-1.rds.amazonaws.com
@@ -138,8 +138,8 @@ jobs:
         
         echo "================================================"
         echo "DEPLOYMENT SUCCESSFUL!"
-        echo "Site URL: http://$EC2_IP"
-        echo "Admin Login: http://$EC2_IP/admin/login"
+        echo "Site URL: http://3.112.39.129"
+        echo "Admin Login: http://3.112.39.129/admin/login"
         echo "Email: admin@xsyumeno.com"
         echo "Password: password"
         echo "================================================"
