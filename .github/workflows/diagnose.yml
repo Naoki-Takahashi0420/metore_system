@@ -1,0 +1,62 @@
+name: Diagnose Laravel Error
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Diagnose 54.249.2.157
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+      run: |
+        echo "$EC2_KEY" > key.pem
+        chmod 600 key.pem
+        
+        ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@54.249.2.157 << 'DIAG'
+        echo "=== DIAGNOSING Laravel on 54.249.2.157 ==="
+        
+        cd /var/www/html
+        
+        echo "1. Check if Laravel files exist:"
+        ls -la | head -10
+        
+        echo -e "\n2. Check .env file:"
+        head -20 .env
+        
+        echo -e "\n3. Test PHP:"
+        php -v
+        
+        echo -e "\n4. Test database connection:"
+        php artisan tinker --execute="
+        try { 
+          \$pdo = DB::connection()->getPdo(); 
+          echo 'DATABASE CONNECTION: SUCCESS\n';
+          \$tables = DB::select('SHOW TABLES');
+          echo 'Tables count: ' . count(\$tables) . '\n';
+        } catch (Exception \$e) { 
+          echo 'DATABASE ERROR: ' . \$e->getMessage() . '\n'; 
+        }"
+        
+        echo -e "\n5. Check Laravel logs:"
+        tail -20 storage/logs/laravel.log 2>/dev/null || echo "No Laravel log"
+        
+        echo -e "\n6. Check Nginx error log:"
+        sudo tail -10 /var/log/nginx/error.log
+        
+        echo -e "\n7. Check PHP error log:"
+        sudo tail -10 /var/log/php8.1-fpm.log 2>/dev/null || echo "No PHP-FPM log"
+        
+        echo -e "\n8. Test Laravel routes:"
+        php artisan route:list --columns=uri,name | head -20
+        
+        echo -e "\n9. Storage permissions:"
+        ls -la storage/
+        ls -la bootstrap/cache/
+        
+        echo "=== END DIAGNOSIS ==="
+        DIAG
+        
+        rm key.pem
