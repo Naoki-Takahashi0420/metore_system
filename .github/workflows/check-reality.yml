@@ -1,0 +1,48 @@
+name: Check Reality
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: What is REALLY happening?
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+      run: |
+        echo "$EC2_KEY" > key.pem
+        chmod 600 key.pem
+        
+        ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@3.112.39.129 << 'CHECK'
+        echo "=== WHAT IS REALLY THERE? ==="
+        
+        echo "1. Does /var/www/html exist?"
+        ls -la /var/www/html/ | head -10
+        
+        echo -e "\n2. Does public directory exist?"
+        ls -la /var/www/html/public/ | head -10
+        
+        echo -e "\n3. What does Nginx think?"
+        grep root /etc/nginx/sites-enabled/default
+        
+        echo -e "\n4. Create a simple test file:"
+        echo "IT WORKS!" | sudo tee /var/www/html/public/test.html
+        
+        echo -e "\n5. Can we access it?"
+        curl http://localhost/test.html
+        
+        echo -e "\n6. What about index.php?"
+        ls -la /var/www/html/public/index.php
+        
+        echo -e "\n7. Is PHP-FPM running?"
+        sudo systemctl status php8.3-fpm | head -5
+        
+        echo -e "\n8. Nginx error log:"
+        sudo tail -5 /var/log/nginx/error.log
+        
+        echo "=== END OF REALITY CHECK ==="
+        CHECK
+        
+        rm key.pem
