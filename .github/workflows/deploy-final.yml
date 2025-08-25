@@ -1,0 +1,65 @@
+name: Deploy Final
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Deploy Laravel
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY_NEW }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -i key.pem ubuntu@43.207.25.85 << 'EOF'
+            cd /var/www/html
+            sudo rm -rf current
+            git clone https://github.com/Naoki-Takahashi0420/metore_system.git current
+            cd current
+            
+            cat > .env << 'ENV'
+          APP_NAME=Xsyumeno
+          APP_ENV=production
+          APP_KEY=base64:FhDmJJEPuQPAz6t5HMt6qTVSYLs7pJg7xLDgBEcVHHg=
+          APP_DEBUG=false
+          APP_URL=http://43.207.25.85
+          
+          DB_CONNECTION=mysql
+          DB_HOST=xsyumeno-db.cbq0ywo44b0p.ap-northeast-1.rds.amazonaws.com
+          DB_PORT=3306
+          DB_DATABASE=xsyumenodb
+          DB_USERNAME=admin
+          DB_PASSWORD=Xsyumeno2024#!
+          
+          CACHE_DRIVER=file
+          SESSION_DRIVER=file
+          QUEUE_CONNECTION=sync
+          ENV
+            
+            composer install --no-dev
+            php artisan key:generate
+            php artisan storage:link
+            php artisan migrate:fresh --force
+            
+            php artisan tinker --execute="App\Models\User::create(['name'=>'Admin','email'=>'admin@xsyumeno.com','password'=>Hash::make('password'),'role'=>'superadmin']);"
+            
+            sudo chown -R www-data:www-data .
+            sudo chmod -R 775 storage bootstrap/cache
+            
+            php artisan config:cache
+            php artisan route:cache
+            
+            sudo systemctl restart nginx php8.3-fpm
+            
+            echo "Deployment complete!"
+            curl -I http://localhost/admin/login
+          EOF
+          
+          rm key.pem
