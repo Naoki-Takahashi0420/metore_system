@@ -1,0 +1,56 @@
+name: Check Login Status
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Check login page
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            echo "=== Testing Login Page ==="
+            curl -I http://localhost/admin/login
+            
+            echo -e "\n=== Checking Livewire ==="
+            curl -X POST http://localhost/livewire/update \
+              -H "Content-Type: application/json" \
+              -d '{"fingerprint":{"id":"test","name":"test"},"serverMemo":{},"updates":[]}' \
+              -w "\nHTTP Status: %{http_code}\n" \
+              -s | head -20
+            
+            echo -e "\n=== Recent Error Logs ==="
+            tail -20 /var/log/nginx/error.log | grep -i "error\|fatal" || echo "No errors"
+            
+            echo -e "\n=== Laravel Logs ==="
+            cd /var/www/html/current
+            tail -20 storage/logs/laravel.log 2>/dev/null || echo "No Laravel logs"
+            
+            echo -e "\n=== Database Check ==="
+            php artisan tinker --execute="echo 'DB: ' . (DB::connection()->getPdo() ? 'Connected' : 'Failed');"
+            
+            echo -e "\n=== Admin User Check ==="
+            php artisan tinker --execute="
+              \$user = \App\Models\User::where('email', 'admin@xsyumeno.com')->first();
+              if (\$user) {
+                echo 'Admin exists: ' . \$user->email;
+              } else {
+                echo 'Admin NOT found!';
+                \$user = \App\Models\User::create([
+                  'name' => 'Admin',
+                  'email' => 'admin@xsyumeno.com',
+                  'password' => Hash::make('password')
+                ]);
+                echo ' - Created new admin';
+              }
+            "
+          EOF
+          
+          rm key.pem

@@ -1,9 +1,8 @@
-name: Deploy to AWS EC2
+name: Deploy to Production
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -12,99 +11,64 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-      
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          extensions: mbstring, xml, ctype, iconv, intl, pdo, pdo_mysql, dom, filter, gd, json, mbstring, xml
-      
-      - name: Install dependencies
-        run: |
-          composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
-          npm ci
-          npm run build
-      
-      - name: Create deployment archive
-        run: |
-          mkdir -p /tmp/deploy_temp
-          rsync -av --progress . /tmp/deploy_temp \
-            --exclude '.git' \
-            --exclude 'node_modules' \
-            --exclude '.env' \
-            --exclude '.github' \
-            --exclude 'tests' \
-            --exclude '*.pem' \
-            --exclude '*.tar.gz' \
-            --exclude 'storage/logs/*' \
-            --exclude 'storage/framework/cache/*' \
-            --exclude 'storage/framework/sessions/*' \
-            --exclude 'storage/framework/views/*'
-          
-          cd /tmp && tar -czf deploy.tar.gz deploy_temp
-          mv /tmp/deploy.tar.gz $GITHUB_WORKSPACE/deploy.tar.gz
-      
+        uses: actions/checkout@v4
+        
       - name: Deploy to EC2
         env:
           EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_HOST: 13.115.38.179
         run: |
           echo "$EC2_KEY" > key.pem
           chmod 600 key.pem
           
-          scp -o StrictHostKeyChecking=no -i key.pem deploy.tar.gz ubuntu@13.115.38.179:/tmp/
-          
-          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 'bash -s' << 'SCRIPT'
-            set -e
-            
-            cd /var/www/html
-            
-            if [ -d "current" ]; then
-              sudo rm -rf backup_old 2>/dev/null || true
-              sudo mv current backup_old
-            fi
-            
-            sudo mkdir -p current
-            
-            cd /tmp
-            tar -xzf deploy.tar.gz
-            sudo cp -r deploy_temp/* /var/www/html/current/
-            sudo cp -r deploy_temp/.[^.]* /var/www/html/current/ 2>/dev/null || true
-            rm -rf deploy_temp
-            
+          # EC2にデプロイ
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@$EC2_HOST << 'EOF'
             cd /var/www/html/current
             
-            # Fix ownership first
-            sudo chown -R ubuntu:ubuntu /var/www/html/current
+            echo "=== Pulling latest changes ==="
+            git pull origin main
             
-            if [ -f /var/www/html/.env.production ]; then
-              cp /var/www/html/.env.production .env
-            fi
+            echo "=== Installing dependencies ==="
+            composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
             
-            if ! grep -q "^APP_KEY=base64:" .env 2>/dev/null; then
-              php artisan key:generate --force
-            fi
+            echo "=== Running migrations ==="
+            php artisan migrate --force
             
-            mkdir -p storage/framework/{cache/data,sessions,views}
-            mkdir -p storage/logs
-            mkdir -p bootstrap/cache
+            echo "=== Clearing caches ==="
+            php artisan config:clear
+            php artisan cache:clear
+            php artisan view:clear
+            php artisan route:clear
             
-            sudo chown -R www-data:www-data storage bootstrap/cache
-            sudo chmod -R 775 storage bootstrap/cache
+            echo "=== Rebuilding cache ==="
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
             
-            sudo -u www-data php artisan config:cache
-            sudo -u www-data php artisan route:cache
-            sudo -u www-data php artisan view:cache
-            sudo -u www-data php artisan migrate --force
-            sudo -u www-data php artisan storage:link --force
+            echo "=== Setting permissions ==="
+            sudo chown -R www-data:www-data .
+            sudo chmod -R 755 .
+            sudo chmod -R 777 storage bootstrap/cache
             
-            sudo systemctl reload php8.3-fpm
-            sudo systemctl reload nginx
+            echo "=== Restarting services ==="
+            sudo systemctl restart php8.3-fpm
+            sudo systemctl restart nginx
             
-            rm /tmp/deploy.tar.gz
+            echo "=== Testing deployment ==="
+            curl -s -o /dev/null -w "Homepage: %{http_code}\n" http://localhost/
+            curl -s -o /dev/null -w "Admin: %{http_code}\n" http://localhost/admin/login
             
-            echo "Deployment completed successfully!"
-          SCRIPT
+            echo "=== Deployment complete ==="
+            php artisan --version
+          EOF
           
           rm key.pem
-          rm deploy.tar.gz
+          
+      - name: Notify deployment status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Deployment successful!"
+          else
+            echo "❌ Deployment failed!"
+          fi
