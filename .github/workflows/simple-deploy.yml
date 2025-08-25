@@ -1,0 +1,26 @@
+name: Simple Laravel Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 'cd /var/www/html/current && git clone https://github.com/Naoki-Takahashi0420/metore_system.git . --quiet || true && sudo chown -R www-data:www-data . && composer install --no-dev --quiet && sudo -u www-data php artisan key:generate --force && sudo tee /etc/nginx/sites-available/default > /dev/null << "NGINX"
+server {
+    listen 80 default_server;
+    root /var/www/html/current/public;
+    index index.php;
+    location / { try_files $uri $uri/ /index.php?$query_string; }
+    location ~ \.php$ { include snippets/fastcgi-php.conf; fastcgi_pass unix:/var/run/php/php8.3-fpm.sock; }
+}
+NGINX
+sudo systemctl restart nginx'
+          rm key.pem
