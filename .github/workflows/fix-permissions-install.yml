@@ -1,0 +1,67 @@
+name: Fix Permissions and Install
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Fix permissions and install
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            cd /var/www/html/current
+            
+            echo "=== Fix Directory Permissions ==="
+            # 所有権をubuntuユーザーに変更してComposerインストール
+            sudo chown -R ubuntu:ubuntu /var/www/html/current
+            
+            echo "=== Create vendor directory with correct permissions ==="
+            mkdir -p vendor
+            chmod 755 vendor
+            
+            echo "=== Install Composer Dependencies ==="
+            composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
+            
+            echo "=== Verify Installation ==="
+            if [ -d "vendor/laravel" ]; then
+              echo "SUCCESS: Laravel packages installed"
+              ls -la vendor/laravel/ | head -5
+            else
+              echo "ERROR: Laravel packages not found"
+            fi
+            
+            echo "=== After install, set web server permissions ==="
+            sudo chown -R www-data:www-data /var/www/html/current
+            sudo chmod -R 755 /var/www/html/current
+            sudo chmod -R 777 storage bootstrap/cache
+            
+            echo "=== Clear and rebuild cache ==="
+            php artisan config:clear
+            php artisan cache:clear
+            php artisan view:clear
+            php artisan route:clear
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            
+            echo "=== Restart services ==="
+            sudo systemctl restart php8.3-fpm
+            sudo systemctl restart nginx
+            
+            echo "=== Test application ==="
+            sleep 2
+            curl -I http://localhost/
+            curl -I http://localhost/admin/login
+            
+            echo -e "\n=== Check for remaining errors ==="
+            tail -5 /var/log/nginx/error.log | grep -i "error\|fatal" || echo "No recent errors"
+          EOF
+          
+          rm key.pem
