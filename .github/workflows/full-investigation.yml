@@ -1,0 +1,121 @@
+name: Full Investigation
+
+on:
+  workflow_dispatch:
+
+jobs:
+  investigate:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Complete investigation of 500 error
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            echo "🕵️ FULL INVESTIGATION MODE 🕵️"
+            
+            cd /var/www/html/current
+            
+            # 1. 基本情報
+            echo "=== BASIC INFO ==="
+            pwd
+            whoami
+            date
+            
+            # 2. アプリケーション構造
+            echo -e "\n=== APP STRUCTURE ==="
+            ls -la | head -20
+            
+            # 3. 環境設定確認
+            echo -e "\n=== ENVIRONMENT CHECK ==="
+            grep -E "APP_DEBUG|APP_ENV|DB_" .env
+            
+            # 4. Webサーバー設定
+            echo -e "\n=== NGINX CONFIG ==="
+            cat /etc/nginx/sites-enabled/default | head -30
+            
+            # 5. PHP設定
+            echo -e "\n=== PHP INFO ==="
+            php -v
+            php --ini | head -5
+            
+            # 6. Laravelバージョン
+            echo -e "\n=== LARAVEL VERSION ==="
+            php artisan --version
+            
+            # 7. データベース接続テスト
+            echo -e "\n=== DATABASE TEST ==="
+            php artisan tinker --execute="
+              try {
+                \$pdo = DB::connection()->getPdo();
+                echo 'DB Connection: SUCCESS';
+                echo '\nDB Name: ' . \$pdo->query('select database()')->fetchColumn();
+              } catch(Exception \$e) {
+                echo 'DB Connection: FAILED - ' . \$e->getMessage();
+              }
+            "
+            
+            # 8. ルート確認
+            echo -e "\n=== ROUTES CHECK ==="
+            php artisan route:list | grep -E "admin|livewire" | head -10
+            
+            # 9. Livewire設定
+            echo -e "\n=== LIVEWIRE CONFIG ==="
+            php artisan tinker --execute="
+              if(class_exists('Livewire\Livewire')) {
+                echo 'Livewire: INSTALLED';
+              } else {
+                echo 'Livewire: NOT FOUND';
+              }
+            "
+            
+            # 10. 実際のHTTPテスト
+            echo -e "\n=== HTTP TESTS ==="
+            
+            echo "Testing homepage:"
+            curl -s -I http://localhost/ | head -10
+            
+            echo -e "\nTesting admin login page:"
+            curl -s -I http://localhost/admin/login | head -10
+            
+            echo -e "\nTesting Livewire JS:"
+            curl -s -I http://localhost/livewire/livewire.min.js | head -10
+            
+            # 11. エラーログ詳細
+            echo -e "\n=== ERROR LOGS DETAIL ==="
+            
+            echo "Latest Nginx errors (last 20):"
+            tail -20 /var/log/nginx/error.log | grep "error\|Error\|ERROR" | tail -10
+            
+            echo -e "\nLatest PHP-FPM errors (last 20):"
+            tail -20 /var/log/php8.3-fpm.log | grep -v "NOTICE" | tail -10
+            
+            echo -e "\nLatest Laravel errors (last 30):"
+            tail -30 storage/logs/laravel.log | grep -E "ERROR|Exception|Fatal" | tail -10
+            
+            # 12. 権限確認
+            echo -e "\n=== PERMISSIONS CHECK ==="
+            ls -la storage/ | head -5
+            ls -la bootstrap/cache/ | head -5
+            
+            # 13. プロセス確認
+            echo -e "\n=== PROCESS CHECK ==="
+            ps aux | grep -E "php|nginx" | grep -v grep | head -5
+            
+            # 14. ディスク容量
+            echo -e "\n=== DISK SPACE ==="
+            df -h | grep -E "Filesystem|/dev"
+            
+            # 15. 最後にブラウザテスト用の詳細レスポンス
+            echo -e "\n=== DETAILED RESPONSE TEST ==="
+            echo "Full response from /admin/login:"
+            timeout 10 curl -v http://localhost/admin/login 2>&1 | head -50
+            
+            echo -e "\n🕵️ INVESTIGATION COMPLETE 🕵️"
+          EOF
+          
+          rm key.pem
