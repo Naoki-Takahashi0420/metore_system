@@ -1,0 +1,49 @@
+name: Fix Filament Routes
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix-routes:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Fix Filament routing issue
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            cd /var/www/html/current
+            
+            echo "=== Clearing all caches ==="
+            sudo -u www-data php artisan optimize:clear
+            
+            echo "=== Checking Filament routes ==="
+            sudo -u www-data php artisan route:list | grep -i admin
+            
+            echo "=== Re-caching optimized ==="
+            sudo -u www-data php artisan config:cache
+            sudo -u www-data php artisan route:cache
+            sudo -u www-data php artisan view:cache
+            
+            echo "=== Restarting services ==="
+            sudo systemctl restart php8.3-fpm
+            sudo systemctl restart nginx
+            
+            echo "=== Testing Filament installation ==="
+            sudo -u www-data php artisan tinker --execute="
+            try {
+                \$panel = \Filament\Facades\Filament::getPanel('admin');
+                echo 'Filament panel found: ' . \$panel->getId();
+            } catch (Exception \$e) {
+                echo 'Filament error: ' . \$e->getMessage();
+            }
+            "
+            
+            echo "Routes should be fixed now"
+          EOF
+          
+          rm key.pem
