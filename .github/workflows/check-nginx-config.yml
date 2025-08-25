@@ -1,0 +1,88 @@
+name: Check Nginx Configuration
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Check what code Nginx is serving
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            echo "=== Nginx Configuration Check ==="
+            
+            # Nginxの設定ファイル確認
+            echo "=== Active Nginx Sites ==="
+            ls -la /etc/nginx/sites-enabled/
+            
+            echo -e "\n=== Default Site Configuration ==="
+            cat /etc/nginx/sites-enabled/default 2>/dev/null || cat /etc/nginx/sites-enabled/* | head -50
+            
+            echo -e "\n=== Document Root Settings ==="
+            grep -r "root" /etc/nginx/sites-enabled/ | grep -v "#"
+            
+            echo -e "\n=== PHP Handler Settings ==="
+            grep -r "fastcgi_pass\|php" /etc/nginx/sites-enabled/ | grep -v "#"
+            
+            echo -e "\n=== Actual Files Being Served ==="
+            # デフォルトのドキュメントルートを特定
+            ROOT=$(grep -r "root" /etc/nginx/sites-enabled/default 2>/dev/null | grep -v "#" | head -1 | awk '{print $2}' | tr -d ';')
+            echo "Document Root: $ROOT"
+            
+            if [ -n "$ROOT" ]; then
+              echo "Contents of $ROOT:"
+              ls -la "$ROOT" | head -10
+              
+              if [ -f "$ROOT/index.php" ]; then
+                echo -e "\nFirst 20 lines of index.php:"
+                head -20 "$ROOT/index.php"
+              fi
+              
+              if [ -f "$ROOT/public/index.php" ]; then
+                echo -e "\nFirst 20 lines of public/index.php:"
+                head -20 "$ROOT/public/index.php"
+              fi
+            fi
+            
+            echo -e "\n=== All Laravel Installations ==="
+            find /var/www -name "artisan" -type f 2>/dev/null | while read artisan; do
+              dir=$(dirname "$artisan")
+              echo -e "\nFound Laravel at: $dir"
+              if [ -f "$dir/.env" ]; then
+                echo "  APP_NAME: $(grep "^APP_NAME" "$dir/.env" | cut -d= -f2)"
+                echo "  APP_ENV: $(grep "^APP_ENV" "$dir/.env" | cut -d= -f2)"
+              fi
+              echo "  Last modified: $(stat -c %y "$artisan")"
+            done
+            
+            echo -e "\n=== Testing Different Paths ==="
+            echo "Testing /admin/login:"
+            curl -s -o /dev/null -w "%{http_code}\n" http://localhost/admin/login
+            
+            echo "Testing /:"
+            curl -s -o /dev/null -w "%{http_code}\n" http://localhost/
+            
+            echo "Testing /index.php:"
+            curl -s -o /dev/null -w "%{http_code}\n" http://localhost/index.php
+            
+            echo -e "\n=== PHP-FPM Pool Configuration ==="
+            grep -E "^listen|^user|^group|^chdir" /etc/php/8.3/fpm/pool.d/www.conf 2>/dev/null
+            
+            echo -e "\n=== Active PHP Processes ==="
+            ps aux | grep php-fpm | head -5
+            
+            echo -e "\n=== Nginx Access Log (Last 10 requests) ==="
+            tail -10 /var/log/nginx/access.log
+            
+            echo -e "\n=== Nginx Error Log (Last 10 errors) ==="
+            tail -10 /var/log/nginx/error.log
+          EOF
+          
+          rm key.pem
