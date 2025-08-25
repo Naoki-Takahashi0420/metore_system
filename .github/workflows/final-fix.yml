@@ -1,0 +1,90 @@
+name: Final Fix
+
+on:
+  workflow_dispatch:
+
+jobs:
+  final-fix:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Final complete fix
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            cd /var/www/html/current
+            
+            echo "=== Running fresh migration ==="
+            sudo -u www-data php artisan migrate:fresh --force
+            
+            echo ""
+            echo "=== Creating admin user with seeder ==="
+            cat > database/seeders/EmergencyAdminSeeder.php << 'PHPCODE'
+            <?php
+            namespace Database\Seeders;
+            use Illuminate\Database\Seeder;
+            use App\Models\User;
+            use Illuminate\Support\Facades\Hash;
+            
+            class EmergencyAdminSeeder extends Seeder
+            {
+                public function run()
+                {
+                    User::create([
+                        'name' => 'Administrator',
+                        'email' => 'admin@xsyumeno.com',
+                        'password' => Hash::make('password'),
+                        'role' => 'superadmin',
+                        'is_active' => true,
+                        'email_verified_at' => now()
+                    ]);
+                    echo "Admin user created!\n";
+                }
+            }
+            PHPCODE
+            
+            sudo -u www-data php artisan db:seed --class=EmergencyAdminSeeder --force
+            
+            echo ""
+            echo "=== Verify user creation ==="
+            sudo -u www-data php artisan tinker --execute="
+            \$users = \App\Models\User::all();
+            echo 'Total users: ' . \$users->count() . '\n';
+            foreach (\$users as \$user) {
+                echo 'Email: ' . \$user->email . ', Role: ' . \$user->role . '\n';
+            }
+            "
+            
+            echo ""
+            echo "=== Clear all caches ==="
+            sudo rm -rf bootstrap/cache/*
+            sudo rm -rf storage/framework/cache/data/*
+            sudo rm -rf storage/framework/sessions/*
+            sudo rm -rf storage/framework/views/*
+            
+            sudo -u www-data php artisan config:cache
+            sudo -u www-data php artisan route:cache
+            sudo -u www-data php artisan view:cache
+            
+            sudo chown -R www-data:www-data storage bootstrap/cache
+            sudo chmod -R 775 storage bootstrap/cache
+            
+            echo ""
+            echo "=== Restart services ==="
+            sudo systemctl restart php8.3-fpm nginx
+            
+            echo ""
+            echo "========================================="
+            echo "FINAL FIX COMPLETE!"
+            echo "========================================="
+            echo "Login URL: http://13.115.38.179/admin/login"
+            echo "Email: admin@xsyumeno.com"
+            echo "Password: password"
+            echo "========================================="
+          EOF
+          
+          rm key.pem
