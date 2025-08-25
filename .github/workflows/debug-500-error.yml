@@ -1,0 +1,69 @@
+name: Debug 500 Error
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Debug application error
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            cd /var/www/html/current
+            
+            echo "=== Checking Laravel error logs ==="
+            tail -20 storage/logs/laravel.log
+            
+            echo ""
+            echo "=== Checking nginx error logs ==="
+            sudo tail -10 /var/log/nginx/error.log
+            
+            echo ""
+            echo "=== Checking PHP-FPM logs ==="
+            sudo tail -10 /var/log/php8.3-fpm.log
+            
+            echo ""
+            echo "=== Testing basic PHP ==="
+            php -v
+            
+            echo ""
+            echo "=== Testing Laravel artisan ==="
+            php artisan --version
+            
+            echo ""
+            echo "=== Checking app key ==="
+            grep APP_KEY .env | head -1
+            
+            echo ""
+            echo "=== Testing database connection ==="
+            sudo -u www-data php artisan tinker --execute="
+            try {
+                \DB::connection()->getPdo();
+                echo 'Database connection: OK';
+            } catch (Exception \$e) {
+                echo 'Database error: ' . \$e->getMessage();
+            }
+            "
+            
+            echo ""
+            echo "=== Checking file permissions ==="
+            ls -la storage/logs/laravel.log
+            ls -la bootstrap/cache/
+            
+            echo ""
+            echo "=== Enabling debug mode temporarily ==="
+            sed -i 's/APP_DEBUG=false/APP_DEBUG=true/' .env
+            sudo -u www-data php artisan config:clear
+            sudo -u www-data php artisan config:cache
+            
+            echo "Debug mode enabled - check http://13.115.38.179/admin/login for detailed error"
+          EOF
+          
+          rm key.pem
