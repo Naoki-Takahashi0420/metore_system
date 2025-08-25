@@ -1,0 +1,103 @@
+name: Fix Login Now
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix-login:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Fix login immediately
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            cd /var/www/html/current
+            
+            echo "=== Starting Login Fix ==="
+            
+            # 1. Livewireルートを確実に登録
+            echo "Fixing Livewire routes..."
+            sudo -u www-data php artisan livewire:publish --config
+            
+            # 2. ルートキャッシュをクリアして再生成
+            echo "Regenerating routes..."
+            sudo -u www-data php artisan route:clear
+            sudo -u www-data php artisan route:cache
+            
+            # 3. 設定を再キャッシュ
+            echo "Recaching config..."
+            sudo -u www-data php artisan config:clear
+            sudo -u www-data php artisan config:cache
+            
+            # 4. ビューをクリア
+            echo "Clearing views..."
+            sudo -u www-data php artisan view:clear
+            sudo -u www-data php artisan view:cache
+            
+            # 5. セッションディレクトリの権限修正
+            echo "Fixing session permissions..."
+            sudo chown -R www-data:www-data storage/framework/sessions
+            sudo chmod -R 775 storage/framework/sessions
+            
+            # 6. キャッシュディレクトリの権限修正
+            echo "Fixing cache permissions..."
+            sudo chown -R www-data:www-data storage/framework/cache
+            sudo chmod -R 775 storage/framework/cache
+            sudo chown -R www-data:www-data bootstrap/cache
+            sudo chmod -R 775 bootstrap/cache
+            
+            # 7. 管理者アカウントの再確認
+            echo "Verifying admin account..."
+            sudo -u www-data php artisan tinker --execute="
+            \$admin = \App\Models\User::where('email', 'admin@xsyumeno.com')->first();
+            if (!\$admin) {
+                \$admin = \App\Models\User::create([
+                    'name' => 'Administrator',
+                    'email' => 'admin@xsyumeno.com',
+                    'password' => \Hash::make('password'),
+                    'role' => 'superadmin',
+                    'is_active' => true,
+                    'email_verified_at' => now()
+                ]);
+                echo 'Admin created with ID: ' . \$admin->id . '\n';
+            } else {
+                \$admin->update([
+                    'password' => \Hash::make('password'),
+                    'role' => 'superadmin',
+                    'is_active' => true
+                ]);
+                echo 'Admin updated - ID: ' . \$admin->id . '\n';
+            }
+            "
+            
+            # 8. PHP-FPMとNginxを再起動
+            echo "Restarting services..."
+            sudo systemctl restart php8.3-fpm
+            sudo systemctl restart nginx
+            
+            # 9. ルートを確認
+            echo ""
+            echo "=== Checking admin routes ==="
+            sudo -u www-data php artisan route:list | grep admin | grep -E "(GET|POST)" | head -10
+            
+            # 10. テストログイン
+            echo ""
+            echo "=== Testing login endpoint ==="
+            curl -X GET http://localhost/admin/login -w "\nGET Status: %{http_code}\n" -s | tail -2
+            
+            echo ""
+            echo "================================"
+            echo "LOGIN FIX COMPLETE!"
+            echo "================================"
+            echo "URL: http://13.115.38.179/admin/login"
+            echo "Email: admin@xsyumeno.com"
+            echo "Password: password"
+            echo "================================"
+          EOF
+          
+          rm key.pem
