@@ -1,0 +1,98 @@
+name: Comprehensive Debug
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Comprehensive system diagnosis
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            cd /var/www/html/current
+            
+            echo "=== System Status ==="
+            sudo systemctl status nginx --no-pager -l | grep -E "(Active|failed|error)" || true
+            sudo systemctl status php8.3-fpm --no-pager -l | grep -E "(Active|failed|error)" || true
+            
+            echo ""
+            echo "=== Laravel Error Logs (latest 10 lines) ==="
+            tail -10 storage/logs/laravel.log || echo "No Laravel logs found"
+            
+            echo ""
+            echo "=== Nginx Error Logs (latest 5 lines) ==="
+            sudo tail -5 /var/log/nginx/error.log || echo "No nginx error logs"
+            
+            echo ""
+            echo "=== PHP-FPM Error Logs (latest 5 lines) ==="
+            sudo tail -5 /var/log/php8.3-fpm.log || echo "No php-fpm error logs"
+            
+            echo ""
+            echo "=== Environment Check ==="
+            echo "PHP version: $(php -v | head -1)"
+            echo "APP_KEY exists: $(grep -c 'APP_KEY=base64:' .env || echo '0')"
+            echo "Database config: $(grep 'DB_HOST=' .env)"
+            
+            echo ""
+            echo "=== Database Connection Test ==="
+            sudo -u www-data php -r "
+            require 'vendor/autoload.php';
+            \$app = require_once 'bootstrap/app.php';
+            try {
+                \$pdo = \$app->make('db')->connection()->getPdo();
+                echo 'Database: Connected successfully\n';
+            } catch (Exception \$e) {
+                echo 'Database error: ' . \$e->getMessage() . '\n';
+            }
+            "
+            
+            echo ""
+            echo "=== File Permissions Check ==="
+            ls -la storage/logs/ | head -3
+            ls -la bootstrap/cache/ | head -3
+            
+            echo ""
+            echo "=== Web Server Test ==="
+            echo "Testing nginx config..."
+            sudo nginx -t 2>&1 || echo "Nginx config issues found"
+            
+            echo ""
+            echo "=== Process Check ==="
+            ps aux | grep -E "(nginx|php-fpm)" | grep -v grep | wc -l
+            echo "^^ Number of web server processes running"
+            
+            echo ""
+            echo "=== Clear everything and restart ==="
+            sudo rm -rf bootstrap/cache/*
+            sudo rm -rf storage/framework/cache/data/*
+            sudo rm -rf storage/framework/views/*
+            sudo rm -rf storage/framework/sessions/*
+            
+            # Create basic bootstrap cache
+            sudo -u www-data php artisan config:cache
+            sudo -u www-data php artisan route:cache
+            sudo -u www-data php artisan view:cache
+            
+            # Fix permissions
+            sudo chown -R www-data:www-data storage bootstrap/cache
+            sudo chmod -R 775 storage bootstrap/cache
+            
+            # Restart everything
+            sudo systemctl restart php8.3-fpm
+            sudo systemctl restart nginx
+            
+            echo ""
+            echo "=== Final Status ==="
+            curl -s -I http://localhost/admin/login | head -2 || echo "Local curl failed"
+            
+            echo "Diagnosis complete"
+          EOF
+          
+          rm key.pem
