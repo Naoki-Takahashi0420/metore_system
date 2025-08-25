@@ -1,0 +1,39 @@
+name: Emergency Deploy NOW
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Deploy via EC2 Instance Connect
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          # Install AWS CLI
+          pip install awscli
+          
+          # Send public key and execute commands
+          aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+          aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+          aws configure set default.region ap-northeast-1
+          
+          # Generate temporary key
+          ssh-keygen -t rsa -f /tmp/temp_key -N ""
+          
+          # Send public key via EC2 Instance Connect
+          aws ec2-instance-connect send-ssh-public-key \
+            --instance-id i-03560178f4d1538c5 \
+            --instance-os-user ubuntu \
+            --ssh-public-key "$(cat /tmp/temp_key.pub)" \
+            --availability-zone ap-northeast-1a
+          
+          # Connect and deploy
+          ssh -o StrictHostKeyChecking=no -i /tmp/temp_key ubuntu@13.231.41.238 << 'EOF'
+          curl -s https://raw.githubusercontent.com/Naoki-Takahashi0420/metore_system/main/deploy.sh | sudo bash
+          EOF
