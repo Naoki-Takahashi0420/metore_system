@@ -1,0 +1,50 @@
+name: Deploy via EC2 Instance Connect
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-1
+      
+      - name: Deploy via EC2 Instance Connect
+        run: |
+          # Send deployment script via EC2 Instance Connect
+          aws ec2-instance-connect send-ssh-public-key \
+            --instance-id i-03560178f4d1538c5 \
+            --instance-os-user ubuntu \
+            --ssh-public-key "$(cat <<'EOF'
+          ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDORsMF+y0mVvKdJFTdwz9p3LFBiJb0WY+2V4xJRET6B8HF2o22Ko8xklSB0Ygr7nnZ2rZENkLitwJedWqR2zxfE13Jf4t0xfptBER8V/KQsQ4HYq0jIOjgOZVYK7Mm6rkRY6oW2cdfzwczW8cPFswJ5QPv0tBd9IodhsdGKTu8Vg6btom4F4xeDbQTiGdHnlcOLmhXH9k6bajy8+uglIzawnVqIbKNUiSyCXYbL5gSAJVXHpF7S7zltJ2X8l06TZu9vgfIdpYEmoCUF9tkcPTHza/08LddmrxxS4KiXDgmWOoM8f2+WtEmH4smFU5oI8HL4VLV0ahLR1GBFNpguBnN temporary-key
+          EOF
+          )"
+          
+          # Wait for key to be available
+          sleep 5
+          
+          # Execute deployment commands via SSM
+          aws ssm send-command \
+            --instance-ids i-03560178f4d1538c5 \
+            --document-name "AWS-RunShellScript" \
+            --parameters 'commands=[
+              "cd /var/www/html",
+              "sudo git pull origin main || sudo git clone https://github.com/Naoki-Takahashi0420/metore_system.git /var/www/html",
+              "sudo composer install --no-dev --optimize-autoloader",
+              "sudo php artisan migrate --force",
+              "sudo php artisan config:cache",
+              "sudo systemctl restart php8.3-fpm",
+              "sudo systemctl restart nginx"
+            ]' \
+            --output text --query "Command.CommandId"
