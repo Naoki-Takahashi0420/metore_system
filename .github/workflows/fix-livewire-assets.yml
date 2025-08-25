@@ -1,0 +1,97 @@
+name: Fix Livewire Assets
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix-assets:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Fix Livewire assets and manifest
+        env:
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_KEY" > key.pem
+          chmod 600 key.pem
+          
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i key.pem ubuntu@13.115.38.179 << 'EOF'
+            cd /var/www/html/current
+            
+            echo "=== Livewireアセット公開 ==="
+            sudo -u www-data php artisan vendor:publish --tag=livewire:assets --force
+            
+            echo ""
+            echo "=== Livewire設定公開 ==="
+            sudo -u www-data php artisan vendor:publish --tag=livewire:config --force
+            
+            echo ""
+            echo "=== Livewireマニフェスト生成 ==="
+            sudo -u www-data php artisan livewire:discover
+            
+            echo ""
+            echo "=== Filamentアセット公開 ==="
+            sudo -u www-data php artisan filament:assets
+            
+            echo ""
+            echo "=== publicディレクトリ確認 ==="
+            ls -la public/vendor/ || echo "vendor directory not created"
+            
+            echo ""
+            echo "=== アセットディレクトリ作成（手動） ==="
+            sudo mkdir -p public/vendor
+            sudo chown -R www-data:www-data public/vendor
+            
+            echo ""
+            echo "=== Livewireアセットコピー（手動） ==="
+            if [ -d vendor/livewire/livewire/dist ]; then
+              sudo cp -r vendor/livewire/livewire/dist public/vendor/livewire
+              sudo chown -R www-data:www-data public/vendor/livewire
+              echo "Livewire assets copied manually"
+            else
+              echo "Livewire dist directory not found"
+            fi
+            
+            echo ""
+            echo "=== キャッシュクリア ==="
+            sudo rm -rf bootstrap/cache/*.php
+            sudo -u www-data php artisan config:clear
+            sudo -u www-data php artisan route:clear
+            sudo -u www-data php artisan view:clear
+            
+            echo ""
+            echo "=== キャッシュ再構築 ==="
+            sudo -u www-data php artisan config:cache
+            sudo -u www-data php artisan route:cache
+            sudo -u www-data php artisan view:cache
+            sudo -u www-data php artisan livewire:discover
+            
+            echo ""
+            echo "=== 確認 ==="
+            echo "Livewire manifest:"
+            [ -f bootstrap/cache/livewire-components.php ] && echo "EXISTS" || echo "NOT FOUND"
+            
+            echo ""
+            echo "Livewire assets:"
+            [ -d public/vendor/livewire ] && ls -la public/vendor/livewire/ || echo "NOT FOUND"
+            
+            echo ""
+            echo "=== サービス再起動 ==="
+            sudo systemctl restart php8.3-fpm
+            sudo systemctl restart nginx
+            
+            echo ""
+            echo "=== HTTPテスト ==="
+            curl -I http://localhost/admin/login
+            
+            echo ""
+            echo "=== Livewire JSテスト ==="
+            curl -I http://localhost/livewire/livewire.min.js
+            
+            echo ""
+            echo "================================"
+            echo "LIVEWIRE ASSETS FIX COMPLETE!"
+            echo "================================"
+          EOF
+          
+          rm key.pem
