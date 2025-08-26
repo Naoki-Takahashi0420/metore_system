@@ -55,7 +55,7 @@ jobs:
         APP_ENV=production
         APP_KEY=base64:FhDmJJEPuQPAz6t5HMt6qTVSYLs7pJg7xLDgBEcVHHg=
         APP_DEBUG=true
-        APP_URL=http://54.64.54.226
+        APP_URL=https://reservation.meno-training.com
         APP_LOCALE=ja
         
         DB_CONNECTION=sqlite
@@ -144,7 +144,7 @@ jobs:
         rm deploy_key.pem
         
         echo "✅ Deploy Success!"
-        echo "URL: http://${EC2_HOST}/"
-        echo "Admin: http://${EC2_HOST}/admin/login"
+        echo "URL: https://reservation.meno-training.com/"
+        echo "Admin: https://reservation.meno-training.com/admin/login"
         echo "Email: admin@eye-training.com"
         echo "Password: password"

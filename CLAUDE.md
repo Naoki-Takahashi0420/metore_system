@@ -3,11 +3,14 @@
 ## 🎉 CI/CD稼働完了！（2025-08-26）
 
 ### 本番環境情報
-- **URL**: http://54.64.54.226/
-- **管理画面**: http://54.64.54.226/admin/login
+- **URL**: https://reservation.meno-training.com/
+- **管理画面**: https://reservation.meno-training.com/admin/login
+- **SSL証明書**: Let's Encrypt（自動更新設定済み）
 - **管理者ログイン**:
   - メール: `admin@eye-training.com`
   - パスワード: `password`
+  - メール2: `naoki@yumeno-marketing.jp`
+  - パスワード2: `Takahashi5000`
 
 ### デプロイ方法
 ```bash
