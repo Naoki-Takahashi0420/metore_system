@@ -63,23 +63,8 @@ jobs:
         sudo php artisan config:cache
         sudo php artisan migrate --force
         
-        # 管理者ユーザー作成
-        sudo php artisan tinker --execute="
-        try {
-          \\$user = App\\Models\\User::firstOrCreate(
-            ['email' => 'admin@xsyumeno.com'],
-            [
-              'name' => 'Administrator',
-              'password' => Hash::make('password'),
-              'role' => 'superadmin',
-              'is_active' => true,
-              'email_verified_at' => now()
-            ]
-          );
-          echo 'Admin user created';
-        } catch (Exception \\$e) {
-          echo 'User: ' . \\$e->getMessage();
-        }"
+        # 管理者ユーザー作成（後で手動実行）
+        echo "Admin user creation skipped (manual creation required)"
         
         # 権限設定
         sudo chown -R www-data:www-data $APP_DIR
