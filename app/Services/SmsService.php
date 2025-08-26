@@ -34,16 +34,17 @@ class SmsService
             // 電話番号をE.164形式に変換
             $phone = $this->formatPhoneNumber($phone);
             
-            // 開発環境ではログ出力のみ
-            if (app()->environment('local')) {
-                Log::info('SMS送信（開発環境）', [
-                    'phone' => $phone,
-                    'message' => $message,
-                ]);
-                return true;
-            }
+            // 一時的に全環境でログ出力のみ（サンドボックス承認待ち）
+            // TODO: サンドボックス承認後、本番環境で実際のSMS送信を有効化
+            Log::info('SMS送信（サンドボックス承認待ち）', [
+                'phone' => $phone,
+                'message' => $message,
+                'environment' => app()->environment(),
+            ]);
+            return true;
             
-            // 本番環境でSMS送信
+            // 本番環境でSMS送信（サンドボックス承認後に有効化）
+            /*
             $result = $this->snsClient->publish([
                 'Message' => $message,
                 'PhoneNumber' => $phone,
@@ -65,6 +66,7 @@ class SmsService
             ]);
             
             return true;
+            */
             
         } catch (\Exception $e) {
             Log::error('SMS送信エラー', [

@@ -42,4 +42,12 @@ return [
         'sender_id' => env('SMS_FROM_NAME', '目のトレーニング'),
     ],
 
+    'ses' => [
+        'key' => env('AWS_ACCESS_KEY_ID'),
+        'secret' => env('AWS_SECRET_ACCESS_KEY'),
+        'region' => env('AWS_DEFAULT_REGION', 'ap-northeast-1'),
+        'from_email' => env('MAIL_FROM_ADDRESS', 'noreply@meno-training.com'),
+        'from_name' => env('MAIL_FROM_NAME', '目のトレーニング'),
+    ],
+
 ];

@@ -1,0 +1,43 @@
+{
+  "Changes": [
+    {
+      "Action": "CREATE",
+      "ResourceRecordSet": {
+        "Name": "x3murdjgkoii7gzpneccvptgitu4qb6x._domainkey.meno-training.com",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [
+          {
+            "Value": "x3murdjgkoii7gzpneccvptgitu4qb6x.dkim.amazonses.com"
+          }
+        ]
+      }
+    },
+    {
+      "Action": "CREATE",
+      "ResourceRecordSet": {
+        "Name": "zz7bis6fk2y7bd3kgovxjbqw7yeofhgb._domainkey.meno-training.com",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [
+          {
+            "Value": "zz7bis6fk2y7bd3kgovxjbqw7yeofhgb.dkim.amazonses.com"
+          }
+        ]
+      }
+    },
+    {
+      "Action": "CREATE",
+      "ResourceRecordSet": {
+        "Name": "ro3jkae36npe2li7ikej5gengadaohoq._domainkey.meno-training.com",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [
+          {
+            "Value": "ro3jkae36npe2li7ikej5gengadaohoq.dkim.amazonses.com"
+          }
+        ]
+      }
+    }
+  ]
+}

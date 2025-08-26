@@ -1,0 +1,17 @@
+{
+  "Changes": [
+    {
+      "Action": "CREATE",
+      "ResourceRecordSet": {
+        "Name": "_amazonses.meno-training.com",
+        "Type": "TXT",
+        "TTL": 300,
+        "ResourceRecords": [
+          {
+            "Value": "\"u9sSTMV3JwKU9A6rl2dQHCtW405LIvGHjHBM7U0yQCM=\""
+          }
+        ]
+      }
+    }
+  ]
+}

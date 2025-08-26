@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Auth\PasswordResetController;
 
 // トップページの処理（環境変数で制御可能）
 Route::get('/', function () {
@@ -93,3 +94,9 @@ Route::prefix('customer')->group(function () {
         return view('customer.medical-records');
     });
 });
+
+// パスワードリセット用ルート
+Route::get('/admin/password-reset', [PasswordResetController::class, 'showRequestForm'])->name('password.request');
+Route::post('/admin/password-reset', [PasswordResetController::class, 'sendResetLink'])->name('password.email');
+Route::get('/admin/password-reset/{token}', [PasswordResetController::class, 'showResetForm'])->name('password.reset');
+Route::post('/admin/password-reset/update', [PasswordResetController::class, 'reset'])->name('password.update');
