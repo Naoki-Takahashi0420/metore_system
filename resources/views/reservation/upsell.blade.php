@@ -15,6 +15,7 @@
         .modal-overlay {
             opacity: 0;
             transition: opacity 0.3s ease-in-out;
+            overflow-y: auto; /* スクロール可能に */
         }
         
         .modal-overlay.show {
@@ -25,6 +26,9 @@
             transform: translateY(20px) scale(0.95);
             opacity: 0;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            max-height: 90vh; /* 最大高さを制限 */
+            overflow-y: auto; /* コンテンツ内でもスクロール可能に */
+            margin: 20px auto; /* 上下に余白 */
         }
         
         .modal-overlay.show .modal-content {
@@ -221,8 +225,8 @@
     </div>
 
     <!-- モーダルウィンドウ -->
-    <div id="upsellModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
-        <div class="modal-content bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+    <div id="upsellModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
+        <div class="modal-content bg-white rounded-2xl max-w-2xl w-full shadow-2xl">
             <!-- モーダルヘッダー -->
             <div class="bg-gradient-to-r from-green-500 to-green-600 text-white p-6">
                 <div class="flex justify-between items-start">

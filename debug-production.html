@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Production Debug</title>
+</head>
+<body>
+    <h1>本番環境デバッグ</h1>
+    <p>ブラウザのコンソールを開いて結果を確認してください。</p>
+    
+    <script>
+        // APIを直接呼び出し
+        fetch('https://reservation.meno-training.com/api/availability/slots?store_id=1&menu_id=1&date=2025-08-27')
+            .then(r => r.json())
+            .then(data => {
+                console.log('=== API Response ===');
+                console.log('Total slots:', data.available_slots?.length || 0);
+                console.log('Business hours:', data.business_hours);
+                
+                if (data.available_slots) {
+                    console.log('First slot:', data.available_slots[0]);
+                    console.log('Last slot:', data.available_slots[data.available_slots.length - 1]);
+                    
+                    // 20時以降のスロットを確認
+                    const lateSlots = data.available_slots.filter(s => {
+                        const hour = parseInt(s.time.split(':')[0]);
+                        return hour >= 20;
+                    });
+                    console.log('Slots after 20:00:', lateSlots);
+                }
+            })
+            .catch(e => console.error('Error:', e));
+    </script>
+</body>
+</html>
