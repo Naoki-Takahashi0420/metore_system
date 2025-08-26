@@ -35,8 +35,8 @@
             <button onclick="filterMenus('basic')" class="category-filter px-4 py-2 rounded-full text-sm font-medium transition-colors">
                 基本コース
             </button>
-            <button onclick="filterMenus('vr')" class="category-filter px-4 py-2 rounded-full text-sm font-medium transition-colors">
-                VRトレーニング
+            <button onclick="filterMenus('special')" class="category-filter px-4 py-2 rounded-full text-sm font-medium transition-colors">
+                特別トレーニング
             </button>
             <button onclick="filterMenus('premium')" class="category-filter px-4 py-2 rounded-full text-sm font-medium transition-colors">
                 プレミアムコース
@@ -266,7 +266,7 @@ function getCategoryColor(category) {
 function getCategoryLabel(category) {
     const labels = {
         'basic': '基本',
-        'vr': 'VR',
+        'special': '特別',
         'premium': 'プレミアム',
         'consultation': '相談'
     };

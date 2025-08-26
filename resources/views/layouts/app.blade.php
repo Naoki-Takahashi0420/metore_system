@@ -7,7 +7,7 @@
 
     <title>@yield('title', '目のトレーニング') - 目のトレーニング</title>
     
-    <meta name="description" content="9割以上のお客様から視力回復、向上のお声を頂いております。目のトレーニング専門サロンで、最新のVR機器と独自のトレーニング技術をご体験ください。">
+    <meta name="description" content="9割以上のお客様から視力回復、向上のお声を頂いております。目のトレーニング専門サロンで、独自のトレーニング技術をご体験ください。">
     
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="{{ asset('test/metore_logo.png') }}">
@@ -126,7 +126,7 @@
                             <img src="{{ asset('images/logo.png') }}" alt="目のトレーニング" class="h-16 w-auto filter brightness-0 invert">
                         </div>
                         <p class="text-gray-300 mb-4 max-w-md">
-                            9割以上のお客様から視力回復、向上のお声を頂いております。最新のVR技術と専門的なトレーニングで、目の健康をサポートします。
+                            9割以上のお客様から視力回復、向上のお声を頂いております。最新の技術と専門的なトレーニングで、目の健康をサポートします。
                         </p>
                         <div class="text-sm text-gray-400">
                             <p>© 2025 目のトレーニング. All rights reserved.</p>

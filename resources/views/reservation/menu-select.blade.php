@@ -194,7 +194,7 @@
                                                 @php
                                                     $categories = [
                                                         'vision_training' => '視力検査',
-                                                        'vr_training' => 'VRトレーニング',
+                                                        'special_training' => '特別トレーニング',
                                                         'eye_care' => 'アイケア',
                                                         'consultation' => 'カウンセリング',
                                                         'other' => 'その他'
