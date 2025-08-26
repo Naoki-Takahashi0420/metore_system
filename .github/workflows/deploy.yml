@@ -39,14 +39,23 @@ jobs:
         
         # アップロード
         echo "Uploading to EC2..."
-        if ! scp -o StrictHostKeyChecking=no -i deploy_key.pem \
+        if ! scp -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem \
           deploy.tar.gz ${EC2_USER}@${EC2_HOST}:/tmp/; then
-          echo "ERROR: Upload failed"
-          exit 1
+          echo "ERROR: Upload failed, trying git clone instead..."
+          
+          # SCPが失敗した場合、EC2上でgit cloneを実行
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'GIT_CLONE'
+          set -e
+          cd /tmp
+          rm -rf metore_system deploy.tar.gz
+          git clone https://github.com/Naoki-Takahashi0420/metore_system.git
+          cd metore_system
+          tar -czf /tmp/deploy.tar.gz .
+          GIT_CLONE
         fi
         
         # デプロイ実行
-        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'DEPLOY_SCRIPT'
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'DEPLOY_SCRIPT'
         set -e
         APP_DIR="/var/www/html"
         
