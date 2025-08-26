@@ -54,7 +54,8 @@ class AvailabilityController extends Controller
         // 営業時間内でスロットを生成（シフト不要）
         $currentTime = $openTime->copy();
         
-        while ($currentTime->copy()->addMinutes($menuDuration)->lte($closeTime)) {
+        // 予約開始時刻が営業終了時刻以前であればOK（メニューが営業時間を超えても可）
+        while ($currentTime->lt($closeTime)) {
             $slotKey = $currentTime->format('H:i');
             $slots[$slotKey] = [
                 'time' => $currentTime->format('H:i'),
