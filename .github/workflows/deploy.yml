@@ -115,7 +115,7 @@ jobs:
         [ -d "$APP_DIR/bootstrap/cache" ] && sudo chmod -R 775 $APP_DIR/bootstrap/cache
         
         # サービス再起動
-        sudo systemctl restart nginx php8.1-fpm
+        sudo systemctl restart nginx php8.2-fpm
         
         echo "Deploy completed successfully"
         DEPLOY_SCRIPT

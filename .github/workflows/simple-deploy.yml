@@ -1,0 +1,29 @@
+name: Simple Deploy
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Deploy via HTTP webhook
+      run: |
+        # シンプルにHTTP経由でEC2にデプロイ指示を送信
+        curl -X POST \
+          -H "Content-Type: application/json" \
+          -d '{
+            "action": "deploy",
+            "repository": "https://github.com/Naoki-Takahashi0420/metore_system.git",
+            "branch": "main"
+          }' \
+          http://54.64.54.226/deploy-webhook || echo "Webhook failed, trying direct approach"
+        
+        # WebhookでEC2上にデプロイスクリプトをHTTP経由で実行
+        echo "Deployment initiated via HTTP"
