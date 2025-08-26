@@ -149,7 +149,7 @@
                             <div class="flex">
                                 @if($menu->image_path)
                                     <div class="upsell-menu-image bg-gray-200 flex-shrink-0">
-                                        <img src="/storage/{{ $menu->image_path }}" alt="{{ $menu->name }}" class="w-full h-full object-cover rounded-l-lg">
+                                        <img src="{{ asset('storage/' . $menu->image_path) }}" alt="{{ $menu->name }}" class="w-full h-full object-cover rounded-l-lg">
                                     </div>
                                 @else
                                     <div class="upsell-menu-image bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center flex-shrink-0">
@@ -162,7 +162,7 @@
                                     <div class="flex justify-between items-start">
                                         <div class="flex-1">
                                             <h3 class="text-lg font-semibold text-gray-800 mb-2">{{ $menu->name }}</h3>
-                                            @if($menu->upsell_description)
+                                            @if($menu->upsell_description && $menu->upsell_description != 'null')
                                                 <p class="text-green-600 text-sm mb-2 font-medium">{{ $menu->upsell_description }}</p>
                                             @endif
                                             @if($menu->description)
@@ -179,7 +179,7 @@
                                             </div>
                                         </div>
                                         <div class="text-right ml-4">
-                                            <div class="text-2xl font-bold text-green-600">+¥{{ number_format($menu->price) }}</div>
+                                            <div class="text-2xl font-bold text-green-600"><span class="text-sm">¥</span>{{ number_format($menu->price) }}</div>
                                             <div class="text-xs text-gray-500 mt-1">税込</div>
                                         </div>
                                     </div>
@@ -214,7 +214,7 @@
             <div class="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                 <div class="flex justify-between items-center">
                     <span class="font-semibold">合計金額：</span>
-                    <span id="totalAmount" class="text-xl font-bold text-green-600">¥{{ number_format($selectedMenu->price) }}</span>
+                    <span id="totalAmount" class="text-xl font-bold text-green-600"><span class="text-sm">¥</span>{{ number_format($selectedMenu->price) }}</span>
                 </div>
             </div>
         </div>

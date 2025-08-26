@@ -170,7 +170,7 @@ function loadReservationData() {
     document.getElementById('store-name').textContent = selectedStore.name;
     document.getElementById('menu-name').textContent = selectedMenu.name;
     document.getElementById('duration').textContent = selectedMenu.duration + '分';
-    document.getElementById('price').textContent = '¥' + selectedMenu.price.toLocaleString();
+    document.getElementById('price').innerHTML = '<span class="text-sm">¥</span>' + selectedMenu.price.toLocaleString();
     
     // Format and display date/time
     const dateTime = new Date(selectedDateTime.date).toLocaleDateString('ja-JP', {

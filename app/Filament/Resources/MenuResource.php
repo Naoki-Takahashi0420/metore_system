@@ -83,9 +83,10 @@ class MenuResource extends Resource
                             ->label('所要時間（分）')
                             ->numeric()
                             ->required()
-                            ->minValue(15)
+                            ->minValue(0)
                             ->maxValue(480)
-                            ->suffix('分'),
+                            ->suffix('分')
+                            ->helperText('オプションメニューの場合は0分も可能'),
                         Forms\Components\Toggle::make('is_available')
                             ->label('利用可能')
                             ->default(true),

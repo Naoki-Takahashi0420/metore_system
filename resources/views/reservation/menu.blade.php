@@ -157,7 +157,7 @@ function displayMenus(menus) {
                     
                     <div class="flex justify-between items-center">
                         <span class="text-sm text-gray-500">料金:</span>
-                        <span class="text-lg font-bold text-primary-600">¥${menu.price.toLocaleString()}</span>
+                        <span class="text-lg font-bold text-primary-600"><span class="text-xs">¥</span>${menu.price.toLocaleString()}</span>
                     </div>
                     
                     ${menu.tags ? `

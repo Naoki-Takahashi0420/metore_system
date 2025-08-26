@@ -206,7 +206,7 @@
                                     </div>
                                 </div>
                                 <div class="text-right ml-4">
-                                    <div class="text-2xl font-bold text-blue-600">¥{{ number_format($menu->price) }}</div>
+                                    <div class="text-2xl font-bold text-blue-600"><span class="text-sm">¥</span>{{ number_format($menu->price) }}</div>
                                     <div class="text-xs text-gray-500 mt-1">税込</div>
                                 </div>
                             </div>
@@ -429,7 +429,7 @@
             
             // 選択中のメニュー情報を表示
             selectedMenuInfo.textContent = `${selectedMenu.name} - ${selectedMenu.duration}分`;
-            basePrice.textContent = `¥${selectedMenu.price.toLocaleString()}`;
+            basePrice.innerHTML = `<span class="text-xs">¥</span>${selectedMenu.price.toLocaleString()}`;
             updateTotalPrice();
 
             // オプションリストを作成（カード形式）
@@ -465,7 +465,7 @@
                                         </div>
                                     </div>
                                     <div class="text-right flex-shrink-0">
-                                        <div class="text-xl font-bold text-green-600">+¥${option.price.toLocaleString()}</div>
+                                        <div class="text-xl font-bold text-green-600">+<span class="text-xs">¥</span>${option.price.toLocaleString()}</div>
                                         <div class="text-xs text-gray-500">税込</div>
                                     </div>
                                 </div>
@@ -553,7 +553,7 @@
             const totalPriceElement = document.getElementById('totalPrice');
             const selectedOptionsCount = document.getElementById('selectedOptionsCount');
             
-            totalPriceElement.textContent = `¥${totalPrice.toLocaleString()}`;
+            totalPriceElement.innerHTML = `<span class="text-sm">¥</span>${totalPrice.toLocaleString()}`;
             
             // オプション数の表示
             if (selectedOptions.length > 0) {
