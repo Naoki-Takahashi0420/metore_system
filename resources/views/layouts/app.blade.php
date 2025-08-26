@@ -83,6 +83,9 @@
                         <a href="{{ url('/stores') }}" class="text-gray-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors">
                             店舗一覧
                         </a>
+                        <a href="{{ url('/customer/login') }}" class="text-gray-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors">
+                            予約確認・カルテ
+                        </a>
                         <a href="{{ url('/stores') }}" class="bg-gradient-to-r from-emerald-600 via-green-500 to-emerald-500 text-white px-6 py-2 rounded-lg text-sm font-medium hover:from-emerald-700 hover:via-green-600 hover:to-emerald-600 transition-all duration-300 shadow-md hover:shadow-lg nowrap-jp">
                             ご予約
                         </a>
@@ -100,6 +103,7 @@
                         <div x-show="open" @click.away="open = false" x-transition class="absolute top-20 right-4 bg-white rounded-lg shadow-lg py-2 px-4 min-w-[200px] z-50">
                             <a href="{{ url('/') }}" class="block px-3 py-2 text-sm text-gray-600 hover:text-primary-600">ホーム</a>
                             <a href="{{ url('/stores') }}" class="block px-3 py-2 text-sm text-gray-600 hover:text-primary-600">店舗一覧</a>
+                            <a href="{{ url('/customer/login') }}" class="block px-3 py-2 text-sm text-gray-600 hover:text-primary-600">予約確認・カルテ</a>
                             <a href="{{ url('/stores') }}" class="block px-3 py-2 text-sm bg-gradient-to-r from-emerald-600 via-green-500 to-emerald-500 text-white rounded mt-2 text-center hover:from-emerald-700 hover:via-green-600 hover:to-emerald-600 transition-all duration-300 nowrap-jp">ご予約</a>
                         </div>
                     </div>
@@ -135,8 +139,9 @@
                         <ul class="space-y-2 text-sm">
                             <li><a href="{{ url('/') }}" class="text-gray-300 hover:text-white transition-colors">ホーム</a></li>
                             <li><a href="{{ url('/stores') }}" class="text-gray-300 hover:text-white transition-colors">店舗一覧</a></li>
-                            <li><a href="{{ url('/stores') }}" class="text-gray-300 hover:text-white transition-colors">ご予約</a></li>
-                            <li><a href="{{ url('/admin') }}" class="text-gray-300 hover:text-white transition-colors">スタッフ専用（カルテ管理）</a></li>
+                            <li><a href="{{ url('/stores') }}" class="text-gray-300 hover:text-white transition-colors">新規ご予約</a></li>
+                            <li><a href="{{ url('/customer/login') }}" class="text-gray-300 hover:text-white transition-colors">予約確認・カルテ（マイページ）</a></li>
+                            <li><a href="{{ url('/admin') }}" class="text-gray-300 hover:text-white transition-colors">スタッフ専用</a></li>
                         </ul>
                     </div>
 
