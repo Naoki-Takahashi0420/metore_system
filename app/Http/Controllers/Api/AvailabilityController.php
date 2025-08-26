@@ -55,7 +55,7 @@ class AvailabilityController extends Controller
         $currentTime = $openTime->copy();
         
         // 予約開始時刻が営業終了時刻以前であればOK（メニューが営業時間を超えても可）
-        while ($currentTime->lt($closeTime)) {
+        while ($currentTime->lte($closeTime)) {
             $slotKey = $currentTime->format('H:i');
             $slots[$slotKey] = [
                 'time' => $currentTime->format('H:i'),
