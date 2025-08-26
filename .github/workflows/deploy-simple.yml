@@ -50,7 +50,7 @@ jobs:
         
         # SQLiteデータベース作成
         cd $APP_DIR
-        touch database/database.sqlite
+        sudo touch database/database.sqlite
         sudo chown www-data:www-data database/database.sqlite
         sudo chmod 664 database/database.sqlite
         
