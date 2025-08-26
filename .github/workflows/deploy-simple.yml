@@ -56,6 +56,7 @@ jobs:
         APP_KEY=base64:FhDmJJEPuQPAz6t5HMt6qTVSYLs7pJg7xLDgBEcVHHg=
         APP_DEBUG=true
         APP_URL=http://54.64.54.226
+        APP_LOCALE=ja
         
         DB_CONNECTION=sqlite
         
@@ -91,6 +92,12 @@ jobs:
         
         # Livewire設定を公開（Filamentのログイン用）
         sudo php artisan livewire:publish --config
+        sudo php artisan livewire:publish --assets
+        
+        # Livewireアセットのシンボリックリンク作成
+        cd $APP_DIR/public
+        sudo ln -sf vendor/livewire livewire
+        cd $APP_DIR
         
         # 管理者ユーザー作成
         sudo tee create_admin.php > /dev/null << 'PHP'
