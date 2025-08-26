@@ -35,10 +35,11 @@ jobs:
         fi
         
         # Deploy (preserve storage and database)
-        sudo rm -rf $APP_DIR/* \
-          --exclude=$APP_DIR/storage \
-          --exclude=$APP_DIR/database/database.sqlite \
-          || sudo find $APP_DIR -mindepth 1 -not -path "$APP_DIR/storage*" -not -path "$APP_DIR/database/database.sqlite" -delete
+        sudo find $APP_DIR -mindepth 1 \
+          -not -path "$APP_DIR/storage*" \
+          -not -path "$APP_DIR/database/database.sqlite" \
+          -not -path "$APP_DIR/database" \
+          -delete
         
         sudo cp -r /tmp/metore_system/* $APP_DIR/
         
