@@ -77,8 +77,10 @@ jobs:
         # Laravel設定（migrateはSQLiteで実行）
         sudo php artisan key:generate
         sudo php artisan storage:link
-        sudo php artisan config:cache
+        sudo php artisan optimize:clear
         sudo php artisan migrate --force
+        sudo php artisan config:cache
+        sudo php artisan route:cache
         
         # Filamentアセットを公開
         sudo php artisan filament:assets
