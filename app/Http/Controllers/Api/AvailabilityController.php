@@ -7,6 +7,7 @@ use App\Models\Store;
 use App\Models\Menu;
 use App\Models\Reservation;
 use App\Models\Shift;
+use App\Models\BlockedTimePeriod;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
@@ -76,16 +77,35 @@ class AvailabilityController extends Controller
             ->whereIn('status', ['pending', 'confirmed', 'in_progress'])
             ->get();
         
-        // 予約済みの時間帯を除外
-        $availableSlots = collect($slots)->filter(function ($slot) use ($existingReservations, $menuDuration) {
+        // ブロックされた時間帯を取得
+        $blockedPeriods = BlockedTimePeriod::where('store_id', $store->id)
+            ->whereDate('blocked_date', $date)
+            ->get();
+        
+        // 予約済みの時間帯とブロック時間を除外
+        $availableSlots = collect($slots)->filter(function ($slot) use ($existingReservations, $blockedPeriods, $menuDuration, $date) {
             $slotStart = Carbon::parse($slot['datetime']);
             $slotEnd = $slotStart->copy()->addMinutes($menuDuration);
             
+            // ブロックされた時間帯との重複チェック
+            foreach ($blockedPeriods as $blocked) {
+                $blockStart = Carbon::parse($date->format('Y-m-d') . ' ' . $blocked->start_time);
+                $blockEnd = Carbon::parse($date->format('Y-m-d') . ' ' . $blocked->end_time);
+                
+                if (
+                    ($slotStart->gte($blockStart) && $slotStart->lt($blockEnd)) ||
+                    ($slotEnd->gt($blockStart) && $slotEnd->lte($blockEnd)) ||
+                    ($slotStart->lte($blockStart) && $slotEnd->gte($blockEnd))
+                ) {
+                    return false;
+                }
+            }
+            
+            // 既存予約との重複チェック
             foreach ($existingReservations as $reservation) {
                 $resStart = Carbon::parse($reservation->reservation_date . ' ' . $reservation->start_time);
                 $resEnd = Carbon::parse($reservation->reservation_date . ' ' . $reservation->end_time);
                 
-                // 時間帯が重複する場合は除外
                 if (
                     ($slotStart->gte($resStart) && $slotStart->lt($resEnd)) ||
                     ($slotEnd->gt($resStart) && $slotEnd->lte($resEnd)) ||
