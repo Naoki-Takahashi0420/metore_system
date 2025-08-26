@@ -34,7 +34,8 @@ jobs:
           --exclude='node_modules' \
           --exclude='.env' \
           --exclude='*.log' \
-          .
+          --exclude='deploy.tar.gz' \
+          . || [[ $? -eq 1 ]]
         
         # アップロード
         echo "Uploading to EC2..."
