@@ -109,7 +109,6 @@ class StoreResource extends Resource
                                         'sunday' => '日曜日',
                                     ])
                                     ->required()
-                                    ->disabled()
                                     ->dehydrated(true),
                                 Forms\Components\TextInput::make('open_time')
                                     ->label('開店時間')
