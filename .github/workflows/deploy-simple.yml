@@ -1,0 +1,104 @@
+name: Deploy Simple
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Simple Deploy
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+        
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'DEPLOY'
+        set -e
+        APP_DIR="/var/www/html"
+        
+        echo "=== Simple Deploy ==="
+        
+        # Git clone
+        cd /tmp
+        rm -rf metore_system
+        git clone https://github.com/Naoki-Takahashi0420/metore_system.git
+        
+        # Deploy
+        sudo rm -rf $APP_DIR/*
+        sudo cp -r /tmp/metore_system/* $APP_DIR/
+        
+        # .env (SQLiteを使用)
+        sudo tee $APP_DIR/.env > /dev/null << 'ENV'
+        APP_NAME=Xsyumeno
+        APP_ENV=production
+        APP_KEY=base64:FhDmJJEPuQPAz6t5HMt6qTVSYLs7pJg7xLDgBEcVHHg=
+        APP_DEBUG=true
+        APP_URL=http://54.64.54.226
+        
+        DB_CONNECTION=sqlite
+        
+        LOG_CHANNEL=stack
+        CACHE_DRIVER=file
+        SESSION_DRIVER=file
+        QUEUE_CONNECTION=sync
+        ENV
+        
+        # SQLiteデータベース作成
+        cd $APP_DIR
+        touch database/database.sqlite
+        sudo chown www-data:www-data database/database.sqlite
+        sudo chmod 664 database/database.sqlite
+        
+        # Composer
+        sudo COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader
+        
+        # Laravel設定（migrateはSQLiteで実行）
+        sudo php artisan key:generate
+        sudo php artisan storage:link
+        sudo php artisan config:cache
+        sudo php artisan migrate --force
+        
+        # 管理者ユーザー作成
+        sudo php artisan tinker --execute="
+        try {
+          \\$user = App\\Models\\User::firstOrCreate(
+            ['email' => 'admin@xsyumeno.com'],
+            [
+              'name' => 'Administrator',
+              'password' => Hash::make('password'),
+              'role' => 'superadmin',
+              'is_active' => true,
+              'email_verified_at' => now()
+            ]
+          );
+          echo 'Admin user created';
+        } catch (Exception \\$e) {
+          echo 'User: ' . \\$e->getMessage();
+        }"
+        
+        # 権限設定
+        sudo chown -R www-data:www-data $APP_DIR
+        sudo chmod -R 755 $APP_DIR
+        [ -d "$APP_DIR/storage" ] && sudo chmod -R 775 $APP_DIR/storage
+        [ -d "$APP_DIR/bootstrap/cache" ] && sudo chmod -R 775 $APP_DIR/bootstrap/cache
+        [ -d "$APP_DIR/database" ] && sudo chmod -R 775 $APP_DIR/database
+        
+        # サービス再起動
+        sudo systemctl restart nginx php8.3-fpm
+        
+        echo "=== Deploy Complete ==="
+        curl -I http://localhost/
+        DEPLOY
+        
+        rm deploy_key.pem
+        
+        echo "✅ Deploy Success!"
+        echo "URL: http://${EC2_HOST}/"
+        echo "Admin: http://${EC2_HOST}/admin/login"
+        echo "Email: admin@xsyumeno.com"
+        echo "Password: password"
