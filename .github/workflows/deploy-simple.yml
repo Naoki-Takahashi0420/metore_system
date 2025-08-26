@@ -79,8 +79,8 @@ jobs:
         sudo php artisan storage:link
         sudo php artisan optimize:clear
         sudo php artisan migrate --force
+        # route:cacheはFilamentと相性が悪いため使用しない
         sudo php artisan config:cache
-        sudo php artisan route:cache
         
         # Filamentアセットを公開
         sudo php artisan filament:assets
