@@ -104,7 +104,7 @@ jobs:
         use Illuminate\Support\Facades\Hash;
         
         $user = User::firstOrCreate(
-            ['email' => 'admin@xsyumeno.com'],
+            ['email' => 'admin@eye-training.com'],
             [
                 'name' => 'Administrator',
                 'password' => Hash::make('password'),
@@ -139,5 +139,5 @@ jobs:
         echo "✅ Deploy Success!"
         echo "URL: http://${EC2_HOST}/"
         echo "Admin: http://${EC2_HOST}/admin/login"
-        echo "Email: admin@xsyumeno.com"
+        echo "Email: admin@eye-training.com"
         echo "Password: password"

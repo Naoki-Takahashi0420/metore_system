@@ -6,7 +6,7 @@
 - **URL**: http://54.64.54.226/
 - **管理画面**: http://54.64.54.226/admin/login
 - **管理者ログイン**:
-  - メール: `admin@xsyumeno.com`
+  - メール: `admin@eye-training.com`
   - パスワード: `password`
 
 ### デプロイ方法
