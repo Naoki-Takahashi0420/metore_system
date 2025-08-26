@@ -63,6 +63,11 @@ jobs:
         sudo php artisan config:cache
         sudo php artisan migrate --force
         
+        # Filamentアセットを公開
+        sudo php artisan filament:assets
+        sudo php artisan vendor:publish --tag=filament-panels-assets --force
+        sudo php artisan vendor:publish --tag=filament-support-assets --force
+        
         # 管理者ユーザー作成（後で手動実行）
         echo "Admin user creation skipped (manual creation required)"
         
