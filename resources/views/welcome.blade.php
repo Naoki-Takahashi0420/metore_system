@@ -56,7 +56,7 @@
                     <span class="whitespace-nowrap">スマホ・PC時代の救世主。</span>
                 </p>
                 <div class="font-light text-gray-300 max-w-4xl mx-auto leading-relaxed" style="font-size: clamp(1rem, 2.5vw, 1.5rem);">
-                    <span class="whitespace-nowrap">視力・疲れ目・老眼・ドライアイまで、</span><br class="hidden md:block">
+                    <span class="whitespace-nowrap">疲れ目・老眼・ドライアイまで、</span><br class="hidden md:block">
                     <span class="whitespace-nowrap">目の悩みに寄り添う新感覚サロン。</span>
                 </div>
             </div>
@@ -107,7 +107,7 @@
             <div class="max-w-5xl mx-auto space-y-8">
                 <p class="text-slate-700 leading-relaxed font-light text-responsive-2xl smart-break">
                     <span class="nowrap-jp">特許取得機器を用いた"目の筋肉ケア"で、</span><br>
-                    <span class="nowrap-jp">その場で視力回復を実感する方が</span><span class="text-emerald-700 font-bold text-responsive-3xl">90%</span><span class="nowrap-jp">以上。</span>
+                    <span class="nowrap-jp">9割以上のお客様から視力回復、向上のお声を頂いております。</span>
                 </p>
                 
                 <div class="bg-gradient-to-r from-emerald-50 via-green-50 to-emerald-50 rounded-3xl p-12 md:p-16 border border-emerald-100 shadow-lg">

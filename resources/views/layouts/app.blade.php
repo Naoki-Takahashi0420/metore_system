@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>@yield('title', '目のトレーニング') - 視力改善専門サロン</title>
+    <title>@yield('title', '目のトレーニング') - 目のトレーニング</title>
     
-    <meta name="description" content="視力改善専門サロン「目のトレーニング」で、あなたの目の健康を改善しませんか？最新のトレーニング技術とVR機器で効果的な視力改善をサポートします。">
+    <meta name="description" content="9割以上のお客様から視力回復、向上のお声を頂いております。目のトレーニング専門サロンで、最新のVR機器と独自のトレーニング技術をご体験ください。">
     
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="{{ asset('test/metore_logo.png') }}">
@@ -115,14 +115,14 @@
         <!-- Footer -->
         <footer class="bg-gray-900 text-white">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                <div class="grid md:grid-cols-4 gap-8">
+                <div class="grid md:grid-cols-3 gap-8">
                     <!-- Company Info -->
                     <div class="md:col-span-2">
                         <div class="mb-4">
                             <img src="{{ asset('images/logo.png') }}" alt="目のトレーニング" class="h-16 w-auto filter brightness-0 invert">
                         </div>
                         <p class="text-gray-300 mb-4 max-w-md">
-                            視力改善専門サロン。最新の技術と専門的なトレーニングで、あなたの視力改善をサポートします。
+                            9割以上のお客様から視力回復、向上のお声を頂いております。最新のVR技術と専門的なトレーニングで、目の健康をサポートします。
                         </p>
                         <div class="text-sm text-gray-400">
                             <p>© 2025 目のトレーニング. All rights reserved.</p>
@@ -140,15 +140,6 @@
                         </ul>
                     </div>
 
-                    <!-- Contact -->
-                    <div>
-                        <h4 class="text-lg font-semibold mb-4">お問い合わせ</h4>
-                        <div class="space-y-2 text-sm text-gray-300">
-                            <p>東京本店: 03-1234-5678</p>
-                            <p>大阪支店: 06-2345-6789</p>
-                            <p>営業時間: 9:00-18:00</p>
-                        </div>
-                    </div>
                 </div>
             </div>
         </footer>
