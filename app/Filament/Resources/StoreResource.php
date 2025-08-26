@@ -47,9 +47,11 @@ class StoreResource extends Resource
                                 'active' => '営業中',
                                 'inactive' => '休業中',
                                 'closed' => '閉店',
+                                'hidden' => '非表示',
                             ])
                             ->default('active')
-                            ->required(),
+                            ->required()
+                            ->helperText('「非表示」を選択すると、お客様向けページに表示されません'),
                         Forms\Components\Textarea::make('description')
                             ->label('説明')
                             ->rows(3)
@@ -242,11 +244,13 @@ class StoreResource extends Resource
                         'success' => 'active',
                         'warning' => 'inactive',
                         'danger' => 'closed',
+                        'gray' => 'hidden',
                     ])
                     ->formatStateUsing(fn (string $state): string => match ($state) {
                         'active' => '営業中',
                         'inactive' => '休業中',
                         'closed' => '閉店',
+                        'hidden' => '非表示',
                         default => $state,
                     }),
                 Tables\Columns\TextColumn::make('menus_count')
@@ -266,6 +270,7 @@ class StoreResource extends Resource
                         'active' => '営業中',
                         'inactive' => '休業中',
                         'closed' => '閉店',
+                        'hidden' => '非表示',
                     ]),
             ])
             ->actions([
