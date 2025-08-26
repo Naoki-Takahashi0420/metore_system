@@ -134,6 +134,13 @@ jobs:
         [ -d "$APP_DIR/bootstrap/cache" ] && sudo chmod -R 775 $APP_DIR/bootstrap/cache
         [ -d "$APP_DIR/database" ] && sudo chmod -R 775 $APP_DIR/database
         
+        # アップロード用ディレクトリ作成
+        sudo mkdir -p $APP_DIR/storage/app/public/stores
+        sudo mkdir -p $APP_DIR/storage/app/public/livewire-tmp
+        sudo mkdir -p $APP_DIR/storage/app/livewire-tmp
+        sudo chown -R www-data:www-data $APP_DIR/storage
+        sudo chmod -R 775 $APP_DIR/storage
+        
         # サービス再起動
         sudo systemctl restart nginx php8.3-fpm
         
