@@ -72,10 +72,10 @@ class AvailabilityController extends Controller
             return strcmp($a['time'], $b['time']);
         });
         
-        // 既存の予約を取得
+        // 既存の予約を取得（キャンセル以外のすべて）
         $existingReservations = Reservation::where('store_id', $store->id)
             ->whereDate('reservation_date', $date)
-            ->whereIn('status', ['pending', 'confirmed', 'in_progress'])
+            ->whereNotIn('status', ['cancelled', 'canceled', 'no_show'])
             ->get();
         
         // ブロックされた時間帯を取得
@@ -102,18 +102,27 @@ class AvailabilityController extends Controller
                 }
             }
             
-            // 既存予約との重複チェック
+            // 既存予約との重複チェック（席数を考慮）
+            $overlappingCount = 0;
             foreach ($existingReservations as $reservation) {
-                $resStart = Carbon::parse($reservation->reservation_date . ' ' . $reservation->start_time);
-                $resEnd = Carbon::parse($reservation->reservation_date . ' ' . $reservation->end_time);
+                // reservation_dateから日付部分のみを抽出
+                $resDate = Carbon::parse($reservation->reservation_date)->format('Y-m-d');
+                $resStart = Carbon::parse($resDate . ' ' . $reservation->start_time);
+                $resEnd = Carbon::parse($resDate . ' ' . $reservation->end_time);
                 
                 if (
                     ($slotStart->gte($resStart) && $slotStart->lt($resEnd)) ||
                     ($slotEnd->gt($resStart) && $slotEnd->lte($resEnd)) ||
                     ($slotStart->lte($resStart) && $slotEnd->gte($resEnd))
                 ) {
-                    return false;
+                    $overlappingCount++;
                 }
+            }
+            
+            // 店舗の席数（capacity）を確認
+            $storeCapacity = $store->capacity ?? 1;
+            if ($overlappingCount >= $storeCapacity) {
+                return false;
             }
             
             // 現在時刻より過去の時間は除外

@@ -9,3 +9,116 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+/* モバイル用レスポンシブ修正 */
+@media (max-width: 768px) {
+    /* グリッドを強制的に1カラムに */
+    .grid,
+    .md\:grid-cols-2,
+    .lg\:grid-cols-3 {
+        display: block !important;
+    }
+    
+    /* グリッドの各アイテムをブロック要素に */
+    .grid > *,
+    .md\:grid-cols-2 > *,
+    .lg\:grid-cols-3 > * {
+        display: block !important;
+        width: 100% !important;
+        margin-bottom: 1rem !important;
+    }
+    
+    /* メニューカードを縦並びに */
+    .bg-white.rounded-lg.shadow-sm {
+        display: block !important;
+        width: 100% !important;
+        margin-bottom: 1.5rem !important;
+    }
+    
+    /* カード内を縦構成に */
+    .flex {
+        flex-direction: column !important;
+    }
+    
+    /* 画像を上に配置 */
+    .aspect-w-16,
+    .aspect-h-9,
+    img {
+        width: 100% !important;
+        height: 200px !important;
+        object-fit: cover !important;
+        margin-bottom: 1rem !important;
+    }
+    
+    /* テキストエリアの調整 */
+    .p-6 {
+        padding: 1rem !important;
+    }
+    
+    /* タイトル */
+    h3, .text-lg, .font-semibold {
+        font-size: 1.125rem !important;
+        line-height: 1.4 !important;
+        margin-bottom: 0.5rem !important;
+    }
+    
+    /* 説明文 */
+    .text-gray-600 {
+        font-size: 0.875rem !important;
+        line-height: 1.5 !important;
+        margin-bottom: 0.75rem !important;
+    }
+    
+    /* 価格と時間を横並びに */
+    .text-2xl {
+        font-size: 1.25rem !important;
+        font-weight: bold !important;
+        color: #2563eb !important;
+    }
+    
+    .text-sm {
+        font-size: 0.8125rem !important;
+    }
+    
+    /* ボタンを下部に固定 */
+    button {
+        width: 100% !important;
+        padding: 0.875rem !important;
+        margin-top: 1rem !important;
+        font-size: 1rem !important;
+    }
+}
+
+/* 極小画面（320px）対応 */
+@media (max-width: 375px) {
+    /* 全体の余白を削減 */
+    .container, 
+    .max-w-7xl,
+    .px-4 {
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+    }
+    
+    /* 画像の高さを抑える */
+    img {
+        height: 150px !important;
+    }
+    
+    /* フォントサイズをさらに調整 */
+    h3, .text-lg {
+        font-size: 1rem !important;
+    }
+    
+    .text-gray-600 {
+        font-size: 0.8125rem !important;
+    }
+    
+    .text-2xl {
+        font-size: 1.125rem !important;
+    }
+    
+    /* カード間の余白を削減 */
+    .gap-6 {
+        gap: 0.75rem !important;
+    }
+}

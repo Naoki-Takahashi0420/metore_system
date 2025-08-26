@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Calendar Test</title>
+</head>
+<body>
+    <h1>カレンダーテスト</h1>
+    <p>セッションストレージを設定してカレンダーにアクセスします。</p>
+    
+    <button onclick="setupAndGo()">カレンダーへ移動</button>
+    
+    <script>
+        function setupAndGo() {
+            // セッションストレージに必要なデータを設定
+            sessionStorage.setItem('selectedStore', JSON.stringify({
+                id: 1,
+                name: '目のトレーニング 東京本店'
+            }));
+            
+            sessionStorage.setItem('selectedMenu', JSON.stringify({
+                id: 1,
+                name: '眼精疲労ケアコース',
+                price: 5000,
+                duration: 60
+            }));
+            
+            // カレンダーページへ移動
+            window.location.href = '/reservation/datetime';
+        }
+    </script>
+</body>
+</html>

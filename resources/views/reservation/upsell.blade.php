@@ -11,6 +11,33 @@
             width: 128px; /* w-32 */
         }
         
+        /* モバイルでボタンを固定表示 */
+        @media (max-width: 640px) {
+            .action-buttons {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: white;
+                padding: 1rem;
+                box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
+                z-index: 40;
+                display: flex;
+                gap: 0.5rem;
+            }
+            
+            .action-buttons button {
+                flex: 1;
+                padding: 0.75rem;
+                font-size: 0.875rem;
+            }
+            
+            /* メインコンテンツの下部にパディングを追加 */
+            body {
+                padding-bottom: 100px;
+            }
+        }
+        
         /* モーダル関連のスタイル */
         .modal-overlay {
             opacity: 0;
@@ -200,7 +227,7 @@
         </div>
 
         <!-- アクションボタン -->
-        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <div class="action-buttons flex flex-col sm:flex-row gap-4 justify-center">
             <button onclick="skipUpsell()" 
                     class="px-8 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">
                 このまま進む

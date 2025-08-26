@@ -111,7 +111,7 @@ async function loadStores() {
                             <svg class="w-5 h-5 mr-3 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            <span class="text-gray-700">${getOpeningHours(store.opening_hours)}</span>
+                            <span class="text-gray-700">${getOpeningHours(store.opening_hours || store.business_hours)}</span>
                         </div>
                         
                         ${store.capacity ? `
@@ -160,16 +160,85 @@ function getOpeningHours(openingHours) {
         }
     }
     
+    // business_hours形式（配列）の場合の変換
+    if (Array.isArray(openingHours)) {
+        const converted = {};
+        openingHours.forEach(item => {
+            if (item.day) {
+                if (item.is_closed) {
+                    converted[item.day] = null;
+                } else {
+                    converted[item.day] = {
+                        open: item.open_time,
+                        close: item.close_time
+                    };
+                }
+            }
+        });
+        openingHours = converted;
+    }
+    
     if (typeof openingHours === 'object') {
-        // Assuming format like: {"monday": "9:00-18:00", "tuesday": "9:00-18:00", ...}
-        const days = Object.values(openingHours);
-        const uniqueHours = [...new Set(days)];
+        const dayNames = {
+            'monday': '月',
+            'tuesday': '火', 
+            'wednesday': '水',
+            'thursday': '木',
+            'friday': '金',
+            'saturday': '土',
+            'sunday': '日'
+        };
         
-        if (uniqueHours.length === 1) {
-            return `営業時間: ${uniqueHours[0]} (毎日)`;
+        const today = new Date();
+        const todayName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][today.getDay()];
+        const todayHours = openingHours[todayName];
+        
+        // 営業時間を文字列に変換する関数
+        const formatHours = (hours) => {
+            if (!hours) return '休業日';
+            if (typeof hours === 'string') return hours;
+            if (typeof hours === 'object' && hours.open && hours.close) {
+                return `${hours.open}-${hours.close}`;
+            }
+            return '休業日';
+        };
+        
+        // 今日の営業時間を表示
+        let result = '';
+        const todayFormatted = formatHours(todayHours);
+        if (todayFormatted === '休業日') {
+            result = `<span class="text-red-600">本日休業日</span>`;
         } else {
-            return '営業時間: 曜日により異なる';
+            result = `本日: ${todayFormatted}`;
         }
+        
+        // 営業時間のパターンを分析
+        const formattedDays = {};
+        Object.entries(openingHours).forEach(([day, hours]) => {
+            formattedDays[day] = formatHours(hours);
+        });
+        
+        const uniqueHours = [...new Set(Object.values(formattedDays))];
+        
+        if (uniqueHours.length === 1 && uniqueHours[0] !== '休業日') {
+            return `営業時間: ${uniqueHours[0]} (毎日)`;
+        }
+        
+        // 平日・土日の営業時間パターンを検出
+        const weekdayHours = formattedDays.monday; // 月曜を平日の代表として使用
+        const saturdayHours = formattedDays.saturday;
+        const sundayHours = formattedDays.sunday;
+        
+        let additionalInfo = '';
+        if (weekdayHours && weekdayHours !== '休業日') {
+            if (saturdayHours === weekdayHours && sundayHours === weekdayHours) {
+                additionalInfo = ` (毎日同じ)`;
+            } else if (saturdayHours !== weekdayHours || sundayHours !== weekdayHours) {
+                additionalInfo = ` (土日は異なる)`;
+            }
+        }
+        
+        return `<span>${result}${additionalInfo}</span>`;
     }
     
     return '営業時間: お問い合わせください';

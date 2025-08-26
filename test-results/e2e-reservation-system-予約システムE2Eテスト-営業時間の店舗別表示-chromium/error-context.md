@@ -1,0 +1,353 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - heading "メニューを選択" [level=1] [ref=e4]
+    - paragraph [ref=e5]: ご希望のメニューをお選びください
+  - generic [ref=e7]:
+    - generic [ref=e8]: "1"
+    - generic [ref=e10]: "2"
+    - generic [ref=e12]: "3"
+  - generic [ref=e13]:
+    - generic [ref=e15]: メニュー選択
+    - generic [ref=e17]: 日時選択
+    - generic [ref=e19]: 情報入力
+  - generic [ref=e20]:
+    - generic [ref=e22] [cursor=pointer]:
+      - img [ref=e24] [cursor=pointer]
+      - generic [ref=e27] [cursor=pointer]:
+        - generic [ref=e28] [cursor=pointer]:
+          - heading "初回視力検査・カウンセリング" [level=3] [ref=e29] [cursor=pointer]
+          - paragraph [ref=e30] [cursor=pointer]: 詳細な視力検査と個別カウンセリングを行います。
+          - generic [ref=e31] [cursor=pointer]:
+            - generic [ref=e32] [cursor=pointer]:
+              - img [ref=e33] [cursor=pointer]
+              - text: 60分
+            - generic [ref=e35] [cursor=pointer]: 視力検査
+        - generic [ref=e36] [cursor=pointer]:
+          - generic [ref=e37] [cursor=pointer]:
+            - generic [ref=e38] [cursor=pointer]: ¥
+            - text: 5,000
+          - generic [ref=e39] [cursor=pointer]: 税込
+    - generic [ref=e41] [cursor=pointer]:
+      - img [ref=e43] [cursor=pointer]
+      - generic [ref=e46] [cursor=pointer]:
+        - generic [ref=e47] [cursor=pointer]:
+          - heading "定期視力検査" [level=3] [ref=e48] [cursor=pointer]
+          - paragraph [ref=e49] [cursor=pointer]: 3ヶ月ごとの定期検査です。
+          - generic [ref=e50] [cursor=pointer]:
+            - generic [ref=e51] [cursor=pointer]:
+              - img [ref=e52] [cursor=pointer]
+              - text: 30分
+            - generic [ref=e54] [cursor=pointer]: 視力検査
+        - generic [ref=e55] [cursor=pointer]:
+          - generic [ref=e56] [cursor=pointer]:
+            - generic [ref=e57] [cursor=pointer]: ¥
+            - text: 3,000
+          - generic [ref=e58] [cursor=pointer]: 税込
+    - generic [ref=e60] [cursor=pointer]:
+      - img [ref=e62] [cursor=pointer]
+      - generic [ref=e65] [cursor=pointer]:
+        - generic [ref=e66] [cursor=pointer]:
+          - heading "ベーシック視力トレーニング" [level=3] [ref=e67] [cursor=pointer]
+          - paragraph [ref=e68] [cursor=pointer]: 基本的な視力改善トレーニングプログラムです。
+          - generic [ref=e69] [cursor=pointer]:
+            - generic [ref=e70] [cursor=pointer]:
+              - img [ref=e71] [cursor=pointer]
+              - text: 45分
+            - generic [ref=e73] [cursor=pointer]: トレーニング
+        - generic [ref=e74] [cursor=pointer]:
+          - generic [ref=e75] [cursor=pointer]:
+            - generic [ref=e76] [cursor=pointer]: ¥
+            - text: 8,000
+          - generic [ref=e77] [cursor=pointer]: 税込
+    - generic [ref=e79] [cursor=pointer]:
+      - img [ref=e81] [cursor=pointer]
+      - generic [ref=e84] [cursor=pointer]:
+        - generic [ref=e85] [cursor=pointer]:
+          - heading "アドバンスド視力トレーニング" [level=3] [ref=e86] [cursor=pointer]
+          - paragraph [ref=e87] [cursor=pointer]: 専門的な機器を使用した集中トレーニングです。
+          - generic [ref=e88] [cursor=pointer]:
+            - generic [ref=e89] [cursor=pointer]:
+              - img [ref=e90] [cursor=pointer]
+              - text: 60分
+            - generic [ref=e92] [cursor=pointer]: トレーニング
+        - generic [ref=e93] [cursor=pointer]:
+          - generic [ref=e94] [cursor=pointer]:
+            - generic [ref=e95] [cursor=pointer]: ¥
+            - text: 12,000
+          - generic [ref=e96] [cursor=pointer]: 税込
+    - generic [ref=e98] [cursor=pointer]:
+      - img [ref=e100] [cursor=pointer]
+      - generic [ref=e103] [cursor=pointer]:
+        - generic [ref=e104] [cursor=pointer]:
+          - heading "VRトレーニングプログラム" [level=3] [ref=e105] [cursor=pointer]
+          - paragraph [ref=e106] [cursor=pointer]: VR技術を活用した最新の視力改善プログラムです。
+          - generic [ref=e107] [cursor=pointer]:
+            - generic [ref=e108] [cursor=pointer]:
+              - img [ref=e109] [cursor=pointer]
+              - text: 90分
+            - generic [ref=e111] [cursor=pointer]: トレーニング
+        - generic [ref=e112] [cursor=pointer]:
+          - generic [ref=e113] [cursor=pointer]:
+            - generic [ref=e114] [cursor=pointer]: ¥
+            - text: 15,000
+          - generic [ref=e115] [cursor=pointer]: 税込
+    - generic [ref=e117] [cursor=pointer]:
+      - img [ref=e119] [cursor=pointer]
+      - generic [ref=e122] [cursor=pointer]:
+        - generic [ref=e123] [cursor=pointer]:
+          - heading "1ヶ月集中改善コース" [level=3] [ref=e124] [cursor=pointer]
+          - paragraph [ref=e125] [cursor=pointer]: 週2回×4週間の集中改善プログラムです。
+          - generic [ref=e126] [cursor=pointer]:
+            - generic [ref=e127] [cursor=pointer]:
+              - img [ref=e128] [cursor=pointer]
+              - text: 60分
+            - generic [ref=e130] [cursor=pointer]: コース
+        - generic [ref=e131] [cursor=pointer]:
+          - generic [ref=e132] [cursor=pointer]:
+            - generic [ref=e133] [cursor=pointer]: ¥
+            - text: 50,000
+          - generic [ref=e134] [cursor=pointer]: 税込
+    - generic [ref=e136] [cursor=pointer]:
+      - img [ref=e138] [cursor=pointer]
+      - generic [ref=e141] [cursor=pointer]:
+        - generic [ref=e142] [cursor=pointer]:
+          - heading "3ヶ月スタンダードコース" [level=3] [ref=e143] [cursor=pointer]
+          - paragraph [ref=e144] [cursor=pointer]: 週1回×12週間のスタンダードプログラムです。
+          - generic [ref=e145] [cursor=pointer]:
+            - generic [ref=e146] [cursor=pointer]:
+              - img [ref=e147] [cursor=pointer]
+              - text: 60分
+            - generic [ref=e149] [cursor=pointer]: コース
+        - generic [ref=e150] [cursor=pointer]:
+          - generic [ref=e151] [cursor=pointer]:
+            - generic [ref=e152] [cursor=pointer]: ¥
+            - text: 80,000
+          - generic [ref=e153] [cursor=pointer]: 税込
+    - generic [ref=e155] [cursor=pointer]:
+      - img [ref=e157] [cursor=pointer]
+      - generic [ref=e160] [cursor=pointer]:
+        - generic [ref=e161] [cursor=pointer]:
+          - heading "初回視力検査・カウンセリング" [level=3] [ref=e162] [cursor=pointer]
+          - paragraph [ref=e163] [cursor=pointer]: 詳細な視力検査と個別カウンセリングを行います。
+          - generic [ref=e164] [cursor=pointer]:
+            - generic [ref=e165] [cursor=pointer]:
+              - img [ref=e166] [cursor=pointer]
+              - text: 60分
+            - generic [ref=e168] [cursor=pointer]: 視力検査
+        - generic [ref=e169] [cursor=pointer]:
+          - generic [ref=e170] [cursor=pointer]:
+            - generic [ref=e171] [cursor=pointer]: ¥
+            - text: 5,000
+          - generic [ref=e172] [cursor=pointer]: 税込
+    - generic [ref=e174] [cursor=pointer]:
+      - img [ref=e176] [cursor=pointer]
+      - generic [ref=e179] [cursor=pointer]:
+        - generic [ref=e180] [cursor=pointer]:
+          - heading "定期視力検査" [level=3] [ref=e181] [cursor=pointer]
+          - paragraph [ref=e182] [cursor=pointer]: 3ヶ月ごとの定期検査です。
+          - generic [ref=e183] [cursor=pointer]:
+            - generic [ref=e184] [cursor=pointer]:
+              - img [ref=e185] [cursor=pointer]
+              - text: 30分
+            - generic [ref=e187] [cursor=pointer]: 視力検査
+        - generic [ref=e188] [cursor=pointer]:
+          - generic [ref=e189] [cursor=pointer]:
+            - generic [ref=e190] [cursor=pointer]: ¥
+            - text: 3,000
+          - generic [ref=e191] [cursor=pointer]: 税込
+    - generic [ref=e193] [cursor=pointer]:
+      - img [ref=e195] [cursor=pointer]
+      - generic [ref=e198] [cursor=pointer]:
+        - generic [ref=e199] [cursor=pointer]:
+          - heading "ベーシック視力トレーニング" [level=3] [ref=e200] [cursor=pointer]
+          - paragraph [ref=e201] [cursor=pointer]: 基本的な視力改善トレーニングプログラムです。
+          - generic [ref=e202] [cursor=pointer]:
+            - generic [ref=e203] [cursor=pointer]:
+              - img [ref=e204] [cursor=pointer]
+              - text: 45分
+            - generic [ref=e206] [cursor=pointer]: トレーニング
+        - generic [ref=e207] [cursor=pointer]:
+          - generic [ref=e208] [cursor=pointer]:
+            - generic [ref=e209] [cursor=pointer]: ¥
+            - text: 8,000
+          - generic [ref=e210] [cursor=pointer]: 税込
+    - generic [ref=e212] [cursor=pointer]:
+      - img [ref=e214] [cursor=pointer]
+      - generic [ref=e217] [cursor=pointer]:
+        - generic [ref=e218] [cursor=pointer]:
+          - heading "アドバンスド視力トレーニング" [level=3] [ref=e219] [cursor=pointer]
+          - paragraph [ref=e220] [cursor=pointer]: 専門的な機器を使用した集中トレーニングです。
+          - generic [ref=e221] [cursor=pointer]:
+            - generic [ref=e222] [cursor=pointer]:
+              - img [ref=e223] [cursor=pointer]
+              - text: 60分
+            - generic [ref=e225] [cursor=pointer]: トレーニング
+        - generic [ref=e226] [cursor=pointer]:
+          - generic [ref=e227] [cursor=pointer]:
+            - generic [ref=e228] [cursor=pointer]: ¥
+            - text: 12,000
+          - generic [ref=e229] [cursor=pointer]: 税込
+    - generic [ref=e231] [cursor=pointer]:
+      - img [ref=e233] [cursor=pointer]
+      - generic [ref=e236] [cursor=pointer]:
+        - generic [ref=e237] [cursor=pointer]:
+          - heading "VRトレーニングプログラム" [level=3] [ref=e238] [cursor=pointer]
+          - paragraph [ref=e239] [cursor=pointer]: VR技術を活用した最新の視力改善プログラムです。
+          - generic [ref=e240] [cursor=pointer]:
+            - generic [ref=e241] [cursor=pointer]:
+              - img [ref=e242] [cursor=pointer]
+              - text: 90分
+            - generic [ref=e244] [cursor=pointer]: トレーニング
+        - generic [ref=e245] [cursor=pointer]:
+          - generic [ref=e246] [cursor=pointer]:
+            - generic [ref=e247] [cursor=pointer]: ¥
+            - text: 15,000
+          - generic [ref=e248] [cursor=pointer]: 税込
+    - generic [ref=e250] [cursor=pointer]:
+      - img [ref=e252] [cursor=pointer]
+      - generic [ref=e255] [cursor=pointer]:
+        - generic [ref=e256] [cursor=pointer]:
+          - heading "1ヶ月集中改善コース" [level=3] [ref=e257] [cursor=pointer]
+          - paragraph [ref=e258] [cursor=pointer]: 週2回×4週間の集中改善プログラムです。
+          - generic [ref=e259] [cursor=pointer]:
+            - generic [ref=e260] [cursor=pointer]:
+              - img [ref=e261] [cursor=pointer]
+              - text: 60分
+            - generic [ref=e263] [cursor=pointer]: コース
+        - generic [ref=e264] [cursor=pointer]:
+          - generic [ref=e265] [cursor=pointer]:
+            - generic [ref=e266] [cursor=pointer]: ¥
+            - text: 50,000
+          - generic [ref=e267] [cursor=pointer]: 税込
+    - generic [ref=e269] [cursor=pointer]:
+      - img [ref=e271] [cursor=pointer]
+      - generic [ref=e274] [cursor=pointer]:
+        - generic [ref=e275] [cursor=pointer]:
+          - heading "3ヶ月スタンダードコース" [level=3] [ref=e276] [cursor=pointer]
+          - paragraph [ref=e277] [cursor=pointer]: 週1回×12週間のスタンダードプログラムです。
+          - generic [ref=e278] [cursor=pointer]:
+            - generic [ref=e279] [cursor=pointer]:
+              - img [ref=e280] [cursor=pointer]
+              - text: 60分
+            - generic [ref=e282] [cursor=pointer]: コース
+        - generic [ref=e283] [cursor=pointer]:
+          - generic [ref=e284] [cursor=pointer]:
+            - generic [ref=e285] [cursor=pointer]: ¥
+            - text: 80,000
+          - generic [ref=e286] [cursor=pointer]: 税込
+    - generic [ref=e288] [cursor=pointer]:
+      - img [ref=e290] [cursor=pointer]
+      - generic [ref=e293] [cursor=pointer]:
+        - generic [ref=e294] [cursor=pointer]:
+          - heading "基本視力検査" [level=3] [ref=e295] [cursor=pointer]
+          - paragraph [ref=e296] [cursor=pointer]: 視力・視野・色覚などの基本的な検査を行います。
+          - generic [ref=e297] [cursor=pointer]:
+            - generic [ref=e298] [cursor=pointer]:
+              - img [ref=e299] [cursor=pointer]
+              - text: 30分
+            - generic [ref=e301] [cursor=pointer]: 視力検査
+        - generic [ref=e302] [cursor=pointer]:
+          - generic [ref=e303] [cursor=pointer]:
+            - generic [ref=e304] [cursor=pointer]: ¥
+            - text: 3,000
+          - generic [ref=e305] [cursor=pointer]: 税込
+    - generic [ref=e307] [cursor=pointer]:
+      - img [ref=e309] [cursor=pointer]
+      - generic [ref=e312] [cursor=pointer]:
+        - generic [ref=e313] [cursor=pointer]:
+          - heading "【初回限定】体験コース" [level=3] [ref=e314] [cursor=pointer]
+          - paragraph [ref=e315] [cursor=pointer]: 初めての方限定！基本検査＋VR体験のお得なセット
+          - generic [ref=e316] [cursor=pointer]:
+            - generic [ref=e317] [cursor=pointer]:
+              - img [ref=e318] [cursor=pointer]
+              - text: 40分
+            - generic [ref=e320] [cursor=pointer]: 視力検査
+        - generic [ref=e321] [cursor=pointer]:
+          - generic [ref=e322] [cursor=pointer]:
+            - generic [ref=e323] [cursor=pointer]: ¥
+            - text: 1,980
+          - generic [ref=e324] [cursor=pointer]: 税込
+    - generic [ref=e326] [cursor=pointer]:
+      - img [ref=e328] [cursor=pointer]
+      - generic [ref=e331] [cursor=pointer]:
+        - generic [ref=e332] [cursor=pointer]:
+          - heading "VR視力トレーニング" [level=3] [ref=e333] [cursor=pointer]
+          - paragraph [ref=e334] [cursor=pointer]: 最新のVR技術を使用した視力改善トレーニングです。
+          - generic [ref=e335] [cursor=pointer]:
+            - generic [ref=e336] [cursor=pointer]:
+              - img [ref=e337] [cursor=pointer]
+              - text: 45分
+            - generic [ref=e339] [cursor=pointer]: vr_training
+        - generic [ref=e340] [cursor=pointer]:
+          - generic [ref=e341] [cursor=pointer]:
+            - generic [ref=e342] [cursor=pointer]: ¥
+            - text: 5,000
+          - generic [ref=e343] [cursor=pointer]: 税込
+    - generic [ref=e345] [cursor=pointer]:
+      - img [ref=e347] [cursor=pointer]
+      - generic [ref=e350] [cursor=pointer]:
+        - generic [ref=e351] [cursor=pointer]:
+          - heading "総合アイケアコース" [level=3] [ref=e352] [cursor=pointer]
+          - paragraph [ref=e353] [cursor=pointer]: 検査・トレーニング・ケアを含む総合的なコースです。
+          - generic [ref=e354] [cursor=pointer]:
+            - generic [ref=e355] [cursor=pointer]:
+              - img [ref=e356] [cursor=pointer]
+              - text: 60分
+            - generic [ref=e358] [cursor=pointer]: アイケア
+        - generic [ref=e359] [cursor=pointer]:
+          - generic [ref=e360] [cursor=pointer]:
+            - generic [ref=e361] [cursor=pointer]: ¥
+            - text: 8,000
+          - generic [ref=e362] [cursor=pointer]: 税込
+    - generic [ref=e364] [cursor=pointer]:
+      - img [ref=e366] [cursor=pointer]
+      - generic [ref=e369] [cursor=pointer]:
+        - generic [ref=e370] [cursor=pointer]:
+          - heading "眼精疲労回復プログラム" [level=3] [ref=e371] [cursor=pointer]
+          - paragraph [ref=e372] [cursor=pointer]: デスクワークで疲れた目を癒す特別プログラムです。
+          - generic [ref=e373] [cursor=pointer]:
+            - generic [ref=e374] [cursor=pointer]:
+              - img [ref=e375] [cursor=pointer]
+              - text: 40分
+            - generic [ref=e377] [cursor=pointer]: アイケア
+        - generic [ref=e378] [cursor=pointer]:
+          - generic [ref=e379] [cursor=pointer]:
+            - generic [ref=e380] [cursor=pointer]: ¥
+            - text: 4,500
+          - generic [ref=e381] [cursor=pointer]: 税込
+    - generic [ref=e383] [cursor=pointer]:
+      - img [ref=e385] [cursor=pointer]
+      - generic [ref=e388] [cursor=pointer]:
+        - generic [ref=e389] [cursor=pointer]:
+          - heading "子供向け視力検査" [level=3] [ref=e390] [cursor=pointer]
+          - paragraph [ref=e391] [cursor=pointer]: お子様向けの楽しい視力検査プログラムです。
+          - generic [ref=e392] [cursor=pointer]:
+            - generic [ref=e393] [cursor=pointer]:
+              - img [ref=e394] [cursor=pointer]
+              - text: 20分
+            - generic [ref=e396] [cursor=pointer]: 視力検査
+        - generic [ref=e397] [cursor=pointer]:
+          - generic [ref=e398] [cursor=pointer]:
+            - generic [ref=e399] [cursor=pointer]: ¥
+            - text: 2,500
+          - generic [ref=e400] [cursor=pointer]: 税込
+    - generic [ref=e402] [cursor=pointer]:
+      - img [ref=e404] [cursor=pointer]
+      - generic [ref=e407] [cursor=pointer]:
+        - generic [ref=e408] [cursor=pointer]:
+          - heading "視力改善カウンセリング" [level=3] [ref=e409] [cursor=pointer]
+          - paragraph [ref=e410] [cursor=pointer]: 専門家による個別カウンセリングです。
+          - generic [ref=e411] [cursor=pointer]:
+            - generic [ref=e412] [cursor=pointer]:
+              - img [ref=e413] [cursor=pointer]
+              - text: 30分
+            - generic [ref=e415] [cursor=pointer]: カウンセリング
+        - generic [ref=e416] [cursor=pointer]:
+          - generic [ref=e417] [cursor=pointer]:
+            - generic [ref=e418] [cursor=pointer]: ¥
+            - text: 3,500
+          - generic [ref=e419] [cursor=pointer]: 税込
+```

@@ -32,23 +32,8 @@ Route::get('/stores', function () {
     return view('stores.index');
 });
 
-// 旧予約ルート（datetime, customer, confirmは新しいフローへリダイレクト）
-// 日時選択ページ（新しいUIを使用）
-Route::get('/reservation/datetime', [App\Http\Controllers\PublicReservationController::class, 'index'])->name('reservation.datetime');
-Route::get('/reservation/customer', function () {
-    // セッションから日時情報を確認
-    if (!session('reservation_menu') || !session('reservation_datetime')) {
-        return redirect('/reservation/menu');
-    }
-    return view('reservation.customer');
-});
-Route::get('/reservation/confirm', function () {
-    // セッションから必要な情報を確認
-    if (!session('reservation_menu') || !session('reservation_datetime') || !session('customer_data')) {
-        return redirect('/reservation/menu');
-    }
-    return view('reservation.confirm');
-});
+// 古い予約フローのルートを削除済み（2025-08-27）
+// 現在は○×形式のカレンダー（/reservation/calendar）を使用
 
 // Public reservation routes
 Route::get('/reservation/store', [App\Http\Controllers\PublicReservationController::class, 'selectStore'])->name('reservation.select-store');
@@ -57,18 +42,15 @@ Route::get('/reservation/menu', [App\Http\Controllers\PublicReservationControlle
 Route::get('/reservation/menu/{store_id}', [App\Http\Controllers\PublicReservationController::class, 'selectMenuWithStore'])->name('reservation.menu-with-store');
 Route::post('/reservation/select-menu', [App\Http\Controllers\PublicReservationController::class, 'storeMenu'])->name('reservation.select-menu');
 Route::get('/reservation/upsell', [App\Http\Controllers\PublicReservationController::class, 'showUpsell'])->name('reservation.upsell');
-// 予約トップページ（店舗選択に統一のため削除）
-// Route::get('/reservation', function () {
-//     return view('reservation.index');
-// })->name('reservation.index');
-
-// 予約は店舗選択から開始するため、リダイレクト
+// 予約トップページは店舗選択にリダイレクト
 Route::get('/reservation', function () {
     return redirect('/stores');
-})->name('reservation.index');
+});
 
-// 初回顧客用の予約フロー（店舗選択から開始）
-Route::get('/reservation/new', [App\Http\Controllers\PublicReservationController::class, 'selectStore'])->name('reservation.store-select');
+// ○×形式のカレンダー表示（PublicReservationControllerのindexメソッド）
+Route::get('/reservation/calendar', [App\Http\Controllers\PublicReservationController::class, 'index'])->name('reservation.index');
+
+// 予約フローはすべて店舗選択から開始
 Route::post('/reservation/submit', [App\Http\Controllers\PublicReservationController::class, 'store'])->name('reservation.store');
 Route::get('/reservation/complete/{reservationNumber}', [App\Http\Controllers\PublicReservationController::class, 'complete'])->name('reservation.complete');
 

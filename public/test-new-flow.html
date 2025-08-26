@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>新フローテスト（○×形式）</title>
+</head>
+<body>
+    <h1>新しい予約フローのテスト</h1>
+    <p>○×形式の日時選択で23:30まで表示されるか確認</p>
+    
+    <ol>
+        <li><a href="/stores" target="_blank">1. 店舗選択へ</a></li>
+        <li>店舗を選んで「この店舗を選択」をクリック</li>
+        <li>メニューページ（/reservation/menu）でメニューを選択</li>
+        <li>○×形式の日時選択画面で時間を確認</li>
+    </ol>
+    
+    <h2>直接アクセス（デバッグ用）</h2>
+    <button onclick="setupSession()">セッション設定して/reservation/menuへ</button>
+    
+    <script>
+        function setupSession() {
+            // PublicReservationControllerが使うセッション
+            fetch('/reservation/store-selection', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                },
+                body: JSON.stringify({
+                    store_id: 1
+                })
+            }).then(() => {
+                window.location.href = '/reservation/menu';
+            });
+        }
+    </script>
+</body>
+</html>

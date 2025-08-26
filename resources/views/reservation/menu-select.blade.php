@@ -11,6 +11,163 @@
             width: 192px; /* w-48 */
         }
         
+        /* モーダル内のボタン調整 */
+        #optionModal .flex.gap-3.justify-center {
+            margin-bottom: 1rem;
+            padding: 0 1rem;
+        }
+        
+        /* モバイル対応 */
+        @media (max-width: 640px) {
+            /* モーダル内のボタンをモバイル対応 */
+            #optionModal .flex.gap-3.justify-center {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: white;
+                padding: 1rem;
+                box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
+                z-index: 60;
+                margin: 0;
+                display: flex;
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+            
+            #optionModal .flex.gap-3.justify-center button {
+                width: 100%;
+                padding: 0.875rem;
+                font-size: 0.875rem;
+            }
+            
+            /* モーダルコンテンツの下部にパディング */
+            .modal-content {
+                padding-bottom: 120px;
+            }
+            /* メインコンテナのレイアウト */
+            #menuList {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 1rem !important;
+            }
+            
+            #menuList > div {
+                width: 100% !important;
+                margin: 0 !important;
+            }
+            
+            /* メニューアイテムのレイアウト統一 */
+            .menu-item {
+                display: block !important;
+                width: 100% !important;
+            }
+            
+            .menu-item > .flex {
+                display: flex !important;
+                flex-direction: column !important;
+                width: 100% !important;
+            }
+            
+            /* 画像エリアの統一 */
+            .menu-image,
+            .menu-item .menu-image {
+                width: 100% !important;
+                aspect-ratio: 16/9 !important;
+                height: auto !important;
+                flex-shrink: unset !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                background-color: #f3f4f6 !important;
+                overflow: hidden !important;
+            }
+            
+            .menu-image img {
+                width: 100% !important;
+                height: 100% !important;
+                object-fit: cover !important;
+            }
+            
+            /* コンテンツエリアの統一 */
+            .menu-item .p-6,
+            .menu-item .flex-1 {
+                width: 100% !important;
+                padding: 1rem !important;
+                display: block !important;
+            }
+            
+            /* flex-1の中のflexコンテナのパディング削除 */
+            .menu-item .flex-1 > .flex {
+                padding: 0 !important;
+            }
+            
+            /* タイトルと説明文の統一 */
+            .menu-item h3 {
+                font-size: 1rem !important;
+                line-height: 1.4 !important;
+                margin-bottom: 0.5rem !important;
+            }
+            
+            .menu-item p {
+                font-size: 0.875rem !important;
+                line-height: 1.3 !important;
+                margin-bottom: 0.75rem !important;
+            }
+            
+            /* 価格と時間の行を統一 */
+            .menu-item .flex.items-center.gap-4 {
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+                width: 100% !important;
+                margin: 0.5rem 0 !important;
+                padding: 0 !important;
+            }
+            
+            /* 価格エリアの調整 */
+            .menu-item .text-right {
+                text-align: right !important;
+                margin-left: auto !important;
+                padding: 0 !important;
+            }
+            
+            /* 価格表示の統一 */
+            .menu-item .text-2xl,
+            .menu-item .font-bold.text-blue-600 {
+                font-size: 1.25rem !important;
+            }
+            
+            /* 円マークの表示を確実にする */
+            .menu-item .text-2xl span.text-sm {
+                font-size: 0.875rem !important;
+                display: inline !important;
+                visibility: visible !important;
+            }
+            
+            /* ボタンの統一 */
+            .menu-item button {
+                display: block !important;
+                width: 100% !important;
+                padding: 0.75rem !important;
+                font-size: 0.875rem !important;
+                margin-top: 0.75rem !important;
+                background-color: #3b82f6 !important;
+                color: white !important;
+                border-radius: 0.5rem !important;
+            }
+            
+            /* その他の要素の調整 */
+            .menu-item .gap-4 {
+                gap: 0.5rem !important;
+            }
+            
+            /* 背景グラデーションの統一 */
+            .bg-gradient-to-br {
+                background: #f3f4f6 !important;
+            }
+        }
+        
         .option-item {
             transition: all 0.2s ease-in-out;
         }

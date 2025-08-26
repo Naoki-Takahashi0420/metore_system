@@ -30,7 +30,7 @@
 
     <!-- Menu Selection -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
-        <div id="menus-container" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div id="menus-container" class="space-y-4 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-6 md:space-y-0">
             <!-- Menus will be loaded here via JavaScript -->
         </div>
         
@@ -142,29 +142,29 @@ function displayMenus(menus) {
     
     container.innerHTML = menus.map(menu => `
         <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-            <div class="p-6">
-                <div class="mb-3">
-                    <h3 class="text-xl font-semibold text-gray-900">${menu.name}</h3>
+            <div class="p-4 sm:p-6">
+                <div class="mb-2">
+                    <h3 class="text-base sm:text-lg font-semibold text-gray-900">${menu.name}</h3>
                 </div>
                 
-                <p class="text-gray-600 mb-4">${menu.description || ''}</p>
+                <p class="text-sm text-gray-600 mb-3 line-clamp-2">${menu.description || ''}</p>
                 
-                <div class="space-y-2 mb-4">
+                <div class="space-y-1 mb-3">
                     <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-500">所要時間:</span>
-                        <span class="text-sm font-medium text-gray-900">${menu.duration}分</span>
+                        <span class="text-xs text-gray-500">所要時間:</span>
+                        <span class="text-xs font-medium text-gray-900">${menu.duration}分</span>
                     </div>
                     
                     <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-500">料金:</span>
-                        <span class="text-lg font-bold text-primary-600"><span class="text-xs">¥</span>${menu.price.toLocaleString()}</span>
+                        <span class="text-xs text-gray-500">料金:</span>
+                        <span class="text-base sm:text-lg font-bold text-primary-600">¥${menu.price.toLocaleString()}</span>
                     </div>
                     
                     ${menu.tags ? `
-                    <div class="pt-2">
+                    <div class="pt-1">
                         <div class="flex flex-wrap gap-1">
                             ${parseMenuTags(menu.tags).map(tag => `
-                                <span class="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">${tag}</span>
+                                <span class="px-1.5 py-0.5 text-xs bg-gray-100 text-gray-600 rounded">${tag}</span>
                             `).join('')}
                         </div>
                     </div>
@@ -172,15 +172,15 @@ function displayMenus(menus) {
                 </div>
                 
                 ${menu.benefits ? `
-                <div class="mb-4">
-                    <h4 class="text-sm font-medium text-gray-900 mb-2">このメニューの効果:</h4>
-                    <ul class="text-sm text-gray-600 space-y-1">
-                        ${parseMenuTags(menu.benefits).map(benefit => `
-                            <li class="flex items-center">
-                                <svg class="w-3 h-3 mr-2 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                <div class="mb-3">
+                    <h4 class="text-xs font-medium text-gray-900 mb-1">このメニューの効果:</h4>
+                    <ul class="text-xs text-gray-600 space-y-0.5">
+                        ${parseMenuTags(menu.benefits).slice(0, 3).map(benefit => `
+                            <li class="flex items-start">
+                                <svg class="w-3 h-3 mr-1 text-green-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                                 </svg>
-                                ${benefit}
+                                <span class="line-clamp-1">${benefit}</span>
                             </li>
                         `).join('')}
                     </ul>
@@ -189,7 +189,7 @@ function displayMenus(menus) {
                 
                 <button 
                     onclick="selectMenu(${menu.id}, '${menu.name}', ${menu.price}, ${menu.duration})" 
-                    class="w-full bg-primary-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-primary-700 transition-colors"
+                    class="w-full bg-primary-600 text-white py-2 sm:py-3 px-3 sm:px-4 rounded-lg text-sm sm:text-base font-semibold hover:bg-primary-700 transition-colors"
                 >
                     このメニューを選択
                 </button>
@@ -258,6 +258,33 @@ function selectMenu(menuId, menuName, price, duration) {
 
 .category-filter.active:hover {
     background-color: #2563eb;
+}
+
+/* モバイル専用スタイル */
+@media (max-width: 640px) {
+    #menus-container {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 1rem !important;
+    }
+    
+    #menus-container > div {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    
+    .line-clamp-1 {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    .line-clamp-2 {
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
 }
 </style>
 @endsection

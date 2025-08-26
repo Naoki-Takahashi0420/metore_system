@@ -134,7 +134,8 @@ class PublicReservationController extends Controller
         }
         Session::put('reservation_options', $selectedOptions);
         
-        return redirect('/reservation/datetime');
+        // ○×形式のカレンダーページへリダイレクト
+        return redirect()->route('reservation.index');
     }
 
     public function showUpsell()
@@ -202,11 +203,17 @@ class PublicReservationController extends Controller
             ];
         }
         
-        // 時間枠を生成（10:00〜17:30まで30分刻み）
-        $timeSlots = $this->generateTimeSlots($selectedStore);
+        // 店舗の営業時間範囲内のすべての時間枠を生成
+        $timeSlots = $this->generateAllTimeSlots($selectedStore);
         
-        // 予約状況を取得
-        $availability = $this->getAvailability($selectedStoreId, $startDate, $timeSlots);
+        // 選択されたメニューとオプションの合計時間を計算
+        $totalDuration = $selectedMenu->duration ?? 60;
+        foreach ($selectedOptions as $option) {
+            $totalDuration += $option->duration ?? 0;
+        }
+        
+        // 各日の営業時間を取得して予約状況を生成
+        $availability = $this->getAvailability($selectedStoreId, $selectedStore, $startDate, $dates, $totalDuration);
         
         return view('reservation.public.index', compact(
             'stores',
@@ -220,21 +227,82 @@ class PublicReservationController extends Controller
         ));
     }
     
-    private function generateTimeSlots($store)
+    private function generateAllTimeSlots($store)
     {
         $slots = [];
-        $start = Carbon::createFromTime(10, 0);
-        $end = Carbon::createFromTime(17, 30);
         
-        while ($start <= $end) {
-            $slots[] = $start->format('H:i');
-            $start->addMinutes(30);
+        // 店舗の営業時間から最小・最大時間を取得
+        $businessHours = collect($store->business_hours ?? []);
+        $minTime = null;
+        $maxTime = null;
+        
+        foreach ($businessHours as $dayHours) {
+            if (!($dayHours['is_closed'] ?? false) && !empty($dayHours['open_time']) && !empty($dayHours['close_time'])) {
+                $openTime = Carbon::createFromTimeString($dayHours['open_time']);
+                $closeTime = Carbon::createFromTimeString($dayHours['close_time']);
+                
+                if ($minTime === null || $openTime->lt($minTime)) {
+                    $minTime = $openTime;
+                }
+                if ($maxTime === null || $closeTime->gt($maxTime)) {
+                    $maxTime = $closeTime;
+                }
+            }
+        }
+        
+        // デフォルト値
+        if ($minTime === null) {
+            $minTime = Carbon::createFromTime(10, 0);
+        }
+        if ($maxTime === null) {
+            $maxTime = Carbon::createFromTime(18, 0);
+        }
+        
+        // 店舗の予約間隔を取得（デフォルト30分）
+        $interval = $store->reservation_slot_duration ?? 30;
+        
+        // スロットを生成
+        $current = $minTime->copy();
+        while ($current <= $maxTime) {
+            $slots[] = $current->format('H:i');
+            $current->addMinutes($interval);
         }
         
         return $slots;
     }
     
-    private function getAvailability($storeId, $startDate, $timeSlots)
+    private function generateTimeSlotsForDay($store, $dayOfWeek)
+    {
+        $slots = [];
+        
+        // 店舗の営業時間を取得
+        $businessHours = collect($store->business_hours ?? []);
+        $dayHours = $businessHours->firstWhere('day', $dayOfWeek);
+        
+        // 休業日の場合は空配列を返す
+        if (!$dayHours || ($dayHours['is_closed'] ?? false)) {
+            return [];
+        }
+        
+        // 営業時間から開始・終了時刻を取得
+        $openTime = $dayHours['open_time'] ?? '10:00';
+        $closeTime = $dayHours['close_time'] ?? '23:30';
+        
+        // 店舗の予約間隔を取得（デフォルト30分）
+        $interval = $store->reservation_slot_duration ?? 30;
+        
+        $start = Carbon::createFromTimeString($openTime);
+        $end = Carbon::createFromTimeString($closeTime);
+        
+        while ($start <= $end) {
+            $slots[] = $start->format('H:i');
+            $start->addMinutes($interval);
+        }
+        
+        return $slots;
+    }
+    
+    private function getAvailability($storeId, $store, $startDate, $dates, $menuDuration = 60)
     {
         $availability = [];
         $endDate = $startDate->copy()->addDays(6);
@@ -254,19 +322,34 @@ class PublicReservationController extends Controller
                 return Carbon::parse($reservation->reservation_date)->format('Y-m-d');
             });
         
-        for ($i = 0; $i < 7; $i++) {
-            $date = $startDate->copy()->addDays($i);
+        foreach ($dates as $dateInfo) {
+            $date = $dateInfo['date'];
             $dateStr = $date->format('Y-m-d');
+            $dayOfWeek = strtolower($date->format('l'));
             $dayReservations = $existingReservations->get($dateStr, collect());
+            
+            // その日の営業時間に基づいて時間枠を生成
+            $timeSlots = $this->generateTimeSlotsForDay($store, $dayOfWeek);
+            
+            // 休業日の場合はその店舗の通常時間枠をすべてfalseに
+            if (empty($timeSlots)) {
+                // メインのtimeSlotsを使用
+                foreach ($this->generateAllTimeSlots($store) as $slot) {
+                    $availability[$dateStr][$slot] = false;
+                }
+                continue;
+            }
+            
+            // その日の営業時間を取得
+            $dayBusinessHours = collect($store->business_hours ?? [])->firstWhere('day', $dayOfWeek);
+            $closeTime = null;
+            if ($dayBusinessHours && !($dayBusinessHours['is_closed'] ?? false)) {
+                $closeTime = Carbon::parse($dateStr . ' ' . $dayBusinessHours['close_time']);
+            }
             
             foreach ($timeSlots as $slot) {
                 $slotTime = Carbon::parse($dateStr . ' ' . $slot);
-                
-                // 日曜は休み
-                if ($date->dayOfWeek == 0) {
-                    $availability[$dateStr][$slot] = false;
-                    continue;
-                }
+                $slotEnd = $slotTime->copy()->addMinutes($menuDuration);
                 
                 // 過去の日付は予約不可
                 if ($date->lt(Carbon::today())) {
@@ -280,16 +363,28 @@ class PublicReservationController extends Controller
                     continue;
                 }
                 
-                // 予約が重複していないかチェック
-                $isBooked = $dayReservations->contains(function ($reservation) use ($slot) {
+                // 施術終了時刻が営業終了時刻を超える場合は予約不可
+                if ($closeTime && $slotEnd->gt($closeTime)) {
+                    $availability[$dateStr][$slot] = false;
+                    continue;
+                }
+                
+                // 予約が重複していないかチェック（席数を考慮）
+                $overlappingCount = $dayReservations->filter(function ($reservation) use ($slotTime, $slotEnd) {
                     $reservationStart = Carbon::parse($reservation->start_time);
                     $reservationEnd = Carbon::parse($reservation->end_time);
-                    $checkTime = Carbon::parse($slot);
                     
-                    return $checkTime->between($reservationStart, $reservationEnd->subMinute());
-                });
+                    // 時間が重なっているかチェック
+                    return (
+                        ($slotTime->gte($reservationStart) && $slotTime->lt($reservationEnd)) ||
+                        ($slotEnd->gt($reservationStart) && $slotEnd->lte($reservationEnd)) ||
+                        ($slotTime->lte($reservationStart) && $slotEnd->gte($reservationEnd))
+                    );
+                })->count();
                 
-                $availability[$dateStr][$slot] = !$isBooked;
+                // 店舗の席数を確認
+                $storeCapacity = $store->capacity ?? 1;
+                $availability[$dateStr][$slot] = $overlappingCount < $storeCapacity;
             }
         }
         
