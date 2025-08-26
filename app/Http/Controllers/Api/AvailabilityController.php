@@ -45,9 +45,10 @@ class AvailabilityController extends Controller
         $openTime = Carbon::parse($date->format('Y-m-d') . ' ' . $businessHours['open_time']);
         $closeTime = Carbon::parse($date->format('Y-m-d') . ' ' . $businessHours['close_time']);
         
-        // 予約可能時間スロットを生成（30分単位）
+        // 予約可能時間スロットを生成（店舗設定の間隔で）
         $slots = [];
         $menuDuration = $menu->duration ?? 60; // メニューの所要時間（分）
+        $slotDuration = $store->reservation_slot_duration ?? 30; // 店舗ごとの予約間隔（分）
         
         // 営業時間内でスロットを生成（シフト不要）
         $currentTime = $openTime->copy();
@@ -60,7 +61,7 @@ class AvailabilityController extends Controller
                 'available' => true
             ];
             
-            $currentTime->addMinutes(30);
+            $currentTime->addMinutes($slotDuration);
         }
         
         // 配列を値のみに変換してソート
