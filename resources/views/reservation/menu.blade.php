@@ -27,25 +27,6 @@
     </div>
 
     <!-- Menu Categories Filter -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div class="flex flex-wrap gap-2 justify-center">
-            <button onclick="filterMenus('all')" class="category-filter active px-4 py-2 rounded-full text-sm font-medium transition-colors">
-                すべて
-            </button>
-            <button onclick="filterMenus('basic')" class="category-filter px-4 py-2 rounded-full text-sm font-medium transition-colors">
-                基本コース
-            </button>
-            <button onclick="filterMenus('special')" class="category-filter px-4 py-2 rounded-full text-sm font-medium transition-colors">
-                特別トレーニング
-            </button>
-            <button onclick="filterMenus('premium')" class="category-filter px-4 py-2 rounded-full text-sm font-medium transition-colors">
-                プレミアムコース
-            </button>
-            <button onclick="filterMenus('consultation')" class="category-filter px-4 py-2 rounded-full text-sm font-medium transition-colors">
-                相談・診断
-            </button>
-        </div>
-    </div>
 
     <!-- Menu Selection -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
@@ -160,13 +141,10 @@ function displayMenus(menus) {
     noMenus.classList.add('hidden');
     
     container.innerHTML = menus.map(menu => `
-        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow menu-card" data-category="${menu.category}">
+        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
             <div class="p-6">
-                <div class="flex justify-between items-start mb-3">
+                <div class="mb-3">
                     <h3 class="text-xl font-semibold text-gray-900">${menu.name}</h3>
-                    <span class="px-2 py-1 text-xs font-medium rounded-full ${getCategoryColor(menu.category)}">
-                        ${getCategoryLabel(menu.category)}
-                    </span>
                 </div>
                 
                 <p class="text-gray-600 mb-4">${menu.description || ''}</p>
@@ -236,42 +214,6 @@ function parseMenuTags(tags) {
     }
 }
 
-function filterMenus(category) {
-    currentCategory = category;
-    
-    // Update active button
-    document.querySelectorAll('.category-filter').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    event.target.classList.add('active');
-    
-    // Filter menus
-    const filteredMenus = category === 'all' 
-        ? allMenus 
-        : allMenus.filter(menu => menu.category === category);
-    
-    displayMenus(filteredMenus);
-}
-
-function getCategoryColor(category) {
-    const colors = {
-        'basic': 'bg-blue-100 text-blue-800',
-        'vr': 'bg-purple-100 text-purple-800',
-        'premium': 'bg-yellow-100 text-yellow-800',
-        'consultation': 'bg-green-100 text-green-800'
-    };
-    return colors[category] || 'bg-gray-100 text-gray-800';
-}
-
-function getCategoryLabel(category) {
-    const labels = {
-        'basic': '基本',
-        'special': '特別',
-        'premium': 'プレミアム',
-        'consultation': '相談'
-    };
-    return labels[category] || 'その他';
-}
 
 function selectMenu(menuId, menuName, price, duration) {
     const selectedStore = JSON.parse(sessionStorage.getItem('selectedStore') || '{}');
