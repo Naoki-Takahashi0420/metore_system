@@ -28,9 +28,25 @@ jobs:
         rm -rf metore_system
         git clone https://github.com/Naoki-Takahashi0420/metore_system.git
         
-        # Deploy
-        sudo rm -rf $APP_DIR/*
+        # Backup database if exists
+        if [ -f "$APP_DIR/database/database.sqlite" ]; then
+          sudo cp $APP_DIR/database/database.sqlite /tmp/database-backup.sqlite
+          echo "Database backed up"
+        fi
+        
+        # Deploy (preserve storage and database)
+        sudo rm -rf $APP_DIR/* \
+          --exclude=$APP_DIR/storage \
+          --exclude=$APP_DIR/database/database.sqlite \
+          || sudo find $APP_DIR -mindepth 1 -not -path "$APP_DIR/storage*" -not -path "$APP_DIR/database/database.sqlite" -delete
+        
         sudo cp -r /tmp/metore_system/* $APP_DIR/
+        
+        # Restore database if backed up
+        if [ -f "/tmp/database-backup.sqlite" ]; then
+          sudo cp /tmp/database-backup.sqlite $APP_DIR/database/database.sqlite
+          echo "Database restored"
+        fi
         
         # .env (SQLiteを使用)
         sudo tee $APP_DIR/.env > /dev/null << 'ENV'
