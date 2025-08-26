@@ -68,8 +68,33 @@ jobs:
         sudo php artisan vendor:publish --tag=filament-panels-assets --force
         sudo php artisan vendor:publish --tag=filament-support-assets --force
         
-        # 管理者ユーザー作成（後で手動実行）
-        echo "Admin user creation skipped (manual creation required)"
+        # 管理者ユーザー作成
+        sudo tee create_admin.php > /dev/null << 'PHP'
+        <?php
+        require_once __DIR__.'/vendor/autoload.php';
+        \$app = require_once __DIR__.'/bootstrap/app.php';
+        \$kernel = \$app->make(Illuminate\Contracts\Http\Kernel::class);
+        \$response = \$kernel->handle(\$request = Illuminate\Http\Request::capture());
+        
+        use App\Models\User;
+        use Illuminate\Support\Facades\Hash;
+        
+        \$user = User::firstOrCreate(
+            ['email' => 'admin@xsyumeno.com'],
+            [
+                'name' => 'Administrator',
+                'password' => Hash::make('password'),
+                'role' => 'superadmin',
+                'is_active' => true,
+                'email_verified_at' => now()
+            ]
+        );
+        
+        echo "Admin user ready: " . \$user->email . "\n";
+        PHP
+        
+        sudo php create_admin.php
+        sudo rm create_admin.php
         
         # 権限設定
         sudo chown -R www-data:www-data $APP_DIR

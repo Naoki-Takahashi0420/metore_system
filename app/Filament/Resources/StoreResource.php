@@ -109,6 +109,10 @@ class StoreResource extends Resource
                                         'sunday' => '日曜日',
                                     ])
                                     ->required()
+                                    ->distinct()
+                                    ->validationMessages([
+                                        'distinct' => '同じ曜日を複数選択することはできません。',
+                                    ])
                                     ->dehydrated(true),
                                 Forms\Components\TextInput::make('open_time')
                                     ->label('開店時間')
