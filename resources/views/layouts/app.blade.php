@@ -67,11 +67,11 @@
         <!-- Navigation -->
         <nav class="bg-white shadow-sm border-b border-gray-200">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex justify-between items-center h-16">
+                <div class="flex justify-between items-center h-20">
                     <!-- Logo -->
                     <div class="flex-shrink-0 flex items-center">
                         <a href="{{ url('/') }}" class="flex items-center">
-                            <img src="{{ asset('images/logo.png') }}" alt="目のトレーニング" class="h-10 w-auto">
+                            <img src="{{ asset('images/logo.png') }}" alt="目のトレーニング" class="h-14 w-auto">
                         </a>
                     </div>
 
@@ -97,7 +97,7 @@
                         </button>
                         
                         <!-- Mobile menu -->
-                        <div x-show="open" @click.away="open = false" x-transition class="absolute top-16 right-4 bg-white rounded-lg shadow-lg py-2 px-4 min-w-[200px] z-50">
+                        <div x-show="open" @click.away="open = false" x-transition class="absolute top-20 right-4 bg-white rounded-lg shadow-lg py-2 px-4 min-w-[200px] z-50">
                             <a href="{{ url('/') }}" class="block px-3 py-2 text-sm text-gray-600 hover:text-primary-600">ホーム</a>
                             <a href="{{ url('/stores') }}" class="block px-3 py-2 text-sm text-gray-600 hover:text-primary-600">店舗一覧</a>
                             <a href="{{ url('/stores') }}" class="block px-3 py-2 text-sm bg-gradient-to-r from-emerald-600 via-green-500 to-emerald-500 text-white rounded mt-2 text-center hover:from-emerald-700 hover:via-green-600 hover:to-emerald-600 transition-all duration-300 nowrap-jp">ご予約</a>

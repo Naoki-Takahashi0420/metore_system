@@ -10,7 +10,7 @@
             <div class="text-center">
                 <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">店舗を選択</h1>
                 <p class="text-lg text-gray-600 max-w-2xl mx-auto">
-                    ご希望の店舗を選択してください。各店舗で専門的な視力改善サービスを提供しています。
+                    ご利用店舗をお選びください。
                 </p>
             </div>
         </div>
