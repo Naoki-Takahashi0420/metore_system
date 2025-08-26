@@ -27,19 +27,7 @@ class AvailabilityController extends Controller
         $menu = Menu::findOrFail($validated['menu_id']);
         $date = Carbon::parse($validated['date']);
         
-        // その日に予約可能なシフトがあるかチェック
-        $availableShifts = Shift::where('store_id', $store->id)
-            ->whereDate('shift_date', $date)
-            ->where('is_available_for_reservation', true)
-            ->whereIn('status', ['scheduled', 'working'])
-            ->get();
-        
-        if ($availableShifts->isEmpty()) {
-            return response()->json([
-                'message' => 'この日は予約可能なスタッフがいません',
-                'available_slots' => []
-            ]);
-        }
+        // シフトチェックを削除 - 営業時間のみで判断
         
         // 営業時間を取得
         $dayOfWeek = strtolower($date->format('l')); // monday, tuesday, etc.
@@ -61,43 +49,18 @@ class AvailabilityController extends Controller
         $slots = [];
         $menuDuration = $menu->duration ?? 60; // メニューの所要時間（分）
         
-        // 各シフトの勤務時間内でスロットを生成
-        foreach ($availableShifts as $shift) {
-            $shiftStart = Carbon::parse($date->format('Y-m-d') . ' ' . $shift->start_time);
-            $shiftEnd = Carbon::parse($date->format('Y-m-d') . ' ' . $shift->end_time);
+        // 営業時間内でスロットを生成（シフト不要）
+        $currentTime = $openTime->copy();
+        
+        while ($currentTime->copy()->addMinutes($menuDuration)->lte($closeTime)) {
+            $slotKey = $currentTime->format('H:i');
+            $slots[$slotKey] = [
+                'time' => $currentTime->format('H:i'),
+                'datetime' => $currentTime->format('Y-m-d H:i:s'),
+                'available' => true
+            ];
             
-            // シフトの開始時間と営業開始時間の遅い方を使用
-            $effectiveStart = $shiftStart->gt($openTime) ? $shiftStart : $openTime;
-            // シフトの終了時間と営業終了時間の早い方を使用
-            $effectiveEnd = $shiftEnd->lt($closeTime) ? $shiftEnd : $closeTime;
-            
-            $currentTime = $effectiveStart->copy();
-            
-            while ($currentTime->copy()->addMinutes($menuDuration)->lte($effectiveEnd)) {
-                // 休憩時間中はスキップ
-                if ($shift->break_start && $shift->break_end) {
-                    $breakStart = Carbon::parse($date->format('Y-m-d') . ' ' . $shift->break_start);
-                    $breakEnd = Carbon::parse($date->format('Y-m-d') . ' ' . $shift->break_end);
-                    
-                    if ($currentTime->gte($breakStart) && $currentTime->lt($breakEnd)) {
-                        $currentTime = $breakEnd->copy();
-                        continue;
-                    }
-                }
-                
-                $slotKey = $currentTime->format('H:i');
-                if (!isset($slots[$slotKey])) {
-                    $slots[$slotKey] = [
-                        'time' => $currentTime->format('H:i'),
-                        'datetime' => $currentTime->format('Y-m-d H:i:s'),
-                        'staff_count' => 1
-                    ];
-                } else {
-                    $slots[$slotKey]['staff_count']++;
-                }
-                
-                $currentTime->addMinutes(30);
-            }
+            $currentTime->addMinutes(30);
         }
         
         // 配列を値のみに変換してソート
