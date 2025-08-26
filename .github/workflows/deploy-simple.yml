@@ -89,14 +89,14 @@ jobs:
         sudo tee create_admin.php > /dev/null << 'PHP'
         <?php
         require_once __DIR__.'/vendor/autoload.php';
-        \$app = require_once __DIR__.'/bootstrap/app.php';
-        \$kernel = \$app->make(Illuminate\Contracts\Http\Kernel::class);
-        \$response = \$kernel->handle(\$request = Illuminate\Http\Request::capture());
+        $app = require_once __DIR__.'/bootstrap/app.php';
+        $kernel = $app->make(Illuminate\\Contracts\\Http\\Kernel::class);
+        $response = $kernel->handle($request = Illuminate\\Http\\Request::capture());
         
-        use App\Models\User;
-        use Illuminate\Support\Facades\Hash;
+        use App\\Models\\User;
+        use Illuminate\\Support\\Facades\\Hash;
         
-        \$user = User::firstOrCreate(
+        $user = User::firstOrCreate(
             ['email' => 'admin@xsyumeno.com'],
             [
                 'name' => 'Administrator',
@@ -107,7 +107,7 @@ jobs:
             ]
         );
         
-        echo "Admin user ready: " . \$user->email . "\n";
+        echo "Admin user ready: " . $user->email . "\\n";
         PHP
         
         sudo php create_admin.php
