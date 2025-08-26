@@ -1,0 +1,55 @@
+name: Setup PHP 8.3
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Install PHP 8.3
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+        
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'INSTALL'
+        set -e
+        echo "=== Installing PHP 8.3 ==="
+        
+        # PHP 8.3インストール
+        sudo apt-get update
+        sudo apt-get install -y software-properties-common
+        sudo add-apt-repository ppa:ondrej/php -y
+        sudo apt-get update
+        
+        sudo apt-get install -y \
+          php8.3 \
+          php8.3-fpm \
+          php8.3-mysql \
+          php8.3-xml \
+          php8.3-mbstring \
+          php8.3-curl \
+          php8.3-zip \
+          php8.3-intl \
+          php8.3-gd \
+          php8.3-dom \
+          php8.3-bcmath
+        
+        # Nginxでphp8.3-fpmを使用
+        sudo sed -i 's/php8.2-fpm.sock/php8.3-fpm.sock/g' /etc/nginx/sites-available/default
+        
+        # サービス再起動
+        sudo systemctl stop php8.2-fpm || true
+        sudo systemctl restart nginx php8.3-fpm
+        
+        # PHP バージョン確認
+        php --version
+        echo "=== PHP 8.3 Installed ==="
+        INSTALL
+        
+        rm deploy_key.pem
