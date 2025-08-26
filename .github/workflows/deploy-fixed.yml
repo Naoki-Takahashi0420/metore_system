@@ -1,0 +1,108 @@
+name: Deploy Fixed
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Deploy to Production
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        # セーフティ設定
+        set -e
+        set -u
+        
+        # SSHキー設定
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+        
+        # EC2でgit cloneして直接デプロイ
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'DEPLOY_SCRIPT'
+        set -e
+        APP_DIR="/var/www/html"
+        
+        echo "=== Deploying from GitHub ==="
+        
+        # Git clone
+        cd /tmp
+        rm -rf metore_system
+        git clone https://github.com/Naoki-Takahashi0420/metore_system.git
+        
+        # バックアップ
+        if [ -d "$APP_DIR" ]; then
+          sudo cp -r $APP_DIR /var/www/backup-$(date +%s) || true
+        fi
+        
+        # デプロイ
+        sudo rm -rf $APP_DIR/*
+        sudo cp -r /tmp/metore_system/* $APP_DIR/
+        
+        # .env作成
+        sudo tee $APP_DIR/.env > /dev/null << 'ENV'
+        APP_NAME=Xsyumeno
+        APP_ENV=production
+        APP_KEY=base64:FhDmJJEPuQPAz6t5HMt6qTVSYLs7pJg7xLDgBEcVHHg=
+        APP_DEBUG=false
+        APP_URL=http://54.64.54.226
+        
+        DB_CONNECTION=mysql
+        DB_HOST=xsyumeno-db.cbq0ywo44b0p.ap-northeast-1.rds.amazonaws.com
+        DB_PORT=3306
+        DB_DATABASE=xsyumenodb
+        DB_USERNAME=admin
+        DB_PASSWORD=Xsyumeno2024#!
+        
+        LOG_CHANNEL=stack
+        CACHE_DRIVER=file
+        SESSION_DRIVER=database
+        QUEUE_CONNECTION=database
+        ENV
+        
+        # Composerインストール
+        cd $APP_DIR
+        sudo COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader
+        
+        # Laravel設定
+        sudo php artisan key:generate
+        sudo php artisan storage:link
+        sudo php artisan config:clear
+        sudo php artisan migrate --force
+        
+        # 権限設定（絶対パスのみ）
+        sudo chown -R www-data:www-data $APP_DIR
+        sudo chmod -R 755 $APP_DIR
+        
+        # storageとcacheの権限（存在確認付き）
+        [ -d "$APP_DIR/storage" ] && sudo chmod -R 775 $APP_DIR/storage
+        [ -d "$APP_DIR/bootstrap/cache" ] && sudo chmod -R 775 $APP_DIR/bootstrap/cache
+        
+        # サービス再起動
+        sudo systemctl restart nginx php8.2-fpm
+        
+        echo "=== Deploy Complete ==="
+        curl -I http://localhost/ || echo "Site starting..."
+        
+        # クリーンアップ
+        rm -rf /tmp/metore_system
+        DEPLOY_SCRIPT
+        
+        # クリーンアップ
+        rm deploy_key.pem
+        
+        # 動作確認
+        sleep 5
+        echo "Testing site..."
+        curl -f -I http://${EC2_HOST}/ || echo "Site may need a moment to start"
+        echo "Deploy URL: http://${EC2_HOST}/"
+        echo "Admin URL: http://${EC2_HOST}/admin/login"
