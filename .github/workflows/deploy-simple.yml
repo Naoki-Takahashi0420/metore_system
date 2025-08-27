@@ -66,6 +66,11 @@ jobs:
         SESSION_DOMAIN=null
         SESSION_SECURE_COOKIE=false
         QUEUE_CONNECTION=sync
+        
+        # Basic認証設定（本番環境で使用）
+        BASIC_AUTH_ENABLED=true
+        BASIC_AUTH_USERNAME=xsyumeno
+        BASIC_AUTH_PASSWORD=xsyumeno2025!
         ENV
         
         # SQLiteデータベース作成
