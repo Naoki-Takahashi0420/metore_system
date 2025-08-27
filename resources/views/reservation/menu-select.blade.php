@@ -250,8 +250,16 @@
         .upsell-image {
             aspect-ratio: 16/9;
             width: 100%;
-            height: 200px;
+            height: auto;
             object-fit: cover;
+        }
+        
+        /* アップセル画像コンテナも16:9に固定 */
+        .upsell-image-container {
+            aspect-ratio: 16/9;
+            width: 100%;
+            overflow: hidden;
+            background-color: #f3f4f6;
         }
         
         /* チェックマークアニメーション */
@@ -594,11 +602,11 @@
                 <div class="option-card bg-white rounded-lg border-2 border-gray-200 hover:border-green-500 hover:shadow-md transition-all cursor-pointer overflow-hidden"
                      data-option-id="${option.id}" onclick="toggleOption(${option.id})">
                     ${option.image_path ? `
-                        <div class="w-full h-200 bg-gray-200">
+                        <div class="upsell-image-container">
                             <img src="/storage/${option.image_path}" alt="${option.name}" class="upsell-image">
                         </div>
                     ` : `
-                        <div class="w-full h-200 bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center" style="aspect-ratio: 16/9; height: 200px;">
+                        <div class="upsell-image-container bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center">
                             <svg class="w-16 h-16 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                             </svg>
@@ -622,7 +630,7 @@
                                         </div>
                                     </div>
                                     <div class="text-right flex-shrink-0">
-                                        <div class="text-xl font-bold text-green-600">+<span class="text-xs">¥</span>${option.price.toLocaleString()}</div>
+                                        <div class="text-xl font-bold text-green-600">+<span class="text-xs">¥</span>${Math.floor(option.price).toLocaleString()}</div>
                                         <div class="text-xs text-gray-500">税込</div>
                                     </div>
                                 </div>
@@ -710,7 +718,7 @@
             const totalPriceElement = document.getElementById('totalPrice');
             const selectedOptionsCount = document.getElementById('selectedOptionsCount');
             
-            totalPriceElement.innerHTML = `<span class="text-sm">¥</span>${totalPrice.toLocaleString()}`;
+            totalPriceElement.innerHTML = `<span class="text-sm">¥</span>${Math.floor(totalPrice).toLocaleString()}`;
             
             // オプション数の表示
             if (selectedOptions.length > 0) {
