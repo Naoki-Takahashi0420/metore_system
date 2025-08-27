@@ -178,6 +178,10 @@
                         <div class="upsell-card bg-white rounded-lg shadow-sm hover:shadow-md cursor-pointer border-2 border-transparent hover:border-green-500 overflow-hidden"
                              onclick="openUpsellModal({{ $menu->id }})">
                             <div class="flex">
+                                <!-- デバッグ情報 -->
+                                <div class="text-xs text-red-500 mb-2">
+                                    DEBUG: ID={{ $menu->id }}, image_path="{{ $menu->image_path }}", empty={{ empty($menu->image_path) ? 'true' : 'false' }}
+                                </div>
                                 @if($menu->image_path)
                                     <div class="upsell-menu-image bg-gray-200 flex-shrink-0">
                                         <img src="{{ asset('storage/' . $menu->image_path) }}" alt="{{ $menu->name }}" class="w-full h-full object-cover rounded-l-lg">
