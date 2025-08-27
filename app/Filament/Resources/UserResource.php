@@ -50,8 +50,9 @@ class UserResource extends Resource
                             ->maxLength(255),
                         Forms\Components\Select::make('store_id')
                             ->label('所属店舗')
-                            ->relationship('store', 'name')
+                            ->options(\App\Models\Store::pluck('name', 'id'))
                             ->searchable()
+                            ->preload()
                             ->nullable(),
                     ])
                     ->columns(2),
@@ -61,9 +62,33 @@ class UserResource extends Resource
                         Forms\Components\Select::make('roles')
                             ->label('ロール')
                             ->relationship('roles', 'name')
+                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->display_name ?? $record->name)
+                            ->preload()
+                            ->required()
+                            ->reactive()
+                            ->helperText('ユーザーの権限レベルを選択してください（1つのみ選択）'),
+                        Forms\Components\Select::make('manageable_stores')
+                            ->label('管理可能店舗')
+                            ->relationship('manageableStores', 'name')
                             ->multiple()
                             ->preload()
-                            ->required(),
+                            ->visible(function (callable $get) {
+                                $selectedRoles = $get('roles');
+                                if (!$selectedRoles) return false;
+                                
+                                // 複数選択の場合は配列、単一選択の場合は数値
+                                $roleIds = is_array($selectedRoles) ? $selectedRoles : [$selectedRoles];
+                                
+                                // ロール名を確認
+                                foreach ($roleIds as $roleId) {
+                                    $role = \Spatie\Permission\Models\Role::find($roleId);
+                                    if ($role && $role->name === 'owner') {
+                                        return true;
+                                    }
+                                }
+                                return false;
+                            })
+                            ->helperText('オーナーが管理できる複数店舗を選択'),
                         Forms\Components\DateTimePicker::make('email_verified_at')
                             ->label('メール確認日時')
                             ->nullable(),
@@ -108,7 +133,7 @@ class UserResource extends Resource
                 Tables\Columns\TextColumn::make('store.name')
                     ->label('所属店舗')
                     ->sortable(),
-                Tables\Columns\TextColumn::make('roles.name')
+                Tables\Columns\TextColumn::make('roles.display_name')
                     ->label('ロール')
                     ->badge()
                     ->separator(','),
@@ -143,7 +168,7 @@ class UserResource extends Resource
                     ->relationship('store', 'name'),
                 Tables\Filters\SelectFilter::make('roles')
                     ->label('ロール')
-                    ->relationship('roles', 'name'),
+                    ->relationship('roles', 'display_name'),
                 Tables\Filters\SelectFilter::make('status')
                     ->label('状態')
                     ->options([
@@ -179,5 +204,74 @@ class UserResource extends Resource
             'view' => Pages\ViewUser::route('/{record}'),
             'edit' => Pages\EditUser::route('/{record}/edit'),
         ];
+    }
+    
+    public static function canViewAny(): bool
+    {
+        $user = auth()->user();
+        if (!$user || !$user->roles()->exists()) {
+            return false;
+        }
+        
+        return $user->hasRole(['super_admin', 'owner', 'manager']);
+    }
+    
+    public static function canCreate(): bool
+    {
+        $user = auth()->user();
+        if (!$user || !$user->roles()->exists()) {
+            return false;
+        }
+        
+        return $user->hasRole(['super_admin', 'owner', 'manager']);
+    }
+    
+    public static function canEdit($record): bool
+    {
+        $user = auth()->user();
+        if (!$user || !$user->roles()->exists()) {
+            return false;
+        }
+        
+        return $user->can('update', $record);
+    }
+    
+    public static function canDelete($record): bool
+    {
+        $user = auth()->user();
+        if (!$user || !$user->roles()->exists()) {
+            return false;
+        }
+        
+        return $user->can('delete', $record);
+    }
+    
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user = auth()->user();
+        
+        if (!$user || !$user->roles()->exists()) {
+            return $query->whereRaw('1 = 0');
+        }
+        
+        // スーパーアドミンは全ユーザーを表示
+        if ($user->hasRole('super_admin')) {
+            return $query;
+        }
+        
+        // オーナーは管理可能店舗のユーザーを表示
+        if ($user->hasRole('owner')) {
+            $manageableStoreIds = $user->manageableStores()->pluck('stores.id');
+            return $query->whereIn('store_id', $manageableStoreIds);
+        }
+        
+        // 店長は同じ店舗のみ表示
+        if ($user->hasRole('manager')) {
+            return $query->where('store_id', $user->store_id);
+        }
+        
+        // 権限がない場合は空のクエリ
+        return $query->whereRaw('1 = 0');
     }
 }

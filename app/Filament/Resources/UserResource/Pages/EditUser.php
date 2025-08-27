@@ -17,4 +17,21 @@ class EditUser extends EditRecord
             Actions\DeleteAction::make(),
         ];
     }
+
+    protected function afterSave(): void
+    {
+        $record = $this->record;
+        
+        // 既存の管理店舗関係をクリア
+        $record->manageableStores()->detach();
+        
+        // オーナーのみ管理可能店舗の関係を再保存
+        if ($record->hasRole('owner') && isset($this->data['manageable_stores'])) {
+            $storeIds = $this->data['manageable_stores'];
+            
+            foreach ($storeIds as $storeId) {
+                $record->manageableStores()->attach($storeId, ['role' => 'owner']);
+            }
+        }
+    }
 }
