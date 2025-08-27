@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>ブロック機能テスト</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        button { padding: 10px; margin: 10px; }
+        .result { margin-top: 20px; padding: 10px; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+    <h1>予約ブロック機能のテスト</h1>
+    <p>現在のブロック設定：</p>
+    <ul>
+        <li>13:00-15:00</li>
+        <li>17:00-18:00（スタッフ研修）</li>
+    </ul>
+    
+    <button onclick="checkAPI()">APIをチェック</button>
+    <button onclick="openCalendar()">カレンダーを開く</button>
+    
+    <div id="result" class="result"></div>
+    
+    <script>
+        async function checkAPI() {
+            const response = await fetch('/api/availability/slots?store_id=1&date=2025-08-27&menu_id=1');
+            const data = await response.json();
+            const slots = data.available_slots || data.slots || [];
+            
+            const times = slots.map(s => s.time);
+            const has1700 = times.includes('17:00');
+            const has1730 = times.includes('17:30');
+            const has1300 = times.includes('13:00');
+            
+            document.getElementById('result').innerHTML = `
+                <h3>API結果：</h3>
+                <p>13:00: ${has1300 ? '❌ 表示されている（エラー）' : '✅ ブロック済み'}</p>
+                <p>17:00: ${has1700 ? '❌ 表示されている（エラー）' : '✅ ブロック済み'}</p>
+                <p>17:30: ${has1730 ? '❌ 表示されている（エラー）' : '✅ ブロック済み'}</p>
+                <p>合計スロット数: ${slots.length}</p>
+            `;
+        }
+        
+        function openCalendar() {
+            // まず店舗選択
+            window.open('/stores', '_blank');
+        }
+    </script>
+</body>
+</html>

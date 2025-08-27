@@ -6,6 +6,7 @@ use App\Models\Store;
 use App\Models\Menu;
 use App\Models\Reservation;
 use App\Models\Customer;
+use App\Models\BlockedTimePeriod;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -322,11 +323,21 @@ class PublicReservationController extends Controller
                 return Carbon::parse($reservation->reservation_date)->format('Y-m-d');
             });
         
+        // ブロックされた時間帯を取得
+        $blockedPeriods = BlockedTimePeriod::where('store_id', $storeId)
+            ->whereDate('blocked_date', '>=', $startDate->format('Y-m-d'))
+            ->whereDate('blocked_date', '<=', $endDate->format('Y-m-d'))
+            ->get()
+            ->groupBy(function($block) {
+                return Carbon::parse($block->blocked_date)->format('Y-m-d');
+            });
+        
         foreach ($dates as $dateInfo) {
             $date = $dateInfo['date'];
             $dateStr = $date->format('Y-m-d');
             $dayOfWeek = strtolower($date->format('l'));
             $dayReservations = $existingReservations->get($dateStr, collect());
+            $dayBlocks = $blockedPeriods->get($dateStr, collect());
             
             // その日の営業時間に基づいて時間枠を生成
             $timeSlots = $this->generateTimeSlotsForDay($store, $dayOfWeek);
@@ -365,6 +376,23 @@ class PublicReservationController extends Controller
                 
                 // 施術終了時刻が営業終了時刻を超える場合は予約不可
                 if ($closeTime && $slotEnd->gt($closeTime)) {
+                    $availability[$dateStr][$slot] = false;
+                    continue;
+                }
+                
+                // ブロックされた時間帯との重複チェック
+                $isBlocked = $dayBlocks->contains(function ($block) use ($slotTime, $slotEnd) {
+                    $blockStart = Carbon::parse($block->start_time);
+                    $blockEnd = Carbon::parse($block->end_time);
+                    
+                    return (
+                        ($slotTime->gte($blockStart) && $slotTime->lt($blockEnd)) ||
+                        ($slotEnd->gt($blockStart) && $slotEnd->lte($blockEnd)) ||
+                        ($slotTime->lte($blockStart) && $slotEnd->gte($blockEnd))
+                    );
+                });
+                
+                if ($isBlocked) {
                     $availability[$dateStr][$slot] = false;
                     continue;
                 }
