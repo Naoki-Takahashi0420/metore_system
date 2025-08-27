@@ -71,63 +71,121 @@
                 $totalReservations = $reservations->count();
             @endphp
 
-            <!-- タイムライン表示 -->
+            <!-- ガントチャート表示 -->
             <div class="overflow-x-auto -mx-4 sm:mx-0">
-                <div class="min-w-[800px] px-4 sm:px-0">
-                    <!-- ヘッダー：時間軸 -->
-                    <div class="sticky top-0 bg-white border-b-2 border-gray-200 mb-4">
-                        <div class="grid grid-cols-25 gap-1 p-2">
-                            <div class="text-xs font-semibold text-gray-500 p-1 sm:p-2">時間</div>
-                            @foreach($this->getData()['timeSlots'] as $slot)
-                                <div class="text-xs text-center text-gray-500 p-0.5 sm:p-1 border-r border-gray-100">
-                                    {{ $slot }}
+                <div class="min-w-[1200px] px-4 sm:px-0">
+                    <!-- ヘッダー：時間軸（ガントチャート風） -->
+                    <div class="sticky top-0 bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-300 mb-4 shadow-sm">
+                        <div class="grid grid-cols-25 gap-0 p-3">
+                            <div class="text-sm font-bold text-gray-700 p-2 bg-white rounded-l border-r border-gray-300 flex items-center">
+                                📊 店舗 \ 時間
+                            </div>
+                            @foreach($this->getData()['timeSlots'] as $index => $slot)
+                                <div class="text-xs font-semibold text-center text-gray-600 p-2 border-r border-gray-200 bg-white
+                                    {{ $index === 0 ? '' : 'border-l' }}
+                                    {{ $index === count($this->getData()['timeSlots']) - 1 ? 'rounded-r' : '' }}">
+                                    <div class="mb-1">{{ $slot }}</div>
+                                    <div class="h-px bg-gray-300 mx-1"></div>
                                 </div>
                             @endforeach
                         </div>
                     </div>
 
-                    <!-- 店舗別タイムライン -->
-                    @foreach($this->getData()['stores'] as $store)
-                        <div class="mb-4 border rounded-lg p-4 bg-gray-50">
-                            <h3 class="font-semibold text-gray-800 mb-3">🏢 {{ $store->name }}</h3>
+                    <!-- 店舗別ガントチャート -->
+                    @foreach($this->getData()['stores'] as $storeIndex => $store)
+                        <div class="mb-6 border-2 border-gray-200 rounded-xl shadow-lg bg-white overflow-hidden">
+                            <!-- 店舗ヘッダー -->
+                            <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+                                <h3 class="font-bold text-white text-lg flex items-center">
+                                    <span class="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center mr-3 text-sm">
+                                        {{ $storeIndex + 1 }}
+                                    </span>
+                                    🏢 {{ $store->name }}
+                                </h3>
+                            </div>
                             
-                            <div class="grid grid-cols-25 gap-1">
-                                <div class="text-sm font-medium text-gray-700 p-2 bg-white rounded">
-                                    予約状況
-                                </div>
-                                
-                                @foreach($this->getData()['timeSlots'] as $slot)
-                                    @php
-                                        $reservation = $this->getReservationAtTime($slot, $store->id);
-                                    @endphp
-                                    
-                                    <div class="relative">
-                                        @if($reservation)
-                                            @if($reservation->is_new_customer)
-                                                <!-- 新規客 - 緑色 -->
-                                                <div class="reservation-new text-white text-center p-1 sm:p-2 rounded shadow-sm cursor-pointer transition-colors text-xs sm:text-sm" 
-                                                     title="{{ $reservation->customer->last_name }} {{ $reservation->customer->first_name }} 様&#10;{{ $reservation->menu->name ?? '' }}&#10;{{ $slot }} - {{ $reservation->end_time }}&#10;新規顧客">
-                                                    <i class="fas fa-star text-lg mb-1"></i>
-                                                    <div class="text-xs font-medium truncate">
-                                                        {{ $reservation->customer->last_name }}
+                            <!-- ガントチャートグリッド -->
+                            <div class="p-4">
+                                <div class="relative">
+                                    <!-- 背景グリッド -->
+                                    <div class="grid grid-cols-25 gap-0 h-16 border border-gray-200 rounded-lg overflow-hidden">
+                                        <div class="bg-gradient-to-b from-gray-100 to-gray-200 border-r border-gray-300 flex items-center justify-center text-xs font-semibold text-gray-600">
+                                            予約状況
+                                        </div>
+                                        
+                                        @foreach($this->getData()['timeSlots'] as $slotIndex => $slot)
+                                            <div class="bg-gray-50 border-r border-gray-200 relative
+                                                {{ $slotIndex % 2 === 0 ? 'bg-opacity-100' : 'bg-opacity-50' }}">
+                                                @php
+                                                    $currentTime = now()->format('H:i');
+                                                    $nextSlot = $this->getData()['timeSlots'][$slotIndex + 1] ?? '23:59';
+                                                    $isCurrentTimeSlot = ($this->getData()['isToday'] && $slot <= $currentTime && $currentTime < $nextSlot);
+                                                @endphp
+                                                @if($isCurrentTimeSlot)
+                                                    <div class="absolute inset-0 bg-gradient-to-r from-yellow-200 to-yellow-300 bg-opacity-40 border-2 border-yellow-500 border-dashed animate-pulse"></div>
+                                                    <div class="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full font-bold shadow-lg">
+                                                        NOW
                                                     </div>
-                                                </div>
-                                            @else
-                                                <!-- 既存客 - 青色 -->
-                                                <div class="reservation-existing text-white text-center p-1 sm:p-2 rounded shadow-sm cursor-pointer transition-colors text-xs sm:text-sm" 
-                                                     title="{{ $reservation->customer->last_name }} {{ $reservation->customer->first_name }} 様&#10;{{ $reservation->menu->name ?? '' }}&#10;{{ $slot }} - {{ $reservation->end_time }}&#10;既存顧客">
-                                                    <i class="fas fa-user text-lg mb-1"></i>
-                                                    <div class="text-xs font-medium truncate">
-                                                        {{ $reservation->customer->last_name }}
-                                                    </div>
-                                                </div>
-                                            @endif
-                                        @else
-                                            <div class="bg-gray-200 h-12 rounded border-2 border-dashed border-gray-300 opacity-50">
+                                                @endif
                                             </div>
-                                        @endif
+                                        @endforeach
                                     </div>
-                                @endforeach
+                                    
+                                    <!-- 予約バー -->
+                                    <div class="absolute inset-0 grid grid-cols-25 gap-0 pointer-events-none">
+                                        <div class="pointer-events-none"></div> <!-- 店舗名スペース -->
+                                        
+                                        @php
+                                            $storeReservations = $this->getData()['reservations']->where('store_id', $store->id);
+                                            $timeSlots = $this->getData()['timeSlots'];
+                                        @endphp
+                                        
+                                        @foreach($storeReservations as $reservation)
+                                            @php
+                                                $slotInfo = $reservation->slot_info ?? [
+                                                    'startSlotIndex' => 0,
+                                                    'duration' => 1,
+                                                    'startTime' => $reservation->start_time,
+                                                    'endTime' => $reservation->end_time
+                                                ];
+                                                
+                                                $startSlotIndex = $slotInfo['startSlotIndex'];
+                                                $duration = $slotInfo['duration'];
+                                                $leftPosition = (($startSlotIndex + 1) / 25) * 100;
+                                                $width = ($duration / 24) * 100;
+                                            @endphp
+                                            
+                                            <div class="absolute pointer-events-auto"
+                                                 style="left: {{ $leftPosition }}%; width: {{ $width }}%; top: 4px; height: calc(100% - 8px);">
+                                                @if($reservation->is_new_customer)
+                                                    <!-- 新規客バー -->
+                                                    <div class="gantt-bar-new h-full rounded-lg shadow-md cursor-pointer transform hover:scale-105 transition-all duration-200"
+                                                         title="{{ $reservation->customer->last_name }} {{ $reservation->customer->first_name }} 様&#10;{{ $reservation->menu->name ?? '' }}&#10;{{ $slotInfo['startTime'] }} - {{ $slotInfo['endTime'] }}&#10;新規顧客 | 予約番号: {{ $reservation->reservation_number }}">
+                                                        <div class="h-full flex items-center px-2 text-white font-medium text-sm">
+                                                            <i class="fas fa-star mr-1 text-white"></i>
+                                                            <span class="truncate font-bold">{{ $reservation->customer->last_name }}様</span>
+                                                            <div class="ml-2 text-xs opacity-90 hidden lg:block truncate">
+                                                                {{ $reservation->menu->name ?? '' }}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                @else
+                                                    <!-- 既存客バー -->
+                                                    <div class="gantt-bar-existing h-full rounded-lg shadow-md cursor-pointer transform hover:scale-105 transition-all duration-200"
+                                                         title="{{ $reservation->customer->last_name }} {{ $reservation->customer->first_name }} 様&#10;{{ $reservation->menu->name ?? '' }}&#10;{{ $slotInfo['startTime'] }} - {{ $slotInfo['endTime'] }}&#10;既存顧客 | 予約番号: {{ $reservation->reservation_number }}">
+                                                        <div class="h-full flex items-center px-2 text-white font-medium text-sm">
+                                                            <i class="fas fa-user mr-1 text-white"></i>
+                                                            <span class="truncate font-bold">{{ $reservation->customer->last_name }}様</span>
+                                                            <div class="ml-2 text-xs opacity-90 hidden lg:block truncate">
+                                                                {{ $reservation->menu->name ?? '' }}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     @endforeach
@@ -221,27 +279,94 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         .grid-cols-25 {
-            grid-template-columns: 120px repeat(24, minmax(60px, 1fr));
+            grid-template-columns: 140px repeat(24, minmax(60px, 1fr));
         }
         
-        /* 色の強制適用 */
+        /* ガントチャートアニメーション */
+        @keyframes gantt-slide-in {
+            from {
+                transform: scaleX(0);
+                opacity: 0;
+            }
+            to {
+                transform: scaleX(1);
+                opacity: 1;
+            }
+        }
+        
+        .gantt-bar-new, .gantt-bar-existing {
+            animation: gantt-slide-in 0.8s ease-out;
+            transform-origin: left;
+        }
+        
+        /* ガントチャート風バーのスタイル */
+        .gantt-bar-new {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%) !important;
+            border: 2px solid #15803d;
+            position: relative;
+        }
+        .gantt-bar-new::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.3), transparent);
+            border-radius: 4px 4px 0 0;
+        }
+        .gantt-bar-new:hover {
+            background: linear-gradient(135deg, #16a34a 0%, #15803d 100%) !important;
+            transform: scale(1.02) !important;
+            box-shadow: 0 8px 16px rgba(34, 197, 94, 0.3) !important;
+        }
+        
+        .gantt-bar-existing {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+            border: 2px solid #1d4ed8;
+            position: relative;
+        }
+        .gantt-bar-existing::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.3), transparent);
+            border-radius: 4px 4px 0 0;
+        }
+        .gantt-bar-existing:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+            transform: scale(1.02) !important;
+            box-shadow: 0 8px 16px rgba(59, 130, 246, 0.3) !important;
+        }
+        
+        /* レスポンシブ調整 */
+        @media (max-width: 768px) {
+            .grid-cols-25 {
+                grid-template-columns: 100px repeat(24, minmax(40px, 1fr));
+            }
+            .gantt-bar-new, .gantt-bar-existing {
+                font-size: 10px;
+            }
+        }
+        
+        /* 現在時刻のインジケーター */
+        @keyframes current-time-pulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.7; }
+        }
+        
+        .animate-pulse {
+            animation: current-time-pulse 2s infinite;
+        }
+        
         .reservation-pending {
             background-color: #eab308 !important; /* yellow-500 */
         }
         .reservation-pending:hover {
             background-color: #ca8a04 !important; /* yellow-600 */
-        }
-        .reservation-new {
-            background-color: #22c55e !important; /* green-500 */
-        }
-        .reservation-new:hover {
-            background-color: #16a34a !important; /* green-600 */
-        }
-        .reservation-existing {
-            background-color: #3b82f6 !important; /* blue-500 */
-        }
-        .reservation-existing:hover {
-            background-color: #2563eb !important; /* blue-600 */
         }
         
         .dot-pending {

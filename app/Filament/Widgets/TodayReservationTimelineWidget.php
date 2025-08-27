@@ -70,10 +70,17 @@ class TodayReservationTimelineWidget extends Widget
         // タイムスロットを生成（9:00-18:00を30分刻み）
         $timeSlots = $this->generateTimeSlots();
         
+        // ガントチャート用の予約情報を前処理
+        $reservationsWithSlotInfo = $reservations->map(function($reservation) {
+            $slotInfo = $this->getReservationTimeSlotInfo($reservation);
+            $reservation->slot_info = $slotInfo;
+            return $reservation;
+        });
+        
         $dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][$selectedDate->dayOfWeek];
         
         return [
-            'reservations' => $reservations,
+            'reservations' => $reservationsWithSlotInfo,
             'stores' => $stores,
             'timeSlots' => $timeSlots,
             'selectedDate' => $selectedDate,
@@ -116,13 +123,58 @@ class TodayReservationTimelineWidget extends Widget
         $start = Carbon::createFromTime(9, 0);
         $end = Carbon::createFromTime(18, 0);
         
-        while ($start < $end) {
+        while ($start <= $end) {
             // 統一したフォーマット（HH:MM）で時間を保存
             $slots->push($start->format('H:i'));
             $start->addMinutes(30);
         }
         
         return $slots;
+    }
+    
+    /**
+     * 予約の時間スロットでの開始位置と期間を計算
+     */
+    public function getReservationTimeSlotInfo($reservation): array
+    {
+        $timeSlots = $this->generateTimeSlots();
+        
+        try {
+            $startTime = is_string($reservation->start_time) 
+                ? Carbon::createFromFormat('H:i:s', $reservation->start_time)->format('H:i')
+                : $reservation->start_time;
+            $endTime = is_string($reservation->end_time)
+                ? Carbon::createFromFormat('H:i:s', $reservation->end_time)->format('H:i')
+                : $reservation->end_time;
+        } catch (\Exception $e) {
+            $startTime = $reservation->start_time;
+            $endTime = $reservation->end_time;
+        }
+        
+        // 開始時刻のスロットインデックスを取得
+        $startSlotIndex = $timeSlots->search($startTime);
+        if ($startSlotIndex === false) {
+            // 完全一致しない場合は最も近いスロットを探す
+            $startSlotIndex = $timeSlots->search(function($slot) use ($startTime) {
+                return $slot >= $startTime;
+            });
+            if ($startSlotIndex === false) $startSlotIndex = 0;
+        }
+        
+        // 終了時刻のスロットインデックスを取得
+        $endSlotIndex = $timeSlots->search(function($slot) use ($endTime) {
+            return $slot >= $endTime;
+        });
+        if ($endSlotIndex === false) $endSlotIndex = count($timeSlots);
+        
+        $duration = max(1, $endSlotIndex - $startSlotIndex);
+        
+        return [
+            'startSlotIndex' => $startSlotIndex,
+            'duration' => $duration,
+            'startTime' => $startTime,
+            'endTime' => $endTime
+        ];
     }
 
     public function getReservationAtTime(string $time, ?int $storeId = null): ?Reservation

@@ -3,6 +3,9 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\PasswordResetController;
 
+// Basic認証ミドルウェアでサイト全体を保護（管理画面は除く）
+Route::middleware(['auth.basic'])->group(function () {
+
 // トップページの処理（環境変数で制御可能）
 Route::get('/', function () {
     // REDIRECT_TO_STORES=true の場合は店舗一覧にリダイレクト
@@ -81,3 +84,5 @@ Route::get('/admin/password-reset', [PasswordResetController::class, 'showReques
 Route::post('/admin/password-reset', [PasswordResetController::class, 'sendResetLink'])->name('password.email');
 Route::get('/admin/password-reset/{token}', [PasswordResetController::class, 'showResetForm'])->name('password.reset');
 Route::post('/admin/password-reset/update', [PasswordResetController::class, 'reset'])->name('password.update');
+
+}); // Basic認証グループの終了
