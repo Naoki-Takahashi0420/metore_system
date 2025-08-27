@@ -41,7 +41,6 @@ Route::post('/reservation/store-selection', [App\Http\Controllers\PublicReservat
 Route::get('/reservation/menu', [App\Http\Controllers\PublicReservationController::class, 'selectMenu'])->name('reservation.menu');
 Route::get('/reservation/menu/{store_id}', [App\Http\Controllers\PublicReservationController::class, 'selectMenuWithStore'])->name('reservation.menu-with-store');
 Route::post('/reservation/select-menu', [App\Http\Controllers\PublicReservationController::class, 'storeMenu'])->name('reservation.select-menu');
-Route::get('/reservation/upsell', [App\Http\Controllers\PublicReservationController::class, 'showUpsell'])->name('reservation.upsell');
 // 予約トップページは店舗選択にリダイレクト
 Route::get('/reservation', function () {
     return redirect('/stores');

@@ -139,25 +139,6 @@ class PublicReservationController extends Controller
         return redirect()->route('reservation.index');
     }
 
-    public function showUpsell()
-    {
-        // セッションからメニュー情報を取得
-        $selectedMenu = Session::get('reservation_menu');
-        
-        if (!$selectedMenu) {
-            return redirect()->route('reservation.menu');
-        }
-        
-        // アップセルメニューを取得
-        $upsellMenus = Menu::where('is_available', true)
-            ->where('show_in_upsell', true)
-            ->where('id', '!=', $selectedMenu->id)
-            ->orderBy('display_order')
-            ->get();
-        
-        return view('reservation.upsell', compact('selectedMenu', 'upsellMenus'));
-    }
-    
     public function index(Request $request)
     {
         // セッションから情報を取得
