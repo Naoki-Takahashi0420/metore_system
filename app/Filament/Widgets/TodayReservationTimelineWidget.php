@@ -19,76 +19,97 @@ class TodayReservationTimelineWidget extends Widget
 
     #[Url]
     public string $selectedDate = '';
+    
+    public ?int $selectedReservationId = null;
+    public bool $showReservationModal = false;
+    
+    // キャッシュされたデータ
+    public ?array $cachedData = null;
+    public ?Collection $cachedTimeSlots = null;
 
     public function mount(): void
     {
         if (empty($this->selectedDate)) {
             $this->selectedDate = Carbon::today()->format('Y-m-d');
         }
+        
+        // 初期データをキャッシュ
+        $this->refreshData();
+    }
+    
+    public function refreshData(): void
+    {
+        $this->cachedData = null;
+        $this->cachedTimeSlots = null;
     }
 
     public function getData(): array
     {
-        $selectedDate = Carbon::parse($this->selectedDate);
-        
-        // ログインユーザーの店舗制限
-        $query = Reservation::with(['customer', 'menu', 'store']);
-        
-        // スタッフロールの場合は自分の店舗のみ表示
-        $user = auth()->user();
-        if ($user && !$user->hasRole('super_admin')) {
-            if ($user->store_id) {
-                $query->where('store_id', $user->store_id);
-            }
+        // キャッシュされたデータがある場合はそれを返す
+        if ($this->cachedData !== null) {
+            return $this->cachedData;
         }
         
-        // 選択された日の予約を取得（新規/既存顧客の判定も含む）
-        $reservations = $query->whereDate('reservation_date', $selectedDate)
-            ->whereNotIn('status', ['cancelled', 'canceled'])
-            ->orderBy('start_time')
-            ->get()
-            ->map(function ($reservation) {
-                // 新規顧客かどうかの判定（この予約が初回予約かどうか）
-                $isNewCustomer = Reservation::where('customer_id', $reservation->customer_id)
-                    ->where('id', '<=', $reservation->id)
-                    ->whereNotIn('status', ['cancelled', 'canceled'])
-                    ->count() === 1;
-                
-                $reservation->is_new_customer = $isNewCustomer;
-                return $reservation;
-            });
-
-        // 店舗ごとの営業時間を取得（ロール制限）
+        $selectedDate = Carbon::parse($this->selectedDate);
+        $user = auth()->user();
+        
+        // 店舗クエリを構築（ロール制限適用）
         $storesQuery = Store::where('is_active', true);
-        if ($user && !$user->hasRole('super_admin')) {
-            if ($user->store_id) {
-                $storesQuery->where('id', $user->store_id);
-            }
+        if ($user && !$user->hasRole('super_admin') && $user->store_id) {
+            $storesQuery->where('id', $user->store_id);
         }
         $stores = $storesQuery->get();
         
-        // タイムスロットを生成（9:00-18:00を30分刻み）
-        $timeSlots = $this->generateTimeSlots();
+        // 予約クエリを構築（ロール制限適用）
+        $reservationsQuery = Reservation::with(['customer', 'menu', 'store'])
+            ->whereDate('reservation_date', $selectedDate)
+            ->whereNotIn('status', ['cancelled', 'canceled'])
+            ->orderBy('store_id')
+            ->orderBy('start_time');
+            
+        if ($user && !$user->hasRole('super_admin') && $user->store_id) {
+            $reservationsQuery->where('store_id', $user->store_id);
+        }
         
-        // ガントチャート用の予約情報を前処理
-        $reservationsWithSlotInfo = $reservations->map(function($reservation) {
-            $slotInfo = $this->getReservationTimeSlotInfo($reservation);
-            $reservation->slot_info = $slotInfo;
+        $reservations = $reservationsQuery->get();
+        
+        // 新規顧客の判定（表示時点での判定を固定してリアルタイム変更を防ぐ）
+        $reservations->transform(function ($reservation) {
+            // 初回表示時の判定結果を保存
+            $isNewCustomer = $reservation->customer->isFirstReservation($reservation);
+            $reservation->is_new_customer = $isNewCustomer;
+            
+            // モーダル表示時にも同じ結果を使用するため保存
+            $reservation->setAttribute('display_as_new_customer', $isNewCustomer);
+            
             return $reservation;
         });
         
         $dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][$selectedDate->dayOfWeek];
         
-        return [
-            'reservations' => $reservationsWithSlotInfo,
+        // データをキャッシュ
+        $this->cachedData = [
+            'reservations' => $reservations,
             'stores' => $stores,
-            'timeSlots' => $timeSlots,
             'selectedDate' => $selectedDate,
             'todayDate' => $selectedDate->format('Y年n月j日') . '（' . $dayOfWeek . '）',
             'isToday' => $selectedDate->isToday(),
-            'canNavigateBack' => $selectedDate->gt(Carbon::today()->subDays(30)), // 30日前まで
-            'canNavigateForward' => $selectedDate->lt(Carbon::today()->addDays(60)), // 60日先まで
+            'canNavigateBack' => $selectedDate->gt(Carbon::today()->subDays(30)),
+            'canNavigateForward' => $selectedDate->lt(Carbon::today()->addDays(60)),
+            'timeSlots' => $this->getTimeSlots(),
         ];
+        
+        return $this->cachedData;
+    }
+    
+    public function getTimeSlots(): Collection
+    {
+        if ($this->cachedTimeSlots !== null) {
+            return $this->cachedTimeSlots;
+        }
+        
+        $this->cachedTimeSlots = $this->generateTimeSlots();
+        return $this->cachedTimeSlots;
     }
 
     public function goToPreviousDay()
@@ -96,6 +117,7 @@ class TodayReservationTimelineWidget extends Widget
         $currentDate = Carbon::parse($this->selectedDate);
         if ($currentDate->gt(Carbon::today()->subDays(30))) {
             $this->selectedDate = $currentDate->subDay()->format('Y-m-d');
+            $this->refreshData();
         }
     }
 
@@ -104,32 +126,161 @@ class TodayReservationTimelineWidget extends Widget
         $currentDate = Carbon::parse($this->selectedDate);
         if ($currentDate->lt(Carbon::today()->addDays(60))) {
             $this->selectedDate = $currentDate->addDay()->format('Y-m-d');
+            $this->refreshData();
         }
     }
 
     public function goToToday()
     {
         $this->selectedDate = Carbon::today()->format('Y-m-d');
+        $this->refreshData();
     }
 
     public function updatedSelectedDate()
     {
-        // 日付が更新された時に自動でリフレッシュ
+        $this->refreshData();
+    }
+    
+    public function openReservationModal(int $reservationId): void
+    {
+        $this->selectedReservationId = $reservationId;
+        $this->showReservationModal = true;
+    }
+    
+    public function closeReservationModal(): void
+    {
+        $this->selectedReservationId = null;
+        $this->showReservationModal = false;
+        
+        // モーダルを閉じた時にキャッシュをクリアして、次回表示時に正しいデータを使用
+        $this->refreshData();
+    }
+    
+    public function getSelectedReservation(): ?Reservation
+    {
+        if (!$this->selectedReservationId) {
+            return null;
+        }
+        
+        // キャッシュされた予約データから探す（表示時点での判定を維持）
+        $cachedReservations = $this->getData()['reservations'];
+        $cachedReservation = $cachedReservations->where('id', $this->selectedReservationId)->first();
+        
+        if ($cachedReservation) {
+            return $cachedReservation;
+        }
+        
+        // キャッシュにない場合のフォールバック
+        $reservation = Reservation::with(['customer', 'menu', 'store'])
+            ->find($this->selectedReservationId);
+            
+        if ($reservation) {
+            // 表示時点での判定を再現（リアルタイム更新の影響を受けない）
+            $reservation->is_new_customer = $reservation->display_as_new_customer ?? 
+                $reservation->customer->isFirstReservation($reservation);
+        }
+        
+        return $reservation;
     }
 
     private function generateTimeSlots(): Collection
     {
-        $slots = collect();
-        $start = Carbon::createFromTime(9, 0);
-        $end = Carbon::createFromTime(18, 0);
+        $selectedDate = Carbon::parse($this->selectedDate);
+        $dayOfWeek = strtolower($selectedDate->format('l'));
         
+        // 店舗データを取得（キャッシュがない場合は直接取得）
+        $stores = $this->cachedData['stores'] ?? Store::where('is_active', true)->get();
+        
+        $earliestOpen = null;
+        $latestClose = null;
+        
+        // 各店舗の営業時間をチェック
+        foreach ($stores as $store) {
+            if ($store->business_hours) {
+                foreach ($store->business_hours as $hours) {
+                    if ($hours['day'] === $dayOfWeek && 
+                        (!isset($hours['is_closed']) || !$hours['is_closed']) && 
+                        isset($hours['open_time']) && isset($hours['close_time']) &&
+                        $hours['open_time'] && $hours['close_time']) {
+                        
+                        try {
+                            $openTime = Carbon::createFromFormat('H:i', $hours['open_time']);
+                            $closeTime = Carbon::createFromFormat('H:i', $hours['close_time']);
+                            
+                            if ($earliestOpen === null || $openTime->lt($earliestOpen)) {
+                                $earliestOpen = $openTime;
+                            }
+                            if ($latestClose === null || $closeTime->gt($latestClose)) {
+                                $latestClose = $closeTime;
+                            }
+                        } catch (\Exception $e) {
+                            // エラー時はスキップ
+                            continue;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // デフォルトの営業時間（9:00-23:30 銀座店に合わせて拡張）
+        if ($earliestOpen === null) {
+            $earliestOpen = Carbon::createFromTime(9, 0);
+        }
+        if ($latestClose === null) {
+            $latestClose = Carbon::createFromTime(23, 30);
+        }
+        
+        // 営業時間のフルレンジを表示（30分間隔）
+        $start = $earliestOpen->copy();
+        $end = $latestClose->copy();
+        
+        $slots = collect();
         while ($start <= $end) {
-            // 統一したフォーマット（HH:MM）で時間を保存
             $slots->push($start->format('H:i'));
             $start->addMinutes(30);
         }
         
         return $slots;
+    }
+    
+    /**
+     * 店舗の営業時間を取得
+     */
+    public function getStoreBusinessHours($store): array
+    {
+        $selectedDate = Carbon::parse($this->selectedDate);
+        $dayOfWeek = strtolower($selectedDate->format('l')); // monday, tuesday, etc.
+        
+        if ($store->business_hours && is_array($store->business_hours)) {
+            foreach ($store->business_hours as $hours) {
+                if (isset($hours['day']) && $hours['day'] === $dayOfWeek) {
+                    // 休業日チェック（is_closedまたはopen_time/close_timeがnull）
+                    if ((isset($hours['is_closed']) && $hours['is_closed']) || 
+                        !isset($hours['open_time']) || !isset($hours['close_time']) ||
+                        !$hours['open_time'] || !$hours['close_time']) {
+                        return [
+                            'open' => null,
+                            'close' => null,
+                            'is_open' => false
+                        ];
+                    }
+                    
+                    return [
+                        'open' => $hours['open_time'],
+                        'close' => $hours['close_time'],
+                        'is_open' => true
+                    ];
+                }
+            }
+        }
+        
+        // デフォルトの営業時間（データが見つからない場合）
+        return [
+            'open' => '09:00',
+            'close' => '18:00',
+            'is_open' => true
+        ];
     }
     
     /**
@@ -139,16 +290,27 @@ class TodayReservationTimelineWidget extends Widget
     {
         $timeSlots = $this->generateTimeSlots();
         
+        // 時間フォーマットの正規化
         try {
-            $startTime = is_string($reservation->start_time) 
-                ? Carbon::createFromFormat('H:i:s', $reservation->start_time)->format('H:i')
-                : $reservation->start_time;
-            $endTime = is_string($reservation->end_time)
-                ? Carbon::createFromFormat('H:i:s', $reservation->end_time)->format('H:i')
-                : $reservation->end_time;
+            if (is_string($reservation->start_time)) {
+                if (strlen($reservation->start_time) === 5) {
+                    // 既にH:i形式
+                    $startTime = $reservation->start_time;
+                    $endTime = $reservation->end_time;
+                } else {
+                    // H:i:s形式からH:iに変換
+                    $startTime = Carbon::createFromFormat('H:i:s', $reservation->start_time)->format('H:i');
+                    $endTime = Carbon::createFromFormat('H:i:s', $reservation->end_time)->format('H:i');
+                }
+            } else {
+                // Carbonインスタンスの場合
+                $startTime = $reservation->start_time->format('H:i');
+                $endTime = $reservation->end_time->format('H:i');
+            }
         } catch (\Exception $e) {
-            $startTime = $reservation->start_time;
-            $endTime = $reservation->end_time;
+            // エラー時のフォールバック
+            $startTime = substr(strval($reservation->start_time), 0, 5);
+            $endTime = substr(strval($reservation->end_time), 0, 5);
         }
         
         // 開始時刻のスロットインデックスを取得
@@ -180,35 +342,33 @@ class TodayReservationTimelineWidget extends Widget
     public function getReservationAtTime(string $time, ?int $storeId = null): ?Reservation
     {
         $reservations = $this->getData()['reservations'];
-        $checkTime = Carbon::createFromFormat('H:i', $time);
         
-        return $reservations->first(function ($reservation) use ($checkTime, $storeId) {
+        return $reservations->first(function ($reservation) use ($time, $storeId) {
             if ($storeId && $reservation->store_id !== $storeId) {
                 return false;
             }
             
-            // 時刻を安全にパース
+            // 時刻を安全に正規化
             try {
-                // start_timeとend_timeが時刻形式かチェック
-                if (strlen($reservation->start_time) === 5) {
-                    // H:i形式の場合
-                    $start = Carbon::createFromFormat('H:i', $reservation->start_time);
-                    $end = Carbon::createFromFormat('H:i', $reservation->end_time);
-                } elseif (strlen($reservation->start_time) === 8) {
-                    // H:i:s形式の場合
-                    $start = Carbon::createFromFormat('H:i:s', $reservation->start_time);
-                    $end = Carbon::createFromFormat('H:i:s', $reservation->end_time);
+                if (is_string($reservation->start_time)) {
+                    if (strlen($reservation->start_time) === 5) {
+                        $startTime = $reservation->start_time;
+                        $endTime = $reservation->end_time;
+                    } else {
+                        $startTime = Carbon::createFromFormat('H:i:s', $reservation->start_time)->format('H:i');
+                        $endTime = Carbon::createFromFormat('H:i:s', $reservation->end_time)->format('H:i');
+                    }
                 } else {
-                    // その他の形式の場合はCarbonに任せる
-                    $start = Carbon::parse($reservation->start_time);
-                    $end = Carbon::parse($reservation->end_time);
+                    $startTime = $reservation->start_time->format('H:i');
+                    $endTime = $reservation->end_time->format('H:i');
                 }
             } catch (\Exception $e) {
-                return false;
+                $startTime = substr(strval($reservation->start_time), 0, 5);
+                $endTime = substr(strval($reservation->end_time), 0, 5);
             }
             
-            // 時間のみ比較（日付は無視）
-            return $checkTime->between($start, $end->copy()->subMinute(), false);
+            // 文字列での時間比較
+            return ($time >= $startTime && $time < $endTime);
         });
     }
 }

@@ -91,4 +91,31 @@ class Customer extends Model
     {
         return $this->hasMany(MedicalRecord::class);
     }
+
+    /**
+     * 指定された予約が新規顧客の初回予約かチェック
+     */
+    public function isFirstReservation(Reservation $targetReservation): bool
+    {
+        $firstReservation = $this->reservations()
+            ->whereNotIn('status', ['cancelled', 'canceled'])
+            ->orderBy('reservation_date')
+            ->orderBy('start_time')
+            ->orderBy('id')
+            ->first();
+            
+        return $firstReservation && $firstReservation->id === $targetReservation->id;
+    }
+
+    /**
+     * 新規顧客かどうか（有効な予約が1件以下）
+     */
+    public function isNewCustomer(): bool
+    {
+        $reservationCount = $this->reservations()
+            ->whereNotIn('status', ['cancelled', 'canceled'])
+            ->count();
+            
+        return $reservationCount <= 1;
+    }
 }

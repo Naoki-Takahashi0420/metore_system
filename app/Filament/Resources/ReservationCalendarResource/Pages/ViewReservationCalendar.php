@@ -21,7 +21,7 @@ class ViewReservationCalendar extends Page
     {
         return [
             TodayReservationTimelineWidget::class,
-            ReservationCalendarWidget::class,
+            // ReservationCalendarWidget::class, // ガントチャートを優先して表示
         ];
     }
     

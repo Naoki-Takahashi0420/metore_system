@@ -32,6 +32,7 @@ class AdminPanelProvider extends PanelProvider
             ->brandName('目のトレーニング 管理画面')
             ->brandLogo(asset('images/logo.png'))
             ->brandLogoHeight('2.5rem')
+            ->sidebarCollapsibleOnDesktop()
             ->colors([
                 'primary' => Color::Blue,
                 'success' => Color::Green,
