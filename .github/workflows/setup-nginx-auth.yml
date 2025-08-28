@@ -19,6 +19,10 @@ jobs:
         
         ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
         
+        # apache2-utilsをインストール（htpasswdコマンドを含む）
+        sudo apt update
+        sudo apt install -y apache2-utils
+        
         # パスワードファイル作成
         sudo htpasswd -cb /etc/nginx/.htpasswd xsyumeno xsyumeno2025!
         
@@ -76,7 +80,7 @@ jobs:
             gzip on;
             gzip_vary on;
             gzip_min_length 1024;
-            gzip_proxied expired no-cache no-store private must-revalidate auth;
+            gzip_proxied expired no-cache no-store private auth;
             gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/xml+rss;
 
             # Cache static assets
