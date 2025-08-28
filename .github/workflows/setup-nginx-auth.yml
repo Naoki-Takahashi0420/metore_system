@@ -1,0 +1,120 @@
+name: Setup Nginx Basic Auth
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup-auth:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Setup Nginx Basic Auth
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+        
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        
+        # パスワードファイル作成
+        sudo htpasswd -cb /etc/nginx/.htpasswd xsyumeno xsyumeno2025!
+        
+        # Nginx設定ファイル更新
+        sudo tee /etc/nginx/sites-available/default > /dev/null << 'NGINX_CONFIG'
+        server {
+            listen 80;
+            server_name reservation.meno-training.com;
+            return 301 https://$server_name$request_uri;
+        }
+
+        server {
+            listen 443 ssl http2;
+            server_name reservation.meno-training.com;
+            root /var/www/html/public;
+            index index.php index.html;
+
+            # SSL Configuration
+            ssl_certificate /etc/letsencrypt/live/reservation.meno-training.com/fullchain.pem;
+            ssl_certificate_key /etc/letsencrypt/live/reservation.meno-training.com/privkey.pem;
+            ssl_protocols TLSv1.2 TLSv1.3;
+            ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384;
+            ssl_prefer_server_ciphers off;
+
+            # Basic Authentication (exclude admin panel)
+            location / {
+                auth_basic "Protected Area";
+                auth_basic_user_file /etc/nginx/.htpasswd;
+                
+                try_files $uri $uri/ /index.php?$query_string;
+            }
+
+            # Admin panel without Basic Auth
+            location /admin {
+                try_files $uri $uri/ /index.php?$query_string;
+            }
+
+            # PHP-FPM configuration
+            location ~ \.php$ {
+                include snippets/fastcgi-php.conf;
+                fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+                fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+                include fastcgi_params;
+            }
+
+            # Security headers
+            add_header X-Frame-Options "SAMEORIGIN" always;
+            add_header X-Content-Type-Options "nosniff" always;
+            add_header X-XSS-Protection "1; mode=block" always;
+
+            # Hide Nginx version
+            server_tokens off;
+
+            # Gzip compression
+            gzip on;
+            gzip_vary on;
+            gzip_min_length 1024;
+            gzip_proxied expired no-cache no-store private must-revalidate auth;
+            gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/xml+rss;
+
+            # Cache static assets
+            location ~* \.(css|js|png|jpg|jpeg|gif|ico|svg|webp|woff|woff2|ttf|eot)$ {
+                expires 1y;
+                add_header Cache-Control "public, immutable";
+            }
+
+            # Deny access to sensitive files
+            location ~ /\. {
+                deny all;
+            }
+
+            location ~ composer\.(json|lock)$ {
+                deny all;
+            }
+
+            location ~ package\.json$ {
+                deny all;
+            }
+
+            location ~ \.env$ {
+                deny all;
+            }
+        }
+        NGINX_CONFIG
+        
+        # 設定テスト
+        sudo nginx -t
+        
+        # Nginx再起動
+        sudo systemctl reload nginx
+        
+        echo "✅ Nginx Basic Auth setup completed!"
+        echo "Username: xsyumeno"
+        echo "Password: xsyumeno2025!"
+        
+        EOF
+        
+        rm deploy_key.pem
+        echo "✅ Setup completed!"
