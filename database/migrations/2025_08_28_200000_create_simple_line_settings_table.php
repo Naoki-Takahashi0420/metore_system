@@ -8,7 +8,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('line_settings', function (Blueprint $table) {
+        if (!Schema::hasTable('line_settings')) {
+            Schema::create('line_settings', function (Blueprint $table) {
             $table->id();
             
             // 基本設定
@@ -26,9 +27,11 @@ return new class extends Migration
             $table->text('message_follow_60d')->nullable()->comment('60日後メッセージ');
             
             $table->timestamps();
-        });
+            });
+        }
         
-        // デフォルトレコードを挿入
+        // デフォルトレコードを挿入（存在しない場合のみ）
+        if (DB::table('line_settings')->count() === 0) {
         DB::table('line_settings')->insert([
             'send_confirmation' => true,
             'send_reminder_24h' => true,
@@ -43,6 +46,7 @@ return new class extends Migration
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+        }
     }
 
     public function down(): void
