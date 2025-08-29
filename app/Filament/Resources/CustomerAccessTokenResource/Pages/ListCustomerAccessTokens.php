@@ -13,7 +13,13 @@ class ListCustomerAccessTokens extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            Actions\CreateAction::make()
+                ->label('新規作成'),
+            Actions\Action::make('generate')
+                ->label('トークン生成')
+                ->icon('heroicon-o-sparkles')
+                ->color('success')
+                ->url(fn () => static::getResource()::getUrl('generate')),
         ];
     }
 }

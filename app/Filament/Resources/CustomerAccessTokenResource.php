@@ -18,7 +18,10 @@ class CustomerAccessTokenResource extends Resource
 {
     protected static ?string $model = CustomerAccessToken::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-key';
+    protected static ?string $navigationLabel = '顧客トークン';
+    protected static ?string $modelLabel = '顧客アクセストークン';
+    protected static ?string $navigationGroup = '顧客管理';
 
     public static function form(Form $form): Form
     {
@@ -159,6 +162,7 @@ class CustomerAccessTokenResource extends Resource
             'index' => Pages\ListCustomerAccessTokens::route('/'),
             'create' => Pages\CreateCustomerAccessToken::route('/create'),
             'edit' => Pages\EditCustomerAccessToken::route('/{record}/edit'),
+            'generate' => Pages\GenerateToken::route('/generate'),
         ];
     }
 }
