@@ -1,0 +1,231 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - navigation [ref=e3]:
+    - generic [ref=e5]:
+      - link "目のトレーニング" [ref=e7] [cursor=pointer]:
+        - /url: http://127.0.0.1:8000
+        - img "目のトレーニング" [ref=e8] [cursor=pointer]
+      - generic [ref=e9]:
+        - link "ホーム" [ref=e10] [cursor=pointer]:
+          - /url: http://127.0.0.1:8000
+        - link "店舗一覧" [ref=e11] [cursor=pointer]:
+          - /url: http://127.0.0.1:8000/stores
+        - link "予約確認・カルテ" [ref=e12] [cursor=pointer]:
+          - /url: http://127.0.0.1:8000/customer/login
+        - link "ご予約" [ref=e13] [cursor=pointer]:
+          - /url: http://127.0.0.1:8000/stores
+  - main [ref=e14]:
+    - generic [ref=e15]:
+      - generic [ref=e18]:
+        - heading "店舗を選択" [level=1] [ref=e19]
+        - paragraph [ref=e20]: ご利用店舗をお選びください。
+      - generic [ref=e22]:
+        - generic [ref=e23]:
+          - img "目のトレーニング銀座本店" [ref=e25]
+          - generic [ref=e26]:
+            - heading "目のトレーニング銀座本店" [level=3] [ref=e27]
+            - generic [ref=e28]:
+              - generic [ref=e29]:
+                - img [ref=e30]
+                - paragraph [ref=e34]: 東京都中央区銀座２丁目１４−５ 三光ビジネスキャッスル ５０１
+              - generic [ref=e35]:
+                - img [ref=e36]
+                - generic [ref=e38]: 070-8901-4179
+              - generic [ref=e39]:
+                - img [ref=e40]
+                - generic [ref=e42]: "営業時間: 10:00-23:30 (毎日)"
+            - button "この店舗を選択" [ref=e43] [cursor=pointer]
+        - generic [ref=e44]:
+          - img [ref=e46]
+          - generic [ref=e48]:
+            - heading "目のトレーニング小山店" [level=3] [ref=e49]
+            - generic [ref=e50]:
+              - generic [ref=e51]:
+                - img [ref=e52]
+                - paragraph [ref=e56]: 栃木県小山市城山町3-1-24大塚ビル2階
+              - generic [ref=e57]:
+                - img [ref=e58]
+                - generic [ref=e60]: 0285-42-0296
+              - generic [ref=e61]:
+                - img [ref=e62]
+                - generic [ref=e65]:
+                  - generic [ref=e66]: 本日休業日
+                  - text: (毎日同じ)
+            - button "この店舗を選択" [ref=e67] [cursor=pointer]
+        - generic [ref=e68]:
+          - img [ref=e70]
+          - generic [ref=e72]:
+            - heading "目のトレーニング新宿店" [level=3] [ref=e73]
+            - generic [ref=e74]:
+              - generic [ref=e75]:
+                - img [ref=e76]
+                - paragraph [ref=e80]: 東京都新宿区西新宿7-1-7ダイカンプラザA館803
+              - generic [ref=e81]:
+                - img [ref=e82]
+                - generic [ref=e84]: 03-5539-1812
+              - generic [ref=e85]:
+                - img [ref=e86]
+                - generic [ref=e88]: "営業時間: 10:00-21:00 (毎日)"
+            - button "この店舗を選択" [ref=e89] [cursor=pointer]
+        - generic [ref=e90]:
+          - img [ref=e92]
+          - generic [ref=e94]:
+            - heading "目のトレーニングAKIBA末広町店" [level=3] [ref=e95]
+            - generic [ref=e96]:
+              - generic [ref=e97]:
+                - img [ref=e98]
+                - paragraph [ref=e102]: 東京都千代田区外神田6-11-10 松尾ビル2階
+              - generic [ref=e103]:
+                - img [ref=e104]
+                - generic [ref=e106]: 080-7939-7146
+              - generic [ref=e107]:
+                - img [ref=e108]
+                - generic [ref=e110]: "営業時間: 10:00-22:00 (毎日)"
+            - button "この店舗を選択" [ref=e111] [cursor=pointer]
+        - generic [ref=e112]:
+          - img [ref=e114]
+          - generic [ref=e116]:
+            - heading "目のトレーニング名古屋駅前店" [level=3] [ref=e117]
+            - generic [ref=e118]:
+              - generic [ref=e119]:
+                - img [ref=e120]
+                - paragraph [ref=e124]: 愛知県名古屋市中村区名駅4-24-26名駅K-2ビル3A CHIARA店舗内
+              - generic [ref=e125]:
+                - img [ref=e126]
+                - generic [ref=e128]: 052-433-7299
+              - generic [ref=e129]:
+                - img [ref=e130]
+                - generic [ref=e133]: "本日: 09:00-18:00 (土日は異なる)"
+            - button "この店舗を選択" [ref=e134] [cursor=pointer]
+        - generic [ref=e135]:
+          - img [ref=e137]
+          - generic [ref=e139]:
+            - heading "目のトレーニング吉祥寺店" [level=3] [ref=e140]
+            - generic [ref=e141]:
+              - generic [ref=e142]:
+                - img [ref=e143]
+                - paragraph [ref=e147]: 東京都武蔵野市吉祥寺本町1-18-3 サニーシティ吉祥寺801
+              - generic [ref=e148]:
+                - img [ref=e149]
+                - generic [ref=e151]: 0422-27-2708
+              - generic [ref=e152]:
+                - img [ref=e153]
+                - generic [ref=e156]: "本日: 12:00-19:00"
+            - button "この店舗を選択" [ref=e157] [cursor=pointer]
+        - generic [ref=e158]:
+          - img [ref=e160]
+          - generic [ref=e162]:
+            - heading "目のトレーニング浜松町店" [level=3] [ref=e163]
+            - generic [ref=e164]:
+              - generic [ref=e165]:
+                - img [ref=e166]
+                - paragraph [ref=e170]: 東京都港区浜松町1-20-2 イクミビル201
+              - generic [ref=e171]:
+                - img [ref=e172]
+                - generic [ref=e174]: 080-5699-2980
+              - generic [ref=e175]:
+                - img [ref=e176]
+                - generic [ref=e178]: "営業時間: 10:00-22:00 (毎日)"
+            - button "この店舗を選択" [ref=e179] [cursor=pointer]
+        - generic [ref=e180]:
+          - img [ref=e182]
+          - generic [ref=e184]:
+            - heading "目のトレーニング藤沢店" [level=3] [ref=e185]
+            - generic [ref=e186]:
+              - generic [ref=e187]:
+                - img [ref=e188]
+                - paragraph [ref=e192]: 神奈川県藤沢市鵠沼橘1-1-5 平本藤沢ビル6階
+              - generic [ref=e193]:
+                - img [ref=e194]
+                - generic [ref=e196]: 0466-66-6379
+              - generic [ref=e197]:
+                - img [ref=e198]
+                - generic [ref=e201]: "本日: 10:00-22:00 (土日は異なる)"
+            - button "この店舗を選択" [ref=e202] [cursor=pointer]
+        - generic [ref=e203]:
+          - img [ref=e205]
+          - generic [ref=e207]:
+            - heading "目のトレーニング新百合ヶ丘店" [level=3] [ref=e208]
+            - generic [ref=e209]:
+              - generic [ref=e210]:
+                - img [ref=e211]
+                - paragraph [ref=e215]: 神奈川県川崎市麻生区百合ケ丘1-15-3 ブライト百合ケ丘mana整骨院店舗内
+              - generic [ref=e216]:
+                - img [ref=e217]
+                - generic [ref=e219]: 044-328-9683
+              - generic [ref=e220]:
+                - img [ref=e221]
+                - generic [ref=e224]: "本日: 09:00-18:00 (土日は異なる)"
+            - button "この店舗を選択" [ref=e225] [cursor=pointer]
+        - generic [ref=e226]:
+          - img [ref=e228]
+          - generic [ref=e230]:
+            - heading "目のトレーニング大阪谷町店" [level=3] [ref=e231]
+            - generic [ref=e232]:
+              - generic [ref=e233]:
+                - img [ref=e234]
+                - paragraph [ref=e238]: 大阪府大阪市中央区安堂寺町１丁目３−６ 大阪上町ビル 602号室
+              - generic [ref=e239]:
+                - img [ref=e240]
+                - generic [ref=e242]: 070-1406-3135
+              - generic [ref=e243]:
+                - img [ref=e244]
+                - generic [ref=e246]: "営業時間: 10:00-22:00 (毎日)"
+            - button "この店舗を選択" [ref=e247] [cursor=pointer]
+        - generic [ref=e248]:
+          - img [ref=e250]
+          - generic [ref=e252]:
+            - heading "目のトレーニング宮崎" [level=3] [ref=e253]
+            - generic [ref=e254]:
+              - generic [ref=e255]:
+                - img [ref=e256]
+                - paragraph [ref=e260]: 宮崎県宮崎市江平東町9-12 Lビル20
+              - generic [ref=e261]:
+                - img [ref=e262]
+                - generic [ref=e264]: 080-9011-0716
+              - generic [ref=e265]:
+                - img [ref=e266]
+                - generic [ref=e269]: "本日: 09:00-18:00 (土日は異なる)"
+            - button "この店舗を選択" [ref=e270] [cursor=pointer]
+        - generic [ref=e271]:
+          - img [ref=e273]
+          - generic [ref=e275]:
+            - heading "目のトレーニング相模大野店" [level=3] [ref=e276]
+            - generic [ref=e277]:
+              - generic [ref=e278]:
+                - img [ref=e279]
+                - paragraph [ref=e283]: 神奈川県相模原市南区相模大野5-26-12 ASビル202
+              - generic [ref=e284]:
+                - img [ref=e285]
+                - generic [ref=e287]: 080-6787-4071
+              - generic [ref=e288]:
+                - img [ref=e289]
+                - generic [ref=e292]: "本日: 09:00-18:00 (土日は異なる)"
+            - button "この店舗を選択" [ref=e293] [cursor=pointer]
+  - contentinfo [ref=e294]:
+    - generic [ref=e296]:
+      - generic [ref=e297]:
+        - img "目のトレーニング" [ref=e299]
+        - paragraph [ref=e300]: 9割以上のお客様から視力回復、向上のお声を頂いております。最新の技術と専門的なトレーニングで、目の健康をサポートします。
+        - paragraph [ref=e302]: © 2025 目のトレーニング. All rights reserved.
+      - generic [ref=e303]:
+        - heading "クイックリンク" [level=4] [ref=e304]
+        - list [ref=e305]:
+          - listitem [ref=e306]:
+            - link "ホーム" [ref=e307] [cursor=pointer]:
+              - /url: http://127.0.0.1:8000
+          - listitem [ref=e308]:
+            - link "店舗一覧" [ref=e309] [cursor=pointer]:
+              - /url: http://127.0.0.1:8000/stores
+          - listitem [ref=e310]:
+            - link "新規ご予約" [ref=e311] [cursor=pointer]:
+              - /url: http://127.0.0.1:8000/stores
+          - listitem [ref=e312]:
+            - link "予約確認・カルテ（マイページ）" [ref=e313] [cursor=pointer]:
+              - /url: http://127.0.0.1:8000/customer/login
+          - listitem [ref=e314]:
+            - link "スタッフ専用" [ref=e315] [cursor=pointer]:
+              - /url: http://127.0.0.1:8000/admin
+```
