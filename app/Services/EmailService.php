@@ -36,18 +36,7 @@ class EmailService
             $fromEmail = config('services.ses.from_email', 'noreply@meno-training.com');
             $fromName = config('services.ses.from_name', '目のトレーニング');
             
-            // 一時的に全環境でログ出力のみ（SES設定待ち）
-            // TODO: SES設定完了後、本番環境で実際のメール送信を有効化
-            Log::info('メール送信（SES設定待ち）', [
-                'to' => $to,
-                'subject' => $subject,
-                'from' => "$fromName <$fromEmail>",
-                'environment' => app()->environment(),
-            ]);
-            return true;
-            
-            // 本番環境でメール送信（SES設定後に有効化）
-            /*
+            // 本番環境でメール送信
             $result = $this->sesClient->sendEmail([
                 'Source' => "$fromName <$fromEmail>",
                 'Destination' => [
@@ -77,7 +66,6 @@ class EmailService
             ]);
             
             return true;
-            */
             
         } catch (\Exception $e) {
             Log::error('メール送信エラー', [

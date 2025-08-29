@@ -101,11 +101,7 @@ class OtpService
      */
     private function generateOtp(): string
     {
-        // 一時的に全環境で固定のOTPコード "123456" を使用（サンドボックス承認待ち）
-        // TODO: サンドボックス承認後、本番環境のみランダム化する
-        return '123456';
-        
-        // 本番用（サンドボックス承認後に有効化）
-        // return str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        // 本番用ランダムOTP生成
+        return str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
     }
 }

@@ -37,25 +37,52 @@ test('ガントチャート表示確認', async ({ page }) => {
   await page.waitForTimeout(3000);
   
   // ガントチャート関連要素の存在確認
-  await expect(page.locator('text=予約表')).toBeVisible();
+  await expect(page.locator('text=予約スケジュール')).toBeVisible();
   
   // テーブルの存在確認
   const table = page.locator('table');
   await expect(table).toBeVisible();
   
-  // 時間軸ヘッダーの確認
-  const timeHeaders = page.locator('th:has-text("09:")');
-  console.log('Time headers count:', await timeHeaders.count());
+  // 予約セルの確認
+  const reservationCells = page.locator('.reservation-cell');
+  console.log('Reservation cells count:', await reservationCells.count());
   
-  // 店舗名の確認
-  const storeHeaders = page.locator('text=店舗');
-  console.log('Store headers count:', await storeHeaders.count());
+  // 最初の予約セルをクリックしてモーダルテスト
+  if (await reservationCells.count() > 0) {
+    console.log('Clicking first reservation cell...');
+    await reservationCells.first().click();
+    
+    // モーダルが開くまで待機
+    await page.waitForTimeout(1000);
+    
+    // モーダルの存在確認
+    const modal = page.locator('#reservationModal');
+    const isModalVisible = await modal.isVisible();
+    console.log('Modal visible:', isModalVisible);
+    
+    if (isModalVisible) {
+      console.log('✅ モーダル正常に表示されました');
+      
+      // カルテボタンの確認
+      const chartButton = page.locator('text=カルテを見る');
+      console.log('Chart button visible:', await chartButton.isVisible());
+      
+      // モーダルを閉じる
+      await page.locator('text=閉じる').click();
+    } else {
+      console.log('❌ モーダルが表示されませんでした');
+      
+      // JavaScriptエラーをチェック
+      page.on('console', msg => console.log('Console:', msg.text()));
+      page.on('pageerror', error => console.log('Page error:', error.message));
+    }
+  }
   
   // スクリーンショットを撮影
   await page.screenshot({ 
-    path: 'gantt-chart-debug.png', 
+    path: 'gantt-chart-modal-test.png', 
     fullPage: true 
   });
   
-  console.log('ガントチャートのスクリーンショットを撮影しました: gantt-chart-debug.png');
+  console.log('モーダルテストのスクリーンショットを撮影しました: gantt-chart-modal-test.png');
 });

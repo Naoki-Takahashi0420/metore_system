@@ -13,6 +13,7 @@
         "laravel/sanctum": "*",
         "laravel/tinker": "^2.10.1",
         "saade/filament-fullcalendar": "^3.0",
+        "simplesoftwareio/simple-qrcode": "*",
         "spatie/laravel-permission": "*",
         "twilio/sdk": "^8.7"
     },
@@ -38,12 +39,6 @@
         }
     },
     "scripts": {
-        "post-autoload-dump": [
-            "@php artisan config:clear",
-            "@php artisan clear-compiled",
-            "@php artisan package:discover --ansi",
-            "@php artisan filament:upgrade"
-        ],
         "post-update-cmd": [
             "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
         ],
@@ -66,7 +61,9 @@
     },
     "extra": {
         "laravel": {
-            "dont-discover": []
+            "dont-discover": [
+                "linecorp/line-bot-sdk"
+            ]
         }
     },
     "config": {

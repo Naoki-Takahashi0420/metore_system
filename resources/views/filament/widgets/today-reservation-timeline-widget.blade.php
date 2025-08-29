@@ -123,43 +123,79 @@
                                         $reservation = $slotReservations->first();
                                         $isBusinessHour = $businessHours['is_open'] && ($slot >= $businessHours['open'] && $slot < $businessHours['close']);
                                         $isCurrentTimeSlot = ($isToday && $slot <= $currentTime && $currentTime < ($timeSlots[$slotIndex + 1] ?? '23:59'));
+                                        
+                                        // セル結合の計算
+                                        $colspan = 1;
+                                        $isStartCell = false;
+                                        $shouldHide = false;
+                                        
+                                        if ($reservation) {
+                                            // 予約の開始時刻をチェック
+                                            $reservationStartTime = is_string($reservation->start_time) 
+                                                ? (strlen($reservation->start_time) === 5 ? $reservation->start_time : substr($reservation->start_time, 0, 5))
+                                                : $reservation->start_time->format('H:i');
+                                            $reservationEndTime = is_string($reservation->end_time) 
+                                                ? (strlen($reservation->end_time) === 5 ? $reservation->end_time : substr($reservation->end_time, 0, 5))
+                                                : $reservation->end_time->format('H:i');
+                                                
+                                            if ($slot === $reservationStartTime) {
+                                                // 開始セル - colspan計算
+                                                $isStartCell = true;
+                                                $startMinutes = strtotime($reservationStartTime);
+                                                $endMinutes = strtotime($reservationEndTime);
+                                                $durationMinutes = ($endMinutes - $startMinutes) / 60;
+                                                $colspan = max(1, intval($durationMinutes / 30)); // 30分単位
+                                            } elseif ($slot > $reservationStartTime && $slot < $reservationEndTime) {
+                                                // 中間セル - 非表示
+                                                $shouldHide = true;
+                                            }
+                                        }
                                     @endphp
                                     
-                                    <td class="border border-gray-600 text-center relative p-0" style="height: 40px;">
-                                        @if($reservation)
-                                            <!-- 予約あり -->
-                                            @if($reservation->is_new_customer)
-                                                <!-- 新規顧客 - 鮮やかな緑色 -->
-                                                <div class="h-full w-full cursor-pointer hover:opacity-80 flex items-center justify-center text-white text-xs font-bold transition-all"
-                                                     style="background-color: #22c55e !important;"
-                                                     wire:click="openReservationModal({{ $reservation->id }})"
-                                                     title="{{ $reservation->customer->last_name }}{{ $reservation->customer->first_name }}様 (新規) - クリックで詳細">
-                                                    ★新
+                                    @if($shouldHide)
+                                        <!-- 中間セル - 非表示（colspanで結合済み） -->
+                                    @else
+                                        <td class="border border-gray-600 text-center relative p-0" 
+                                            style="height: 40px;" 
+                                            @if($colspan > 1) colspan="{{ $colspan }}" @endif>
+                                            @if($reservation && $isStartCell)
+                                                <!-- 予約セル（結合対応） -->
+                                                <div class="reservation-cell {{ $reservation->is_new_customer ? 'new-customer' : 'existing-customer' }}"
+                                                     onclick="openReservationModalFromData(this)"
+                                                     data-reservation-id="{{ $reservation->id }}"
+                                                     data-customer-id="{{ $reservation->customer_id }}"
+                                                     data-customer-name="{{ $reservation->customer->last_name }}{{ $reservation->customer->first_name }}"
+                                                     data-customer-type="{{ $reservation->is_new_customer ? '新規' : '既存' }}"
+                                                     data-reservation-number="{{ $reservation->reservation_number }}"
+                                                     data-date="{{ $reservation->reservation_date->format('Y/n/j') }}"
+                                                     data-time="{{ $reservation->start_time }} - {{ $reservation->end_time }}"
+                                                     data-store="{{ $reservation->store->name ?? '' }}"
+                                                     data-menu="{{ $reservation->menu->name ?? '-' }}"
+                                                     data-amount="{{ number_format($reservation->total_amount) }}"
+                                                     data-notes="{{ $reservation->notes ?? '' }}"
+                                                     data-phone="{{ $reservation->customer->phone ?? '-' }}"
+                                                     title="{{ $reservation->customer->last_name }}{{ $reservation->customer->first_name }}様 ({{ $reservation->is_new_customer ? '新規' : '既存' }}) - クリックで詳細">
+                                                    {{ $reservation->is_new_customer ? '★新' : '●既' }}
+                                                    @if($colspan > 1)
+                                                        <span class="ml-1 text-xs">{{ $reservation->customer->last_name }}{{ $reservation->customer->first_name }}</span>
+                                                    @endif
+                                                </div>
+                                            @elseif($isCurrentTimeSlot)
+                                                <!-- 現在時刻 -->
+                                                <div class="h-full w-full border-l-2 border-r-2 border-red-600 flex items-center justify-center" style="background-color: #fbbf24 !important;">
+                                                    <span class="text-xs text-red-700 font-bold">NOW</span>
+                                                </div>
+                                            @elseif(!$isBusinessHour)
+                                                <!-- 営業時間外 - 濃いグレー -->
+                                                <div class="h-full w-full" style="background-color: #9ca3af !important;">
                                                 </div>
                                             @else
-                                                <!-- 既存顧客 - 鮮やかな青色 -->
-                                                <div class="h-full w-full cursor-pointer hover:opacity-80 flex items-center justify-center text-white text-xs font-bold transition-all"
-                                                     style="background-color: #3b82f6 !important;"
-                                                     wire:click="openReservationModal({{ $reservation->id }})"
-                                                     title="{{ $reservation->customer->last_name }}{{ $reservation->customer->first_name }}様 (既存) - クリックで詳細">
-                                                    ●既
+                                                <!-- 空き時間 - 明るい灰色 -->
+                                                <div class="h-full w-full hover:bg-gray-100 transition-colors" style="background-color: #f9fafb !important;">
                                                 </div>
                                             @endif
-                                        @elseif($isCurrentTimeSlot)
-                                            <!-- 現在時刻 -->
-                                            <div class="h-full w-full border-l-2 border-r-2 border-red-600 flex items-center justify-center" style="background-color: #fbbf24 !important;">
-                                                <span class="text-xs text-red-700 font-bold">NOW</span>
-                                            </div>
-                                        @elseif(!$isBusinessHour)
-                                            <!-- 営業時間外 - 濃いグレー -->
-                                            <div class="h-full w-full" style="background-color: #9ca3af !important;">
-                                            </div>
-                                        @else
-                                            <!-- 空き時間 - 明るい灰色 -->
-                                            <div class="h-full w-full hover:bg-gray-100 transition-colors" style="background-color: #f9fafb !important;">
-                                            </div>
-                                        @endif
-                                    </td>
+                                        </td>
+                                    @endif
                                 @endforeach
                             </tr>
                         @endforeach
@@ -167,87 +203,7 @@
                 </table>
             </div>
 
-            <!-- 予約詳細モーダル -->
-            @if($showReservationModal && $this->getSelectedReservation())
-                @php
-                    $selectedReservation = $this->getSelectedReservation();
-                @endphp
-                <div class="fixed inset-0 z-50 overflow-y-auto" wire:key="reservation-modal-{{ $selectedReservation->id }}">
-                    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center">
-                        <div class="fixed inset-0 transition-opacity" wire:click="closeReservationModal">
-                            <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
-                        </div>
-
-                        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border-2 border-gray-800">
-                            <div class="bg-white px-6 pt-6 pb-4">
-                                <h3 class="text-lg leading-6 font-bold text-gray-900 mb-4 border-b-2 border-gray-200 pb-2">
-                                    📋 予約詳細
-                                </h3>
-                                
-                                <div class="grid grid-cols-2 gap-4 text-sm">
-                                    <div class="col-span-2">
-                                        <label class="font-bold text-gray-700">顧客名</label>
-                                        <div class="text-gray-900 bg-gray-50 p-2 rounded border">
-                                            {{ $selectedReservation->customer->last_name ?? '' }} {{ $selectedReservation->customer->first_name ?? '' }} 様
-                                            @if($selectedReservation->is_new_customer)
-                                                <span class="ml-2 bg-green-200 text-green-800 px-2 py-1 rounded text-xs font-bold">新規</span>
-                                            @else
-                                                <span class="ml-2 bg-blue-200 text-blue-800 px-2 py-1 rounded text-xs">既存</span>
-                                            @endif
-                                        </div>
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="font-bold text-gray-700">電話番号</label>
-                                        <div class="text-gray-900 bg-gray-50 p-2 rounded border">{{ $selectedReservation->customer->phone ?? '-' }}</div>
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="font-bold text-gray-700">予約番号</label>
-                                        <div class="text-gray-900 bg-gray-50 p-2 rounded border font-mono text-xs">{{ $selectedReservation->reservation_number }}</div>
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="font-bold text-gray-700">日時</label>
-                                        <div class="text-gray-900 bg-gray-50 p-2 rounded border">
-                                            {{ $selectedReservation->reservation_date->format('Y/n/j') }}<br>
-                                            {{ $selectedReservation->start_time }} - {{ $selectedReservation->end_time }}
-                                        </div>
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="font-bold text-gray-700">店舗</label>
-                                        <div class="text-gray-900 bg-gray-50 p-2 rounded border">{{ $selectedReservation->store->name ?? '-' }}</div>
-                                    </div>
-                                    
-                                    <div class="col-span-2">
-                                        <label class="font-bold text-gray-700">メニュー</label>
-                                        <div class="text-gray-900 bg-gray-50 p-2 rounded border">{{ $selectedReservation->menu->name ?? '-' }}</div>
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="font-bold text-gray-700">金額</label>
-                                        <div class="text-lg font-bold text-green-600 bg-gray-50 p-2 rounded border">¥{{ number_format($selectedReservation->total_amount) }}</div>
-                                    </div>
-                                    
-                                    @if($selectedReservation->notes)
-                                        <div class="col-span-2">
-                                            <label class="font-bold text-gray-700">備考</label>
-                                            <div class="text-gray-900 bg-yellow-50 p-2 rounded border">{{ $selectedReservation->notes }}</div>
-                                        </div>
-                                    @endif
-                                </div>
-                            </div>
-                            <div class="bg-gray-100 px-6 py-3 border-t-2 border-gray-200">
-                                <button wire:click="closeReservationModal" type="button" 
-                                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded border-2 border-blue-800 transition-colors">
-                                    閉じる
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            @endif
+            <!-- 古いLivewireモーダルを削除 - JavaScriptモーダルに置き換え済み -->
 
             <!-- サマリー統計（エクセル風） -->
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -274,11 +230,11 @@
                 <h4 class="font-bold text-gray-900 mb-3 text-lg">📖 凡例</h4>
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
                     <div class="flex items-center">
-                        <div class="w-6 h-6 border border-gray-600 rounded mr-3 flex items-center justify-center text-white font-bold text-xs" style="background-color: #22c55e !important;">★新</div>
+                        <div class="w-6 h-6 border border-gray-600 rounded mr-3 reservation-cell new-customer">★新</div>
                         <span class="font-bold text-gray-800">新規顧客（クリック可能）</span>
                     </div>
                     <div class="flex items-center">
-                        <div class="w-6 h-6 border border-gray-600 rounded mr-3 flex items-center justify-center text-white font-bold text-xs" style="background-color: #3b82f6 !important;">●既</div>
+                        <div class="w-6 h-6 border border-gray-600 rounded mr-3 reservation-cell existing-customer">●既</div>
                         <span class="font-bold text-gray-800">既存顧客（クリック可能）</span>
                     </div>
                     <div class="flex items-center">
@@ -316,5 +272,123 @@
         .border-gray-600 {
             border-color: #4b5563 !important;
         }
+
+        /* シンプル予約セル */
+        .reservation-cell {
+            height: 100%;
+            width: 100%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            transition: opacity 0.2s;
+        }
+        
+        .reservation-cell:hover {
+            opacity: 0.8;
+        }
+        
+        /* 新規顧客 - 緑色 */
+        .new-customer {
+            background-color: #22c55e !important;
+        }
+        
+        /* 既存顧客 - 青色 */
+        .existing-customer {
+            background-color: #3b82f6 !important;
+        }
+
+        /* シンプルモーダル */
+        .simple-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 20px;
+            border: 2px solid #374151;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
     </style>
+
+    <script>
+        console.log('✅ ガントチャートJavaScript loaded');
+        
+        // グローバル関数として確実に定義
+        window.openReservationModalFromData = function(element) {
+            console.log('openReservationModalFromData called', element);
+            
+            try {
+                const modal = document.getElementById('reservationModal');
+                const content = document.getElementById('modalContent');
+                
+                console.log('Modal element:', modal);
+                console.log('Content element:', content);
+                
+                if (!modal || !content) {
+                    console.error('Modal elements not found');
+                    return;
+                }
+                
+                const customerName = element.dataset.customerName || 'Unknown';
+                const customerType = element.dataset.customerType || '不明';
+                
+                content.innerHTML = '<h3>📋 予約詳細</h3><p>顧客: ' + customerName + '</p><button onclick="closeReservationModal()">閉じる</button>';
+                modal.style.display = 'block';
+                
+                console.log('Modal displayed');
+            } catch (error) {
+                console.error('Error in openReservationModalFromData:', error);
+                alert('モーダルを開く際にエラーが発生しました: ' + error.message);
+            }
+        }
+        
+        // グローバル関数として定義
+        window.closeReservationModal = function() {
+            document.getElementById('reservationModal').style.display = 'none';
+        }
+        
+        // カルテを開く
+        window.openCustomerChart = function(customerId, customerName) {
+            const customerUrl = `/admin/customers/${customerId}`;
+            window.open(customerUrl, '_blank');
+            window.closeReservationModal();
+        }
+        
+        // 予約編集を開く
+        window.editReservation = function(reservationId) {
+            const editUrl = `/admin/reservations/${reservationId}/edit`;
+            window.open(editUrl, '_blank');
+            window.closeReservationModal();
+        }
+        
+        // モーダル外クリックで閉じる
+        window.onclick = function(event) {
+            const modal = document.getElementById('reservationModal');
+            if (event.target === modal) {
+                closeReservationModal();
+            }
+        }
+    </script>
+
+    <!-- シンプルモーダル -->
+    <div id="reservationModal" class="simple-modal">
+        <div class="modal-content" id="modalContent">
+        </div>
+    </div>
 </x-filament-widgets::widget>

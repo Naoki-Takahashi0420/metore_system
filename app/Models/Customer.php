@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Customer extends Model
 {
@@ -85,6 +87,22 @@ class Customer extends Model
     }
 
     /**
+     * 顧客ラベル
+     */
+    public function labels(): HasMany
+    {
+        return $this->hasMany(CustomerLabel::class);
+    }
+
+    /**
+     * LINEメッセージログ
+     */
+    public function lineMessageLogs(): HasMany
+    {
+        return $this->hasMany(LineMessageLog::class);
+    }
+
+    /**
      * リレーション: カルテ
      */
     public function medicalRecords()
@@ -93,29 +111,57 @@ class Customer extends Model
     }
 
     /**
-     * 指定された予約が新規顧客の初回予約かチェック
+     * 指定された予約が初回予約かチェック（シンプル版）
      */
     public function isFirstReservation(Reservation $targetReservation): bool
     {
-        $firstReservation = $this->reservations()
+        // この顧客の最初に作成された予約（ID最小）= 初回予約
+        $firstReservationId = $this->reservations()
             ->whereNotIn('status', ['cancelled', 'canceled'])
-            ->orderBy('reservation_date')
-            ->orderBy('start_time')
-            ->orderBy('id')
-            ->first();
+            ->min('id');
             
-        return $firstReservation && $firstReservation->id === $targetReservation->id;
+        return $targetReservation->id === $firstReservationId;
     }
 
     /**
-     * 新規顧客かどうか（有効な予約が1件以下）
+     * サブスクリプション契約（複数可）
      */
-    public function isNewCustomer(): bool
+    public function subscriptions(): HasMany
     {
-        $reservationCount = $this->reservations()
-            ->whereNotIn('status', ['cancelled', 'canceled'])
-            ->count();
-            
-        return $reservationCount <= 1;
+        return $this->hasMany(CustomerSubscription::class);
+    }
+
+    /**
+     * アクティブなサブスクリプション
+     */
+    public function activeSubscription(): HasOne
+    {
+        return $this->hasOne(CustomerSubscription::class)
+            ->where('status', 'active')
+            ->where('start_date', '<=', now())
+            ->where(function ($query) {
+                $query->whereNull('end_date')
+                    ->orWhere('end_date', '>=', now());
+            })
+            ->latest();
+    }
+
+    /**
+     * サブスクリプション契約中かチェック
+     */
+    public function hasActiveSubscription(): bool
+    {
+        return $this->activeSubscription()->exists();
+    }
+
+    /**
+     * 特定店舗のサブスクリプションを取得
+     */
+    public function getSubscriptionForStore($storeId): ?CustomerSubscription
+    {
+        return $this->subscriptions()
+            ->where('store_id', $storeId)
+            ->where('status', 'active')
+            ->first();
     }
 }

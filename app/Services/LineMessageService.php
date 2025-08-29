@@ -1,0 +1,208 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Reservation;
+use App\Models\Customer;
+use App\Models\Store;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
+
+class LineMessageService
+{
+    private $channelToken;
+    private $apiUrl = 'https://api.line.me/v2/bot/message/push';
+    
+    public function __construct()
+    {
+        $this->channelToken = env('LINE_CHANNEL_ACCESS_TOKEN');
+    }
+    
+    /**
+     * ① 予約確認メッセージを送る
+     */
+    public function sendReservationConfirmation(Reservation $reservation)
+    {
+        $customer = $reservation->customer;
+        $lineUserId = $customer->line_user_id ?? null;
+        
+        if (!$lineUserId) {
+            return false;
+        }
+        
+        $message = $this->buildConfirmationMessage($reservation);
+        
+        return $this->sendMessage($lineUserId, $message);
+    }
+    
+    /**
+     * ② リマインダーを送る（時間指定）
+     */
+    public function sendReminder(Reservation $reservation, string $timing)
+    {
+        $customer = $reservation->customer;
+        $lineUserId = $customer->line_user_id ?? null;
+        
+        if (!$lineUserId) {
+            return false;
+        }
+        
+        $message = $this->buildReminderMessage($reservation, $timing);
+        
+        return $this->sendMessage($lineUserId, $message);
+    }
+    
+    /**
+     * ③ プロモーション一斉送信
+     */
+    public function sendPromotion(string $message, array $customerIds = [])
+    {
+        // 対象顧客を取得
+        $query = Customer::whereNotNull('line_user_id');
+        
+        if (!empty($customerIds)) {
+            $query->whereIn('id', $customerIds);
+        }
+        
+        $customers = $query->get();
+        $successCount = 0;
+        
+        foreach ($customers as $customer) {
+            if ($this->sendMessage($customer->line_user_id, $message)) {
+                $successCount++;
+            }
+            // レート制限対策で少し待機
+            usleep(100000); // 0.1秒
+        }
+        
+        return [
+            'total' => $customers->count(),
+            'success' => $successCount
+        ];
+    }
+    
+    /**
+     * ④ 初回客フォロー（30日/60日後）
+     */
+    public function sendFirstTimeFollowUp(Customer $customer, int $days)
+    {
+        $lineUserId = $customer->line_user_id ?? null;
+        
+        if (!$lineUserId) {
+            return false;
+        }
+        
+        $message = $this->buildFollowUpMessage($customer, $days);
+        
+        return $this->sendMessage($lineUserId, $message);
+    }
+    
+    /**
+     * LINE APIでメッセージ送信
+     */
+    private function sendMessage(string $lineUserId, string $text)
+    {
+        if (!$this->channelToken) {
+            Log::warning('LINE Channel Token is not set');
+            return false;
+        }
+        
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $this->channelToken,
+                'Content-Type' => 'application/json',
+            ])->post($this->apiUrl, [
+                'to' => $lineUserId,
+                'messages' => [
+                    [
+                        'type' => 'text',
+                        'text' => $text
+                    ]
+                ]
+            ]);
+            
+            if ($response->successful()) {
+                Log::info('LINE message sent successfully', ['user_id' => $lineUserId]);
+                return true;
+            } else {
+                Log::error('LINE API error', [
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
+                return false;
+            }
+        } catch (\Exception $e) {
+            Log::error('LINE message send failed', [
+                'error' => $e->getMessage(),
+                'user_id' => $lineUserId
+            ]);
+            return false;
+        }
+    }
+    
+    /**
+     * 予約確認メッセージ作成
+     */
+    private function buildConfirmationMessage(Reservation $reservation): string
+    {
+        $date = Carbon::parse($reservation->reservation_date)->format('Y年m月d日');
+        $time = Carbon::parse($reservation->reservation_date)->format('H:i');
+        
+        return "🎉 ご予約ありがとうございます！\n\n" .
+               "📅 日時: {$date} {$time}\n" .
+               "📍 店舗: {$reservation->store->name}\n" .
+               "💡 メニュー: {$reservation->menu->name}\n\n" .
+               "ご不明な点がございましたらお気軽にお問い合わせください。\n" .
+               "当日お会いできることを楽しみにしております！";
+    }
+    
+    /**
+     * リマインダーメッセージ作成
+     */
+    private function buildReminderMessage(Reservation $reservation, string $timing): string
+    {
+        $date = Carbon::parse($reservation->reservation_date)->format('Y年m月d日');
+        $time = Carbon::parse($reservation->reservation_date)->format('H:i');
+        
+        $timingText = match($timing) {
+            '24h' => '明日',
+            '3h' => '本日',
+            '1h' => 'まもなく',
+            default => ''
+        };
+        
+        return "⏰ 予約リマインダー\n\n" .
+               "{$timingText}のご予約をお忘れなく！\n\n" .
+               "📅 日時: {$date} {$time}\n" .
+               "📍 店舗: {$reservation->store->name}\n" .
+               "💡 メニュー: {$reservation->menu->name}\n\n" .
+               "お気をつけてお越しください。";
+    }
+    
+    /**
+     * フォローアップメッセージ作成
+     */
+    private function buildFollowUpMessage(Customer $customer, int $days): string
+    {
+        $name = $customer->name ?? 'お客様';
+        
+        if ($days === 30) {
+            return "{$name}様\n\n" .
+                   "先日はご来店ありがとうございました！\n" .
+                   "その後、目の調子はいかがですか？\n\n" .
+                   "継続的なトレーニングが効果的です。\n" .
+                   "ぜひ2回目のご予約もご検討ください。\n\n" .
+                   "🎁 今なら2回目10%OFFクーポンをプレゼント！\n" .
+                   "ご予約はこちら: [予約URL]";
+        } else {
+            return "{$name}様\n\n" .
+                   "ご無沙汰しております。\n" .
+                   "前回のご来店から2ヶ月が経ちました。\n\n" .
+                   "視力トレーニングの効果を維持するために、\n" .
+                   "定期的なメンテナンスをおすすめします。\n\n" .
+                   "🎁 特別割引20%OFFでご案内いたします。\n" .
+                   "ご予約はこちら: [予約URL]";
+        }
+    }
+}

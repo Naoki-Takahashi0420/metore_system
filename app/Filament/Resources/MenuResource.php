@@ -22,6 +22,7 @@ class MenuResource extends Resource
 
     protected static ?string $pluralModelLabel = 'メニュー';
 
+    protected static ?string $navigationGroup = 'メニュー管理';
     protected static ?int $navigationSort = 2;
 
     public static function form(Form $form): Form
@@ -39,16 +40,24 @@ class MenuResource extends Resource
                             ->label('メニュー名')
                             ->required()
                             ->maxLength(100),
-                        Forms\Components\Select::make('category')
+                        Forms\Components\Select::make('category_id')
                             ->label('カテゴリー')
-                            ->options([
-                                'vision_training' => '視力トレーニング',
-                                'vr_training' => 'VRトレーニング',
-                                'eye_care' => 'アイケア',
-                                'consultation' => 'カウンセリング',
-                                'other' => 'その他',
+                            ->relationship(
+                                'menuCategory',
+                                'name',
+                                fn ($query) => $query->where('is_active', true)->orderBy('sort_order')
+                            )
+                            ->required()
+                            ->createOptionForm([
+                                Forms\Components\TextInput::make('name')
+                                    ->label('カテゴリー名')
+                                    ->required(),
+                                Forms\Components\TextInput::make('sort_order')
+                                    ->label('表示順')
+                                    ->numeric()
+                                    ->default(0),
                             ])
-                            ->required(),
+                            ->helperText('新しいカテゴリーを作成できます'),
                         Forms\Components\Textarea::make('description')
                             ->label('説明')
                             ->rows(3)
@@ -79,17 +88,31 @@ class MenuResource extends Resource
                             ->required()
                             ->prefix('¥')
                             ->suffixIcon('heroicon-m-currency-yen'),
-                        Forms\Components\TextInput::make('duration')
-                            ->label('所要時間（分）')
-                            ->numeric()
+                        Forms\Components\Select::make('duration_minutes')
+                            ->label('所要時間')
+                            ->options([
+                                30 => '30分',
+                                50 => '50分',
+                                80 => '80分',
+                                0 => 'オプション（時間なし）',
+                            ])
                             ->required()
-                            ->minValue(0)
-                            ->maxValue(480)
-                            ->suffix('分')
-                            ->helperText('オプションメニューの場合は0分も可能'),
+                            ->helperText('コースの時間を選択'),
                         Forms\Components\Toggle::make('is_available')
                             ->label('利用可能')
                             ->default(true),
+                        Forms\Components\Toggle::make('is_visible_to_customer')
+                            ->label('顧客に表示')
+                            ->default(true)
+                            ->helperText('オフにすると管理画面のみで表示'),
+                        Forms\Components\Toggle::make('is_subscription_only')
+                            ->label('サブスク限定')
+                            ->default(false)
+                            ->helperText('サブスク契約者のみ利用可'),
+                        Forms\Components\Toggle::make('requires_staff')
+                            ->label('スタッフ指定必須')
+                            ->default(false)
+                            ->helperText('スタッフ指名が必要なメニュー'),
                         Forms\Components\Toggle::make('show_in_upsell')
                             ->label('オプションメニューとして表示')
                             ->helperText('ONにすると「ご一緒にいかがですか？」で追加提案されます。OFFの場合は通常のメインメニューとして表示されます。')
@@ -168,39 +191,28 @@ class MenuResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->label('メニュー名')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('category')
+                Tables\Columns\TextColumn::make('menuCategory.name')
                     ->label('カテゴリー')
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'vision_training' => '視力トレーニング',
-                        'vr_training' => 'VRトレーニング',
-                        'eye_care' => 'アイケア',
-                        'consultation' => 'カウンセリング',
-                        'other' => 'その他',
-                        default => $state,
-                    })
-                    ->badge(),
+                    ->badge()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('price')
                     ->label('料金')
                     ->money('JPY')
                     ->sortable(),
-                Tables\Columns\TextColumn::make('duration')
+                Tables\Columns\TextColumn::make('duration_minutes')
                     ->label('所要時間')
-                    ->formatStateUsing(fn (int $state): string => "{$state}分")
+                    ->formatStateUsing(fn (?int $state): string => $state ? "{$state}分" : '-')
                     ->sortable(),
-                Tables\Columns\IconColumn::make('is_featured')
-                    ->label('おすすめ')
+                Tables\Columns\IconColumn::make('is_available')
+                    ->label('利用可')
                     ->boolean(),
-                Tables\Columns\BadgeColumn::make('status')
-                    ->label('状態')
-                    ->colors([
-                        'success' => 'active',
-                        'danger' => 'inactive',
-                    ])
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'active' => '有効',
-                        'inactive' => '無効',
-                        default => $state,
-                    }),
+                Tables\Columns\IconColumn::make('is_visible_to_customer')
+                    ->label('顧客表示')
+                    ->boolean(),
+                Tables\Columns\IconColumn::make('is_subscription_only')
+                    ->label('サブスク')
+                    ->boolean()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('登録日')
                     ->dateTime()
@@ -211,8 +223,11 @@ class MenuResource extends Resource
                 Tables\Filters\SelectFilter::make('store_id')
                     ->label('店舗')
                     ->relationship('store', 'name'),
-                Tables\Filters\SelectFilter::make('category')
+                Tables\Filters\SelectFilter::make('category_id')
                     ->label('カテゴリー')
+                    ->relationship('menuCategory', 'name'),
+                Tables\Filters\SelectFilter::make('duration_minutes')
+                    ->label('時間')
                     ->options([
                         'vision_training' => '視力トレーニング',
                         'vr_training' => 'VRトレーニング',
@@ -220,14 +235,12 @@ class MenuResource extends Resource
                         'consultation' => 'カウンセリング',
                         'other' => 'その他',
                     ]),
-                Tables\Filters\SelectFilter::make('status')
-                    ->label('状態')
-                    ->options([
-                        'active' => '有効',
-                        'inactive' => '無効',
-                    ]),
-                Tables\Filters\TernaryFilter::make('is_featured')
-                    ->label('おすすめメニュー'),
+                Tables\Filters\TernaryFilter::make('is_available')
+                    ->label('利用可能'),
+                Tables\Filters\TernaryFilter::make('is_visible_to_customer')
+                    ->label('顧客表示'),
+                Tables\Filters\TernaryFilter::make('is_subscription_only')
+                    ->label('サブスク限定'),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),

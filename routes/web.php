@@ -38,9 +38,16 @@ Route::get('/stores', function () {
 // 古い予約フローのルートを削除済み（2025-08-27）
 // 現在は○×形式のカレンダー（/reservation/calendar）を使用
 
-// Public reservation routes
+// Public reservation routes - 新フロー（カテゴリー→時間→カレンダー）
 Route::get('/reservation/store', [App\Http\Controllers\PublicReservationController::class, 'selectStore'])->name('reservation.select-store');
 Route::post('/reservation/store-selection', [App\Http\Controllers\PublicReservationController::class, 'storeStoreSelection'])->name('reservation.store-store');
+
+// 新しい予約フロー
+Route::get('/reservation/category', [App\Http\Controllers\PublicReservationController::class, 'selectCategory'])->name('reservation.select-category');
+Route::post('/reservation/time', [App\Http\Controllers\PublicReservationController::class, 'selectTime'])->name('reservation.select-time');
+Route::post('/reservation/store-menu', [App\Http\Controllers\PublicReservationController::class, 'storeMenu'])->name('reservation.store-menu');
+
+// 互換性保持用（旧ルート）
 Route::get('/reservation/menu', [App\Http\Controllers\PublicReservationController::class, 'selectMenu'])->name('reservation.menu');
 Route::get('/reservation/menu/{store_id}', [App\Http\Controllers\PublicReservationController::class, 'selectMenuWithStore'])->name('reservation.menu-with-store');
 Route::post('/reservation/select-menu', [App\Http\Controllers\PublicReservationController::class, 'storeMenu'])->name('reservation.select-menu');

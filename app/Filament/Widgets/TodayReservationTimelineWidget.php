@@ -73,15 +73,9 @@ class TodayReservationTimelineWidget extends Widget
         
         $reservations = $reservationsQuery->get();
         
-        // 新規顧客の判定（表示時点での判定を固定してリアルタイム変更を防ぐ）
+        // 新規顧客の判定（シンプル版：顧客の初回予約=新規）
         $reservations->transform(function ($reservation) {
-            // 初回表示時の判定結果を保存
-            $isNewCustomer = $reservation->customer->isFirstReservation($reservation);
-            $reservation->is_new_customer = $isNewCustomer;
-            
-            // モーダル表示時にも同じ結果を使用するため保存
-            $reservation->setAttribute('display_as_new_customer', $isNewCustomer);
-            
+            $reservation->is_new_customer = $reservation->customer->isFirstReservation($reservation);
             return $reservation;
         });
         
@@ -152,8 +146,8 @@ class TodayReservationTimelineWidget extends Widget
         $this->selectedReservationId = null;
         $this->showReservationModal = false;
         
-        // モーダルを閉じた時にキャッシュをクリアして、次回表示時に正しいデータを使用
-        $this->refreshData();
+        // refreshData()を削除 - キャッシュクリアしない（色変更防止）
+        // $this->refreshData();
     }
     
     public function getSelectedReservation(): ?Reservation
@@ -162,7 +156,7 @@ class TodayReservationTimelineWidget extends Widget
             return null;
         }
         
-        // キャッシュされた予約データから探す（表示時点での判定を維持）
+        // キャッシュされた予約データから取得（色が変わらない）
         $cachedReservations = $this->getData()['reservations'];
         $cachedReservation = $cachedReservations->where('id', $this->selectedReservationId)->first();
         
@@ -170,14 +164,12 @@ class TodayReservationTimelineWidget extends Widget
             return $cachedReservation;
         }
         
-        // キャッシュにない場合のフォールバック
+        // フォールバック（通常は使われない）
         $reservation = Reservation::with(['customer', 'menu', 'store'])
             ->find($this->selectedReservationId);
             
         if ($reservation) {
-            // 表示時点での判定を再現（リアルタイム更新の影響を受けない）
-            $reservation->is_new_customer = $reservation->display_as_new_customer ?? 
-                $reservation->customer->isFirstReservation($reservation);
+            $reservation->is_new_customer = $reservation->customer->isFirstReservation($reservation);
         }
         
         return $reservation;

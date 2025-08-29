@@ -52,7 +52,7 @@
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
         ],
-        "timeout": 90000
+        "timeout": 60000
       }
     ],
     "shard": null,
@@ -79,7 +79,7 @@
           "tags": [],
           "tests": [
             {
-              "timeout": 90000,
+              "timeout": 60000,
               "annotations": [],
               "expectedStatus": "passed",
               "projectId": "chromium",
@@ -89,25 +89,25 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "failed",
-                  "duration": 36454,
+                  "duration": 29421,
                   "error": {
-                    "message": "TimeoutError: page.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('text=予約カレンダー')\u001b[22m\n\u001b[2m    - locator resolved to <span x-show=\"$store.sidebar.isOpen\" x-transition:enter-start=\"opacity-0\" x-transition:enter-end=\"opacity-100\" x-transition:enter=\"lg:transition lg:delay-100\" class=\"fi-sidebar-item-label flex-1 truncate text-sm font-medium text-gray-700 dark:text-gray-200\">↵            予約カレンダー↵        </span>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    56 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is not visible\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n",
-                    "stack": "TimeoutError: page.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('text=予約カレンダー')\u001b[22m\n\u001b[2m    - locator resolved to <span x-show=\"$store.sidebar.isOpen\" x-transition:enter-start=\"opacity-0\" x-transition:enter-end=\"opacity-100\" x-transition:enter=\"lg:transition lg:delay-100\" class=\"fi-sidebar-item-label flex-1 truncate text-sm font-medium text-gray-700 dark:text-gray-200\">↵            予約カレンダー↵        </span>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    56 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is not visible\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/check-gantt-chart.spec.js:33:16",
+                    "message": "Error: expect.toBeVisible: Error: strict mode violation: locator('table') resolved to 4 elements:\n    1) <table class=\"w-full border-collapse border-2 border-gray-800\">…</table> aka getByRole('table')\n    2) <table role=\"grid\" class=\"fc-scrollgrid  fc-scrollgrid-liquid\">…</table> aka getByText('日月火水木金土27日15時🕐 15:00-15:30')\n    3) <table role=\"presentation\" class=\"fc-col-header \">…</table> aka locator('table').filter({ hasText: /^日月火水木金土$/ })\n    4) <table role=\"presentation\" class=\"fc-scrollgrid-sync-table\">…</table> aka getByRole('rowgroup').filter({ hasText: '27日15時🕐 15:00-15:30' }).locator('table')\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('table')\u001b[22m\n",
+                    "stack": "Error: expect.toBeVisible: Error: strict mode violation: locator('table') resolved to 4 elements:\n    1) <table class=\"w-full border-collapse border-2 border-gray-800\">…</table> aka getByRole('table')\n    2) <table role=\"grid\" class=\"fc-scrollgrid  fc-scrollgrid-liquid\">…</table> aka getByText('日月火水木金土27日15時🕐 15:00-15:30')\n    3) <table role=\"presentation\" class=\"fc-col-header \">…</table> aka locator('table').filter({ hasText: /^日月火水木金土$/ })\n    4) <table role=\"presentation\" class=\"fc-scrollgrid-sync-table\">…</table> aka getByRole('rowgroup').filter({ hasText: '27日15時🕐 15:00-15:30' }).locator('table')\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('table')\u001b[22m\n\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/check-gantt-chart.spec.js:44:23",
                     "location": {
                       "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/check-gantt-chart.spec.js",
-                      "column": 16,
-                      "line": 33
+                      "column": 23,
+                      "line": 44
                     },
-                    "snippet": "  31 |     await page.click('text=予約管理');\n  32 |     await page.waitForTimeout(1000);\n> 33 |     await page.click('text=予約カレンダー');\n     |                ^\n  34 |   }\n  35 |   \n  36 |   // ページが読み込まれるのを待つ"
+                    "snippet": "  42 |   // テーブルの存在確認\n  43 |   const table = page.locator('table');\n> 44 |   await expect(table).toBeVisible();\n     |                       ^\n  45 |   \n  46 |   // 予約セルの確認\n  47 |   const reservationCells = page.locator('.reservation-cell');"
                   },
                   "errors": [
                     {
                       "location": {
                         "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/check-gantt-chart.spec.js",
-                        "column": 16,
-                        "line": 33
+                        "column": 23,
+                        "line": 44
                       },
-                      "message": "TimeoutError: page.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('text=予約カレンダー')\u001b[22m\n\u001b[2m    - locator resolved to <span x-show=\"$store.sidebar.isOpen\" x-transition:enter-start=\"opacity-0\" x-transition:enter-end=\"opacity-100\" x-transition:enter=\"lg:transition lg:delay-100\" class=\"fi-sidebar-item-label flex-1 truncate text-sm font-medium text-gray-700 dark:text-gray-200\">↵            予約カレンダー↵        </span>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    56 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is not visible\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n\n\n  31 |     await page.click('text=予約管理');\n  32 |     await page.waitForTimeout(1000);\n> 33 |     await page.click('text=予約カレンダー');\n     |                ^\n  34 |   }\n  35 |   \n  36 |   // ページが読み込まれるのを待つ\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/check-gantt-chart.spec.js:33:16"
+                      "message": "Error: expect.toBeVisible: Error: strict mode violation: locator('table') resolved to 4 elements:\n    1) <table class=\"w-full border-collapse border-2 border-gray-800\">…</table> aka getByRole('table')\n    2) <table role=\"grid\" class=\"fc-scrollgrid  fc-scrollgrid-liquid\">…</table> aka getByText('日月火水木金土27日15時🕐 15:00-15:30')\n    3) <table role=\"presentation\" class=\"fc-col-header \">…</table> aka locator('table').filter({ hasText: /^日月火水木金土$/ })\n    4) <table role=\"presentation\" class=\"fc-scrollgrid-sync-table\">…</table> aka getByRole('rowgroup').filter({ hasText: '27日15時🕐 15:00-15:30' }).locator('table')\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('table')\u001b[22m\n\n\n  42 |   // テーブルの存在確認\n  43 |   const table = page.locator('table');\n> 44 |   await expect(table).toBeVisible();\n     |                       ^\n  45 |   \n  46 |   // 予約セルの確認\n  47 |   const reservationCells = page.locator('.reservation-cell');\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/check-gantt-chart.spec.js:44:23"
                     }
                   ],
                   "stdout": [
@@ -117,7 +117,7 @@
                   ],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2025-08-28T00:19:16.848Z",
+                  "startTime": "2025-08-28T00:56:06.825Z",
                   "annotations": [],
                   "attachments": [
                     {
@@ -138,15 +138,15 @@
                   ],
                   "errorLocation": {
                     "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/check-gantt-chart.spec.js",
-                    "column": 16,
-                    "line": 33
+                    "column": 23,
+                    "line": 44
                   }
                 },
                 {
                   "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "failed",
-                  "duration": 33063,
+                  "duration": 32863,
                   "error": {
                     "message": "TimeoutError: page.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('text=予約管理')\u001b[22m\n\u001b[2m    - waiting for\" http://127.0.0.1:8000/admin\" navigation to finish...\u001b[22m\n\u001b[2m    - navigated to \"http://127.0.0.1:8000/admin/login\"\u001b[22m\n",
                     "stack": "TimeoutError: page.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('text=予約管理')\u001b[22m\n\u001b[2m    - waiting for\" http://127.0.0.1:8000/admin\" navigation to finish...\u001b[22m\n\u001b[2m    - navigated to \"http://127.0.0.1:8000/admin/login\"\u001b[22m\n\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/check-gantt-chart.spec.js:31:16",
@@ -174,7 +174,7 @@
                   ],
                   "stderr": [],
                   "retry": 1,
-                  "startTime": "2025-08-28T00:19:54.716Z",
+                  "startTime": "2025-08-28T00:56:37.841Z",
                   "annotations": [],
                   "attachments": [
                     {
@@ -218,8 +218,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-08-28T00:19:16.379Z",
-    "duration": 72211.077,
+    "startTime": "2025-08-28T00:56:06.349Z",
+    "duration": 65340.961,
     "expected": 0,
     "skipped": 0,
     "unexpected": 1,

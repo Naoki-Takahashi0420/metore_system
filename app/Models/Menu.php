@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Menu extends Model
 {
@@ -12,12 +13,17 @@ class Menu extends Model
     protected $fillable = [
         'store_id',
         'category',
+        'category_id',
         'name',
         'description',
         'price',
         'duration',
+        'duration_minutes',
         'image_path',
         'is_available',
+        'is_visible_to_customer',
+        'is_subscription_only',
+        'requires_staff',
         'is_option',
         'show_in_upsell',
         'upsell_description',
@@ -33,7 +39,11 @@ class Menu extends Model
     protected $casts = [
         'price' => 'decimal:2',
         'duration' => 'integer',
+        'duration_minutes' => 'integer',
         'is_available' => 'boolean',
+        'is_visible_to_customer' => 'boolean',
+        'is_subscription_only' => 'boolean',
+        'requires_staff' => 'boolean',
         'is_option' => 'boolean',
         'show_in_upsell' => 'boolean',
         'medical_record_only' => 'boolean',
@@ -43,6 +53,14 @@ class Menu extends Model
         'options' => 'array',
         'tags' => 'array',
     ];
+
+    /**
+     * リレーション: カテゴリー
+     */
+    public function menuCategory(): BelongsTo
+    {
+        return $this->belongsTo(MenuCategory::class, 'category_id');
+    }
 
     /**
      * リレーション: 店舗

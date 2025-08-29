@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Store;
 use App\Models\Menu;
+use App\Models\MenuCategory;
 use App\Models\Reservation;
 use App\Models\Customer;
+use App\Models\CustomerSubscription;
+use App\Models\CustomerAccessToken;
 use App\Models\BlockedTimePeriod;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -14,8 +17,31 @@ use Illuminate\Support\Facades\Session;
 
 class PublicReservationController extends Controller
 {
-    public function selectStore()
+    public function selectStore(Request $request)
     {
+        // トークンがある場合の処理
+        if ($token = $request->get('token')) {
+            $accessToken = CustomerAccessToken::where('token', $token)
+                ->with(['customer', 'store'])
+                ->first();
+                
+            if ($accessToken && $accessToken->isValid()) {
+                // トークン使用を記録
+                $accessToken->recordUsage();
+                
+                // 顧客情報をセッションに保存
+                Session::put('customer_id', $accessToken->customer_id);
+                Session::put('is_existing_customer', true);
+                Session::put('access_token_id', $accessToken->id);
+                
+                // 店舗が指定されている場合は直接カテゴリー選択へ
+                if ($accessToken->store_id) {
+                    Session::put('selected_store_id', $accessToken->store_id);
+                    return redirect()->route('reservation.select-category');
+                }
+            }
+        }
+        
         $stores = Store::where('is_active', true)->get();
         return view('reservation.store-select', compact('stores'));
     }
@@ -27,10 +53,14 @@ class PublicReservationController extends Controller
         ]);
         
         Session::put('selected_store_id', $validated['store_id']);
-        return redirect()->route('reservation.menu');
+        // 新フロー：カテゴリー選択へ
+        return redirect()->route('reservation.select-category');
     }
     
-    public function selectMenu(Request $request)
+    /**
+     * メニューカテゴリー選択
+     */
+    public function selectCategory(Request $request)
     {
         // 店舗が選択されていない場合は店舗選択へ
         $storeId = Session::get('selected_store_id');
@@ -40,11 +70,45 @@ class PublicReservationController extends Controller
         
         $store = Store::find($storeId);
         
+        // アクティブなカテゴリーを取得
+        $categories = MenuCategory::where('store_id', $storeId)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+            
+        return view('reservation.category-select', compact('categories', 'store'));
+    }
+    
+    /**
+     * 時間・料金選択
+     */
+    public function selectTime(Request $request)
+    {
+        $validated = $request->validate([
+            'category_id' => 'required|exists:menu_categories,id'
+        ]);
+        
+        Session::put('selected_category_id', $validated['category_id']);
+        
+        $storeId = Session::get('selected_store_id');
+        $store = Store::find($storeId);
+        $category = MenuCategory::find($validated['category_id']);
+        
         // カルテからの予約かチェック
         $isFromMedicalRecord = $request->get('from_medical_record', false);
         $customerId = $request->get('customer_id');
         
-        // 顧客が新規か既存かを判定
+        // 顧客のサブスクリプション状態を確認
+        $hasSubscription = false;
+        if ($customerId) {
+            $customer = Customer::find($customerId);
+            if ($customer) {
+                $hasSubscription = $customer->hasActiveSubscription();
+            }
+        }
+        
+        // 新規・既存判定
         $isNewCustomer = true;
         if ($customerId) {
             $existingReservations = Reservation::where('customer_id', $customerId)
@@ -53,21 +117,45 @@ class PublicReservationController extends Controller
             $isNewCustomer = $existingReservations === 0;
         }
         
-        // 適切なメニューを取得
+        // カテゴリーに属するメニューを時間別に取得
         $menusQuery = Menu::where('store_id', $storeId)
+            ->where('category_id', $validated['category_id'])
             ->where('is_available', true)
-            ->where('show_in_upsell', false);  // メインメニューのみ
+            ->where('is_visible_to_customer', true);
             
-        // forCustomerTypeスコープが存在する場合のみ適用
-        if (method_exists(Menu::class, 'scopeForCustomerType')) {
-            $menusQuery->forCustomerType($isNewCustomer, $isFromMedicalRecord);
+        // サブスク限定メニューのフィルタリング
+        if (!$hasSubscription) {
+            $menusQuery->where('is_subscription_only', false);
         }
         
-        $menus = $menusQuery->orderBy('display_order')
-            ->orderBy('id')
+        // 顧客タイプ制限の適用
+        if ($isNewCustomer) {
+            $menusQuery->whereIn('customer_type_restriction', ['all', 'new']);
+        } else {
+            $menusQuery->whereIn('customer_type_restriction', ['all', 'existing']);
+        }
+        
+        // カルテからのみ予約可能なメニューのフィルタリング
+        if (!$isFromMedicalRecord) {
+            $menusQuery->where('medical_record_only', false);
+        }
+        
+        $menus = $menusQuery->orderBy('duration_minutes')
+            ->orderBy('price')
             ->get();
             
-        return view('reservation.menu-select', compact('menus', 'store'));
+        // 時間別にグループ化
+        $menusByDuration = $menus->groupBy('duration_minutes');
+        
+        return view('reservation.time-select', compact('menusByDuration', 'store', 'category', 'hasSubscription'));
+    }
+    
+    /**
+     * 旧メニュー選択（互換性保持）
+     */
+    public function selectMenu(Request $request)
+    {
+        return $this->selectCategory($request);
     }
     
     public function selectMenuWithStore($storeId, Request $request)

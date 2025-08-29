@@ -16,3 +16,9 @@ Schedule::command('reminders:send --days=3')
 Schedule::command('reminders:send --days=1')
     ->dailyAt('17:00') // 毎日午後5時に実行  
     ->description('翌日の予約リマインダーSMS送信');
+
+// シンプルLINE処理
+Schedule::command('line:process')
+    ->everyThirtyMinutes() // 30分ごとに実行
+    ->between('8:00', '21:00') // 8時〜21時の間のみ
+    ->description('LINE自動メッセージ処理');
