@@ -130,6 +130,14 @@ class Reservation extends Model
     }
 
     /**
+     * リレーション: 予約オプション
+     */
+    public function reservationOptions()
+    {
+        return $this->hasMany(ReservationOption::class);
+    }
+
+    /**
      * スコープ: ステータス別
      */
     public function scopeByStatus($query, $status)

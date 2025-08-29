@@ -71,6 +71,14 @@ class Menu extends Model
     }
 
     /**
+     * リレーション: メニューオプション
+     */
+    public function options()
+    {
+        return $this->hasMany(MenuOption::class);
+    }
+
+    /**
      * スコープ: 利用可能なメニュー
      */
     public function scopeAvailable($query)

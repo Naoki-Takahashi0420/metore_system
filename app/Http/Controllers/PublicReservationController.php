@@ -297,6 +297,67 @@ class PublicReservationController extends Controller
         ));
     }
     
+    /**
+     * オプション選択画面
+     */
+    public function selectOptions(Request $request, Menu $menu)
+    {
+        $menu->load(['options' => function($query) {
+            $query->where('is_active', true)
+                  ->orderBy('sort_order')
+                  ->orderBy('name');
+        }]);
+        
+        return view('reservation.option-select', compact('menu'));
+    }
+    
+    /**
+     * オプション保存して次へ
+     */
+    public function storeOptions(Request $request)
+    {
+        $validated = $request->validate([
+            'menu_id' => 'required|exists:menus,id',
+            'options' => 'array',
+            'options.*.selected' => 'sometimes|boolean',
+            'options.*.quantity' => 'sometimes|integer|min:1',
+        ]);
+        
+        $menu = Menu::find($validated['menu_id']);
+        $selectedOptions = [];
+        $totalOptionPrice = 0;
+        $totalOptionDuration = 0;
+        
+        if (isset($validated['options'])) {
+            foreach ($validated['options'] as $optionId => $optionData) {
+                if (isset($optionData['selected']) && $optionData['selected']) {
+                    $option = MenuOption::find($optionId);
+                    if ($option && $option->menu_id == $menu->id) {
+                        $quantity = $optionData['quantity'] ?? 1;
+                        $selectedOptions[] = [
+                            'id' => $option->id,
+                            'name' => $option->name,
+                            'quantity' => $quantity,
+                            'price' => $option->price,
+                            'duration' => $option->duration_minutes,
+                        ];
+                        $totalOptionPrice += $option->price * $quantity;
+                        $totalOptionDuration += $option->duration_minutes * $quantity;
+                    }
+                }
+            }
+        }
+        
+        // セッションに保存
+        Session::put('selected_menu_id', $menu->id);
+        Session::put('selected_options', $selectedOptions);
+        Session::put('total_option_price', $totalOptionPrice);
+        Session::put('total_option_duration', $totalOptionDuration);
+        
+        // カレンダー選択へ
+        return redirect()->route('reservation.index');
+    }
+    
     private function generateAllTimeSlots($store)
     {
         $slots = [];

@@ -19,6 +19,7 @@
         "@tailwindcss/forms": "^0.5.10",
         "@tailwindcss/typography": "^0.5.16",
         "alpinejs": "^3.14.9",
-        "playwright": "^1.55.0"
+        "playwright": "^1.55.0",
+        "sortablejs": "^1.15.6"
     }
 }

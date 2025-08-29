@@ -45,6 +45,8 @@ Route::post('/reservation/store-selection', [App\Http\Controllers\PublicReservat
 // 新しい予約フロー
 Route::get('/reservation/category', [App\Http\Controllers\PublicReservationController::class, 'selectCategory'])->name('reservation.select-category');
 Route::post('/reservation/time', [App\Http\Controllers\PublicReservationController::class, 'selectTime'])->name('reservation.select-time');
+Route::get('/reservation/options/{menu}', [App\Http\Controllers\PublicReservationController::class, 'selectOptions'])->name('reservation.select-options');
+Route::post('/reservation/store-options', [App\Http\Controllers\PublicReservationController::class, 'storeOptions'])->name('reservation.store-options');
 Route::post('/reservation/store-menu', [App\Http\Controllers\PublicReservationController::class, 'storeMenu'])->name('reservation.store-menu');
 
 // 互換性保持用（旧ルート）
@@ -85,6 +87,10 @@ Route::prefix('customer')->group(function () {
         return view('customer.medical-records');
     });
 });
+
+// 管理画面用ルート
+Route::post('/admin/menu-categories/update-order', [App\Http\Controllers\Admin\MenuCategoryController::class, 'updateOrder'])
+    ->name('admin.menu-categories.update-order');
 
 // パスワードリセット用ルート
 Route::get('/admin/password-reset', [PasswordResetController::class, 'showRequestForm'])->name('password.request');
