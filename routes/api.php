@@ -50,6 +50,7 @@ Route::middleware('auth:sanctum')->prefix('customer')->group(function () {
     Route::get('reservations', [ReservationController::class, 'customerReservations']);
     Route::get('reservations/{id}', [ReservationController::class, 'customerReservationDetail']);
     Route::post('reservations/{id}/cancel', [ReservationController::class, 'cancelReservation']);
+    Route::put('reservations/{id}', [ReservationController::class, 'updateReservation']);
     // プロフィール管理
     Route::get('profile', [CustomerController::class, 'show']);
     Route::put('profile', [CustomerController::class, 'update']);
@@ -62,6 +63,9 @@ Route::middleware('auth:sanctum')->prefix('customer')->group(function () {
 
 // SMS配信停止（認証不要・トークンベース）
 Route::post('unsubscribe-sms', [NotificationPreferenceController::class, 'unsubscribe']);
+
+// LINE Webhook（店舗別）
+Route::post('line/webhook/{store_code}', [\App\Http\Controllers\LineWebhookController::class, 'handle']);
 
 // 勤怠管理API（認証必須）
 Route::middleware('auth:sanctum')->prefix('time-tracking')->group(function () {

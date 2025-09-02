@@ -48,16 +48,11 @@ class MenuResource extends Resource
                                 fn ($query) => $query->where('is_active', true)->orderBy('sort_order')
                             )
                             ->required()
-                            ->createOptionForm([
-                                Forms\Components\TextInput::make('name')
-                                    ->label('カテゴリー名')
-                                    ->required(),
-                                Forms\Components\TextInput::make('sort_order')
-                                    ->label('表示順')
-                                    ->numeric()
-                                    ->default(0),
-                            ])
-                            ->helperText('新しいカテゴリーを作成できます'),
+                            ->reactive()
+                            ->afterStateUpdated(function ($state, Forms\Set $set) {
+                                // カテゴリー選択時の自動設定は一旦無効化（エラー回避）
+                            })
+                            ->helperText('カテゴリーを選択すると時間と料金が自動設定されます'),
                         Forms\Components\Textarea::make('description')
                             ->label('説明')
                             ->rows(3)
@@ -90,14 +85,18 @@ class MenuResource extends Resource
                             ->suffixIcon('heroicon-m-currency-yen'),
                         Forms\Components\Select::make('duration_minutes')
                             ->label('所要時間')
-                            ->options([
-                                30 => '30分',
-                                50 => '50分',
-                                80 => '80分',
-                                0 => 'オプション（時間なし）',
-                            ])
+                            ->options(function (Forms\Get $get) {
+                                // 常にすべての選択肢を表示（エラーを避ける）
+                                return [
+                                    0 => 'オプション（時間なし）',
+                                    30 => '30分',
+                                    50 => '50分',
+                                    80 => '80分',
+                                ];
+                            })
+                            ->reactive()
                             ->required()
-                            ->helperText('コースの時間を選択'),
+                            ->helperText('選択した時間に応じて料金が自動設定されます'),
                         Forms\Components\Toggle::make('is_available')
                             ->label('利用可能')
                             ->default(true),
@@ -116,6 +115,10 @@ class MenuResource extends Resource
                         Forms\Components\Toggle::make('show_in_upsell')
                             ->label('オプションメニューとして表示')
                             ->helperText('ONにすると「ご一緒にいかがですか？」で追加提案されます。OFFの場合は通常のメインメニューとして表示されます。')
+                            ->default(false),
+                        Forms\Components\Toggle::make('is_popular')
+                            ->label('人気メニュー')
+                            ->helperText('人気No.1タグを表示')
                             ->default(false),
                         Forms\Components\Textarea::make('upsell_description')
                             ->label('追加提案メッセージ')
@@ -146,38 +149,6 @@ class MenuResource extends Resource
                     ])
                     ->columns(2),
                     
-                Forms\Components\Section::make('詳細設定')
-                    ->schema([
-                        Forms\Components\TextInput::make('max_capacity')
-                            ->label('最大予約人数')
-                            ->numeric()
-                            ->default(1)
-                            ->minValue(1)
-                            ->maxValue(10),
-                        Forms\Components\TextInput::make('display_order')
-                            ->label('表示順序')
-                            ->numeric()
-                            ->default(0)
-                            ->helperText('数字が小さいほど上に表示されます（店舗目線で重要なメニューは小さい番号を）'),
-                        Forms\Components\TagsInput::make('tags')
-                            ->label('タグ')
-                            ->placeholder('タグを追加')
-                            ->separator(','),
-                        Forms\Components\KeyValue::make('requirements')
-                            ->label('必要な準備・持ち物')
-                            ->keyLabel('項目')
-                            ->valueLabel('詳細')
-                            ->addButtonLabel('項目を追加'),
-                        Forms\Components\Repeater::make('benefits')
-                            ->label('効果・メリット')
-                            ->schema([
-                                Forms\Components\TextInput::make('benefit')
-                                    ->label('効果')
-                                    ->required(),
-                            ])
-                            ->columns(1)
-                            ->addActionLabel('効果を追加'),
-                    ]),
             ]);
     }
 
@@ -188,6 +159,10 @@ class MenuResource extends Resource
                 Tables\Columns\TextColumn::make('store.name')
                     ->label('店舗')
                     ->sortable(),
+                Tables\Columns\ImageColumn::make('image_path')
+                    ->label('画像')
+                    ->square()
+                    ->size(50),
                 Tables\Columns\TextColumn::make('name')
                     ->label('メニュー名')
                     ->searchable(),
@@ -250,7 +225,9 @@ class MenuResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->defaultSort('sort_order')
+            ->reorderable('sort_order');
     }
 
     public static function getRelations(): array

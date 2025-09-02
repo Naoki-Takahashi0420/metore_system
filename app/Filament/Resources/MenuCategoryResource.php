@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\MenuCategoryResource\Pages;
+use App\Filament\Resources\MenuCategoryResource\RelationManagers;
 use App\Models\MenuCategory;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -54,6 +55,15 @@ class MenuCategoryResource extends Resource
                             ->rows(3)
                             ->maxLength(500),
 
+                        Forms\Components\FileUpload::make('image_path')
+                            ->label('カテゴリー画像')
+                            ->image()
+                            ->directory('category-images')
+                            ->imageEditor()
+                            ->maxSize(5120)
+                            ->helperText('推奨サイズ: 1200x600px')
+                            ->columnSpanFull(),
+
                         Forms\Components\TextInput::make('sort_order')
                             ->label('表示順')
                             ->numeric()
@@ -66,6 +76,40 @@ class MenuCategoryResource extends Resource
                             ->helperText('無効にするとメニューが非表示になります'),
                     ])
                     ->columns(2),
+
+                Forms\Components\Section::make('時間・料金設定')
+                    ->description('このカテゴリーで提供可能な時間と料金を設定')
+                    ->schema([
+                        Forms\Components\CheckboxList::make('available_durations')
+                            ->label('提供時間')
+                            ->options([
+                                0 => 'オプション（時間なし）',
+                                30 => '30分',
+                                50 => '50分',  
+                                80 => '80分',
+                            ])
+                            ->columns(3)
+                            ->reactive()
+                            ->helperText('チェックした時間のメニューが作成可能になります'),
+
+                        Forms\Components\Grid::make(1)
+                            ->schema(fn ($get) => collect($get('available_durations') ?? [])
+                                ->map(fn ($duration) => 
+                                    Forms\Components\TextInput::make("duration_prices.{$duration}")
+                                        ->label("{$duration}分の基本料金")
+                                        ->numeric()
+                                        ->prefix('¥')
+                                        ->required()
+                                        ->default(match($duration) {
+                                            30 => 3000,
+                                            50 => 5000,
+                                            80 => 8000,
+                                            default => 0
+                                        })
+                                )
+                                ->toArray()
+                            ),
+                    ]),
             ]);
     }
 
@@ -78,6 +122,11 @@ class MenuCategoryResource extends Resource
                     ->sortable()
                     ->visible(auth()->user()->hasRole('super_admin')),
 
+                Tables\Columns\ImageColumn::make('image_path')
+                    ->label('画像')
+                    ->square()
+                    ->size(50),
+
                 Tables\Columns\TextColumn::make('name')
                     ->label('カテゴリー名')
                     ->searchable()
@@ -86,7 +135,29 @@ class MenuCategoryResource extends Resource
                 Tables\Columns\TextColumn::make('menus_count')
                     ->label('メニュー数')
                     ->counts('menus')
-                    ->badge(),
+                    ->badge()
+                    ->color(fn (int $state): string => match (true) {
+                        $state === 0 => 'danger',
+                        $state < 3 => 'warning',
+                        default => 'success',
+                    }),
+
+                Tables\Columns\TextColumn::make('available_durations')
+                    ->label('提供時間')
+                    ->formatStateUsing(function ($state) {
+                        if (!$state || (is_array($state) && empty($state))) {
+                            return '未設定';
+                        }
+                        if (is_string($state)) {
+                            $state = json_decode($state, true);
+                        }
+                        if (!$state || empty($state)) {
+                            return '未設定';
+                        }
+                        return collect($state)->map(fn($d) => "{$d}分")->join(', ');
+                    })
+                    ->badge()
+                    ->color(fn ($state) => (!$state || empty($state)) ? 'gray' : 'info'),
 
                 Tables\Columns\TextColumn::make('sort_order')
                     ->label('表示順')
@@ -116,7 +187,15 @@ class MenuCategoryResource extends Resource
                     ->placeholder('すべて'),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\Action::make('manage_menus')
+                    ->label('メニュー管理')
+                    ->icon('heroicon-o-list-bullet')
+                    ->color('success')
+                    ->url(fn ($record) => static::getUrl('edit', ['record' => $record]))
+                    ->tooltip('このカテゴリーのメニューを管理'),
+                Tables\Actions\EditAction::make()
+                    ->label('編集')
+                    ->tooltip('カテゴリー設定を編集'),
                 Tables\Actions\DeleteAction::make()
                     ->before(function (MenuCategory $record) {
                         // カテゴリーに紐づくメニューがある場合は削除不可
@@ -155,7 +234,7 @@ class MenuCategoryResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            RelationManagers\MenusRelationManager::class,
         ];
     }
 

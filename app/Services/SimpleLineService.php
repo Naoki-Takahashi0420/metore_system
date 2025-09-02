@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\LineSetting;
+use App\Models\Store;
 use App\Models\Reservation;
 use App\Models\Customer;
 use Illuminate\Support\Facades\Http;
@@ -11,13 +11,11 @@ use Carbon\Carbon;
 
 class SimpleLineService
 {
-    private $channelToken;
-    private $settings;
+    private $store;
     
-    public function __construct()
+    public function __construct(?Store $store = null)
     {
-        $this->channelToken = env('LINE_CHANNEL_ACCESS_TOKEN');
-        $this->settings = LineSetting::getSettings();
+        $this->store = $store;
     }
     
     /**
@@ -25,96 +23,106 @@ class SimpleLineService
      */
     public function sendConfirmation(Reservation $reservation): bool
     {
-        if (!$this->settings->send_confirmation || !$this->settings->message_confirmation) {
+        $store = $reservation->store;
+        
+        if (!$store->line_enabled || !$store->line_send_reservation_confirmation) {
             return false;
         }
         
         $variables = $this->getReservationVariables($reservation);
-        $message = $this->settings->applyVariables($this->settings->message_confirmation, $variables);
+        $message = $this->applyVariables($store->line_reservation_message ?: $this->getDefaultConfirmationMessage(), $variables);
         
-        return $this->send($reservation->customer->line_user_id, $message);
+        return $this->sendToStore($store, $reservation->customer->line_user_id, $message);
     }
     
     /**
-     * 24時間前リマインダー
+     * リマインダー送信
      */
-    public function sendReminder24h(Reservation $reservation): bool
+    public function sendReminder(Reservation $reservation): bool
     {
-        if (!$this->settings->send_reminder_24h || !$this->settings->message_reminder_24h) {
+        $store = $reservation->store;
+        
+        if (!$store->line_enabled || !$store->line_send_reminder) {
             return false;
         }
         
         $variables = $this->getReservationVariables($reservation);
-        $message = $this->settings->applyVariables($this->settings->message_reminder_24h, $variables);
+        $message = $this->applyVariables($store->line_reminder_message ?: $this->getDefaultReminderMessage(), $variables);
         
-        return $this->send($reservation->customer->line_user_id, $message);
+        return $this->sendToStore($store, $reservation->customer->line_user_id, $message);
     }
     
     /**
-     * 3時間前リマインダー
+     * 30日後フォローアップ送信
      */
-    public function sendReminder3h(Reservation $reservation): bool
+    public function sendFollowup30Days(Customer $customer, Store $store): bool
     {
-        if (!$this->settings->send_reminder_3h || !$this->settings->message_reminder_3h) {
-            return false;
-        }
-        
-        $variables = $this->getReservationVariables($reservation);
-        $message = $this->settings->applyVariables($this->settings->message_reminder_3h, $variables);
-        
-        return $this->send($reservation->customer->line_user_id, $message);
-    }
-    
-    /**
-     * 30日後フォロー
-     */
-    public function sendFollow30d(Customer $customer): bool
-    {
-        if (!$this->settings->send_follow_30d || !$this->settings->message_follow_30d) {
+        if (!$store->line_enabled || !$store->line_send_followup) {
             return false;
         }
         
         $variables = [
-            'customer_name' => $customer->name ?? 'お客様',
+            'customer_name' => $customer->last_name . ' ' . $customer->first_name . '様',
+            'store_name' => $store->name,
         ];
-        $message = $this->settings->applyVariables($this->settings->message_follow_30d, $variables);
         
-        return $this->send($customer->line_user_id, $message);
+        $message = $this->applyVariables($store->line_followup_message_30days ?: $this->getDefaultFollowup30Message(), $variables);
+        
+        return $this->sendToStore($store, $customer->line_user_id, $message);
     }
     
     /**
-     * 60日後フォロー
+     * 60日後フォローアップ送信
      */
-    public function sendFollow60d(Customer $customer): bool
+    public function sendFollowup60Days(Customer $customer, Store $store): bool
     {
-        if (!$this->settings->send_follow_60d || !$this->settings->message_follow_60d) {
+        if (!$store->line_enabled || !$store->line_send_followup) {
             return false;
         }
         
         $variables = [
-            'customer_name' => $customer->name ?? 'お客様',
+            'customer_name' => $customer->last_name . ' ' . $customer->first_name . '様',
+            'store_name' => $store->name,
         ];
-        $message = $this->settings->applyVariables($this->settings->message_follow_60d, $variables);
         
-        return $this->send($customer->line_user_id, $message);
+        $message = $this->applyVariables($store->line_followup_message_60days ?: $this->getDefaultFollowup60Message(), $variables);
+        
+        return $this->sendToStore($store, $customer->line_user_id, $message);
     }
     
     /**
-     * プロモーション一斉送信
+     * プロモーション一斉送信（店舗別）
      */
-    public function sendPromotion(string $message): array
+    public function sendPromotion(Store $store, string $message, ?array $customerIds = null): array
     {
-        $customers = Customer::whereNotNull('line_user_id')->get();
+        if (!$store->line_enabled || !$store->line_send_promotion) {
+            return ['success' => 0, 'failed' => 0, 'total' => 0];
+        }
+        
+        $query = Customer::whereNotNull('line_user_id');
+        
+        // 特定顧客のみの場合
+        if ($customerIds) {
+            $query->whereIn('id', $customerIds);
+        }
+        
+        // 店舗に関連する顧客のみ（予約履歴から取得）
+        $query->whereHas('reservations', function($q) use ($store) {
+            $q->where('store_id', $store->id);
+        });
+        
+        $customers = $query->get();
         $success = 0;
         $failed = 0;
         
         foreach ($customers as $customer) {
             $variables = [
-                'customer_name' => $customer->name ?? 'お客様',
+                'customer_name' => $customer->last_name . ' ' . $customer->first_name . '様',
+                'store_name' => $store->name,
             ];
-            $personalizedMessage = str_replace('{{customer_name}}', $variables['customer_name'], $message);
+            $personalizedMessage = $this->applyVariables($message, $variables);
             
-            if ($this->send($customer->line_user_id, $personalizedMessage)) {
+            if ($this->sendToStore($store, $customer->line_user_id, $personalizedMessage)) {
                 $success++;
             } else {
                 $failed++;
@@ -127,17 +135,17 @@ class SimpleLineService
     }
     
     /**
-     * LINE API送信
+     * 店舗のLINE設定を使用して送信
      */
-    private function send(?string $lineUserId, string $message): bool
+    private function sendToStore(Store $store, ?string $lineUserId, string $message): bool
     {
-        if (!$lineUserId || !$this->channelToken) {
+        if (!$lineUserId || !$store->line_channel_access_token) {
             return false;
         }
         
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->channelToken,
+                'Authorization' => 'Bearer ' . $store->line_channel_access_token,
                 'Content-Type' => 'application/json',
             ])->post('https://api.line.me/v2/bot/message/push', [
                 'to' => $lineUserId,
@@ -149,11 +157,39 @@ class SimpleLineService
                 ]
             ]);
             
+            // ログ記録
+            if ($response->successful()) {
+                Log::info('LINE送信成功', [
+                    'store_id' => $store->id,
+                    'line_user_id' => $lineUserId,
+                ]);
+            } else {
+                Log::error('LINE送信失敗', [
+                    'store_id' => $store->id,
+                    'line_user_id' => $lineUserId,
+                    'response' => $response->body(),
+                ]);
+            }
+            
             return $response->successful();
         } catch (\Exception $e) {
-            Log::error('LINE送信エラー: ' . $e->getMessage());
+            Log::error('LINE送信エラー', [
+                'store_id' => $store->id,
+                'error' => $e->getMessage(),
+            ]);
             return false;
         }
+    }
+    
+    /**
+     * 変数を適用
+     */
+    private function applyVariables(string $template, array $variables): string
+    {
+        foreach ($variables as $key => $value) {
+            $template = str_replace('{{' . $key . '}}', $value, $template);
+        }
+        return $template;
     }
     
     /**
@@ -169,5 +205,28 @@ class SimpleLineService
             'menu_name' => $reservation->menu->name ?? '',
             'menu_price' => number_format($reservation->menu->price ?? 0) . '円',
         ];
+    }
+    
+    /**
+     * デフォルトメッセージテンプレート
+     */
+    private function getDefaultConfirmationMessage(): string
+    {
+        return "{{customer_name}}\n\nご予約ありがとうございます。\n日時: {{reservation_date}} {{reservation_time}}\nメニュー: {{menu_name}}\n\nお待ちしております。\n{{store_name}}";
+    }
+    
+    private function getDefaultReminderMessage(): string
+    {
+        return "{{customer_name}}\n\n明日のご予約のお知らせです。\n日時: {{reservation_date}} {{reservation_time}}\n\nお気をつけてお越しください。\n{{store_name}}";
+    }
+    
+    private function getDefaultFollowup30Message(): string
+    {
+        return "{{customer_name}}\n\n前回のご来店から1ヶ月が経ちました。\n目の調子はいかがでしょうか？\n\n次回のご予約はこちらから\n{{store_name}}";
+    }
+    
+    private function getDefaultFollowup60Message(): string
+    {
+        return "{{customer_name}}\n\nしばらくお会いできておりませんが、お元気でしょうか？\n特別クーポンをご用意しました。\n\nご予約お待ちしております。\n{{store_name}}";
     }
 }

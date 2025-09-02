@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ダッシュボード機能テスト</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-2xl font-bold mb-4">ダッシュボード機能テスト</h1>
+        
+        <div class="grid md:grid-cols-2 gap-4">
+            <!-- ログイン -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-bold mb-4">1. ログイン</h2>
+                <input type="tel" id="phone" value="08033372305" class="w-full p-2 border rounded mb-2">
+                <button onclick="login()" class="w-full bg-blue-500 text-white py-2 rounded">
+                    ログイン
+                </button>
+                <div id="login-status" class="mt-2 text-sm"></div>
+            </div>
+            
+            <!-- 予約履歴確認 -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-bold mb-4">2. 予約履歴確認</h2>
+                <button onclick="loadReservations()" class="w-full bg-green-500 text-white py-2 rounded">
+                    予約履歴を取得
+                </button>
+                <div id="reservations" class="mt-4 text-sm max-h-60 overflow-y-auto"></div>
+            </div>
+            
+            <!-- 同じメニューで予約テスト -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-bold mb-4">3. 同じメニューで予約</h2>
+                <div id="last-reservation" class="mb-4 p-3 bg-gray-100 rounded text-sm"></div>
+                <button onclick="testQuickBooking()" class="w-full bg-purple-500 text-white py-2 rounded">
+                    セッションに保存してテスト
+                </button>
+                <div id="session-data" class="mt-4 text-sm"></div>
+            </div>
+            
+            <!-- セッション確認 -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-bold mb-4">4. セッション確認</h2>
+                <button onclick="checkSession()" class="w-full bg-gray-500 text-white py-2 rounded">
+                    セッションストレージ確認
+                </button>
+                <pre id="session-storage" class="mt-4 text-xs bg-gray-100 p-2 rounded overflow-x-auto"></pre>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let customerToken = null;
+        let lastReservation = null;
+        
+        async function login() {
+            const phone = document.getElementById('phone').value;
+            
+            // OTP送信
+            const otpResponse = await fetch('/api/auth/customer/send-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone })
+            });
+            
+            if (!otpResponse.ok) {
+                document.getElementById('login-status').innerHTML = '❌ OTP送信失敗';
+                return;
+            }
+            
+            // OTP検証
+            const verifyResponse = await fetch('/api/auth/customer/verify-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone, otp_code: '123456' })
+            });
+            
+            if (verifyResponse.ok) {
+                const data = await verifyResponse.json();
+                customerToken = data.data.token;
+                localStorage.setItem('customer_token', customerToken);
+                localStorage.setItem('customer_data', JSON.stringify(data.data.customer));
+                document.getElementById('login-status').innerHTML = '✅ ログイン成功<br>Token: ' + customerToken.substring(0, 20) + '...';
+            } else {
+                document.getElementById('login-status').innerHTML = '❌ ログイン失敗';
+            }
+        }
+        
+        async function loadReservations() {
+            const token = customerToken || localStorage.getItem('customer_token');
+            if (!token) {
+                alert('先にログインしてください');
+                return;
+            }
+            
+            const response = await fetch('/api/customer/reservations', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                const reservations = data.data || [];
+                
+                if (reservations.length > 0) {
+                    lastReservation = reservations[0];
+                    
+                    document.getElementById('reservations').innerHTML = reservations.map(r => `
+                        <div class="border-b pb-2 mb-2">
+                            <p class="font-bold">${r.reservation_date}</p>
+                            <p>店舗: ${r.store?.name || 'N/A'}</p>
+                            <p>メニュー: ${r.menu?.name || 'N/A'}</p>
+                            <p>メニューID: ${r.menu_id}</p>
+                            <p>店舗ID: ${r.store_id}</p>
+                        </div>
+                    `).join('');
+                    
+                    // 最後の予約を表示
+                    document.getElementById('last-reservation').innerHTML = `
+                        <strong>最新の予約:</strong><br>
+                        店舗: ${lastReservation.store?.name || 'N/A'}<br>
+                        メニュー: ${lastReservation.menu?.name || 'N/A'}<br>
+                        価格: ¥${lastReservation.menu?.price || 0}
+                    `;
+                } else {
+                    document.getElementById('reservations').innerHTML = '予約履歴がありません';
+                }
+            } else {
+                document.getElementById('reservations').innerHTML = '❌ 取得失敗: ' + response.status;
+            }
+        }
+        
+        function testQuickBooking() {
+            if (!lastReservation) {
+                alert('先に予約履歴を取得してください');
+                return;
+            }
+            
+            // ダッシュボードと同じロジック
+            if (lastReservation && lastReservation.store && lastReservation.menu) {
+                // 店舗情報を保存
+                sessionStorage.setItem('selected_store', JSON.stringify({
+                    id: lastReservation.store_id,
+                    name: lastReservation.store.name,
+                    phone: lastReservation.store.phone,
+                    address: lastReservation.store.address
+                }));
+                
+                // メニュー情報を保存
+                sessionStorage.setItem('selected_menu', JSON.stringify({
+                    id: lastReservation.menu_id,
+                    name: lastReservation.menu.name,
+                    price: lastReservation.menu.price,
+                    duration_minutes: lastReservation.menu.duration_minutes || 60,
+                    category_id: lastReservation.menu.category_id
+                }));
+                
+                // カテゴリー情報も保存（あれば）
+                if (lastReservation.menu.category_id) {
+                    sessionStorage.setItem('selected_category', JSON.stringify({
+                        id: lastReservation.menu.category_id
+                    }));
+                }
+                
+                document.getElementById('session-data').innerHTML = `
+                    ✅ セッションに保存しました<br>
+                    次は /reservation/time へ遷移します
+                `;
+                
+                setTimeout(() => {
+                    if (confirm('時間選択画面に遷移しますか？')) {
+                        window.location.href = '/reservation/time';
+                    }
+                }, 1000);
+            } else {
+                document.getElementById('session-data').innerHTML = '❌ 予約情報が不完全です';
+            }
+        }
+        
+        function checkSession() {
+            const storage = {
+                selected_store: sessionStorage.getItem('selected_store'),
+                selected_menu: sessionStorage.getItem('selected_menu'),
+                selected_category: sessionStorage.getItem('selected_category'),
+                selected_time: sessionStorage.getItem('selected_time')
+            };
+            
+            document.getElementById('session-storage').textContent = JSON.stringify(storage, null, 2);
+        }
+        
+        // 初期チェック
+        window.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('customer_token');
+            if (token) {
+                customerToken = token;
+                document.getElementById('login-status').innerHTML = '✅ 既にログイン済み';
+            }
+        });
+    </script>
+</body>
+</html>

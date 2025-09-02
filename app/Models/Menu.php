@@ -17,7 +17,6 @@ class Menu extends Model
         'name',
         'description',
         'price',
-        'duration',
         'duration_minutes',
         'image_path',
         'is_available',
@@ -28,6 +27,8 @@ class Menu extends Model
         'show_in_upsell',
         'upsell_description',
         'customer_type_restriction',
+        'is_popular',
+        'reservation_count',
         'medical_record_only',
         'max_daily_quantity',
         'sort_order',
@@ -38,7 +39,6 @@ class Menu extends Model
 
     protected $casts = [
         'price' => 'decimal:2',
-        'duration' => 'integer',
         'duration_minutes' => 'integer',
         'is_available' => 'boolean',
         'is_visible_to_customer' => 'boolean',
@@ -46,6 +46,8 @@ class Menu extends Model
         'requires_staff' => 'boolean',
         'is_option' => 'boolean',
         'show_in_upsell' => 'boolean',
+        'is_popular' => 'boolean',
+        'reservation_count' => 'integer',
         'medical_record_only' => 'boolean',
         'max_daily_quantity' => 'integer',
         'sort_order' => 'integer',

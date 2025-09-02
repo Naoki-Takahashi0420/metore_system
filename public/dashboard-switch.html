@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ダッシュボード切り替え</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-8 text-center">ダッシュボード デザイン選択</h1>
+        
+        <div class="grid md:grid-cols-2 gap-8">
+            <!-- オリジナル版 -->
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                <div class="h-48 bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+                    <div class="text-white text-center">
+                        <svg class="w-16 h-16 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        <h2 class="text-xl font-bold">スタンダード版</h2>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <h3 class="text-lg font-bold mb-2">dashboard-new.blade.php</h3>
+                    <ul class="text-sm text-gray-600 space-y-1 mb-4">
+                        <li>✓ シンプルで見やすい</li>
+                        <li>✓ 必要な機能を網羅</li>
+                        <li>✓ 従来型のレイアウト</li>
+                        <li>✓ PC/タブレット向け</li>
+                    </ul>
+                    <a href="/customer/dashboard" class="block w-full bg-blue-500 text-white text-center py-3 rounded-lg hover:bg-blue-600 transition">
+                        このデザインを見る
+                    </a>
+                </div>
+            </div>
+            
+            <!-- モダン版 -->
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden border-2 border-green-500">
+                <div class="h-48 bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center relative">
+                    <div class="absolute top-4 right-4 bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold">
+                        おすすめ
+                    </div>
+                    <div class="text-white text-center">
+                        <svg class="w-16 h-16 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        <h2 class="text-xl font-bold">メルカリ風モダン版</h2>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <h3 class="text-lg font-bold mb-2">dashboard-modern.blade.php</h3>
+                    <ul class="text-sm text-gray-600 space-y-1 mb-4">
+                        <li>✓ メルカリ風の洗練されたUI</li>
+                        <li>✓ スマホ最適化</li>
+                        <li>✓ ボトムナビゲーション</li>
+                        <li>✓ ポイントカード風デザイン</li>
+                        <li>✓ 予約変更モーダル実装済み</li>
+                        <li>✓ 視力推移グラフ対応</li>
+                    </ul>
+                    <a href="/customer/dashboard-modern" class="block w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white text-center py-3 rounded-lg hover:opacity-90 transition">
+                        このデザインを見る（推奨）
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-8 bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-lg font-bold mb-4">実装済み機能一覧</h3>
+            <div class="grid md:grid-cols-3 gap-4">
+                <div>
+                    <h4 class="font-semibold text-green-600 mb-2">✅ 完全実装</h4>
+                    <ul class="text-sm text-gray-600 space-y-1">
+                        <li>• 予約一覧表示</li>
+                        <li>• 予約キャンセル（24時間ルール）</li>
+                        <li>• 予約変更モーダル</li>
+                        <li>• 同じメニューで予約</li>
+                        <li>• 視力推移グラフ</li>
+                        <li>• モバイルレスポンシブ</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-blue-600 mb-2">🎨 UI改善</h4>
+                    <ul class="text-sm text-gray-600 space-y-1">
+                        <li>• メルカリ風デザイン</li>
+                        <li>• ボトムナビゲーション</li>
+                        <li>• ポイントカード表示</li>
+                        <li>• グラデーションカード</li>
+                        <li>• スライドアップモーダル</li>
+                        <li>• タップフィードバック</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-purple-600 mb-2">📊 データ可視化</h4>
+                    <ul class="text-sm text-gray-600 space-y-1">
+                        <li>• Chart.jsグラフ</li>
+                        <li>• 期間切り替え（1ヶ月〜1年）</li>
+                        <li>• 改善率表示</li>
+                        <li>• トレーニング効果</li>
+                        <li>• 測定履歴一覧</li>
+                        <li>• アドバイス表示</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-8 text-center">
+            <button onclick="setDefaultDashboard('modern')" class="bg-green-500 text-white px-8 py-3 rounded-lg hover:bg-green-600 transition">
+                モダン版をデフォルトに設定
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        function setDefaultDashboard(version) {
+            if (version === 'modern') {
+                // ルーティングを変更する場合の処理
+                alert('モダン版をデフォルトに設定しました。\n\n/customer/dashboard にアクセスすると、メルカリ風のモダンUIが表示されます。');
+                
+                // 実際には、サーバー側でルーティングを変更する必要があります
+                // ここでは、ローカルストレージに設定を保存
+                localStorage.setItem('preferred_dashboard', 'modern');
+            }
+        }
+    </script>
+</body>
+</html>

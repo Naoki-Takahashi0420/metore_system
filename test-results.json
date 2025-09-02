@@ -68,14 +68,14 @@
   },
   "suites": [
     {
-      "title": "check-gantt-chart.spec.js",
-      "file": "check-gantt-chart.spec.js",
+      "title": "admin-dashboard-test.spec.js",
+      "file": "admin-dashboard-test.spec.js",
       "column": 0,
       "line": 0,
       "specs": [
         {
-          "title": "ガントチャート表示確認",
-          "ok": false,
+          "title": "Admin dashboard timeline displays without errors",
+          "ok": true,
           "tags": [],
           "tests": [
             {
@@ -88,128 +88,29 @@
                 {
                   "workerIndex": 0,
                   "parallelIndex": 0,
-                  "status": "failed",
-                  "duration": 29421,
-                  "error": {
-                    "message": "Error: expect.toBeVisible: Error: strict mode violation: locator('table') resolved to 4 elements:\n    1) <table class=\"w-full border-collapse border-2 border-gray-800\">…</table> aka getByRole('table')\n    2) <table role=\"grid\" class=\"fc-scrollgrid  fc-scrollgrid-liquid\">…</table> aka getByText('日月火水木金土27日15時🕐 15:00-15:30')\n    3) <table role=\"presentation\" class=\"fc-col-header \">…</table> aka locator('table').filter({ hasText: /^日月火水木金土$/ })\n    4) <table role=\"presentation\" class=\"fc-scrollgrid-sync-table\">…</table> aka getByRole('rowgroup').filter({ hasText: '27日15時🕐 15:00-15:30' }).locator('table')\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('table')\u001b[22m\n",
-                    "stack": "Error: expect.toBeVisible: Error: strict mode violation: locator('table') resolved to 4 elements:\n    1) <table class=\"w-full border-collapse border-2 border-gray-800\">…</table> aka getByRole('table')\n    2) <table role=\"grid\" class=\"fc-scrollgrid  fc-scrollgrid-liquid\">…</table> aka getByText('日月火水木金土27日15時🕐 15:00-15:30')\n    3) <table role=\"presentation\" class=\"fc-col-header \">…</table> aka locator('table').filter({ hasText: /^日月火水木金土$/ })\n    4) <table role=\"presentation\" class=\"fc-scrollgrid-sync-table\">…</table> aka getByRole('rowgroup').filter({ hasText: '27日15時🕐 15:00-15:30' }).locator('table')\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('table')\u001b[22m\n\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/check-gantt-chart.spec.js:44:23",
-                    "location": {
-                      "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/check-gantt-chart.spec.js",
-                      "column": 23,
-                      "line": 44
-                    },
-                    "snippet": "  42 |   // テーブルの存在確認\n  43 |   const table = page.locator('table');\n> 44 |   await expect(table).toBeVisible();\n     |                       ^\n  45 |   \n  46 |   // 予約セルの確認\n  47 |   const reservationCells = page.locator('.reservation-cell');"
-                  },
-                  "errors": [
-                    {
-                      "location": {
-                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/check-gantt-chart.spec.js",
-                        "column": 23,
-                        "line": 44
-                      },
-                      "message": "Error: expect.toBeVisible: Error: strict mode violation: locator('table') resolved to 4 elements:\n    1) <table class=\"w-full border-collapse border-2 border-gray-800\">…</table> aka getByRole('table')\n    2) <table role=\"grid\" class=\"fc-scrollgrid  fc-scrollgrid-liquid\">…</table> aka getByText('日月火水木金土27日15時🕐 15:00-15:30')\n    3) <table role=\"presentation\" class=\"fc-col-header \">…</table> aka locator('table').filter({ hasText: /^日月火水木金土$/ })\n    4) <table role=\"presentation\" class=\"fc-scrollgrid-sync-table\">…</table> aka getByRole('rowgroup').filter({ hasText: '27日15時🕐 15:00-15:30' }).locator('table')\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('table')\u001b[22m\n\n\n  42 |   // テーブルの存在確認\n  43 |   const table = page.locator('table');\n> 44 |   await expect(table).toBeVisible();\n     |                       ^\n  45 |   \n  46 |   // 予約セルの確認\n  47 |   const reservationCells = page.locator('.reservation-cell');\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/check-gantt-chart.spec.js:44:23"
-                    }
-                  ],
+                  "status": "passed",
+                  "duration": 1559,
+                  "errors": [],
                   "stdout": [
                     {
-                      "text": "Navigation error: page.goto: net::ERR_ABORTED at http://127.0.0.1:8000/admin/reservation-calendars\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:8000/admin/reservation-calendars\", waiting until \"networkidle\"\u001b[22m\n\n"
+                      "text": "BRK blocks found: 0\n"
+                    },
+                    {
+                      "text": "Regular reservations found: 5\n"
                     }
                   ],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2025-08-28T00:56:06.825Z",
+                  "startTime": "2025-09-02T12:05:22.364Z",
                   "annotations": [],
-                  "attachments": [
-                    {
-                      "name": "screenshot",
-                      "contentType": "image/png",
-                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/check-gantt-chart-ガントチャート表示確認-chromium/test-failed-1.png"
-                    },
-                    {
-                      "name": "video",
-                      "contentType": "video/webm",
-                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/check-gantt-chart-ガントチャート表示確認-chromium/video.webm"
-                    },
-                    {
-                      "name": "error-context",
-                      "contentType": "text/markdown",
-                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/check-gantt-chart-ガントチャート表示確認-chromium/error-context.md"
-                    }
-                  ],
-                  "errorLocation": {
-                    "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/check-gantt-chart.spec.js",
-                    "column": 23,
-                    "line": 44
-                  }
-                },
-                {
-                  "workerIndex": 1,
-                  "parallelIndex": 0,
-                  "status": "failed",
-                  "duration": 32863,
-                  "error": {
-                    "message": "TimeoutError: page.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('text=予約管理')\u001b[22m\n\u001b[2m    - waiting for\" http://127.0.0.1:8000/admin\" navigation to finish...\u001b[22m\n\u001b[2m    - navigated to \"http://127.0.0.1:8000/admin/login\"\u001b[22m\n",
-                    "stack": "TimeoutError: page.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('text=予約管理')\u001b[22m\n\u001b[2m    - waiting for\" http://127.0.0.1:8000/admin\" navigation to finish...\u001b[22m\n\u001b[2m    - navigated to \"http://127.0.0.1:8000/admin/login\"\u001b[22m\n\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/check-gantt-chart.spec.js:31:16",
-                    "location": {
-                      "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/check-gantt-chart.spec.js",
-                      "column": 16,
-                      "line": 31
-                    },
-                    "snippet": "  29 |     console.log('Navigation error:', error.message);\n  30 |     // エラー時はダッシュボードから移動を試みる\n> 31 |     await page.click('text=予約管理');\n     |                ^\n  32 |     await page.waitForTimeout(1000);\n  33 |     await page.click('text=予約カレンダー');\n  34 |   }"
-                  },
-                  "errors": [
-                    {
-                      "location": {
-                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/check-gantt-chart.spec.js",
-                        "column": 16,
-                        "line": 31
-                      },
-                      "message": "TimeoutError: page.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('text=予約管理')\u001b[22m\n\u001b[2m    - waiting for\" http://127.0.0.1:8000/admin\" navigation to finish...\u001b[22m\n\u001b[2m    - navigated to \"http://127.0.0.1:8000/admin/login\"\u001b[22m\n\n\n  29 |     console.log('Navigation error:', error.message);\n  30 |     // エラー時はダッシュボードから移動を試みる\n> 31 |     await page.click('text=予約管理');\n     |                ^\n  32 |     await page.waitForTimeout(1000);\n  33 |     await page.click('text=予約カレンダー');\n  34 |   }\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/check-gantt-chart.spec.js:31:16"
-                    }
-                  ],
-                  "stdout": [
-                    {
-                      "text": "Navigation error: page.goto: net::ERR_ABORTED at http://127.0.0.1:8000/admin/reservation-calendars\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:8000/admin/reservation-calendars\", waiting until \"networkidle\"\u001b[22m\n\n"
-                    }
-                  ],
-                  "stderr": [],
-                  "retry": 1,
-                  "startTime": "2025-08-28T00:56:37.841Z",
-                  "annotations": [],
-                  "attachments": [
-                    {
-                      "name": "screenshot",
-                      "contentType": "image/png",
-                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/check-gantt-chart-ガントチャート表示確認-chromium-retry1/test-failed-1.png"
-                    },
-                    {
-                      "name": "video",
-                      "contentType": "video/webm",
-                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/check-gantt-chart-ガントチャート表示確認-chromium-retry1/video.webm"
-                    },
-                    {
-                      "name": "error-context",
-                      "contentType": "text/markdown",
-                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/check-gantt-chart-ガントチャート表示確認-chromium-retry1/error-context.md"
-                    },
-                    {
-                      "name": "trace",
-                      "contentType": "application/zip",
-                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/check-gantt-chart-ガントチャート表示確認-chromium-retry1/trace.zip"
-                    }
-                  ],
-                  "errorLocation": {
-                    "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/check-gantt-chart.spec.js",
-                    "column": 16,
-                    "line": 31
-                  }
+                  "attachments": []
                 }
               ],
-              "status": "unexpected"
+              "status": "expected"
             }
           ],
-          "id": "05d60dececf2d40e44de-4d653bae6b118cc843a9",
-          "file": "check-gantt-chart.spec.js",
+          "id": "fa370342eed988c6b367-9ea4b3ef41de6fedac0b",
+          "file": "admin-dashboard-test.spec.js",
           "line": 3,
           "column": 1
         }
@@ -218,11 +119,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-08-28T00:56:06.349Z",
-    "duration": 65340.961,
-    "expected": 0,
+    "startTime": "2025-09-02T12:05:22.050Z",
+    "duration": 2143.444,
+    "expected": 1,
     "skipped": 0,
-    "unexpected": 1,
+    "unexpected": 0,
     "flaky": 0
   }
 }

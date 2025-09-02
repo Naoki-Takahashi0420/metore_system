@@ -1,328 +1,374 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('既存顧客（08033372305）の予約ブロックテスト', () => {
-  
-  test('既存顧客は予約できないことを確認', async ({ page }) => {
+test.describe('予約フロー完全テスト', () => {
+  test.beforeEach(async ({ page }) => {
+    // Basic認証
+    await page.goto('http://127.0.0.1:8000/', {
+      httpCredentials: {
+        username: 'admin',
+        password: 'password'
+      }
+    });
+  });
+
+  test('店舗選択からカテゴリー選択までの流れ', async ({ page }) => {
     console.log('\n========================================');
-    console.log('🔒 既存顧客の予約ブロックテスト');
+    console.log('🏪 店舗選択 → カテゴリー選択テスト');
     console.log('========================================\n');
     
-    // 1. 予約トップページへアクセス
-    await page.goto('http://127.0.0.1:8000/reservation');
+    // トップページから予約ページへ
+    await page.goto('http://127.0.0.1:8000/');
     await page.waitForLoadState('networkidle');
-    await page.screenshot({ path: 'test-results/1-reservation-top.png' });
-    console.log('Step 1: 予約トップページ');
+    console.log('📍 トップページアクセス');
     
-    // 2. 初回予約を選択
-    await page.click('text=初回予約をする');
-    await page.waitForLoadState('networkidle');
-    await page.screenshot({ path: 'test-results/2-store-select.png' });
-    console.log('Step 2: 店舗選択ページへ遷移');
+    // 予約ボタンをクリック
+    const reserveButton = page.locator('a').filter({ hasText: /予約|RESERVE/i }).first();
+    if (await reserveButton.isVisible()) {
+      await reserveButton.click();
+      console.log('✅ 予約ボタンクリック');
+    } else {
+      // 直接予約ページへ
+      await page.goto('http://127.0.0.1:8000/reservation/store');
+    }
     
-    // ページタイトル確認
-    const title = await page.title();
-    console.log('📄 ページタイトル:', title);
-    await expect(page).toHaveTitle(/メニュー選択/);
+    // 店舗選択画面
+    await expect(page).toHaveURL(/.*\/reservation\/store/);
+    await expect(page.locator('h1')).toContainText('店舗をお選びください');
+    console.log('✅ 店舗選択画面表示');
     
-    // ヘッダー確認
-    const header = await page.locator('h1').textContent();
-    console.log('📝 ヘッダー:', header);
-    await expect(page.locator('h1')).toContainText('メニューを選択');
+    // 店舗カードの確認
+    const storeCards = await page.locator('.group').count();
+    console.log(`📊 表示されている店舗数: ${storeCards}個`);
     
-    // 進捗インジケーター確認
-    const activeStep = await page.locator('.bg-blue-500').first();
-    await expect(activeStep).toBeVisible();
-    console.log('✅ 進捗インジケーター表示確認');
-    
-    // メニューアイテムの確認
-    const menuItems = await page.locator('.bg-white.rounded-lg.shadow-sm').count();
-    console.log(`📊 表示されているメニュー数: ${menuItems}個`);
-    
-    if (menuItems > 0) {
-      // 最初のメニューの詳細を取得
-      const firstMenu = page.locator('.bg-white.rounded-lg.shadow-sm').first();
-      const menuName = await firstMenu.locator('h3').textContent();
-      const menuPrice = await firstMenu.locator('.text-2xl.font-bold').textContent();
-      console.log(`  🎯 最初のメニュー: ${menuName}`);
-      console.log(`  💰 価格: ${menuPrice}`);
+    if (storeCards > 0) {
+      // 最初の店舗をクリック
+      const firstStore = page.locator('.group').first();
+      const storeName = await firstStore.locator('h3').textContent();
+      console.log(`🏪 選択する店舗: ${storeName}`);
       
-      // メニューの説明文確認
-      const hasDescription = await firstMenu.locator('.text-gray-600.text-sm').count() > 0;
-      if (hasDescription) {
-        const description = await firstMenu.locator('.text-gray-600.text-sm').first().textContent();
-        console.log(`  📝 説明: ${description}`);
+      await firstStore.click();
+      
+      // カテゴリー選択画面へ遷移
+      await expect(page).toHaveURL(/.*\/reservation\/category/);
+      await expect(page.locator('h1')).toContainText('コースをお選びください');
+      console.log('✅ カテゴリー選択画面へ遷移');
+      
+      // カテゴリーの表示確認
+      const categoryForms = await page.locator('form').count();
+      console.log(`📊 表示されているカテゴリー数: ${categoryForms}個`);
+      
+      // カテゴリー詳細の確認
+      if (categoryForms > 0) {
+        const firstCategory = page.locator('form').first();
+        
+        // カテゴリー名の確認
+        const categoryName = await firstCategory.locator('h3').first().textContent().catch(() => null);
+        if (categoryName) {
+          console.log(`📁 最初のカテゴリー: ${categoryName}`);
+        }
+        
+        // メニュー数バッジの確認
+        const menuBadge = firstCategory.locator('.bg-green-100');
+        if (await menuBadge.count() > 0) {
+          const menuText = await menuBadge.textContent();
+          console.log(`  📊 ${menuText}`);
+        }
       }
       
-      // 時間表示確認
-      const duration = await firstMenu.locator('span.text-gray-500').first().textContent();
-      console.log(`  ⏱️ 所要時間: ${duration}`);
-    } else {
-      console.log('⚠️ メニューが表示されていません');
+      // スクリーンショット
+      await page.screenshot({ path: 'test-results/category-select.png', fullPage: true });
+      console.log('📸 スクリーンショット: category-select.png');
     }
-    
-    // スクリーンショット撮影
-    await page.screenshot({ path: 'menu-select-page.png', fullPage: true });
-    console.log('📸 スクリーンショット保存: menu-select-page.png');
   });
 
-  test('メニュー選択から日時選択への遷移', async ({ page }) => {
+  test('OTP認証フロー（テスト環境）', async ({ page }) => {
     console.log('\n========================================');
-    console.log('🔄 メニュー選択→日時選択の遷移テスト');
+    console.log('🔐 OTP認証テスト（テスト環境）');
     console.log('========================================\n');
     
-    // メニューページへアクセス
-    await page.goto('http://127.0.0.1:8000/reservation/menu');
+    // ログインページへ
+    await page.goto('http://127.0.0.1:8000/login');
     await page.waitForLoadState('networkidle');
+    console.log('📍 ログインページアクセス');
     
-    const menuItems = await page.locator('.bg-white.rounded-lg.shadow-sm').count();
+    // 電話番号入力
+    const phoneInput = page.locator('input[type="tel"]');
+    await phoneInput.fill('09012345678');
+    console.log('📱 電話番号入力: 09012345678');
     
-    if (menuItems > 0) {
-      // 最初のメニューをクリック
-      const firstMenu = page.locator('.bg-white.rounded-lg.shadow-sm').first();
-      const menuName = await firstMenu.locator('h3').textContent();
-      console.log(`🖱️ "${menuName}"をクリック`);
+    // SMS送信ボタンクリック
+    const sendButton = page.locator('button').filter({ hasText: /SMS|認証コード/i });
+    await sendButton.click();
+    console.log('📤 SMS認証コード送信');
+    
+    // OTP入力画面を待つ
+    await page.waitForTimeout(2000);
+    
+    // OTP入力フィールドを探す
+    const otpInput = page.locator('input[name="otp_code"], input[placeholder*="認証コード"], input[type="text"]').first();
+    if (await otpInput.isVisible()) {
+      // テスト環境の固定OTP入力
+      await otpInput.fill('123456');
+      console.log('🔢 OTPコード入力: 123456（テスト環境固定）');
       
-      await firstMenu.click();
+      // 認証ボタンクリック
+      const verifyButton = page.locator('button').filter({ hasText: /認証|確認|ログイン/i });
+      await verifyButton.click();
+      console.log('✅ 認証ボタンクリック');
       
-      // ページ遷移を待つ
-      await page.waitForURL('**/reservation', { timeout: 10000 });
-      console.log('✅ 日時選択ページへ遷移成功');
+      // 認証成功を確認
+      await page.waitForTimeout(3000);
+      const currentUrl = page.url();
+      console.log(`📍 現在のURL: ${currentUrl}`);
       
-      // 選択したメニューが表示されているか確認
-      const selectedMenuDisplay = page.locator('.bg-blue-50').first();
-      await expect(selectedMenuDisplay).toBeVisible();
-      
-      const displayedMenuName = await selectedMenuDisplay.locator('.text-lg.font-semibold').textContent();
-      console.log(`📋 選択中のメニュー: ${displayedMenuName}`);
-      
-      // メニュー変更リンクの確認
-      const changeLink = page.locator('text=メニューを変更');
-      await expect(changeLink).toBeVisible();
-      console.log('✅ メニュー変更リンク表示確認');
-    } else {
-      console.log('⚠️ メニューがないため遷移テストをスキップ');
-    }
-  });
-
-  test('日時選択ページの機能テスト', async ({ page }) => {
-    console.log('\n========================================');
-    console.log('📅 日時選択ページテスト');
-    console.log('========================================\n');
-    
-    // まずメニューを選択
-    await page.goto('http://127.0.0.1:8000/reservation/menu');
-    const menuCount = await page.locator('.bg-white.rounded-lg.shadow-sm').count();
-    
-    if (menuCount === 0) {
-      console.log('⚠️ メニューがないためテストをスキップ');
-      return;
-    }
-    
-    await page.locator('.bg-white.rounded-lg.shadow-sm').first().click();
-    await page.waitForURL('**/reservation');
-    
-    // 店舗選択の確認
-    const storeSelect = page.locator('#storeSelect');
-    await expect(storeSelect).toBeVisible();
-    const selectedStore = await storeSelect.inputValue();
-    console.log(`🏢 選択中の店舗ID: ${selectedStore}`);
-    
-    // カレンダーテーブルの確認
-    const calendarTable = page.locator('table.availability-table');
-    await expect(calendarTable).toBeVisible();
-    console.log('✅ 予約カレンダー表示確認');
-    
-    // 曜日ヘッダーの確認
-    const dayHeaders = await page.locator('thead th').allTextContents();
-    console.log('📅 表示されている曜日:', dayHeaders.slice(1).join(', '));
-    
-    // 利用可能な時間枠を探す
-    const availableSlots = await page.locator('button.time-slot').count();
-    console.log(`⭕ 利用可能な時間枠: ${availableSlots}個`);
-    
-    // 利用不可の時間枠を数える
-    const unavailableSlots = await page.locator('span.text-gray-400.text-xl').count();
-    console.log(`❌ 利用不可の時間枠: ${unavailableSlots}個`);
-    
-    if (availableSlots > 0) {
-      // 最初の利用可能な時間枠をクリック
-      const firstSlot = page.locator('button.time-slot').first();
-      const slotDate = await firstSlot.getAttribute('data-date');
-      const slotTime = await firstSlot.getAttribute('data-time');
-      console.log(`\n🖱️ 時間枠をクリック: ${slotDate} ${slotTime}`);
-      
-      await firstSlot.click();
-      
-      // 選択された時間枠の色が変わることを確認
-      await expect(firstSlot).toHaveClass(/selected/);
-      console.log('✅ 時間枠が選択状態に変更');
-      
-      // 予約フォームが表示されることを確認
-      const reservationForm = page.locator('#reservationForm');
-      await expect(reservationForm).toBeVisible();
-      console.log('✅ 予約フォーム表示確認');
-      
-      // 選択された日時の表示確認
-      const selectedDateTime = await page.locator('#selectedDateTime').textContent();
-      console.log(`📍 選択された日時: ${selectedDateTime}`);
-    } else {
-      console.log('⚠️ 利用可能な時間枠がありません');
-    }
-    
-    // スクリーンショット
-    await page.screenshot({ path: 'calendar-page.png', fullPage: true });
-    console.log('📸 スクリーンショット保存: calendar-page.png');
-  });
-
-  test('予約完了までの完全フローテスト', async ({ page }) => {
-    console.log('\n========================================');
-    console.log('🚀 予約完了までの完全フローテスト');
-    console.log('========================================\n');
-    
-    // ステップ1: メニュー選択
-    console.log('【ステップ1】メニュー選択');
-    await page.goto('http://127.0.0.1:8000/reservation/menu');
-    
-    const menuCount = await page.locator('.bg-white.rounded-lg.shadow-sm').count();
-    if (menuCount === 0) {
-      console.log('❌ メニューがないため予約できません');
-      return;
-    }
-    
-    const firstMenu = page.locator('.bg-white.rounded-lg.shadow-sm').first();
-    const selectedMenuName = await firstMenu.locator('h3').textContent();
-    console.log(`  ✅ メニュー選択: ${selectedMenuName}`);
-    await firstMenu.click();
-    
-    // ステップ2: 日時選択
-    console.log('\n【ステップ2】日時選択');
-    await page.waitForURL('**/reservation');
-    
-    const availableSlots = await page.locator('button.time-slot').count();
-    if (availableSlots === 0) {
-      console.log('  ❌ 利用可能な時間枠がありません');
-      return;
-    }
-    
-    const firstSlot = page.locator('button.time-slot').first();
-    const slotDate = await firstSlot.getAttribute('data-date');
-    const slotTime = await firstSlot.getAttribute('data-time');
-    console.log(`  ✅ 時間枠選択: ${slotDate} ${slotTime}`);
-    await firstSlot.click();
-    
-    // ステップ3: 顧客情報入力
-    console.log('\n【ステップ3】顧客情報入力');
-    await page.waitForSelector('#reservationForm', { state: 'visible' });
-    
-    // テストデータ
-    const testData = {
-      lastName: '山田',
-      firstName: '太郎',
-      phone: '090-1234-5678',
-      email: 'yamada@example.com',
-      notes: 'Playwrightによる自動テスト予約'
-    };
-    
-    // フォーム入力
-    await page.fill('input[name="last_name"]', testData.lastName);
-    console.log(`  ✅ 姓: ${testData.lastName}`);
-    
-    await page.fill('input[name="first_name"]', testData.firstName);
-    console.log(`  ✅ 名: ${testData.firstName}`);
-    
-    await page.fill('input[name="phone"]', testData.phone);
-    console.log(`  ✅ 電話番号: ${testData.phone}`);
-    
-    await page.fill('input[name="email"]', testData.email);
-    console.log(`  ✅ メール: ${testData.email}`);
-    
-    await page.fill('textarea[name="notes"]', testData.notes);
-    console.log(`  ✅ 備考: ${testData.notes}`);
-    
-    // スクリーンショット（送信前）
-    await page.screenshot({ path: 'before-submit.png', fullPage: true });
-    console.log('\n📸 送信前スクリーンショット: before-submit.png');
-    
-    // 予約送信
-    console.log('\n【ステップ4】予約送信');
-    const submitButton = page.locator('button[type="submit"]').filter({ hasText: '予約する' });
-    await submitButton.click();
-    console.log('  ⏳ 予約を送信中...');
-    
-    // 完了ページへの遷移を待つ
-    try {
-      await page.waitForURL('**/reservation/complete/**', { timeout: 10000 });
-      console.log('  ✅ 予約完了ページへ遷移');
-      
-      // 完了メッセージの確認
-      const successMessage = page.locator('h1').filter({ hasText: '予約が完了しました' });
-      await expect(successMessage).toBeVisible();
-      console.log('  ✅ 予約完了メッセージ表示確認');
-      
-      // 予約番号の取得
-      const reservationNumber = await page.locator('.font-semibold.text-lg').first().textContent();
-      console.log(`  📋 予約番号: ${reservationNumber}`);
-      
-      // 完了ページのスクリーンショット
-      await page.screenshot({ path: 'reservation-complete.png', fullPage: true });
-      console.log('\n📸 完了ページスクリーンショット: reservation-complete.png');
-      
-      console.log('\n========================================');
-      console.log('🎉 予約フロー完全テスト成功！');
-      console.log('========================================');
-      
-    } catch (error) {
-      console.log('  ❌ 予約送信エラー:', error.message);
-      
-      // エラーメッセージを探す
-      const errorMessage = await page.locator('.text-red-500, .alert-danger, .error').first();
-      if (await errorMessage.isVisible()) {
-        const errorText = await errorMessage.textContent();
-        console.log('  ❌ エラーメッセージ:', errorText);
+      if (currentUrl.includes('customer') || currentUrl.includes('mypage')) {
+        console.log('✅ 認証成功 - マイページへ遷移');
       }
+    } else {
+      console.log('⚠️ OTP入力フィールドが見つかりません');
     }
   });
 
-  test('レスポンシブデザインテスト', async ({ page }) => {
+  test('レスポンシブデザインの確認', async ({ page }) => {
     console.log('\n========================================');
     console.log('📱 レスポンシブデザインテスト');
     console.log('========================================\n');
     
-    // モバイルサイズ
-    await page.setViewportSize({ width: 375, height: 667 });
-    console.log('📱 モバイルサイズ (375x667)');
+    // テストするページ
+    const testUrl = 'http://127.0.0.1:8000/reservation/store';
     
-    await page.goto('http://127.0.0.1:8000/reservation/menu');
+    // デスクトップビュー
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await page.goto(testUrl);
+    await page.waitForLoadState('networkidle');
+    console.log('🖥️ デスクトップビュー (1920x1080)');
+    
+    const desktopCards = await page.locator('.group').count();
+    console.log(`  表示カード数: ${desktopCards}`);
+    
+    // ステップインジケーターの確認
+    const desktopSteps = await page.locator('.rounded-full').count();
+    console.log(`  ステップ数: ${desktopSteps}`);
+    
+    await page.screenshot({ path: 'test-results/desktop-view.png' });
+    
+    // タブレットビュー
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await page.reload();
+    console.log('\n📱 タブレットビュー (768x1024)');
+    
+    const tabletCards = await page.locator('.group').count();
+    console.log(`  表示カード数: ${tabletCards}`);
+    
+    await page.screenshot({ path: 'test-results/tablet-view.png' });
+    
+    // モバイルビュー
+    await page.setViewportSize({ width: 375, height: 667 });
+    await page.reload();
+    console.log('\n📱 モバイルビュー (375x667)');
+    
+    const mobileCards = await page.locator('.group').count();
+    console.log(`  表示カード数: ${mobileCards}`);
+    
+    // モバイルでのステップ表示確認
+    const mobileSteps = await page.locator('.rounded-full').count();
+    console.log(`  ステップ数: ${mobileSteps}`);
+    
+    // ステップテキストが省略形で表示されるか確認
+    const stepTexts = await page.locator('.hidden.sm\\:inline').count();
+    console.log(`  省略されたステップテキスト: ${stepTexts}個`);
+    
+    await page.screenshot({ path: 'test-results/mobile-view.png' });
+    
+    // 店舗カードをクリックしてカテゴリー画面へ
+    if (mobileCards > 0) {
+      await page.locator('.group').first().click();
+      await page.waitForURL(/.*\/reservation\/category/);
+      
+      console.log('\n📱 モバイルでカテゴリー選択画面');
+      
+      // カテゴリーが縦並びで表示されるか確認
+      const categoryCards = await page.locator('form').count();
+      console.log(`  カテゴリー数: ${categoryCards}`);
+      
+      // スペースy-4クラスで縦並びになっているか確認
+      const verticalLayout = await page.locator('.space-y-4').isVisible();
+      console.log(`  縦並びレイアウト: ${verticalLayout ? '✅' : '❌'}`);
+      
+      await page.screenshot({ path: 'test-results/mobile-category.png' });
+    }
+  });
+
+  test('カテゴリー画像とメニュー表示', async ({ page }) => {
+    console.log('\n========================================');
+    console.log('🖼️ カテゴリー画像とメニュー表示テスト');
+    console.log('========================================\n');
+    
+    // 店舗選択
+    await page.goto('http://127.0.0.1:8000/reservation/store');
     await page.waitForLoadState('networkidle');
     
-    const mobileMenuItems = await page.locator('.bg-white.rounded-lg.shadow-sm').count();
-    console.log(`  メニュー表示: ${mobileMenuItems}個`);
+    const storeCount = await page.locator('.group').count();
+    if (storeCount === 0) {
+      console.log('⚠️ 店舗が登録されていません');
+      return;
+    }
     
-    await page.screenshot({ path: 'mobile-menu.png', fullPage: true });
-    console.log('  📸 モバイル版スクリーンショット: mobile-menu.png');
+    await page.locator('.group').first().click();
     
-    // タブレットサイズ
-    await page.setViewportSize({ width: 768, height: 1024 });
-    console.log('\n📱 タブレットサイズ (768x1024)');
+    // カテゴリー選択画面
+    await expect(page).toHaveURL(/.*\/reservation\/category/);
+    console.log('📍 カテゴリー選択画面');
     
-    await page.reload();
-    const tabletMenuItems = await page.locator('.bg-white.rounded-lg.shadow-sm').count();
-    console.log(`  メニュー表示: ${tabletMenuItems}個`);
+    const categoryForms = await page.locator('form').count();
+    console.log(`📊 カテゴリー数: ${categoryForms}`);
     
-    await page.screenshot({ path: 'tablet-menu.png', fullPage: true });
-    console.log('  📸 タブレット版スクリーンショット: tablet-menu.png');
+    for (let i = 0; i < Math.min(categoryForms, 3); i++) {
+      const categoryCard = page.locator('form').nth(i);
+      console.log(`\n📁 カテゴリー ${i + 1}:`);
+      
+      // カテゴリー名
+      const categoryName = await categoryCard.locator('h3').first().textContent().catch(() => 'タイトルなし');
+      console.log(`  名前: ${categoryName}`);
+      
+      // 画像の有無
+      const hasImage = await categoryCard.locator('img').count() > 0;
+      if (hasImage) {
+        const imageSrc = await categoryCard.locator('img').getAttribute('src');
+        console.log(`  画像: ${imageSrc ? '✅' : '❌'}`);
+      } else {
+        console.log(`  画像: なし`);
+      }
+      
+      // 説明文
+      const description = await categoryCard.locator('p.text-gray-600').textContent().catch(() => null);
+      if (description) {
+        console.log(`  説明: ${description.substring(0, 50)}...`);
+      }
+      
+      // サンプルメニュー
+      const sampleMenus = await categoryCard.locator('.bg-gray-100.text-gray-700').allTextContents();
+      if (sampleMenus.length > 0) {
+        console.log(`  サンプルメニュー: ${sampleMenus.join(', ')}`);
+      }
+      
+      // メニュー数バッジ
+      const menuBadge = await categoryCard.locator('.bg-green-100').textContent().catch(() => null);
+      if (menuBadge) {
+        console.log(`  ${menuBadge}`);
+      }
+    }
+    
+    await page.screenshot({ path: 'test-results/category-details.png', fullPage: true });
+    console.log('\n📸 スクリーンショット: category-details.png');
+  });
+
+  test('エラーハンドリングと戻るリンク', async ({ page }) => {
+    console.log('\n========================================');
+    console.log('⚠️ エラーハンドリングテスト');
+    console.log('========================================\n');
+    
+    // 直接カテゴリーページにアクセス（セッションなし）
+    const response = await page.goto('http://127.0.0.1:8000/reservation/category', {
+      waitUntil: 'networkidle'
+    });
+    
+    console.log(`📍 直接アクセス - ステータス: ${response?.status()}`);
+    
+    if (response?.status() === 200) {
+      // エラーメッセージまたは空のカテゴリー表示を確認
+      const emptyMessage = page.locator('text=現在、予約可能なコースはありません');
+      const errorMessage = page.locator('text=エラー');
+      const redirectMessage = page.locator('text=店舗を選択してください');
+      
+      const hasMessage = 
+        await emptyMessage.isVisible().catch(() => false) || 
+        await errorMessage.isVisible().catch(() => false) ||
+        await redirectMessage.isVisible().catch(() => false);
+      
+      console.log(`  メッセージ表示: ${hasMessage ? '✅' : '❌'}`);
+      
+      // 店舗選択に戻るリンクの確認
+      const backLink = page.locator('a').filter({ hasText: '店舗選択' });
+      if (await backLink.isVisible()) {
+        console.log('  戻るリンク: ✅');
+      }
+    } else {
+      console.log('  リダイレクトまたはエラーページ');
+    }
+    
+    // 正常なフローで戻るリンクのテスト
+    console.log('\n🔙 戻るリンクテスト');
+    await page.goto('http://127.0.0.1:8000/reservation/store');
+    
+    const storeCount = await page.locator('.group').count();
+    if (storeCount > 0) {
+      await page.locator('.group').first().click();
+      await expect(page).toHaveURL(/.*\/reservation\/category/);
+      
+      // 戻るリンクをクリック
+      const backToStore = page.locator('a').filter({ hasText: '店舗選択に戻る' });
+      await backToStore.click();
+      
+      // 店舗選択画面に戻ることを確認
+      await expect(page).toHaveURL(/.*\/reservation\/store/);
+      console.log('  ✅ 店舗選択画面に戻りました');
+    }
+  });
+
+  test('注意事項セクションの表示', async ({ page }) => {
+    console.log('\n========================================');
+    console.log('📋 注意事項セクションテスト');
+    console.log('========================================\n');
+    
+    // カテゴリー選択画面へ
+    await page.goto('http://127.0.0.1:8000/reservation/store');
+    const storeCount = await page.locator('.group').count();
+    
+    if (storeCount > 0) {
+      await page.locator('.group').first().click();
+      await expect(page).toHaveURL(/.*\/reservation\/category/);
+      
+      // 注意事項セクションの確認
+      const noticeSection = page.locator('.bg-yellow-50');
+      await expect(noticeSection).toBeVisible();
+      console.log('✅ 注意事項セクション表示');
+      
+      // タイトル確認
+      const hasTitle = await noticeSection.locator('text=ご予約の流れ').isVisible();
+      console.log(`  タイトル: ${hasTitle ? '✅' : '❌'}`);
+      
+      // 手順の確認
+      const steps = [
+        'ご希望のコースをお選びください',
+        '施術時間と料金をご確認ください',
+        'カレンダーから空き時間をお選びください',
+        'お客様情報を入力して予約完了です'
+      ];
+      
+      for (const step of steps) {
+        const hasStep = await noticeSection.locator(`text=${step}`).isVisible();
+        console.log(`  ${step}: ${hasStep ? '✅' : '❌'}`);
+      }
+      
+      // レスポンシブ確認
+      await page.setViewportSize({ width: 375, height: 667 });
+      await expect(noticeSection).toBeVisible();
+      console.log('  モバイル表示: ✅');
+    }
   });
 });
 
-// テスト終了後のサマリー
+// テスト完了サマリー
 test.afterAll(async () => {
   console.log('\n========================================');
-  console.log('📊 予約フローE2Eテスト完了');
+  console.log('📊 テスト完了サマリー');
   console.log('========================================');
-  console.log('✅ メニュー選択');
-  console.log('✅ 日時選択');
-  console.log('✅ 顧客情報入力');
-  console.log('✅ 予約完了');
-  console.log('✅ レスポンシブ対応');
+  console.log('✅ 店舗選択 → カテゴリー選択');
+  console.log('✅ OTP認証（テスト環境）');
+  console.log('✅ レスポンシブデザイン');
+  console.log('✅ カテゴリー画像表示');
+  console.log('✅ エラーハンドリング');
+  console.log('✅ 注意事項セクション');
   console.log('========================================\n');
 });

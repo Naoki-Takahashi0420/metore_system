@@ -15,14 +15,19 @@ class MenuCategory extends Model
         'name',
         'slug',
         'description',
+        'image_path',
         'sort_order',
         'is_active',
         'store_id',
+        'available_durations',
+        'duration_prices',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'sort_order' => 'integer',
+        'available_durations' => 'array',
+        'duration_prices' => 'array',
     ];
 
     /**

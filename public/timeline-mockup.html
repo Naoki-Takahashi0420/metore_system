@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>サロン予約管理システム</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                background-color: #f5f5f5;
+                padding: 20px;
+            }
+
+            .container {
+                max-width: 1400px;
+                margin: 0 auto;
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+
+            /* ヘッダー部分 */
+            .header {
+                padding: 20px;
+                border-bottom: 1px solid #e0e0e0;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .store-selector {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .store-selector select {
+                padding: 8px 12px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-size: 14px;
+            }
+
+            .date-navigation {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .date-navigation button {
+                padding: 6px 12px;
+                border: 1px solid #ddd;
+                background: white;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+
+            .date-navigation button:hover {
+                background: #f0f0f0;
+            }
+
+            .current-date {
+                font-weight: bold;
+                font-size: 16px;
+                padding: 0 15px;
+            }
+
+            /* タイムライン部分 */
+            .timeline-wrapper {
+                overflow-x: auto;
+                padding: 20px;
+            }
+
+            .timeline-table {
+                border-collapse: collapse;
+                width: 100%;
+                min-width: 1200px;
+            }
+
+            .timeline-table th,
+            .timeline-table td {
+                border: 1px solid #e0e0e0;
+                padding: 0;
+                height: 60px;
+                position: relative;
+            }
+
+            .timeline-table th {
+                background: #f8f8f8;
+                font-weight: normal;
+                font-size: 14px;
+                text-align: center;
+                width: 80px;
+            }
+
+            .timeline-table td {
+                width: 80px;
+                cursor: pointer;
+            }
+
+            .timeline-table td:hover {
+                background: #f5f5f5;
+            }
+
+            .seat-label {
+                background: #f8f8f8;
+                text-align: center;
+                font-size: 14px;
+                padding: 0 10px;
+            }
+
+            .sub-time-label {
+                background: #e8f4f8;
+                font-weight: bold;
+            }
+
+            /* 予約ブロック */
+            .booking-block {
+                position: absolute;
+                top: 2px;
+                bottom: 2px;
+                left: 2px;
+                padding: 4px;
+                border-radius: 4px;
+                font-size: 12px;
+                cursor: pointer;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                z-index: 10;
+            }
+
+            /* サブ扱いの予約 */
+            .booking-block.is-sub {
+                opacity: 0.7;
+                border: 2px dashed #666;
+            }
+
+            .booking-block.is-sub::after {
+                content: 'サブ';
+                position: absolute;
+                top: 2px;
+                right: 2px;
+                background: #666;
+                color: white;
+                font-size: 10px;
+                padding: 1px 4px;
+                border-radius: 2px;
+            }
+
+            .booking-block.span-1 {
+                width: calc(100% - 4px);
+            }
+
+            .booking-block.span-2 {
+                width: calc(200% - 4px);
+            }
+
+            .booking-block.span-3 {
+                width: calc(300% - 4px);
+            }
+
+            .booking-block.span-4 {
+                width: calc(400% - 4px);
+            }
+
+            .booking-name {
+                font-weight: bold;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .booking-menu {
+                font-size: 11px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            /* コース別の色 */
+            .course-basic {
+                background: #e3f2fd;
+                border-left: 3px solid #2196f3;
+            }
+
+            .course-special {
+                background: #f3e5f5;
+                border-left: 3px solid #9c27b0;
+            }
+
+            .course-premium {
+                background: #fff3e0;
+                border-left: 3px solid #ff9800;
+            }
+
+            .course-vip {
+                background: #ffebee;
+                border-left: 3px solid #f44336;
+            }
+
+            /* 休憩ブロック */
+            .break-block {
+                background: #757575 !important;
+                color: white;
+                text-align: center;
+                line-height: 56px;
+                font-weight: bold;
+            }
+
+            /* その他のスタイル */
+            .legend {
+                padding: 20px;
+                border-top: 1px solid #e0e0e0;
+                display: flex;
+                gap: 20px;
+                font-size: 14px;
+            }
+
+            .legend-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .legend-color {
+                width: 20px;
+                height: 20px;
+                border-radius: 4px;
+            }
+
+            /* 30分刻みの表示 */
+            .time-cell {
+                position: relative;
+            }
+
+            .time-cell::after {
+                content: '';
+                position: absolute;
+                left: 50%;
+                top: 0;
+                bottom: 0;
+                width: 1px;
+                background: #f0f0f0;
+            }
+
+        </style>
+    </head>
+
+    <body>
+        <div class="container">
+            <!-- ヘッダー -->
+            <div class="header">
+                <div class="store-selector">
+                    <label>店舗：</label>
+                    <select>
+                        <option>銀座本店</option>
+                        <option>渋谷店</option>
+                        <option>新宿店</option>
+                    </select>
+                </div>
+
+                <div class="date-navigation">
+                    <button onclick="changeDate(-1)">◀</button>
+                    <div class="current-date">2025年8月30日（土）</div>
+                    <button onclick="changeDate(1)">▶</button>
+                </div>
+            </div>
+
+            <!-- タイムライン -->
+            <div class="timeline-wrapper">
+                <table class="timeline-table">
+                    <thead>
+                        <tr>
+                            <th>席数</th>
+                            <th>10:00</th>
+                            <th>11:00</th>
+                            <th>12:00</th>
+                            <th>13:00</th>
+                            <th>14:00</th>
+                            <th>15:00</th>
+                            <th>16:00</th>
+                            <th>17:00</th>
+                            <th>18:00</th>
+                            <th>19:00</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- 席1 -->
+                        <tr>
+                            <td class="seat-label">席1</td>
+                            <td class="time-cell">
+                                <div class="booking-block course-basic span-2">
+                                    <div class="booking-name">中島 津代</div>
+                                    <div class="booking-menu">目のトレーニング</div>
+                                </div>
+                            </td>
+                            <td class="time-cell"></td>
+                            <td class="time-cell"></td>
+                            <td class="time-cell">
+                                <div class="booking-block course-special span-4">
+                                    <div class="booking-name">英護 礼子</div>
+                                    <div class="booking-menu">目のトレーニング＋水素</div>
+                                </div>
+                            </td>
+                            <td class="time-cell"></td>
+                            <td class="time-cell"></td>
+                            <td class="time-cell"></td>
+                            <td class="time-cell">
+                                <div class="booking-block course-premium span-2">
+                                    <div class="booking-name">児玉 泉</div>
+                                    <div class="booking-menu">目のトレーニング</div>
+                                </div>
+                            </td>
+                            <td class="time-cell"></td>
+                            <td class="time-cell"></td>
+                        </tr>
+
+                        <!-- 席2 -->
+                        <tr>
+                            <td class="seat-label">席2</td>
+                            <td class="time-cell"></td>
+                            <td class="time-cell">
+                                <div class="booking-block break-block span-1">BRK</div>
+                            </td>
+                            <td class="time-cell"></td>
+                            <td class="time-cell">
+                                <div class="booking-block break-block span-1">BRK</div>
+                            </td>
+                            <td class="time-cell"></td>
+                            <td class="time-cell">
+                                <div class="booking-block break-block span-1">BRK</div>
+                            </td>
+                            <td class="time-cell"></td>
+                            <td class="time-cell">
+                                <div class="booking-block break-block span-1">BRK</div>
+                            </td>
+                            <td class="time-cell"></td>
+                            <td class="time-cell"></td>
+                        </tr>
+
+                        <!-- 席3 -->
+                        <tr>
+                            <td class="seat-label">席3</td>
+                            <td class="time-cell"></td>
+                            <td class="time-cell"></td>
+                            <td class="time-cell">
+                                <div class="booking-block course-basic span-2">
+                                    <div class="booking-name">高池 健一</div>
+                                    <div class="booking-menu">目のトレーニング＋アイ</div>
+                                </div>
+                            </td>
+                            <td class="time-cell"></td>
+                            <td class="time-cell"></td>
+                            <td class="time-cell"></td>
+                            <td class="time-cell">
+                                <div class="booking-block course-special span-3">
+                                    <div class="booking-name">森岡 里美</div>
+                                    <div class="booking-menu">目のトレーニング</div>
+                                </div>
+                            </td>
+                            <td class="time-cell"></td>
+                            <td class="time-cell"></td>
+                            <td class="time-cell"></td>
+                        </tr>
+
+                        <!-- サブ枠 -->
+                        <tr>
+                            <td class="seat-label sub-time-label">サブ枠</td>
+                            <td class="time-cell"></td>
+                            <td class="time-cell"></td>
+                            <td class="time-cell"></td>
+                            <td class="time-cell">
+                                <div class="booking-block course-vip span-2">
+                                    <div class="booking-name">藤井 美奈</div>
+                                    <div class="booking-menu">目のトレーニング</div>
+                                </div>
+                            </td>
+                            <td class="time-cell"></td>
+                            <td class="time-cell"></td>
+                            <td class="time-cell"></td>
+                            <td class="time-cell">
+                                <div class="booking-block course-basic span-2">
+                                    <div class="booking-name">坂本 実</div>
+                                    <div class="booking-menu">目のトレーニング</div>
+                                </div>
+                            </td>
+                            <td class="time-cell"></td>
+                            <td class="time-cell"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 凡例 -->
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color course-basic"></div>
+                    <span>基本コース</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color course-special"></div>
+                    <span>特別コース</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color course-premium"></div>
+                    <span>プレミアムコース</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color course-vip"></div>
+                    <span>VIPコース</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color break-block"></div>
+                    <span>休憩</span>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // 簡単な日付変更機能
+            function changeDate(direction) {
+                // 実際の実装では日付を変更してデータを再読み込み
+                console.log('日付変更:', direction);
+            }
+
+            // セルクリックイベント
+            document.querySelectorAll('.time-cell').forEach(cell => {
+                cell.addEventListener('click', function (e) {
+                    if (!e.target.closest('.booking-block')) {
+                        console.log('空きセルクリック - 予約作成モーダルを開く');
+                    }
+                });
+            });
+
+            // 予約ブロッククリックイベント
+            document.querySelectorAll('.booking-block').forEach(block => {
+                block.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    console.log('予約クリック - 詳細/編集モーダルを開く');
+                });
+            });
+        </script>
+    </body>
+
+</html>
+
+<!-- サロン予約管理システム仕様書
+1. システム概要
+1.1 目的
+サロンの予約管理を効率化し、座席の稼働率を最大化するための管理者向けダッシュボードシステム。
+1.2 主要機能
+
+時間軸に基づく予約の可視化
+複数店舗・複数座席の予約管理
+サブ枠を活用した効率的な予約配置
+
+2. 画面構成
+2.1 レイアウト構造
+┌─────────────────────────────────────────────┐
+│  ヘッダー（店舗選択・日付ナビゲーション）        │
+├─────────────────────────────────────────────┤
+│                                             │
+│  タイムラインテーブル                         │
+│  - 座席行（店舗設定に基づく数）                │
+│  - サブ枠行（最下部）                        │
+│                                             │
+├─────────────────────────────────────────────┤
+│  凡例（コース種別の色分け表示）                │
+└─────────────────────────────────────────────┘
+2.2 ヘッダー部
+
+店舗選択ドロップダウン: 管理対象店舗の切り替え
+日付ナビゲーション: 前日・翌日への移動ボタンと現在日付表示
+
+2.3 タイムラインテーブル
+
+時間軸: 10:00〜20:00（営業時間は店舗設定に依存）
+表示単位: 1時間刻みの列表示
+予約単位: 30分単位（店舗設定により変更可能）
+行構成:
+
+通常座席行: 席1、席2、席3...（店舗設定の座席数分）
+サブ枠行: 最下部に1行固定
+
+
+
+3. 予約ブロック
+3.1 表示内容
+
+顧客名
+メニュー名
+予約時間（暗黙的に幅で表現）
+
+3.2 色分けルール
+コース種別により色分けを行う。以下は参考例：
+
+基本コース: 青系（#e3f2fd）
+特別コース: 紫系（#f3e5f5）
+プレミアムコース: オレンジ系（#fff3e0）
+VIPコース: 赤系（#ffebee）
+
+※実際の色設定は実装時に調整可能
+3.3 特殊ブロック
+
+BRK（休憩）: グレー背景（#757575）、白文字で「BRK」表示
+
+4. サブ枠の仕様
+4.1 概要
+物理的な座席ではなく、予約管理上の特別枠。常連客など手のかからない顧客の予約を配置することで、実質的な座席稼働率を向上させる。
+4.2 運用ルール
+
+サブ枠に予約が入っていても、通常座席は空席扱い
+新規顧客の予約は通常座席に配置可能
+スタッフは両方の予約を確認しながら効率的に対応
+
+5. 操作仕様
+5.1 予約作成
+
+トリガー: 空きセルをクリック
+動作: 予約作成モーダルを表示
+作成方法:
+
+顧客がフロントエンドから予約
+スタッフが管理画面から代理予約
+
+
+
+5.2 予約詳細確認
+
+トリガー: 予約ブロックをクリック
+動作: 予約詳細/編集モーダルを表示
+
+5.3 予約の移動
+
+ドラッグ&ドロップでの移動は非対応
+予約変更は編集モーダルから実施
+
+6. データ構造
+6.1 予約データ
+javascript{
+  id: string,
+  customer_name: string,
+  menu_name: string,
+  course_type: string,  // 'basic' | 'special' | 'premium' | 'vip'
+  start_time: datetime,
+  duration: number,     // 分単位
+  seat_id: number,      // null の場合はサブ枠
+  is_sub: boolean,      // サブ枠配置フラグ
+  is_break: boolean     // 休憩フラグ
+}
+6.2 店舗設定
+javascript{
+  store_id: string,
+  store_name: string,
+  seat_count: number,      // 座席数
+  business_hours: {
+    open: string,          // "10:00"
+    close: string          // "20:00"
+  },
+  booking_unit: number     // 予約単位（分）: 通常30
+}
+7. 技術仕様
+7.1 表示要件
+
+レスポンシブ対応（最小幅: 1200px）
+横スクロール可能なタイムラインテーブル
+30分刻みの視覚的ガイド（縦線）
+
+7.2 スタイリング
+
+シンプルで見やすいデザイン
+余計な装飾を排除
+業務効率を重視した配色とレイアウト
+
+7.3 ブラウザ対応
+
+Chrome（最新版）
+Firefox（最新版）
+Safari（最新版）
+Edge（最新版）
+
+8. 今後の拡張予定
+8.1 検討中の機能
+
+現在時刻ラインの表示
+過去時間のグレーアウト
+予約の検索・フィルター機能
+印刷用レイアウト
+CSV/PDFエクスポート
+リアルタイム更新
+
+8.2 将来的な改善
+
+ドラッグ&ドロップでの予約移動
+右クリックメニューでの操作
+キーボードショートカット
+予約のバルク操作 -->

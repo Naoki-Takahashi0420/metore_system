@@ -75,8 +75,23 @@ Route::prefix('customer')->group(function () {
         return view('customer.register');
     });
     
+    Route::get('/dashboard', function () {
+        // モダン版を表示（メルカリ風UI）
+        return view('customer.dashboard-modern');
+    });
+    
+    // 旧ダッシュボード（スタンダード版）
+    Route::get('/dashboard-standard', function () {
+        return view('customer.dashboard-new');
+    });
+    
+    // モダンダッシュボード（メルカリ風）
+    Route::get('/dashboard-modern', function () {
+        return view('customer.dashboard-modern');
+    });
+    
     Route::get('/reservations', function () {
-        return view('customer.reservations');
+        return view('customer.dashboard');
     });
     
     Route::get('/reservations/{id}', function ($id) {
@@ -86,6 +101,19 @@ Route::prefix('customer')->group(function () {
     Route::get('/medical-records', function () {
         return view('customer.medical-records');
     });
+    
+    // 視力推移表示（コントローラーメソッドがまだ実装されていない場合はビューを直接返す）
+    Route::get('/customer/vision-progress', function () {
+        return view('customer.vision-progress');
+    })->name('customer.vision-progress');
+    
+    // 旧ルート（互換性のため残す）
+    Route::get('/customer/{customer}/vision-progress', [App\Http\Controllers\MedicalRecordController::class, 'showVisionProgress'])
+        ->name('customer.vision-progress-old');
+    
+    // カルテ印刷
+    Route::get('/medical-record/{record}/print', [App\Http\Controllers\MedicalRecordController::class, 'print'])
+        ->name('medical-record.print');
 });
 
 // 管理画面用ルート
@@ -99,3 +127,8 @@ Route::get('/admin/password-reset/{token}', [PasswordResetController::class, 'sh
 Route::post('/admin/password-reset/update', [PasswordResetController::class, 'reset'])->name('password.update');
 
 }); // Basic認証グループの終了
+
+// テスト用ルート（開発環境のみ）
+if (app()->environment('local')) {
+    require __DIR__.'/test.php';
+}

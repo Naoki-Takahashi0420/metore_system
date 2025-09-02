@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>予約フロー解析</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-4">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-2xl font-bold mb-4">🔍 予約フロー問題分析</h1>
+        
+        <div class="grid md:grid-cols-2 gap-4 mb-6">
+            <div class="bg-white p-4 rounded shadow">
+                <h2 class="font-bold mb-2">現在の予約フロー確認</h2>
+                <button onclick="testReservationFlow()" class="bg-blue-500 text-white px-4 py-2 rounded">
+                    予約フローテスト開始
+                </button>
+                <div id="flow-results" class="mt-4 text-sm"></div>
+            </div>
+            
+            <div class="bg-white p-4 rounded shadow">
+                <h2 class="font-bold mb-2">ダッシュボード問題分析</h2>
+                <button onclick="testDashboard()" class="bg-green-500 text-white px-4 py-2 rounded">
+                    ダッシュボードテスト
+                </button>
+                <div id="dashboard-results" class="mt-4 text-sm"></div>
+            </div>
+        </div>
+        
+        <div class="bg-white p-4 rounded shadow">
+            <h2 class="font-bold mb-2">発見された問題と修正点</h2>
+            <div id="issues-list" class="space-y-2"></div>
+        </div>
+    </div>
+    
+    <script>
+        const issues = [];
+        
+        async function testReservationFlow() {
+            const results = document.getElementById('flow-results');
+            results.innerHTML = '<div class="text-blue-600">予約フローをテスト中...</div>';
+            
+            try {
+                // 1. 店舗一覧
+                let response = await fetch('/stores');
+                logResult('店舗一覧ページ', response.status === 200, results);
+                
+                // 2. カテゴリー選択（セッションなし）
+                response = await fetch('/reservation/category');
+                const categoryRedirect = response.url.includes('/reservation/store');
+                logResult('カテゴリーページ', !categoryRedirect, results, categoryRedirect ? '店舗選択にリダイレクトされる' : '');
+                
+                if (categoryRedirect) {
+                    issues.push('❌ カテゴリー選択: セッションなしではアクセスできない');
+                }
+                
+                // 3. 時間選択（セッションなし）
+                response = await fetch('/reservation/time');
+                const timeRedirect = response.url.includes('/reservation/store');
+                logResult('時間選択ページ', !timeRedirect, results, timeRedirect ? '店舗選択にリダイレクトされる' : '');
+                
+                if (timeRedirect) {
+                    issues.push('❌ 時間選択: セッションなしではアクセスできない');
+                }
+                
+                // 4. カレンダー（セッションなし）
+                response = await fetch('/reservation/calendar');
+                const calendarRedirect = response.url.includes('/reservation/store');
+                logResult('カレンダーページ', !calendarRedirect, results, calendarRedirect ? '店舗選択にリダイレクトされる' : '');
+                
+                if (calendarRedirect) {
+                    issues.push('❌ カレンダー: セッションなしではアクセスできない');
+                }
+                
+                updateIssuesList();
+                
+            } catch (error) {
+                results.innerHTML += `<div class="text-red-600">エラー: ${error.message}</div>`;
+            }
+        }
+        
+        async function testDashboard() {
+            const results = document.getElementById('dashboard-results');
+            results.innerHTML = '<div class="text-green-600">ダッシュボードをテスト中...</div>';
+            
+            try {
+                // 1. ダッシュボードページ
+                let response = await fetch('/customer/dashboard');
+                logResult('ダッシュボードページ', response.status === 200, results);
+                
+                // 2. モダンダッシュボード
+                response = await fetch('/customer/dashboard-modern');
+                logResult('モダンダッシュボード', response.status === 200, results);
+                
+                // 3. 視力推移
+                response = await fetch('/customer/vision-progress');
+                logResult('視力推移ページ', response.status === 200, results);
+                
+                // 4. APIエンドポイント（認証なし）
+                response = await fetch('/api/customer/reservations');
+                const needsAuth = response.status === 401;
+                logResult('予約API', needsAuth, results, needsAuth ? '認証が必要（正常）' : '認証なしでアクセス可能（問題）');
+                
+                if (!needsAuth && response.status === 200) {
+                    issues.push('❌ API: 認証なしでアクセス可能（セキュリティ問題）');
+                }
+                
+                updateIssuesList();
+                
+            } catch (error) {
+                results.innerHTML += `<div class="text-red-600">エラー: ${error.message}</div>`;
+            }
+        }
+        
+        function logResult(test, success, container, note = '') {
+            const status = success ? '✅' : '❌';
+            const color = success ? 'text-green-600' : 'text-red-600';
+            const noteText = note ? ` (${note})` : '';
+            container.innerHTML += `<div class="${color}">${status} ${test}${noteText}</div>`;
+        }
+        
+        function updateIssuesList() {
+            const container = document.getElementById('issues-list');
+            
+            // 既知の問題を追加
+            const knownIssues = [
+                '❌ ゴールド会員表示: 実際のデータに基づかない架空の会員制度',
+                '❌ ポイント表示: 実装されていないポイントシステム',
+                '❌ ランクアップ: 意味不明な機能表示',
+                '⚠️ 視力推移: サンプルデータを使用、実データなし',
+                '⚠️ セッション管理: 適切に動作するが、エラーハンドリング不足'
+            ];
+            
+            const allIssues = [...issues, ...knownIssues];
+            
+            container.innerHTML = allIssues.map(issue => 
+                `<div class="p-2 bg-yellow-50 border-l-4 border-yellow-400 text-sm">${issue}</div>`
+            ).join('');
+            
+            // 推奨修正点を追加
+            container.innerHTML += `
+                <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded">
+                    <h3 class="font-bold text-blue-800 mb-2">🔧 推奨修正点</h3>
+                    <ol class="text-sm text-blue-700 space-y-1">
+                        <li>1. 架空データの削除（ゴールド会員、ポイントなど）</li>
+                        <li>2. 実際のデータベースに基づく表示に修正</li>
+                        <li>3. エラー状態の適切なハンドリング</li>
+                        <li>4. セッション切れ時の適切な案内</li>
+                        <li>5. データがない場合の代替表示</li>
+                        <li>6. ユーザビリティ向上（分かりやすい表示）</li>
+                    </ol>
+                </div>
+            `;
+        }
+        
+        // 初期表示
+        updateIssuesList();
+    </script>
+</body>
+</html>

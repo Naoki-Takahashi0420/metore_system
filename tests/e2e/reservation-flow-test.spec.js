@@ -1,127 +1,236 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('新予約フロー（カテゴリー→時間→カレンダー）', () => {
+test.describe('予約フロー完全テスト', () => {
+  
+  test('コース選定→時間指定→日付指定の完全フロー', async ({ page }) => {
+    // 1. 店舗一覧から開始
+    await page.goto('/stores');
+    await expect(page).toHaveTitle(/店舗/);
     
-    test('予約フローが正しく動作すること', async ({ page }) => {
-        // Basic認証
-        const authHeader = 'Basic ' + Buffer.from('eyetraining:ginza2024').toString('base64');
-        await page.setExtraHTTPHeaders({
-            'Authorization': authHeader
-        });
-        
-        // 1. 店舗選択画面
-        await page.goto('http://127.0.0.1:8000/reservation/store');
-        await page.waitForLoadState('domcontentloaded');
-        
-        console.log('📍 店舗選択画面');
-        
-        // タイトル確認
-        await expect(page.locator('h1, h2').first()).toContainText(/店舗/);
-        
-        // 銀座店を選択
-        const ginzaButton = page.locator('button:has-text("銀座")').first();
-        if (await ginzaButton.count() > 0) {
-            await ginzaButton.click();
-        } else {
-            // フォーム送信型の場合
-            await page.locator('input[value="1"]').first().click(); // 銀座店のID=1と仮定
-            await page.locator('button[type="submit"]').first().click();
-        }
-        
-        // 2. カテゴリー選択画面に遷移
-        await page.waitForURL(/category|menu/);
-        console.log('📂 カテゴリー選択画面');
-        
-        // カテゴリーが表示されているか確認
-        const categoriesVisible = await page.locator('text=/ケアコース|水素コース/').count();
-        console.log(`カテゴリー数: ${categoriesVisible}`);
-        
-        if (categoriesVisible > 0) {
-            // ケアコースを選択
-            const careCategoryForm = page.locator('form:has-text("ケアコース")').first();
-            if (await careCategoryForm.count() > 0) {
-                await careCategoryForm.locator('button[type="submit"]').click();
-                console.log('✅ ケアコースを選択');
-            }
-        }
-        
-        // 3. 時間・料金選択画面
-        await page.waitForTimeout(1000);
-        const currentUrl = page.url();
-        console.log(`現在のURL: ${currentUrl}`);
-        
-        if (currentUrl.includes('time') || currentUrl.includes('select')) {
-            console.log('⏰ 時間・料金選択画面');
-            
-            // 30分コースが表示されているか
-            const time30min = await page.locator('text=/30分/').count();
-            console.log(`30分コース表示: ${time30min > 0 ? '✓' : '✗'}`);
-            
-            // 50分コースが表示されているか
-            const time50min = await page.locator('text=/50分/').count();
-            console.log(`50分コース表示: ${time50min > 0 ? '✓' : '✗'}`);
-            
-            // 料金が表示されているか
-            const priceDisplay = await page.locator('text=/¥|円/').count();
-            console.log(`料金表示: ${priceDisplay > 0 ? '✓' : '✗'}`);
-            
-            // サブスク限定メニューのチェック
-            const subscriptionOnly = await page.locator('text=/サブスク/').count();
-            console.log(`サブスク限定メニュー: ${subscriptionOnly > 0 ? 'あり' : 'なし'}`);
-        }
-        
-        // ページ構造の確認
-        console.log('\n📋 ページ要素チェック:');
-        
-        // ステップインジケーター
-        const stepIndicator = await page.locator('.rounded-full').count();
-        console.log(`ステップインジケーター: ${stepIndicator}個`);
-        
-        // 戻るリンク
-        const backLink = await page.locator('a:has-text("戻る")').count();
-        console.log(`戻るリンク: ${backLink > 0 ? '✓' : '✗'}`);
-        
-        // レスポンシブデザイン（グリッドレイアウト）
-        const gridLayout = await page.locator('.grid').count();
-        console.log(`グリッドレイアウト: ${gridLayout > 0 ? '✓' : '✗'}`);
-        
-        // エラーメッセージがないことを確認
-        const errorMessages = await page.locator('text=/error|エラー|失敗/i').count();
-        expect(errorMessages).toBe(0);
-        
-        console.log('\n✅ 予約フローテスト完了');
+    // 店舗選択ボタンが表示されることを確認
+    const selectStoreButton = page.locator('button').filter({ hasText: 'この店舗を選択' }).first();
+    await expect(selectStoreButton).toBeVisible();
+    
+    // 店舗を選択
+    await selectStoreButton.click();
+    
+    // 2. カテゴリー選択画面へ遷移
+    await page.waitForURL('**/reservation/category');
+    await expect(page.locator('h1')).toContainText('カテゴリーを選択');
+    
+    // カテゴリーが表示されることを確認
+    const categoryCards = page.locator('.bg-white.rounded-lg.shadow-md');
+    const categoryCount = await categoryCards.count();
+    console.log(`カテゴリー数: ${categoryCount}`);
+    expect(categoryCount).toBeGreaterThan(0);
+    
+    // 最初のカテゴリーを選択
+    await categoryCards.first().click();
+    
+    // 3. 時間選択画面へ遷移
+    await page.waitForURL('**/reservation/time');
+    await expect(page.locator('h1')).toContainText('時間を選択');
+    
+    // メニューカードが表示されることを確認
+    const menuCards = page.locator('.menu-card');
+    const menuCount = await menuCards.count();
+    console.log(`メニュー数: ${menuCount}`);
+    expect(menuCount).toBeGreaterThan(0);
+    
+    // 最初のメニューの時間を選択
+    const firstMenuCard = menuCards.first();
+    const timeButton = firstMenuCard.locator('button').filter({ hasText: /\d{1,2}:\d{2}/ }).first();
+    await expect(timeButton).toBeVisible();
+    await timeButton.click();
+    
+    // 4. カレンダー画面へ遷移
+    await page.waitForURL('**/reservation/calendar');
+    await expect(page.locator('h1')).toContainText('日付を選択');
+    
+    // カレンダーが表示されることを確認
+    const calendar = page.locator('.calendar-container, table').first();
+    await expect(calendar).toBeVisible();
+    
+    // 予約可能な日付（○マーク）を探す
+    const availableDates = page.locator('td').filter({ hasText: '○' });
+    const availableCount = await availableDates.count();
+    console.log(`予約可能日数: ${availableCount}`);
+    
+    if (availableCount > 0) {
+      // 最初の予約可能日を選択
+      await availableDates.first().click();
+      
+      // 予約フォームが表示されることを確認
+      await expect(page.locator('input[name="customer_name"]')).toBeVisible();
+      
+      // 顧客情報を入力
+      await page.fill('input[name="customer_name"]', 'テスト太郎');
+      await page.fill('input[name="customer_phone"]', '09012345678');
+      await page.fill('input[name="customer_email"]', 'test@example.com');
+      
+      // 予約を確定
+      const submitButton = page.locator('button[type="submit"]').filter({ hasText: '予約を確定' });
+      await submitButton.click();
+      
+      // 完了画面へ遷移
+      await page.waitForURL('**/reservation/complete/**');
+      await expect(page.locator('text=予約が完了しました')).toBeVisible();
+    } else {
+      console.log('予約可能な日付がありません');
+    }
+  });
+  
+  test('各ステップでの戻るボタン動作確認', async ({ page }) => {
+    // 店舗選択から開始
+    await page.goto('/stores');
+    const selectStoreButton = page.locator('button').filter({ hasText: 'この店舗を選択' }).first();
+    await selectStoreButton.click();
+    
+    // カテゴリー選択画面
+    await page.waitForURL('**/reservation/category');
+    const categoryCards = page.locator('.bg-white.rounded-lg.shadow-md');
+    await categoryCards.first().click();
+    
+    // 時間選択画面で戻るボタンをテスト
+    await page.waitForURL('**/reservation/time');
+    const backButton = page.locator('button, a').filter({ hasText: '戻る' });
+    if (await backButton.count() > 0) {
+      await backButton.click();
+      await expect(page).toHaveURL(/reservation\/category/);
+      console.log('時間選択画面から戻る: OK');
+      
+      // 再度進む
+      await categoryCards.first().click();
+      await page.waitForURL('**/reservation/time');
+    }
+    
+    // メニューを選択して次へ
+    const timeButton = page.locator('button').filter({ hasText: /\d{1,2}:\d{2}/ }).first();
+    await timeButton.click();
+    
+    // カレンダー画面で戻るボタンをテスト
+    await page.waitForURL('**/reservation/calendar');
+    const calendarBackButton = page.locator('button, a').filter({ hasText: '戻る' });
+    if (await calendarBackButton.count() > 0) {
+      await calendarBackButton.click();
+      await expect(page).toHaveURL(/reservation\/time/);
+      console.log('カレンダー画面から戻る: OK');
+    }
+  });
+  
+  test('モバイル表示での予約フロー', async ({ page }) => {
+    // iPhone 12のビューポートに設定
+    await page.setViewportSize({ width: 390, height: 844 });
+    
+    // 店舗一覧
+    await page.goto('/stores');
+    const selectStoreButton = page.locator('button').filter({ hasText: 'この店舗を選択' }).first();
+    await selectStoreButton.click();
+    
+    // カテゴリー選択
+    await page.waitForURL('**/reservation/category');
+    
+    // モバイルでカテゴリーカードが適切に表示されることを確認
+    const categoryCards = page.locator('.bg-white.rounded-lg.shadow-md');
+    const firstCard = await categoryCards.first().boundingBox();
+    if (firstCard) {
+      // モバイルでカードが画面幅に収まっていることを確認
+      expect(firstCard.width).toBeLessThanOrEqual(390 - 32); // 画面幅 - パディング
+    }
+    
+    await categoryCards.first().click();
+    
+    // 時間選択画面
+    await page.waitForURL('**/reservation/time');
+    
+    // モバイルでステップインジケーターが表示されることを確認
+    const stepIndicator = page.locator('.flex.items-center.justify-center');
+    await expect(stepIndicator).toBeVisible();
+    
+    // 時間ボタンがタップ可能なサイズであることを確認
+    const timeButton = page.locator('button').filter({ hasText: /\d{1,2}:\d{2}/ }).first();
+    const buttonBox = await timeButton.boundingBox();
+    if (buttonBox) {
+      expect(buttonBox.height).toBeGreaterThanOrEqual(44); // iOS推奨タップサイズ
+    }
+    
+    await timeButton.click();
+    
+    // カレンダー画面
+    await page.waitForURL('**/reservation/calendar');
+    
+    // モバイルでカレンダーが適切に表示されることを確認
+    const calendar = page.locator('.calendar-container, table').first();
+    await expect(calendar).toBeVisible();
+    const calendarBox = await calendar.boundingBox();
+    if (calendarBox) {
+      expect(calendarBox.width).toBeLessThanOrEqual(390);
+    }
+  });
+  
+  test('セッションデータの保持確認', async ({ page }) => {
+    // 店舗選択
+    await page.goto('/stores');
+    const selectStoreButton = page.locator('button').filter({ hasText: 'この店舗を選択' }).first();
+    await selectStoreButton.click();
+    
+    // カテゴリー選択
+    await page.waitForURL('**/reservation/category');
+    const categoryCards = page.locator('.bg-white.rounded-lg.shadow-md');
+    await categoryCards.first().click();
+    
+    // 時間選択
+    await page.waitForURL('**/reservation/time');
+    
+    // セッションストレージを確認
+    const sessionData = await page.evaluate(() => {
+      return {
+        store: sessionStorage.getItem('selected_store'),
+        category: sessionStorage.getItem('selected_category'),
+        menu: sessionStorage.getItem('selected_menu')
+      };
     });
-
-    test('メニューカテゴリーの表示確認', async ({ page }) => {
-        // Basic認証
-        const authHeader = 'Basic ' + Buffer.from('eyetraining:ginza2024').toString('base64');
-        await page.setExtraHTTPHeaders({
-            'Authorization': authHeader
-        });
-        
-        // 直接カテゴリー選択画面へ（セッションに店舗IDを設定済みの場合）
-        await page.goto('http://127.0.0.1:8000/reservation/store');
-        
-        // 銀座店を選択
-        const storeForm = page.locator('form').first();
-        await storeForm.locator('input[name="store_id"][value="1"]').check();
-        await storeForm.locator('button[type="submit"]').click();
-        
-        // カテゴリー画面
-        await page.waitForURL(/category/);
-        
-        // 期待されるカテゴリー
-        const expectedCategories = ['ケアコース', '水素コース', 'セットコース'];
-        
-        for (const category of expectedCategories) {
-            const categoryExists = await page.locator(`text="${category}"`).count();
-            console.log(`${category}: ${categoryExists > 0 ? '✓ 表示' : '✗ 非表示'}`);
-        }
-        
-        // カテゴリーの説明文
-        const descriptions = await page.locator('p.text-gray-600').allTextContents();
-        console.log(`説明文の数: ${descriptions.length}`);
-        
-        console.log('✅ カテゴリー表示テスト完了');
+    
+    console.log('セッションデータ:', sessionData);
+    expect(sessionData.store).toBeTruthy();
+    expect(sessionData.category).toBeTruthy();
+    
+    // メニューを選択
+    const timeButton = page.locator('button').filter({ hasText: /\d{1,2}:\d{2}/ }).first();
+    await timeButton.click();
+    
+    // カレンダー画面でセッションを再確認
+    await page.waitForURL('**/reservation/calendar');
+    const updatedSessionData = await page.evaluate(() => {
+      return {
+        store: sessionStorage.getItem('selected_store'),
+        category: sessionStorage.getItem('selected_category'),
+        menu: sessionStorage.getItem('selected_menu'),
+        time: sessionStorage.getItem('selected_time')
+      };
     });
+    
+    console.log('更新後のセッションデータ:', updatedSessionData);
+    expect(updatedSessionData.menu).toBeTruthy();
+    expect(updatedSessionData.time).toBeTruthy();
+  });
+  
+  test('エラーハンドリング - 無効な入力', async ({ page }) => {
+    // 直接カレンダーページにアクセス（セッションなし）
+    await page.goto('/reservation/calendar');
+    
+    // エラーメッセージまたはリダイレクトを確認
+    const currentUrl = page.url();
+    if (currentUrl.includes('/reservation/calendar')) {
+      // エラーメッセージが表示されるか確認
+      const errorMessage = page.locator('.alert-danger, .error-message, text=エラー');
+      if (await errorMessage.count() > 0) {
+        console.log('エラーメッセージ表示: OK');
+      }
+    } else {
+      // リダイレクトされた場合
+      console.log('適切にリダイレクト: OK');
+      expect(currentUrl).toMatch(/stores|reservation\/store/);
+    }
+  });
 });

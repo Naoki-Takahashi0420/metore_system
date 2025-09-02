@@ -144,8 +144,10 @@ class PublicReservationController extends Controller
             ->orderBy('price')
             ->get();
             
-        // 時間別にグループ化
-        $menusByDuration = $menus->groupBy('duration_minutes');
+        // 時間別にグループ化（オプションメニューは除外）
+        $menusByDuration = $menus->where('duration_minutes', '>', 0)
+            ->groupBy('duration_minutes')
+            ->sortKeys();
         
         return view('reservation.time-select', compact('menusByDuration', 'store', 'category', 'hasSubscription'));
     }
@@ -265,7 +267,7 @@ class PublicReservationController extends Controller
             $date = $startDate->copy()->addDays($i);
             $dates[] = [
                 'date' => $date,
-                'formatted' => $date->format('n月j日'),
+                'formatted' => $date->format('j'),  // 日付のみ（例: 2, 3, 4）
                 'day' => $date->format('(D)'),
                 'day_jp' => $this->getDayInJapanese($date->dayOfWeek),
                 'is_today' => $date->isToday(),

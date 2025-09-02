@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ダッシュボードデバッグ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-4">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-2xl font-bold mb-4">ダッシュボード問題診断</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Step 1: Login -->
+            <div class="bg-white p-4 rounded shadow">
+                <h2 class="font-bold mb-2">Step 1: ログイン</h2>
+                <button onclick="testLogin()" class="bg-blue-500 text-white px-4 py-2 rounded">
+                    ログインテスト
+                </button>
+                <div id="login-result" class="mt-2 text-sm"></div>
+            </div>
+            
+            <!-- Step 2: Check Token -->
+            <div class="bg-white p-4 rounded shadow">
+                <h2 class="font-bold mb-2">Step 2: トークン確認</h2>
+                <button onclick="checkToken()" class="bg-green-500 text-white px-4 py-2 rounded">
+                    トークン確認
+                </button>
+                <div id="token-result" class="mt-2 text-sm break-all"></div>
+            </div>
+            
+            <!-- Step 3: API Test -->
+            <div class="bg-white p-4 rounded shadow">
+                <h2 class="font-bold mb-2">Step 3: API直接テスト</h2>
+                <button onclick="testAPI()" class="bg-purple-500 text-white px-4 py-2 rounded">
+                    API呼び出し
+                </button>
+                <div id="api-result" class="mt-2 text-sm"></div>
+            </div>
+            
+            <!-- Step 4: Dashboard Test -->
+            <div class="bg-white p-4 rounded shadow">
+                <h2 class="font-bold mb-2">Step 4: ダッシュボード遷移</h2>
+                <button onclick="gotoDashboard()" class="bg-orange-500 text-white px-4 py-2 rounded">
+                    ダッシュボードへ
+                </button>
+                <div class="mt-2 text-xs text-gray-500">
+                    ブラウザのコンソールを開いてエラーを確認
+                </div>
+            </div>
+        </div>
+        
+        <!-- Console Output -->
+        <div class="mt-6 bg-black text-green-400 p-4 rounded font-mono text-xs">
+            <h3 class="text-white mb-2">Console Output:</h3>
+            <div id="console-output" style="max-height: 400px; overflow-y: auto;"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Console override
+        const logOutput = document.getElementById('console-output');
+        const originalLog = console.log;
+        const originalError = console.error;
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            logMessage('LOG', args.join(' '));
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            logMessage('ERROR', args.join(' '), 'text-red-400');
+        };
+        
+        function logMessage(type, message, className = '') {
+            const time = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.className = className;
+            div.textContent = `[${time}] ${type}: ${message}`;
+            logOutput.appendChild(div);
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+        
+        async function testLogin() {
+            try {
+                console.log('Starting login test...');
+                
+                // Send OTP
+                const otpRes = await fetch('/api/auth/customer/send-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone: '08033372305' })
+                });
+                
+                console.log('OTP Response:', otpRes.status);
+                
+                if (!otpRes.ok) {
+                    document.getElementById('login-result').innerHTML = `❌ OTP送信失敗: ${otpRes.status}`;
+                    return;
+                }
+                
+                // Verify OTP
+                const verifyRes = await fetch('/api/auth/customer/verify-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        phone: '08033372305',
+                        otp_code: '123456'
+                    })
+                });
+                
+                console.log('Verify Response:', verifyRes.status);
+                
+                if (verifyRes.ok) {
+                    const data = await verifyRes.json();
+                    console.log('Login successful, token received');
+                    localStorage.setItem('customer_token', data.data.token);
+                    localStorage.setItem('customer_data', JSON.stringify(data.data.customer));
+                    document.getElementById('login-result').innerHTML = '✅ ログイン成功';
+                } else {
+                    document.getElementById('login-result').innerHTML = `❌ 認証失敗: ${verifyRes.status}`;
+                }
+                
+            } catch (error) {
+                console.error('Login error:', error);
+                document.getElementById('login-result').innerHTML = `❌ エラー: ${error.message}`;
+            }
+        }
+        
+        function checkToken() {
+            const token = localStorage.getItem('customer_token');
+            const customer = localStorage.getItem('customer_data');
+            
+            if (token) {
+                console.log('Token found:', token.substring(0, 40) + '...');
+                document.getElementById('token-result').innerHTML = `
+                    ✅ トークンあり<br>
+                    ${token.substring(0, 40)}...<br>
+                    顧客: ${customer ? JSON.parse(customer).phone : 'N/A'}
+                `;
+            } else {
+                console.log('No token found');
+                document.getElementById('token-result').innerHTML = '❌ トークンなし';
+            }
+        }
+        
+        async function testAPI() {
+            const token = localStorage.getItem('customer_token');
+            
+            if (!token) {
+                document.getElementById('api-result').innerHTML = '❌ 先にログインしてください';
+                return;
+            }
+            
+            try {
+                console.log('Testing API with token...');
+                
+                const response = await fetch('/api/customer/reservations', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                console.log('API Response:', response.status);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('API Data:', data);
+                    document.getElementById('api-result').innerHTML = `
+                        ✅ API成功<br>
+                        予約数: ${data.data.length}件
+                    `;
+                } else {
+                    const text = await response.text();
+                    console.error('API Error:', text);
+                    document.getElementById('api-result').innerHTML = `
+                        ❌ API失敗: ${response.status}<br>
+                        ${text.substring(0, 100)}...
+                    `;
+                }
+                
+            } catch (error) {
+                console.error('API Test error:', error);
+                document.getElementById('api-result').innerHTML = `❌ エラー: ${error.message}`;
+            }
+        }
+        
+        function gotoDashboard() {
+            console.log('Navigating to dashboard...');
+            window.open('/customer/dashboard', '_blank');
+        }
+        
+        // Initial check
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('Debug page loaded');
+            checkToken();
+        });
+    </script>
+</body>
+</html>

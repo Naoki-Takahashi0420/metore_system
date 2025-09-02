@@ -43,14 +43,11 @@ class AdminPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
                 Dashboard::class,
+                \App\Filament\Pages\MenuManager::class,
             ])
-            ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
+                \App\Filament\Widgets\ReservationTimelineWidget::class,
                 \App\Filament\Widgets\TodayReservationsWidget::class,
-                \App\Filament\Widgets\SalesOverviewWidget::class,
-                \App\Filament\Widgets\SalesChartWidget::class,
-                \App\Filament\Widgets\TopMenusWidget::class,
-                AccountWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,

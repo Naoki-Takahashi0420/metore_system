@@ -35,6 +35,30 @@ class Store extends Model
         'require_confirmation',
         'is_active',
         'status',
+        // 予約ライン設定
+        'main_lines_count',
+        'sub_lines_count',
+        'use_staff_assignment',
+        'use_equipment_management',
+        'line_allocation_rules',
+        // LINE設定（1店舗1LINE）
+        'line_channel_access_token',
+        'line_channel_secret',
+        'line_official_account_id',
+        'line_basic_id',
+        'line_qr_code_url',
+        'line_add_friend_url',
+        'line_enabled',
+        'line_send_reservation_confirmation',
+        'line_send_reminder',
+        'line_send_followup',
+        'line_send_promotion',
+        'line_reservation_message',
+        'line_reminder_message',
+        'line_followup_message_30days',
+        'line_followup_message_60days',
+        'line_reminder_time',
+        'line_reminder_days_before',
     ];
 
     protected $casts = [
@@ -50,6 +74,16 @@ class Store extends Model
         'reservation_slot_duration' => 'integer',
         'max_advance_days' => 'integer',
         'cancellation_deadline_hours' => 'integer',
+        // 予約ライン
+        'line_allocation_rules' => 'array',
+        'use_staff_assignment' => 'boolean',
+        'use_equipment_management' => 'boolean',
+        // LINE設定
+        'line_enabled' => 'boolean',
+        'line_send_reservation_confirmation' => 'boolean',
+        'line_send_reminder' => 'boolean',
+        'line_send_followup' => 'boolean',
+        'line_send_promotion' => 'boolean',
     ];
 
     /**

@@ -28,196 +28,235 @@ class StoreResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('基本情報')
-                    ->schema([
-                        Forms\Components\TextInput::make('name')
-                            ->label('店舗名')
-                            ->required()
-                            ->maxLength(100),
-                        Forms\Components\TextInput::make('code')
-                            ->label('店舗コード')
-                            ->unique(ignoreRecord: true)
-                            ->maxLength(20)
-                            ->default(fn() => \App\Models\Store::generateStoreCode())
-                            ->disabled(fn($record) => $record !== null)
-                            ->dehydrated(),
-                        Forms\Components\Select::make('status')
-                            ->label('状態')
-                            ->options([
-                                'active' => '営業中',
-                                'inactive' => '休業中',
-                                'closed' => '閉店',
-                                'hidden' => '非表示',
-                            ])
-                            ->default('active')
-                            ->required()
-                            ->helperText('「非表示」を選択すると、お客様向けページに表示されません'),
-                        Forms\Components\Textarea::make('description')
-                            ->label('説明')
-                            ->rows(3)
-                            ->maxLength(500),
-                    ])
-                    ->columns(2),
-
-                Forms\Components\Section::make('連絡先情報')
-                    ->schema([
-                        Forms\Components\TextInput::make('phone')
-                            ->label('電話番号')
-                            ->tel()
-                            ->required(),
-                        Forms\Components\TextInput::make('email')
-                            ->label('メールアドレス')
-                            ->email()
-                            ->maxLength(100),
-                        Forms\Components\TextInput::make('postal_code')
-                            ->label('郵便番号')
-                            ->maxLength(10),
-                        Forms\Components\TextInput::make('address')
-                            ->label('住所')
-                            ->required()
-                            ->maxLength(255),
-                        Forms\Components\FileUpload::make('image_path')
-                            ->label('店舗画像')
-                            ->image()
-                            ->imageEditor()
-                            ->imageEditorAspectRatios([
-                                '16:9',
-                            ])
-                            ->imageResizeMode('force')
-                            ->imageResizeTargetWidth(1920)
-                            ->imageResizeTargetHeight(1080)
-                            ->directory('stores')
-                            ->disk('public')
-                            ->visibility('public')
-                            ->acceptedFileTypes(['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'])
-                            ->columnSpanFull(),
-                    ])
-                    ->columns(2),
-
-                Forms\Components\Section::make('営業時間')
-                    ->schema([
-                        Forms\Components\Repeater::make('business_hours')
-                            ->label('営業時間設定')
+                Forms\Components\Tabs::make('店舗情報')
+                    ->tabs([
+                        Forms\Components\Tabs\Tab::make('基本情報')
                             ->schema([
-                                Forms\Components\Select::make('day')
-                                    ->label('曜日')
-                                    ->options([
-                                        'monday' => '月曜日',
-                                        'tuesday' => '火曜日',
-                                        'wednesday' => '水曜日',
-                                        'thursday' => '木曜日',
-                                        'friday' => '金曜日',
-                                        'saturday' => '土曜日',
-                                        'sunday' => '日曜日',
+                                Forms\Components\Section::make('基本情報')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('name')
+                                            ->label('店舗名')
+                                            ->required()
+                                            ->maxLength(100),
+                                        Forms\Components\TextInput::make('code')
+                                            ->label('店舗コード')
+                                            ->unique(ignoreRecord: true)
+                                            ->maxLength(20)
+                                            ->default(fn() => \App\Models\Store::generateStoreCode())
+                                            ->disabled(fn($record) => $record !== null)
+                                            ->dehydrated(),
+                                        Forms\Components\Select::make('status')
+                                            ->label('状態')
+                                            ->options([
+                                                'active' => '営業中',
+                                                'inactive' => '休業中',
+                                                'closed' => '閉店',
+                                                'hidden' => '非表示',
+                                            ])
+                                            ->default('active')
+                                            ->required(),
+                                        Forms\Components\Textarea::make('description')
+                                            ->label('説明')
+                                            ->rows(3)
+                                            ->maxLength(500),
                                     ])
-                                    ->required()
-                                    ->distinct()
-                                    ->validationMessages([
-                                        'distinct' => '同じ曜日を複数選択することはできません。',
-                                    ])
-                                    ->dehydrated(true),
-                                Forms\Components\TextInput::make('open_time')
-                                    ->label('開店時間')
-                                    ->placeholder('09:00')
-                                    ->mask('99:99')
-                                    ->rules(['regex:/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/'])
-                                    ->helperText('例: 09:00'),
-                                Forms\Components\TextInput::make('close_time')
-                                    ->label('閉店時間')
-                                    ->placeholder('18:00')
-                                    ->mask('99:99')
-                                    ->rules(['regex:/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/'])
-                                    ->helperText('例: 18:00'),
-                                Forms\Components\Toggle::make('is_closed')
-                                    ->label('定休日')
-                                    ->reactive()
-                                    ->afterStateUpdated(function ($state, $set) {
-                                        if ($state) {
-                                            $set('open_time', null);
-                                            $set('close_time', null);
-                                        }
-                                    }),
-                            ])
-                            ->columns(4)
-                            ->defaultItems(7)
-                            ->reorderable(false)
-                            ->default([
-                                ['day' => 'monday', 'open_time' => '09:00', 'close_time' => '18:00', 'is_closed' => false],
-                                ['day' => 'tuesday', 'open_time' => '09:00', 'close_time' => '18:00', 'is_closed' => false],
-                                ['day' => 'wednesday', 'open_time' => '09:00', 'close_time' => '18:00', 'is_closed' => false],
-                                ['day' => 'thursday', 'open_time' => '09:00', 'close_time' => '18:00', 'is_closed' => false],
-                                ['day' => 'friday', 'open_time' => '09:00', 'close_time' => '18:00', 'is_closed' => false],
-                                ['day' => 'saturday', 'open_time' => '09:00', 'close_time' => '18:00', 'is_closed' => false],
-                                ['day' => 'sunday', 'open_time' => null, 'close_time' => null, 'is_closed' => true],
-                            ]),
-                    ]),
+                                    ->columns(2),
 
-                Forms\Components\Section::make('設定')
-                    ->schema([
-                        Forms\Components\Grid::make(2)
+                                Forms\Components\Section::make('連絡先情報')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('phone')
+                                            ->label('電話番号')
+                                            ->tel()
+                                            ->required(),
+                                        Forms\Components\TextInput::make('email')
+                                            ->label('メールアドレス')
+                                            ->email()
+                                            ->maxLength(100),
+                                        Forms\Components\TextInput::make('postal_code')
+                                            ->label('郵便番号')
+                                            ->maxLength(10),
+                                        Forms\Components\TextInput::make('address')
+                                            ->label('住所')
+                                            ->required()
+                                            ->maxLength(255),
+                                    ])
+                                    ->columns(2),
+                            ]),
+
+                        Forms\Components\Tabs\Tab::make('営業時間')
+                            ->schema([
+                                Forms\Components\Repeater::make('business_hours')
+                                    ->label('営業時間設定')
+                                    ->schema([
+                                        Forms\Components\Select::make('day')
+                                            ->label('曜日')
+                                            ->options([
+                                                'monday' => '月曜日',
+                                                'tuesday' => '火曜日',
+                                                'wednesday' => '水曜日',
+                                                'thursday' => '木曜日',
+                                                'friday' => '金曜日',
+                                                'saturday' => '土曜日',
+                                                'sunday' => '日曜日',
+                                            ])
+                                            ->required(),
+                                        Forms\Components\TimePicker::make('open_time')
+                                            ->label('開店時間')
+                                            ->required(),
+                                        Forms\Components\TimePicker::make('close_time')
+                                            ->label('閉店時間')
+                                            ->required(),
+                                    ])
+                                    ->columns(3)
+                                    ->defaultItems(7),
+                            ]),
+
+                        Forms\Components\Tabs\Tab::make('予約設定')
                             ->schema([
                                 Forms\Components\TextInput::make('reservation_slot_duration')
-                                    ->label('予約枠の単位（分）')
+                                    ->label('予約枠の長さ（分）')
                                     ->numeric()
                                     ->default(30)
-                                    ->helperText('予約時間の最小単位'),
+                                    ->required(),
                                 Forms\Components\TextInput::make('max_advance_days')
-                                    ->label('予約受付期間（日）')
+                                    ->label('予約可能な最大日数')
                                     ->numeric()
                                     ->default(30)
-                                    ->helperText('何日先まで予約可能か'),
+                                    ->required(),
                                 Forms\Components\TextInput::make('cancellation_deadline_hours')
-                                    ->label('キャンセル期限（時間）')
+                                    ->label('キャンセル期限（時間前）')
                                     ->numeric()
                                     ->default(24)
-                                    ->helperText('予約何時間前までキャンセル可能か'),
+                                    ->required(),
                                 Forms\Components\Toggle::make('require_confirmation')
-                                    ->label('予約確認が必要')
-                                    ->default(false)
-                                    ->helperText('スタッフの確認後に予約確定'),
-                            ]),
-                        Forms\Components\CheckboxList::make('payment_methods')
-                            ->label('対応支払い方法')
-                            ->options([
-                                'cash' => '現金',
-                                'credit_card' => 'クレジットカード',
-                                'debit_card' => 'デビットカード',
-                                'qr_payment' => 'QR決済（PayPay等）',
-                                'e_money' => '電子マネー',
-                                'bank_transfer' => '銀行振込',
+                                    ->label('予約確認を必須にする')
+                                    ->default(false),
                             ])
-                            ->columns(2)
-                            ->default(['cash', 'credit_card']),
-                    ]),
-                    
-                Forms\Components\Section::make('予約受付設定')
-                    ->description('オンライン予約の受付ルールを設定します')
-                    ->schema([
-                        Forms\Components\TextInput::make('min_booking_hours')
-                            ->label('最短予約受付時間')
-                            ->helperText('何時間前まで予約を受け付けるか（例：1 = 1時間前まで予約可能）')
-                            ->numeric()
-                            ->default(1)
-                            ->minValue(0)
-                            ->maxValue(72)
-                            ->suffix('時間前')
-                            ->required(),
-                        Forms\Components\Toggle::make('allow_same_day_booking')
-                            ->label('当日予約を許可')
-                            ->helperText('チェックを外すと当日予約ができなくなります')
-                            ->default(true)
-                            ->inline(false),
-                        Forms\Components\TextInput::make('max_advance_days')
-                            ->label('最大予約受付日数')
-                            ->helperText('何日先まで予約を受け付けるか')
-                            ->numeric()
-                            ->default(90)
-                            ->minValue(1)
-                            ->maxValue(365)
-                            ->suffix('日先まで')
-                            ->required(),
+                            ->columns(2),
+
+                        Forms\Components\Tabs\Tab::make('予約ライン設定')
+                            ->schema([
+                                Forms\Components\Section::make('ライン設定')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('main_lines_count')
+                                            ->label('本ライン数')
+                                            ->numeric()
+                                            ->default(1)
+                                            ->required()
+                                            ->helperText('新規顧客が利用可能なメインライン数'),
+                                        Forms\Components\TextInput::make('sub_lines_count')
+                                            ->label('予備ライン数')
+                                            ->numeric()
+                                            ->default(0)
+                                            ->helperText('既存顧客優先の予備ライン数'),
+                                        Forms\Components\Toggle::make('use_staff_assignment')
+                                            ->label('スタッフ指定制を使用')
+                                            ->helperText('小山・新宿店などで使用'),
+                                        Forms\Components\Toggle::make('use_equipment_management')
+                                            ->label('機材管理を使用')
+                                            ->helperText('機材数に制限がある場合'),
+                                    ])
+                                    ->columns(2),
+                            ]),
+
+                        Forms\Components\Tabs\Tab::make('LINE設定')
+                            ->schema([
+                                Forms\Components\Section::make('LINE API設定')
+                                    ->description('店舗専用のLINE公式アカウントの設定')
+                                    ->schema([
+                                        Forms\Components\Toggle::make('line_enabled')
+                                            ->label('LINE連携を有効にする')
+                                            ->reactive(),
+                                        
+                                        Forms\Components\TextInput::make('line_official_account_id')
+                                            ->label('LINE公式アカウントID')
+                                            ->placeholder('@ginza_eye_training')
+                                            ->helperText('@で始まるID')
+                                            ->visible(fn ($get) => $get('line_enabled')),
+                                        
+                                        Forms\Components\Textarea::make('line_channel_access_token')
+                                            ->label('Channel Access Token')
+                                            ->rows(3)
+                                            ->visible(fn ($get) => $get('line_enabled')),
+                                        
+                                        Forms\Components\TextInput::make('line_channel_secret')
+                                            ->label('Channel Secret')
+                                            ->password()
+                                            ->visible(fn ($get) => $get('line_enabled')),
+                                        
+                                        Forms\Components\TextInput::make('line_add_friend_url')
+                                            ->label('友だち追加URL')
+                                            ->url()
+                                            ->placeholder('https://lin.ee/xxxxx')
+                                            ->visible(fn ($get) => $get('line_enabled')),
+                                    ])
+                                    ->columns(1),
+
+                                Forms\Components\Section::make('送信設定')
+                                    ->schema([
+                                        Forms\Components\Toggle::make('line_send_reservation_confirmation')
+                                            ->label('予約確認を送信')
+                                            ->default(true),
+                                        
+                                        Forms\Components\Toggle::make('line_send_reminder')
+                                            ->label('リマインダーを送信')
+                                            ->default(true)
+                                            ->reactive(),
+                                        
+                                        Forms\Components\Grid::make(2)
+                                            ->schema([
+                                                Forms\Components\TimePicker::make('line_reminder_time')
+                                                    ->label('リマインダー送信時刻')
+                                                    ->default('10:00')
+                                                    ->visible(fn ($get) => $get('line_send_reminder')),
+                                                
+                                                Forms\Components\TextInput::make('line_reminder_days_before')
+                                                    ->label('何日前に送信')
+                                                    ->numeric()
+                                                    ->default(1)
+                                                    ->suffix('日前')
+                                                    ->visible(fn ($get) => $get('line_send_reminder')),
+                                            ]),
+                                        
+                                        Forms\Components\Toggle::make('line_send_followup')
+                                            ->label('フォローアップを送信')
+                                            ->default(true),
+                                        
+                                        Forms\Components\Toggle::make('line_send_promotion')
+                                            ->label('プロモーション送信を許可')
+                                            ->default(true),
+                                    ])
+                                    ->columns(2)
+                                    ->visible(fn ($get) => $get('line_enabled')),
+
+                                Forms\Components\Section::make('メッセージテンプレート')
+                                    ->description('変数: {{customer_name}}, {{reservation_date}}, {{reservation_time}}, {{menu_name}}, {{store_name}}')
+                                    ->schema([
+                                        Forms\Components\Textarea::make('line_reservation_message')
+                                            ->label('予約確認メッセージ')
+                                            ->rows(4)
+                                            ->default("{{customer_name}}様\n\nご予約ありがとうございます。\n日時: {{reservation_date}} {{reservation_time}}\nメニュー: {{menu_name}}\n\nお待ちしております。\n{{store_name}}"),
+                                        
+                                        Forms\Components\Textarea::make('line_reminder_message')
+                                            ->label('リマインダーメッセージ')
+                                            ->rows(4)
+                                            ->default("{{customer_name}}様\n\n明日のご予約のお知らせです。\n日時: {{reservation_date}} {{reservation_time}}\n\nお気をつけてお越しください。\n{{store_name}}"),
+                                        
+                                        Forms\Components\Textarea::make('line_followup_message_30days')
+                                            ->label('30日後フォローアップ')
+                                            ->rows(4)
+                                            ->default("{{customer_name}}様\n\n前回のご来店から1ヶ月が経ちました。\n目の調子はいかがでしょうか？\n\n次回のご予約はこちらから\n{{store_name}}"),
+                                        
+                                        Forms\Components\Textarea::make('line_followup_message_60days')
+                                            ->label('60日後フォローアップ')
+                                            ->rows(4)
+                                            ->default("{{customer_name}}様\n\nしばらくお会いできておりませんが、お元気でしょうか？\n特別クーポンをご用意しました。\n\nご予約お待ちしております。\n{{store_name}}"),
+                                    ])
+                                    ->columns(1)
+                                    ->visible(fn ($get) => $get('line_enabled')),
+                            ]),
                     ])
-                    ->columns(3),
+                    ->columnSpanFull(),
             ]);
     }
 
@@ -225,12 +264,14 @@ class StoreResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('name')
-                    ->label('店舗名')
-                    ->searchable(),
                 Tables\Columns\TextColumn::make('code')
                     ->label('店舗コード')
-                    ->searchable(),
+                    ->searchable()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('name')
+                    ->label('店舗名')
+                    ->searchable()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('phone')
                     ->label('電話番号')
                     ->searchable(),
@@ -246,17 +287,20 @@ class StoreResource extends Resource
                         'danger' => 'closed',
                         'gray' => 'hidden',
                     ])
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                    ->formatStateUsing(fn ($state) => match($state) {
                         'active' => '営業中',
                         'inactive' => '休業中',
                         'closed' => '閉店',
                         'hidden' => '非表示',
                         default => $state,
                     }),
-                Tables\Columns\TextColumn::make('menus_count')
-                    ->label('メニュー数')
-                    ->counts('menus')
-                    ->sortable(),
+                Tables\Columns\IconColumn::make('line_enabled')
+                    ->label('LINE')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-circle')
+                    ->falseIcon('heroicon-o-x-circle')
+                    ->trueColor('success')
+                    ->falseColor('gray'),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('登録日')
                     ->dateTime()
@@ -272,6 +316,8 @@ class StoreResource extends Resource
                         'closed' => '閉店',
                         'hidden' => '非表示',
                     ]),
+                Tables\Filters\TernaryFilter::make('line_enabled')
+                    ->label('LINE連携'),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),

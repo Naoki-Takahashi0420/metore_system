@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ログインテスト</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-md mx-auto bg-white rounded-lg shadow-lg p-6">
+        <h1 class="text-2xl font-bold mb-4">顧客ログインテスト</h1>
+        
+        <div class="mb-4">
+            <label class="block text-sm font-medium mb-2">電話番号</label>
+            <input type="tel" id="phone" value="08033372305" class="w-full p-2 border rounded">
+        </div>
+        
+        <button onclick="sendOTP()" class="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 mb-4">
+            OTP送信
+        </button>
+        
+        <div id="otp-section" class="hidden">
+            <div class="mb-4">
+                <label class="block text-sm font-medium mb-2">OTP (テスト環境: 123456)</label>
+                <input type="text" id="otp" value="123456" class="w-full p-2 border rounded">
+            </div>
+            
+            <button onclick="verifyOTP()" class="w-full bg-green-500 text-white py-2 rounded hover:bg-green-600">
+                ログイン
+            </button>
+        </div>
+        
+        <div id="result" class="mt-4 p-4 rounded hidden"></div>
+        
+        <div class="mt-6 p-4 bg-gray-100 rounded">
+            <h3 class="font-bold mb-2">現在のlocalStorage</h3>
+            <pre id="storage-info" class="text-xs"></pre>
+        </div>
+    </div>
+    
+    <script>
+        let currentPhone = '';
+        
+        function updateStorageInfo() {
+            const token = localStorage.getItem('customer_token');
+            const data = localStorage.getItem('customer_data');
+            document.getElementById('storage-info').textContent = JSON.stringify({
+                token: token ? token.substring(0, 30) + '...' : null,
+                customer: data ? JSON.parse(data) : null
+            }, null, 2);
+        }
+        
+        async function sendOTP() {
+            const phone = document.getElementById('phone').value;
+            currentPhone = phone;
+            
+            try {
+                const response = await fetch('/api/auth/customer/send-otp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ phone })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('otp-section').classList.remove('hidden');
+                    showResult('OTP送信成功', 'success');
+                    if (data.debug) {
+                        console.log('Debug OTP:', data.debug.otp_code);
+                    }
+                } else {
+                    showResult('OTP送信失敗: ' + data.message, 'error');
+                }
+            } catch (error) {
+                showResult('エラー: ' + error.message, 'error');
+            }
+        }
+        
+        async function verifyOTP() {
+            const otp = document.getElementById('otp').value;
+            
+            try {
+                const response = await fetch('/api/auth/customer/verify-otp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        phone: currentPhone,
+                        otp_code: otp
+                    })
+                });
+                
+                const data = await response.json();
+                console.log('Response:', data);
+                
+                if (response.ok && data.success) {
+                    if (data.data.token) {
+                        localStorage.setItem('customer_token', data.data.token);
+                        localStorage.setItem('customer_data', JSON.stringify(data.data.customer));
+                        showResult('ログイン成功！トークン保存済み', 'success');
+                        updateStorageInfo();
+                        
+                        // Test API with token
+                        testAPI(data.data.token);
+                    }
+                } else {
+                    showResult('ログイン失敗: ' + data.message, 'error');
+                }
+            } catch (error) {
+                showResult('エラー: ' + error.message, 'error');
+            }
+        }
+        
+        async function testAPI(token) {
+            try {
+                const response = await fetch('/api/customer/reservations', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                console.log('API Test Result:', data);
+                
+                if (response.ok) {
+                    showResult(`API成功！予約数: ${data.data.length}件`, 'success');
+                } else {
+                    showResult('API失敗: ' + response.status, 'error');
+                }
+            } catch (error) {
+                showResult('API エラー: ' + error.message, 'error');
+            }
+        }
+        
+        function showResult(message, type) {
+            const result = document.getElementById('result');
+            result.textContent = message;
+            result.className = `mt-4 p-4 rounded ${type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
+            result.classList.remove('hidden');
+        }
+        
+        // Initial load
+        updateStorageInfo();
+    </script>
+</body>
+</html>

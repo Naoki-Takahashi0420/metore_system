@@ -201,7 +201,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Existing customer - save token and redirect
                     localStorage.setItem('customer_token', data.data.token);
                     localStorage.setItem('customer_data', JSON.stringify(data.data.customer));
-                    window.location.href = '/customer/reservations';
+                    console.log('Login successful, token saved:', data.data.token);
+                    window.location.href = '/customer/dashboard';
                 }
             } else {
                 otpError.classList.remove('hidden');

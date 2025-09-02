@@ -90,8 +90,8 @@ class MenuController extends Controller
             $query->where('store_id', $request->store_id);
         }
         
-        $upsellMenus = $query->orderBy('display_order')
-            ->get(['id', 'name', 'description', 'upsell_description', 'price', 'duration', 'category', 'image_path']);
+        $upsellMenus = $query->orderBy('sort_order')
+            ->get(['id', 'name', 'description', 'upsell_description', 'price', 'duration_minutes', 'category', 'image_path']);
 
         return response()->json($upsellMenus);
     }

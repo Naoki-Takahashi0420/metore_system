@@ -1,38 +1,130 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="max-w-6xl mx-auto px-4 py-8">
+<style>
+    .menu-tag {
+        background: #f3f4f6;
+        color: #374151;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: bold;
+        display: inline-block;
+        margin-right: 4px;
+    }
+    
+    .menu-tag.new {
+        background: #fef3c7;
+        color: #92400e;
+    }
+    
+    .price-display {
+        color: #1f2937;
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+    
+    .reserve-button {
+        background: #3b82f6;
+        color: white;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .reserve-button:hover {
+        background: #2563eb;
+        transform: translateY(-1px);
+    }
+    
+    .menu-item-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 20px;
+        position: relative;
+    }
+    
+    @media (min-width: 768px) {
+        .menu-item-card {
+            padding: 20px;
+        }
+    }
+    
+    .menu-item-card:hover {
+        border-color: #3b82f6;
+        box-shadow: 0 2px 8px rgba(59,130,246,0.15);
+    }
+    
+    .menu-number {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: #6b7280;
+        color: white;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: bold;
+    }
+</style>
+
+<div class="max-w-5xl mx-auto px-4 py-6 bg-gray-50">
     {{-- ステップインジケーター --}}
-    <div class="mb-8">
+    {{-- モバイル版：シンプルな表示 --}}
+    <div class="block sm:hidden mb-6">
+        <div class="flex justify-center items-center">
+            <div class="flex items-center space-x-2">
+                <div class="w-8 h-8 rounded-full bg-gray-300 text-white text-xs flex items-center justify-center">✓</div>
+                <div class="w-8 h-8 rounded-full bg-gray-300 text-white text-xs flex items-center justify-center">✓</div>
+                <div class="w-8 h-8 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center font-bold">3</div>
+                <div class="w-8 h-8 rounded-full bg-gray-300 text-gray-500 text-xs flex items-center justify-center">4</div>
+            </div>
+        </div>
+        <p class="text-center text-sm mt-2 font-bold">ステップ3: 時間選択</p>
+    </div>
+
+    {{-- PC版：詳細表示 --}}
+    <div class="hidden sm:block mb-8">
         <div class="flex items-center justify-center">
             <div class="flex items-center">
                 <div class="flex items-center">
                     <div class="rounded-full h-12 w-12 bg-gray-300 text-white flex items-center justify-center text-lg font-bold">1</div>
-                    <span class="ml-2 text-gray-500">店舗</span>
+                    <span class="ml-2 text-base text-gray-500">店舗</span>
                 </div>
-                <div class="mx-4 text-gray-400">→</div>
+                <div class="mx-3 text-gray-400">→</div>
                 <div class="flex items-center">
                     <div class="rounded-full h-12 w-12 bg-gray-300 text-white flex items-center justify-center text-lg font-bold">2</div>
-                    <span class="ml-2 text-gray-500">コース</span>
+                    <span class="ml-2 text-base text-gray-500">コース</span>
                 </div>
-                <div class="mx-4 text-gray-400">→</div>
+                <div class="mx-3 text-gray-400">→</div>
                 <div class="flex items-center">
                     <div class="rounded-full h-12 w-12 bg-blue-500 text-white flex items-center justify-center text-lg font-bold">3</div>
-                    <span class="ml-2 font-bold">時間・料金</span>
+                    <span class="ml-2 text-base font-bold">時間・料金</span>
                 </div>
-                <div class="mx-4 text-gray-400">→</div>
+                <div class="mx-3 text-gray-400">→</div>
                 <div class="flex items-center">
                     <div class="rounded-full h-12 w-12 bg-gray-300 text-gray-500 flex items-center justify-center text-lg font-bold">4</div>
-                    <span class="ml-2 text-gray-500">日時選択</span>
+                    <span class="ml-2 text-base text-gray-500">日時選択</span>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-lg p-8">
-        <h1 class="text-3xl font-bold text-center mb-2">施術時間をお選びください</h1>
-        <p class="text-center text-gray-600 mb-2 text-lg">{{ $store->name }}</p>
-        <p class="text-center text-blue-600 mb-8 text-xl font-semibold">{{ $category->name }}</p>
+    {{-- ヘッダー --}}
+    <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <h1 class="text-xl font-bold mb-2">施術時間をお選びください</h1>
+        <p class="text-sm text-gray-600">{{ $store->name }} / {{ $category->name }}</p>
+    </div>
 
         @if($hasSubscription)
             <div class="mb-6 bg-green-50 border-2 border-green-300 rounded-lg p-4 text-center">
@@ -40,66 +132,76 @@
             </div>
         @endif
 
-        <div class="space-y-8">
-            @foreach($menusByDuration as $duration => $menus)
-                <div class="border-2 border-gray-200 rounded-lg p-6">
-                    <h2 class="text-2xl font-bold mb-4 text-center bg-gray-100 rounded-lg py-3">
-                        @if($duration > 0)
-                            ⏰ {{ $duration }}分コース
-                        @else
-                            オプションメニュー
-                        @endif
-                    </h2>
+    {{-- メニューリスト --}}
+    <div class="bg-white rounded-lg p-4">
+        @php $menuIndex = 1; @endphp
+        @foreach($menusByDuration as $duration => $menus)
+            @foreach($menus as $menu)
+                <div class="menu-item-card">
+                    <div class="menu-number">{{ $menuIndex++ }}</div>
                     
-                    <div class="grid md:grid-cols-2 gap-4">
-                        @foreach($menus as $menu)
-                            <form action="{{ route('reservation.store-menu') }}" method="POST">
-                                @csrf
-                                <input type="hidden" name="menu_id" value="{{ $menu->id }}">
+                    {{-- タグ部分 --}}
+                    <div class="mb-2 ml-10 md:ml-8">
+                        @if($menu->is_subscription_only)
+                            <span class="menu-tag">サブスク</span>
+                        @endif
+                        <span class="menu-tag">{{ $menu->duration_minutes }}分</span>
+                        @if($menu->is_popular)
+                            <span class="menu-tag new">人気No.1</span>
+                        @endif
+                    </div>
+                    
+                    <div class="px-2 md:px-0 md:ml-8">
+                        {{-- 画像 (16:9) --}}
+                        <div class="mb-4">
+                            @if($menu->image_path)
+                                <img src="{{ Storage::url($menu->image_path) }}" alt="{{ $menu->name }}" 
+                                    class="w-full md:w-96 h-auto aspect-video object-cover rounded-lg">
+                            @else
+                                <div class="w-full md:w-96 aspect-video bg-gray-200 rounded-lg"></div>
+                            @endif
+                        </div>
+                        
+                        {{-- コンテンツ部分（モバイルは縦並び、PCは横並び） --}}
+                        <div class="flex flex-col md:flex-row md:items-start gap-4">
+                            <div class="flex-1">
+                                {{-- タイトル --}}
+                                <h3 class="font-bold text-lg mb-2">【{{ $menu->name }}】</h3>
                                 
-                                <button type="submit" class="w-full text-left group">
-                                    <div class="border rounded-lg p-4 hover:border-blue-500 hover:bg-blue-50 transition-all group-hover:shadow-lg">
-                                        <div class="flex justify-between items-start mb-2">
-                                            <h3 class="text-lg font-semibold group-hover:text-blue-600">
-                                                {{ $menu->name }}
-                                            </h3>
-                                            <div class="text-right">
-                                                @if($menu->is_subscription_only)
-                                                    <span class="inline-block px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full mb-1">
-                                                        サブスク限定
-                                                    </span>
-                                                @endif
-                                                <p class="text-2xl font-bold text-blue-600">
-                                                    ¥{{ number_format($menu->price) }}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        
-                                        @if($menu->description)
-                                            <p class="text-gray-600 text-sm mb-3">
-                                                {{ $menu->description }}
-                                            </p>
-                                        @endif
-                                        
-                                        <div class="flex justify-between items-center">
-                                            <div class="text-sm text-gray-500">
-                                                @if($menu->duration_minutes)
-                                                    施術時間: {{ $menu->duration_minutes }}分
-                                                @endif
-                                            </div>
-                                            
-                                            <span class="text-blue-500 group-hover:text-blue-700 text-sm font-semibold">
-                                                選択する →
-                                            </span>
-                                        </div>
-                                    </div>
+                                {{-- 説明文 --}}
+                                <div class="text-sm text-gray-700 mb-3 leading-relaxed">
+                                    @if($menu->description)
+                                        {{ $menu->description }}
+                                    @else
+                                        プロの施術で心身ともにリフレッシュ。{{ $menu->duration_minutes }}分間の充実したケアをご提供します。
+                                    @endif
+                                </div>
+                                
+                                {{-- メニュー詳細情報 --}}
+                                <div class="text-xs text-gray-500 mb-3">
+                                    <span class="text-blue-600">施術時間：</span>{{ $menu->duration_minutes }}分<br>
+                                    <span class="text-blue-600">カテゴリー：</span>{{ $category->name }}<br>
+                                    <span class="text-blue-600">店舗：</span>{{ $store->name }}
+                                    @if($menu->requires_staff)
+                                        <br><span class="text-blue-600">スタッフ指定：</span>必須
+                                    @endif
+                                </div>
+                            </div>
+                            
+                            {{-- 右側：価格とボタン（モバイルは下部に） --}}
+                            <div class="w-full md:w-auto md:text-right md:ml-4 md:min-w-[150px]">
+                                <div class="price-display mb-3 text-center md:text-right">¥{{ number_format($menu->price) }}</div>
+                                <button type="button" onclick="selectMenu({{ $menu->id }}, '{{ $menu->name }}', {{ $menu->price }})" 
+                                    class="reserve-button w-full">
+                                    予約する
                                 </button>
-                            </form>
-                        @endforeach
+                            </div>
+                        </div>
                     </div>
                 </div>
             @endforeach
-        </div>
+        @endforeach
+    </div>
 
         @if($menusByDuration->isEmpty())
             <div class="text-center py-12">
@@ -131,4 +233,118 @@
         </ul>
     </div>
 </div>
+
+{{-- アップセルモーダル --}}
+<div id="upsellModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white w-full max-w-lg rounded-lg shadow-lg">
+            {{-- ヘッダー --}}
+            <div class="border-b p-5">
+                <h3 class="text-lg font-bold">追加オプション</h3>
+                <p class="text-sm text-gray-600 mt-1">ご一緒にいかがですか？</p>
+            </div>
+            
+            {{-- オプションリスト --}}
+            <div id="optionMenus" class="p-5 space-y-3 max-h-96 overflow-y-auto">
+                <!-- オプションメニューがここに動的に挿入されます -->
+            </div>
+            
+            {{-- フッター --}}
+            <div class="border-t p-5">
+                <button onclick="confirmWithOptions()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg mb-2">
+                    追加して次へ
+                </button>
+                <button onclick="skipOptions()" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-lg">
+                    追加しない
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form id="reservationForm" action="{{ route('reservation.store-menu') }}" method="POST" style="display: none;">
+    @csrf
+    <input type="hidden" name="menu_id" id="selectedMenuId">
+    <input type="hidden" name="option_ids" id="selectedOptionIds">
+</form>
+
+<script>
+    let selectedMenuId = null;
+    let selectedOptions = [];
+
+    async function selectMenu(menuId, menuName, menuPrice) {
+        selectedMenuId = menuId;
+        
+        // アップセルメニューを取得
+        try {
+            const response = await fetch(`/api/menus/upsell?store_id={{ $store->id }}&exclude=${menuId}`);
+            const upsellMenus = await response.json();
+            
+            if (upsellMenus && upsellMenus.length > 0) {
+                // オプションメニューがある場合、モーダルを表示
+                showUpsellModal(upsellMenus);
+            } else {
+                // オプションがない場合、直接予約へ
+                proceedWithSelection();
+            }
+        } catch (error) {
+            console.error('Error fetching upsell menus:', error);
+            // エラーの場合も予約へ進む
+            proceedWithSelection();
+        }
+    }
+
+    function showUpsellModal(upsellMenus) {
+        const container = document.getElementById('optionMenus');
+        container.innerHTML = '';
+        selectedOptions = [];
+        
+        upsellMenus.forEach(menu => {
+            const div = document.createElement('div');
+            div.className = 'border rounded-lg p-3 hover:bg-gray-50';
+            div.innerHTML = `
+                <label class="flex items-center cursor-pointer">
+                    ${menu.image_path ? `<img src="/storage/${menu.image_path}" alt="${menu.name}" class="w-16 h-16 object-cover rounded mr-3">` : ''}
+                    <input type="checkbox" value="${menu.id}" onchange="toggleOption(${menu.id})" class="mr-3 w-4 h-4">
+                    <div class="flex-1">
+                        <div class="font-medium">${menu.name}</div>
+                        ${menu.upsell_description ? `<div class="text-sm text-gray-600">${menu.upsell_description}</div>` : ''}
+                    </div>
+                    <div class="text-lg font-bold">¥${menu.price.toLocaleString()}</div>
+                </label>
+            `;
+            container.appendChild(div);
+        });
+        
+        document.getElementById('upsellModal').classList.remove('hidden');
+        document.getElementById('upsellModal').classList.add('flex');
+    }
+
+    function toggleOption(optionId) {
+        const index = selectedOptions.indexOf(optionId);
+        if (index > -1) {
+            selectedOptions.splice(index, 1);
+        } else {
+            selectedOptions.push(optionId);
+        }
+    }
+
+    function skipOptions() {
+        document.getElementById('upsellModal').classList.add('hidden');
+        document.getElementById('upsellModal').classList.remove('flex');
+        proceedWithSelection();
+    }
+
+    function confirmWithOptions() {
+        document.getElementById('upsellModal').classList.add('hidden');
+        document.getElementById('upsellModal').classList.remove('flex');
+        proceedWithSelection();
+    }
+
+    function proceedWithSelection() {
+        document.getElementById('selectedMenuId').value = selectedMenuId;
+        document.getElementById('selectedOptionIds').value = selectedOptions.join(',');
+        document.getElementById('reservationForm').submit();
+    }
+</script>
 @endsection

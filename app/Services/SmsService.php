@@ -76,6 +76,15 @@ class SmsService
      */
     public function sendOtp(string $phone, string $otp): bool
     {
+        // テスト環境では実際にSMS送信せず成功扱い
+        if (config('app.env') === 'local' || config('app.env') === 'testing') {
+            Log::info('テスト環境のため、SMS送信をスキップ', [
+                'phone' => $phone,
+                'otp' => $otp,
+            ]);
+            return true;
+        }
+        
         $message = sprintf(
             "【%s】認証コード: %s\n有効期限: 5分",
             config('app.name'),

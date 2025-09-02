@@ -100,6 +100,7 @@ class ReservationController extends Controller
         
         $reservation = Reservation::where('customer_id', $customer->id)
             ->where('id', $id)
+            ->with(['store'])
             ->first();
 
         if (!$reservation) {
@@ -118,10 +119,15 @@ class ReservationController extends Controller
         // 24時間前チェック
         $reservationDateTime = \Carbon\Carbon::parse($reservation->reservation_date . ' ' . $reservation->start_time);
         $now = \Carbon\Carbon::now();
+        $hoursUntilReservation = $now->diffInHours($reservationDateTime, false);
         
-        if ($reservationDateTime->diffInHours($now) < 24) {
+        if ($hoursUntilReservation < 24) {
             return response()->json([
-                'message' => '予約の24時間前を過ぎているため、キャンセルできません'
+                'success' => false,
+                'message' => '予約の24時間前を過ぎています',
+                'require_phone_contact' => true,
+                'store_phone' => $reservation->store->phone,
+                'store_name' => $reservation->store->name
             ], 400);
         }
 
@@ -133,8 +139,85 @@ class ReservationController extends Controller
         ]);
 
         return response()->json([
+            'success' => true,
             'message' => '予約をキャンセルしました',
             'data' => $reservation
+        ]);
+    }
+
+    /**
+     * 予約変更
+     */
+    public function updateReservation(Request $request, $id)
+    {
+        $customer = $request->user();
+        
+        $reservation = Reservation::where('customer_id', $customer->id)
+            ->where('id', $id)
+            ->with(['store', 'menu'])
+            ->first();
+
+        if (!$reservation) {
+            return response()->json([
+                'message' => '予約が見つかりません'
+            ], 404);
+        }
+
+        // 変更可能かチェック
+        if (!in_array($reservation->status, ['confirmed', 'pending'])) {
+            return response()->json([
+                'message' => 'この予約は変更できません'
+            ], 400);
+        }
+
+        // 24時間前チェック
+        $reservationDateTime = \Carbon\Carbon::parse($reservation->reservation_date . ' ' . $reservation->start_time);
+        $now = \Carbon\Carbon::now();
+        $hoursUntilReservation = $now->diffInHours($reservationDateTime, false);
+        
+        if ($hoursUntilReservation < 24) {
+            return response()->json([
+                'success' => false,
+                'message' => '予約の24時間前を過ぎています',
+                'require_phone_contact' => true,
+                'store_phone' => $reservation->store->phone,
+                'store_name' => $reservation->store->name
+            ], 400);
+        }
+
+        $validated = $request->validate([
+            'reservation_date' => 'sometimes|date|after:today',
+            'start_time' => 'sometimes|date_format:H:i:s',
+            'menu_id' => 'sometimes|exists:menus,id'
+        ]);
+
+        // 変更実行
+        if (isset($validated['reservation_date'])) {
+            $reservation->reservation_date = $validated['reservation_date'];
+        }
+        
+        if (isset($validated['start_time'])) {
+            $reservation->start_time = $validated['start_time'];
+            $reservation->reservation_time = $validated['start_time'];
+            
+            // 終了時間も更新
+            $startTime = \Carbon\Carbon::parse($reservation->reservation_date . ' ' . $validated['start_time']);
+            $duration = $reservation->menu->duration_minutes ?? 60;
+            $reservation->end_time = $startTime->copy()->addMinutes($duration);
+        }
+        
+        if (isset($validated['menu_id'])) {
+            $menu = \App\Models\Menu::find($validated['menu_id']);
+            $reservation->menu_id = $menu->id;
+            $reservation->total_amount = $menu->price;
+        }
+
+        $reservation->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => '予約を変更しました',
+            'data' => $reservation->load(['store', 'menu'])
         ]);
     }
 }

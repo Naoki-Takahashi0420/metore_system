@@ -3,19 +3,45 @@
 namespace App\Filament\Widgets;
 
 use App\Models\Reservation;
+use App\Models\Store;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Livewire\Attributes\On;
 
 class TodayReservationsWidget extends BaseWidget
 {
-    protected static ?int $sort = 0; // 最上部に表示
+    protected static ?int $sort = 2; // タイムラインの下に表示
     
     protected int | string | array $columnSpan = 'full';
     
-    protected static ?string $heading = '本日の予約';
+    public $selectedStore = null;
+    public $selectedDate = null;
+    
+    public function mount(): void
+    {
+        $firstStore = Store::where('is_active', true)->first();
+        $this->selectedStore = $firstStore?->id;
+        $this->selectedDate = Carbon::today()->format('Y-m-d');
+    }
+    
+    #[On('store-changed')]
+    public function updateStore($storeId, $date): void
+    {
+        $this->selectedStore = $storeId;
+        $this->selectedDate = $date;
+        $this->resetTable();
+    }
+    
+    public function getHeading(): ?string
+    {
+        $date = Carbon::parse($this->selectedDate ?? today());
+        $dateStr = $date->format('n月j日');
+        $storeName = $this->selectedStore ? Store::find($this->selectedStore)?->name : '全店舗';
+        return "{$dateStr}の予約 - {$storeName}";
+    }
     
     public function table(Table $table): Table
     {
@@ -23,7 +49,10 @@ class TodayReservationsWidget extends BaseWidget
             ->query(
                 Reservation::query()
                     ->with(['customer', 'store', 'menu'])
-                    ->whereDate('reservation_date', today())
+                    ->when($this->selectedStore, fn($query) => 
+                        $query->where('store_id', $this->selectedStore)
+                    )
+                    ->whereDate('reservation_date', $this->selectedDate ?? today())
                     ->orderBy('start_time', 'asc')
             )
             ->columns([
@@ -40,8 +69,20 @@ class TodayReservationsWidget extends BaseWidget
                 Tables\Columns\TextColumn::make('menu.name')
                     ->label('メニュー')
                     ->default('-'),
-                Tables\Columns\TextColumn::make('store.name')
-                    ->label('店舗'),
+                Tables\Columns\TextColumn::make('seat_display')
+                    ->label('配置')
+                    ->getStateUsing(function ($record) {
+                        if ($record->is_sub) {
+                            return 'サブ枠';
+                        } elseif ($record->seat_number) {
+                            return '席' . $record->seat_number;
+                        }
+                        return '-';
+                    })
+                    ->badge()
+                    ->color(fn ($state) => 
+                        $state === 'サブ枠' ? 'warning' : 'primary'
+                    ),
                 Tables\Columns\BadgeColumn::make('status')
                     ->label('ステータス')
                     ->getStateUsing(function ($record) {

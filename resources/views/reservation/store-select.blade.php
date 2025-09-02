@@ -24,6 +24,47 @@
 </head>
 <body class="bg-gray-50">
     <div class="container mx-auto px-4 py-8 max-w-6xl">
+        {{-- ステップインジケーター --}}
+        {{-- モバイル版：シンプルな表示 --}}
+        <div class="block sm:hidden mb-6">
+            <div class="flex justify-center items-center">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center font-bold">1</div>
+                    <div class="w-8 h-8 rounded-full bg-gray-300 text-gray-500 text-xs flex items-center justify-center">2</div>
+                    <div class="w-8 h-8 rounded-full bg-gray-300 text-gray-500 text-xs flex items-center justify-center">3</div>
+                    <div class="w-8 h-8 rounded-full bg-gray-300 text-gray-500 text-xs flex items-center justify-center">4</div>
+                </div>
+            </div>
+            <p class="text-center text-sm mt-2 font-bold">ステップ1: 店舗選択</p>
+        </div>
+
+        {{-- PC版：詳細表示 --}}
+        <div class="hidden sm:block mb-8">
+            <div class="flex items-center justify-center">
+                <div class="flex items-center">
+                    <div class="flex items-center">
+                        <div class="rounded-full h-12 w-12 bg-blue-500 text-white flex items-center justify-center text-lg font-bold">1</div>
+                        <span class="ml-2 text-base font-bold">店舗</span>
+                    </div>
+                    <div class="mx-3 text-gray-400">→</div>
+                    <div class="flex items-center">
+                        <div class="rounded-full h-12 w-12 bg-gray-300 text-gray-500 flex items-center justify-center text-lg font-bold">2</div>
+                        <span class="ml-2 text-base text-gray-500">コース</span>
+                    </div>
+                    <div class="mx-3 text-gray-400">→</div>
+                    <div class="flex items-center">
+                        <div class="rounded-full h-12 w-12 bg-gray-300 text-gray-500 flex items-center justify-center text-lg font-bold">3</div>
+                        <span class="ml-2 text-base text-gray-500">時間・料金</span>
+                    </div>
+                    <div class="mx-3 text-gray-400">→</div>
+                    <div class="flex items-center">
+                        <div class="rounded-full h-12 w-12 bg-gray-300 text-gray-500 flex items-center justify-center text-lg font-bold">4</div>
+                        <span class="ml-2 text-base text-gray-500">日時選択</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- ヘッダー -->
         <div class="text-center mb-8 fade-in">
             <h1 class="text-3xl font-bold text-gray-800 mb-2">店舗を選択</h1>
