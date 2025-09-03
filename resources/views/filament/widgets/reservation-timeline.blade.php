@@ -158,14 +158,67 @@
         
         <!-- ヘッダー -->
         <div class="flex justify-between items-center mb-4">
-            <div class="flex items-center gap-4">
-                <label class="text-sm font-medium">店舗：</label>
-                <select wire:model.live="selectedStore" class="border rounded px-3 py-1 text-sm">
+            {{-- 店舗選択（柔軟な表示方式） --}}
+            @php
+                $storeCount = $stores->count();
+                $currentStore = $stores->firstWhere('id', $selectedStore);
+            @endphp
+            
+            @if($storeCount <= 3)
+                {{-- 3店舗以下：ボタン形式 --}}
+                <div class="flex items-center gap-2">
+                    <label class="text-sm font-medium">店舗：</label>
                     @foreach($stores as $store)
-                        <option value="{{ $store->id }}">{{ $store->name }}</option>
+                        <button
+                            wire:click="$set('selectedStore', {{ $store->id }})"
+                            class="px-3 py-1 text-sm rounded-lg transition-colors {{ $selectedStore == $store->id ? 'bg-primary-600 text-white' : 'bg-gray-100 hover:bg-gray-200' }}"
+                        >
+                            {{ $store->name }}
+                        </button>
                     @endforeach
-                </select>
-            </div>
+                </div>
+            @elseif($storeCount <= 8)
+                {{-- 4-8店舗：ドロップダウン --}}
+                <div class="flex items-center gap-2">
+                    <label class="text-sm font-medium">店舗：</label>
+                    <x-filament::dropdown placement="bottom-start">
+                        <x-slot name="trigger">
+                            <button class="inline-flex items-center gap-2 px-3 py-1 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700">
+                                <x-heroicon-o-building-storefront class="w-4 h-4" />
+                                <span>{{ $currentStore ? $currentStore->name : '店舗を選択' }}</span>
+                                <x-heroicon-m-chevron-down class="w-3 h-3" />
+                            </button>
+                        </x-slot>
+                        
+                        <div class="py-1">
+                            @foreach($stores as $store)
+                                @if($store->id != $selectedStore)
+                                <button 
+                                    wire:click="$set('selectedStore', {{ $store->id }})"
+                                    class="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    @if($store->is_active)
+                                        <x-heroicon-m-check-circle class="w-4 h-4 text-green-500" />
+                                    @else
+                                        <x-heroicon-m-x-circle class="w-4 h-4 text-gray-400" />
+                                    @endif
+                                    {{ $store->name }}
+                                </button>
+                                @endif
+                            @endforeach
+                        </div>
+                    </x-filament::dropdown>
+                </div>
+            @else
+                {{-- 9店舗以上：検索可能な選択 --}}
+                <div class="flex items-center gap-2">
+                    <label class="text-sm font-medium">店舗：</label>
+                    <select wire:model.live="selectedStore" class="border rounded px-3 py-1 text-sm">
+                        @foreach($stores as $store)
+                            <option value="{{ $store->id }}">{{ $store->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
             
             <div class="flex items-center gap-4">
                 <div class="flex items-center gap-2">
@@ -222,6 +275,11 @@
                                                             {{ $reservation['customer_name'] }}
                                                         </div>
                                                         <div class="booking-menu">{{ $reservation['menu_name'] }}</div>
+                                                        @if($reservation['staff_name'])
+                                                            <div style="font-size: 10px; color: #666; margin-top: 2px;">
+                                                                👤 {{ $reservation['staff_name'] }}
+                                                            </div>
+                                                        @endif
                                                         @if($reservation['is_conflicting'] ?? false)
                                                             <div style="color: red; font-size: 10px; font-weight: bold;">⚠️ 競合</div>
                                                         @endif
@@ -321,6 +379,18 @@
                             <p class="text-sm font-medium">
                                 {{ \Carbon\Carbon::parse($selectedReservation->reservation_date)->format('m/d') }}
                                 {{ \Carbon\Carbon::parse($selectedReservation->start_time)->format('H:i') }}
+                            </p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 mb-1">担当スタッフ</p>
+                            <p class="text-sm font-medium">
+                                @if($selectedReservation->staff)
+                                    <span class="inline-block px-2 py-1 bg-green-100 text-green-700 rounded text-xs">
+                                        👤 {{ $selectedReservation->staff->name }}
+                                    </span>
+                                @else
+                                    <span class="inline-block px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">未割当</span>
+                                @endif
                             </p>
                         </div>
                         <div>

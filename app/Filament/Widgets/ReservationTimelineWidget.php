@@ -111,8 +111,8 @@ class ReservationTimelineWidget extends Widget
         // タイムラインデータを構築
         $timeline = [];
         
-        // 予約データを取得
-        $reservations = Reservation::with(['customer', 'menu'])
+        // 予約データを取得（スタッフ情報も含む）
+        $reservations = Reservation::with(['customer', 'menu', 'staff'])
             ->where('store_id', $this->selectedStore)
             ->whereDate('reservation_date', $date)
             ->whereNotIn('status', ['cancelled', 'canceled'])
@@ -212,6 +212,7 @@ class ReservationTimelineWidget extends Widget
                 'customer_name' => $reservation->customer ? 
                     ($reservation->customer->last_name . ' ' . $reservation->customer->first_name) : '名前なし',
                 'menu_name' => $reservation->menu->name ?? 'メニューなし',
+                'staff_name' => $reservation->staff ? $reservation->staff->name : null,
                 'start_slot' => $startSlot,
                 'span' => $span,
                 'course_type' => $this->getCourseType($reservation->menu->category_id ?? null),
@@ -277,7 +278,7 @@ class ReservationTimelineWidget extends Widget
     
     public function openReservationDetail($reservationId): void
     {
-        $this->selectedReservation = Reservation::with(['customer', 'menu'])->find($reservationId);
+        $this->selectedReservation = Reservation::with(['customer', 'menu', 'staff'])->find($reservationId);
         
         if ($this->selectedReservation && $this->selectedReservation->customer_id) {
             // 顧客の総訪問回数を取得
