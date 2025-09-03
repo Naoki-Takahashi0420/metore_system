@@ -1,22 +1,115 @@
 <x-filament-panels::page>
     <div class="space-y-6">
-        {{-- 店舗選択 --}}
+        {{-- 店舗選択（柔軟な表示方式） --}}
         @if(auth()->user()->hasRole('super_admin'))
+        @php
+            $stores = $this->getStores();
+            $storeCount = $stores->count();
+            $currentStore = \App\Models\Store::find($selectedStore);
+        @endphp
+        
         <div class="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
-            <div class="flex items-center gap-2 mb-2">
+            <div class="flex items-center gap-2 mb-3">
                 <x-heroicon-o-building-storefront class="w-5 h-5 text-gray-500" />
                 <span class="font-semibold">店舗選択</span>
+                @if($currentStore && $storeCount > 3)
+                    <span class="text-sm text-gray-500">（現在: {{ $currentStore->name }}）</span>
+                @endif
             </div>
-            <div class="flex gap-2 flex-wrap">
-                @foreach($this->getStores() as $store)
-                    <button
-                        wire:click="selectStore({{ $store->id }})"
-                        class="px-4 py-2 rounded-lg transition-colors {{ $selectedStore == $store->id ? 'bg-primary-600 text-white' : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600' }}"
-                    >
-                        {{ $store->name }}
-                    </button>
-                @endforeach
-            </div>
+            
+            @if($storeCount <= 3)
+                {{-- 3店舗以下：ボタン形式 --}}
+                <div class="flex gap-2 flex-wrap">
+                    @foreach($stores as $store)
+                        <button
+                            wire:click="selectStore({{ $store->id }})"
+                            class="px-4 py-2 rounded-lg transition-colors {{ $selectedStore == $store->id ? 'bg-primary-600 text-white' : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600' }}"
+                        >
+                            {{ $store->name }}
+                        </button>
+                    @endforeach
+                </div>
+            @elseif($storeCount <= 8)
+                {{-- 4-8店舗：ドロップダウン --}}
+                <x-filament::dropdown placement="bottom-start">
+                    <x-slot name="trigger">
+                        <button class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
+                            <x-heroicon-o-building-storefront class="w-5 h-5" />
+                            <span>{{ $currentStore ? $currentStore->name : '店舗を選択' }}</span>
+                            <x-heroicon-m-chevron-down class="w-4 h-4" />
+                        </button>
+                    </x-slot>
+                    
+                    <div class="py-1">
+                        @foreach($stores as $store)
+                            @if($store->id != $selectedStore)
+                            <button 
+                                wire:click="selectStore({{ $store->id }})"
+                                class="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+                                @if($store->is_active)
+                                    <x-heroicon-m-check-circle class="w-4 h-4 text-green-500" />
+                                @else
+                                    <x-heroicon-m-x-circle class="w-4 h-4 text-gray-400" />
+                                @endif
+                                {{ $store->name }}
+                            </button>
+                            @endif
+                        @endforeach
+                    </div>
+                </x-filament::dropdown>
+            @else
+                {{-- 9店舗以上：検索可能なモーダル --}}
+                <button
+                    x-data
+                    @click="$dispatch('open-modal', { id: 'store-selector-modal' })"
+                    class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                >
+                    <x-heroicon-o-building-storefront class="w-5 h-5" />
+                    <span>{{ $currentStore ? '店舗: ' . $currentStore->name : '店舗を選択' }}</span>
+                    <x-heroicon-m-magnifying-glass class="w-4 h-4" />
+                </button>
+                
+                {{-- 検索可能なモーダル --}}
+                <x-filament::modal id="store-selector-modal" width="md">
+                    <x-slot name="heading">
+                        店舗を選択
+                    </x-slot>
+                    
+                    <div x-data="{ search: '' }" class="space-y-4">
+                        <div class="relative">
+                            <input
+                                type="text"
+                                x-model="search"
+                                placeholder="店舗名で検索..."
+                                class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                            >
+                            <x-heroicon-o-magnifying-glass class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                        </div>
+                        
+                        <div class="max-h-96 overflow-y-auto space-y-1">
+                            @foreach($stores as $store)
+                            <button
+                                wire:click="selectStoreFromModal({{ $store->id }})"
+                                x-show="'{{ strtolower($store->name) }}'.includes(search.toLowerCase())"
+                                class="w-full flex items-center justify-between px-4 py-3 text-left rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors {{ $selectedStore == $store->id ? 'bg-primary-100 dark:bg-primary-900' : '' }}"
+                            >
+                                <div class="flex items-center gap-3">
+                                    @if($store->is_active)
+                                        <x-heroicon-m-check-circle class="w-5 h-5 text-green-500" />
+                                    @else
+                                        <x-heroicon-m-x-circle class="w-5 h-5 text-gray-400" />
+                                    @endif
+                                    <span class="font-medium">{{ $store->name }}</span>
+                                </div>
+                                @if($selectedStore == $store->id)
+                                    <x-heroicon-m-check class="w-5 h-5 text-primary-600" />
+                                @endif
+                            </button>
+                            @endforeach
+                        </div>
+                    </div>
+                </x-filament::modal>
+            @endif
         </div>
         @endif
 

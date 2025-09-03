@@ -29,6 +29,7 @@ class MenuManager extends Page implements HasForms, HasActions
     public $selectedStore = null;
     public $categories = [];
     public $menus = [];
+    public $storeSearchForm = [];
 
     public function mount(): void
     {
@@ -65,10 +66,17 @@ class MenuManager extends Page implements HasForms, HasActions
     public function getStores(): Collection
     {
         if (auth()->user()->hasRole('super_admin')) {
-            return Store::all();
+            return Store::orderBy('sort_order')->orderBy('name')->get();
         }
         
         return Store::where('id', auth()->user()->store_id)->get();
+    }
+
+    public function selectStoreFromModal($storeId): void
+    {
+        $this->selectedStore = $storeId;
+        $this->loadData();
+        $this->dispatch('close-modal', id: 'store-selector-modal');
     }
 
     public function addCategory(): void
