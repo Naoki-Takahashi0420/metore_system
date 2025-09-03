@@ -40,14 +40,22 @@ class AdminPanelProvider extends PanelProvider
                 'danger' => Color::Red,
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
+            ->resources([
+                // 不要なリソースを除外
+                // \App\Filament\Resources\ReservationLineResource::class,
+                // \App\Filament\Resources\CustomerSubscriptionResource::class,
+                // \App\Filament\Resources\CustomerAccessTokenResource::class,
+            ])
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
                 Dashboard::class,
                 \App\Filament\Pages\MenuManager::class,
+                \App\Filament\Pages\ShiftManagement::class,
             ])
             ->widgets([
                 \App\Filament\Widgets\ReservationTimelineWidget::class,
                 \App\Filament\Widgets\TodayReservationsWidget::class,
+                \App\Filament\Widgets\ShiftCalendarWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,

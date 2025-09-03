@@ -76,40 +76,6 @@ class MenuCategoryResource extends Resource
                             ->helperText('無効にするとメニューが非表示になります'),
                     ])
                     ->columns(2),
-
-                Forms\Components\Section::make('時間・料金設定')
-                    ->description('このカテゴリーで提供可能な時間と料金を設定')
-                    ->schema([
-                        Forms\Components\CheckboxList::make('available_durations')
-                            ->label('提供時間')
-                            ->options([
-                                0 => 'オプション（時間なし）',
-                                30 => '30分',
-                                50 => '50分',  
-                                80 => '80分',
-                            ])
-                            ->columns(3)
-                            ->reactive()
-                            ->helperText('チェックした時間のメニューが作成可能になります'),
-
-                        Forms\Components\Grid::make(1)
-                            ->schema(fn ($get) => collect($get('available_durations') ?? [])
-                                ->map(fn ($duration) => 
-                                    Forms\Components\TextInput::make("duration_prices.{$duration}")
-                                        ->label("{$duration}分の基本料金")
-                                        ->numeric()
-                                        ->prefix('¥')
-                                        ->required()
-                                        ->default(match($duration) {
-                                            30 => 3000,
-                                            50 => 5000,
-                                            80 => 8000,
-                                            default => 0
-                                        })
-                                )
-                                ->toArray()
-                            ),
-                    ]),
             ]);
     }
 
@@ -142,22 +108,6 @@ class MenuCategoryResource extends Resource
                         default => 'success',
                     }),
 
-                Tables\Columns\TextColumn::make('available_durations')
-                    ->label('提供時間')
-                    ->formatStateUsing(function ($state) {
-                        if (!$state || (is_array($state) && empty($state))) {
-                            return '未設定';
-                        }
-                        if (is_string($state)) {
-                            $state = json_decode($state, true);
-                        }
-                        if (!$state || empty($state)) {
-                            return '未設定';
-                        }
-                        return collect($state)->map(fn($d) => "{$d}分")->join(', ');
-                    })
-                    ->badge()
-                    ->color(fn ($state) => (!$state || empty($state)) ? 'gray' : 'info'),
 
                 Tables\Columns\TextColumn::make('sort_order')
                     ->label('表示順')
@@ -193,6 +143,64 @@ class MenuCategoryResource extends Resource
                     ->color('success')
                     ->url(fn ($record) => static::getUrl('edit', ['record' => $record]))
                     ->tooltip('このカテゴリーのメニューを管理'),
+                Tables\Actions\Action::make('duplicate')
+                    ->label('他店舗へ複製')
+                    ->icon('heroicon-o-document-duplicate')
+                    ->color('info')
+                    ->visible(fn () => auth()->user()->hasRole('super_admin'))
+                    ->form([
+                        Forms\Components\Select::make('target_store_id')
+                            ->label('複製先の店舗')
+                            ->options(fn (MenuCategory $record) => \App\Models\Store::where('id', '!=', $record->store_id)
+                                ->pluck('name', 'id'))
+                            ->required()
+                            ->helperText('このカテゴリーと全メニューを選択した店舗へ複製します'),
+                    ])
+                    ->action(function (MenuCategory $record, array $data) {
+                        try {
+                            \DB::transaction(function () use ($record, $data) {
+                                // カテゴリーを複製（必要なフィールドのみコピー）
+                                $newCategory = new \App\Models\MenuCategory();
+                                $newCategory->name = $record->name;
+                                $newCategory->slug = \Str::slug($record->name . '-' . uniqid());
+                                $newCategory->description = $record->description;
+                                $newCategory->image_path = $record->image_path;
+                                $newCategory->sort_order = $record->sort_order;
+                                $newCategory->is_active = $record->is_active;
+                                $newCategory->store_id = $data['target_store_id'];
+                                $newCategory->save();
+                                
+                                // メニューも複製
+                                foreach ($record->menus as $menu) {
+                                    $newMenu = $menu->replicate();
+                                    $newMenu->category_id = $newCategory->id;  // menu_category_idではなくcategory_id
+                                    $newMenu->store_id = $data['target_store_id'];
+                                    $newMenu->save();
+                                    
+                                    // メニューオプションも複製
+                                    if ($menu->options) {
+                                        foreach ($menu->options as $option) {
+                                            $newOption = $option->replicate();
+                                            $newOption->menu_id = $newMenu->id;
+                                            $newOption->save();
+                                        }
+                                    }
+                                }
+                            });
+                            
+                            \Filament\Notifications\Notification::make()
+                                ->title('複製完了')
+                                ->body('カテゴリーとメニューを複製しました')
+                                ->success()
+                                ->send();
+                        } catch (\Exception $e) {
+                            \Filament\Notifications\Notification::make()
+                                ->title('複製失敗')
+                                ->body('エラーが発生しました: ' . $e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
                 Tables\Actions\EditAction::make()
                     ->label('編集')
                     ->tooltip('カテゴリー設定を編集'),

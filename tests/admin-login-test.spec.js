@@ -7,7 +7,7 @@ test.describe('Admin Panel Access Test', () => {
     await page.goto(`${BASE_URL}/admin/login`);
     
     // ログインページが表示されることを確認
-    await expect(page).toHaveTitle(/Login/);
+    await expect(page).toHaveTitle(/ログイン|Login/);
     await expect(page.locator('input[name="email"]')).toBeVisible();
     await expect(page.locator('input[name="password"]')).toBeVisible();
   });

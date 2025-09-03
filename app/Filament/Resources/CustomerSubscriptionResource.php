@@ -18,6 +18,9 @@ class CustomerSubscriptionResource extends Resource
     protected static ?string $model = CustomerSubscription::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    
+    // 顧客サブスクリプション機能は一旦非表示
+    protected static bool $shouldRegisterNavigation = false;
 
     public static function form(Form $form): Form
     {

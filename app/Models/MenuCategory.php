@@ -31,6 +31,11 @@ class MenuCategory extends Model
     ];
 
     /**
+     * 複製時に除外するフィールド
+     */
+    protected $guarded = ['id', 'created_at', 'updated_at', 'menus_count'];
+
+    /**
      * 店舗
      */
     public function store(): BelongsTo

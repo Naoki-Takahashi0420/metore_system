@@ -169,6 +169,16 @@ class CustomerResource extends Resource
                     ->label('予約数')
                     ->counts('reservations')
                     ->sortable(),
+                Tables\Columns\TextColumn::make('latest_store')
+                    ->label('最新利用店舗')
+                    ->getStateUsing(function ($record) {
+                        $latestReservation = $record->reservations()
+                            ->with('store')
+                            ->latest('reservation_date')
+                            ->first();
+                        return $latestReservation?->store?->name ?? '-';
+                    })
+                    ->toggleable(),
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('有効')
                     ->boolean(),
@@ -199,6 +209,18 @@ class CustomerResource extends Resource
                         'walk_in' => '通りすがり',
                         'other' => 'その他',
                     ]),
+                Tables\Filters\SelectFilter::make('store')
+                    ->label('利用店舗')
+                    ->relationship('reservations', 'store_id')
+                    ->options(\App\Models\Store::where('is_active', true)->pluck('name', 'id'))
+                    ->query(function ($query, array $data) {
+                        if (!empty($data['value'])) {
+                            $query->whereHas('reservations', function ($subQuery) use ($data) {
+                                $subQuery->where('store_id', $data['value']);
+                            });
+                        }
+                        return $query;
+                    }),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),

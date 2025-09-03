@@ -41,6 +41,26 @@
                                     @endif
                                 </div>
                                 <div class="flex gap-2">
+                                    @if(auth()->user()->hasRole('super_admin'))
+                                    <x-filament::dropdown>
+                                        <x-slot name="trigger">
+                                            <button class="text-green-600 hover:text-green-700" title="他店舗へ複製">
+                                                <x-heroicon-o-document-duplicate class="w-5 h-5" />
+                                            </button>
+                                        </x-slot>
+                                        
+                                        <div class="p-2">
+                                            <p class="text-sm font-semibold mb-2">複製先の店舗を選択</p>
+                                            @foreach(\App\Models\Store::where('id', '!=', $selectedStore)->get() as $targetStore)
+                                                <button 
+                                                    wire:click="duplicateCategoryToStore({{ $category['id'] }}, {{ $targetStore->id }})"
+                                                    class="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded">
+                                                    {{ $targetStore->name }}
+                                                </button>
+                                            @endforeach
+                                        </div>
+                                    </x-filament::dropdown>
+                                    @endif
                                     <a href="{{ route('filament.admin.resources.menu-categories.edit', $category['id']) }}" 
                                        class="text-primary-600 hover:text-primary-700">
                                         <x-heroicon-o-pencil class="w-5 h-5" />

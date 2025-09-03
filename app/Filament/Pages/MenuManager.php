@@ -10,10 +10,14 @@ use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Illuminate\Support\Collection;
 use Filament\Notifications\Notification;
+use Filament\Forms\Components\Select;
+use Filament\Actions\Action;
+use Filament\Actions\Concerns\InteractsWithActions;
+use Filament\Actions\Contracts\HasActions;
 
-class MenuManager extends Page implements HasForms
+class MenuManager extends Page implements HasForms, HasActions
 {
-    use InteractsWithForms;
+    use InteractsWithForms, InteractsWithActions;
 
     protected static ?string $navigationIcon = 'heroicon-o-squares-2x2';
     protected static ?string $navigationLabel = 'メニュー統合管理';
@@ -106,6 +110,74 @@ class MenuManager extends Page implements HasForms
             ->success()
             ->duration(1000)
             ->send();
+    }
+
+    public function duplicateCategoryToStore($categoryId, $targetStoreId): void
+    {
+        if (!auth()->user()->hasRole('super_admin')) {
+            return;
+        }
+
+        try {
+            \DB::transaction(function () use ($categoryId, $targetStoreId) {
+                $category = MenuCategory::with('menus.options')->find($categoryId);
+                
+                if (!$category) {
+                    throw new \Exception('カテゴリーが見つかりません');
+                }
+                
+                // 同じ店舗に既に同名のカテゴリーが存在するかチェック
+                $exists = MenuCategory::where('store_id', $targetStoreId)
+                    ->where('name', $category->name)
+                    ->exists();
+                    
+                if ($exists) {
+                    throw new \Exception('同名のカテゴリーが既に存在します');
+                }
+                
+                // カテゴリーを複製（必要なフィールドのみコピー）
+                $newCategory = new MenuCategory();
+                $newCategory->name = $category->name;
+                $newCategory->slug = \Str::slug($category->name . '-' . uniqid());
+                $newCategory->description = $category->description;
+                $newCategory->image_path = $category->image_path;
+                $newCategory->sort_order = $category->sort_order;
+                $newCategory->is_active = $category->is_active;
+                $newCategory->store_id = $targetStoreId;
+                $newCategory->save();
+                
+                // メニューも複製
+                foreach ($category->menus as $menu) {
+                    $newMenu = $menu->replicate();
+                    $newMenu->category_id = $newCategory->id;  // menu_category_idではなくcategory_id
+                    $newMenu->store_id = $targetStoreId;
+                    $newMenu->save();
+                    
+                    // メニューオプションも複製
+                    if ($menu->options) {
+                        foreach ($menu->options as $option) {
+                            $newOption = $option->replicate();
+                            $newOption->menu_id = $newMenu->id;
+                            $newOption->save();
+                        }
+                    }
+                }
+            });
+            
+            Notification::make()
+                ->title('複製完了')
+                ->body('カテゴリーとメニューを複製しました')
+                ->success()
+                ->send();
+                
+            $this->loadData();
+        } catch (\Exception $e) {
+            Notification::make()
+                ->title('複製失敗')
+                ->body($e->getMessage())
+                ->danger()
+                ->send();
+        }
     }
 
     public static function canView(): bool

@@ -22,6 +22,9 @@ class CustomerAccessTokenResource extends Resource
     protected static ?string $navigationLabel = '顧客トークン';
     protected static ?string $modelLabel = '顧客アクセストークン';
     protected static ?string $navigationGroup = '顧客管理';
+    
+    // 顧客アクセストークン機能は開発者向けのため非表示
+    protected static bool $shouldRegisterNavigation = false;
 
     public static function form(Form $form): Form
     {

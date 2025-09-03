@@ -57,7 +57,7 @@ class ReservationResource extends Resource
                         Forms\Components\Select::make('customer_id')
                             ->label('顧客')
                             ->relationship('customer', 'last_name')
-                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->last_name . ' ' . $record->first_name . ' (' . $record->phone . ')')
+                            ->getOptionLabelFromRecordUsing(fn ($record) => mb_convert_encoding(($record->last_name ?? '') . ' ' . ($record->first_name ?? '') . ' (' . ($record->phone ?? '') . ')', 'UTF-8', 'auto'))
                             ->searchable(['last_name', 'first_name', 'phone'])
                             ->required()
                             ->reactive()

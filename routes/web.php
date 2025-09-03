@@ -114,6 +114,12 @@ Route::prefix('customer')->group(function () {
     // カルテ印刷
     Route::get('/medical-record/{record}/print', [App\Http\Controllers\MedicalRecordController::class, 'print'])
         ->name('medical-record.print');
+    
+    // スタッフ用シフト確認
+    Route::prefix('staff')->name('staff.')->group(function () {
+        Route::get('/shifts', [App\Http\Controllers\StaffShiftController::class, 'index'])->name('shifts.index');
+        Route::get('/shifts/{id}', [App\Http\Controllers\StaffShiftController::class, 'show'])->name('shifts.show');
+    });
 });
 
 // 管理画面用ルート

@@ -35,6 +35,11 @@ class MenuResource extends Resource
                             ->label('店舗')
                             ->relationship('store', 'name')
                             ->required()
+                            ->reactive()
+                            ->afterStateUpdated(function ($state, Forms\Set $set) {
+                                // 店舗変更時にカテゴリをリセット
+                                $set('category_id', null);
+                            })
                             ->searchable(),
                         Forms\Components\TextInput::make('name')
                             ->label('メニュー名')
@@ -42,17 +47,25 @@ class MenuResource extends Resource
                             ->maxLength(100),
                         Forms\Components\Select::make('category_id')
                             ->label('カテゴリー')
-                            ->relationship(
-                                'menuCategory',
-                                'name',
-                                fn ($query) => $query->where('is_active', true)->orderBy('sort_order')
-                            )
+                            ->options(function (Forms\Get $get) {
+                                $storeId = $get('store_id');
+                                if (!$storeId) {
+                                    return ['まず店舗を選択してください'];
+                                }
+                                
+                                // 選択された店舗のカテゴリのみ表示
+                                return \App\Models\MenuCategory::where('store_id', $storeId)
+                                    ->where('is_active', true)
+                                    ->orderBy('sort_order')
+                                    ->pluck('name', 'id');
+                            })
                             ->required()
                             ->reactive()
+                            ->disabled(fn (Forms\Get $get) => !$get('store_id'))
                             ->afterStateUpdated(function ($state, Forms\Set $set) {
                                 // カテゴリー選択時の自動設定は一旦無効化（エラー回避）
                             })
-                            ->helperText('カテゴリーを選択すると時間と料金が自動設定されます'),
+                            ->helperText('選択した店舗のカテゴリーのみ表示されます'),
                         Forms\Components\Textarea::make('description')
                             ->label('説明')
                             ->rows(3)

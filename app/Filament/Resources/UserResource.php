@@ -50,7 +50,7 @@ class UserResource extends Resource
                             ->maxLength(255),
                         Forms\Components\Select::make('store_id')
                             ->label('所属店舗')
-                            ->options(\App\Models\Store::pluck('name', 'id'))
+                            ->options(\App\Models\Store::whereNotNull('name')->where('name', '!=', '')->pluck('name', 'id'))
                             ->searchable()
                             ->preload()
                             ->nullable(),
@@ -62,7 +62,7 @@ class UserResource extends Resource
                         Forms\Components\Select::make('roles')
                             ->label('ロール')
                             ->relationship('roles', 'name')
-                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->display_name ?? $record->name)
+                            ->getOptionLabelFromRecordUsing(fn ($record) => mb_convert_encoding($record->display_name ?? $record->name ?? 'Unknown', 'UTF-8', 'auto'))
                             ->preload()
                             ->required()
                             ->reactive()
@@ -126,15 +126,18 @@ class UserResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->label('名前')
+                    ->formatStateUsing(fn ($state) => mb_convert_encoding($state ?? '', 'UTF-8', 'auto'))
                     ->searchable(),
                 Tables\Columns\TextColumn::make('email')
                     ->label('メールアドレス')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('store.name')
                     ->label('所属店舗')
+                    ->formatStateUsing(fn ($state) => $state ?? '-')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('roles.display_name')
                     ->label('ロール')
+                    ->formatStateUsing(fn ($state) => $state ?? 'なし')
                     ->badge()
                     ->separator(','),
                 Tables\Columns\BadgeColumn::make('status')
@@ -165,7 +168,7 @@ class UserResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('store_id')
                     ->label('店舗')
-                    ->relationship('store', 'name'),
+                    ->options(\App\Models\Store::whereNotNull('name')->where('name', '!=', '')->pluck('name', 'id')),
                 Tables\Filters\SelectFilter::make('roles')
                     ->label('ロール')
                     ->relationship('roles', 'display_name'),

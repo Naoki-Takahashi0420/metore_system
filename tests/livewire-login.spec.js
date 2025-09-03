@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+import { test, expect } from '@playwright/test';
 
 test.describe('Livewire Login Fix Verification', () => {
   const PRODUCTION_URL = 'http://13.115.38.179';

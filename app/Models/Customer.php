@@ -15,6 +15,7 @@ class Customer extends Model
 
     protected $fillable = [
         'customer_number',
+        'store_id',
         'last_name',
         'first_name',
         'last_name_kana',
@@ -24,9 +25,13 @@ class Customer extends Model
         'birth_date',
         'gender',
         'postal_code',
+        'prefecture',
+        'city',
         'address',
+        'building',
         'preferences',
         'medical_notes',
+        'notes',
         'is_blocked',
         'sms_notifications_enabled',
         'notification_preferences',
@@ -76,6 +81,14 @@ class Customer extends Model
         } while (self::where('customer_number', $number)->exists());
 
         return $number;
+    }
+
+    /**
+     * リレーション: 店舗
+     */
+    public function store()
+    {
+        return $this->belongsTo(Store::class);
     }
 
     /**

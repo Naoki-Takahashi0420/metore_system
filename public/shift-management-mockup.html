@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>シフト管理システム</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                background-color: #f5f5f5;
+                padding: 20px;
+            }
+
+            .container {
+                max-width: 1200px;
+                margin: 0 auto;
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+
+            /* ヘッダー */
+            .header {
+                padding: 20px;
+                border-bottom: 1px solid #e0e0e0;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .month-navigation {
+                display: flex;
+                align-items: center;
+                gap: 20px;
+            }
+
+            .month-navigation button {
+                padding: 8px 16px;
+                border: 1px solid #ddd;
+                background: white;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 14px;
+            }
+
+            .month-navigation button:hover {
+                background: #f0f0f0;
+            }
+
+            .current-month {
+                font-size: 18px;
+                font-weight: bold;
+            }
+
+            .action-buttons {
+                display: flex;
+                gap: 10px;
+            }
+
+            .btn-primary {
+                padding: 8px 16px;
+                background: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 14px;
+            }
+
+            .btn-primary:hover {
+                background: #45a049;
+            }
+
+            /* カレンダー */
+            .calendar-container {
+                padding: 20px;
+            }
+
+            .calendar-grid {
+                display: grid;
+                grid-template-columns: repeat(7, 1fr);
+                gap: 1px;
+                background: #e0e0e0;
+                border: 1px solid #e0e0e0;
+            }
+
+            .calendar-header {
+                background: #f8f8f8;
+                padding: 10px;
+                text-align: center;
+                font-weight: bold;
+                font-size: 14px;
+            }
+
+            .calendar-header.sunday {
+                color: #f44336;
+            }
+
+            .calendar-header.saturday {
+                color: #2196f3;
+            }
+
+            .calendar-cell {
+                background: white;
+                min-height: 100px;
+                padding: 8px;
+                cursor: pointer;
+                position: relative;
+                transition: background 0.2s;
+            }
+
+            .calendar-cell:hover {
+                background: #f5f5f5;
+            }
+
+            .calendar-cell.other-month {
+                background: #fafafa;
+                color: #ccc;
+            }
+
+            .calendar-cell.selected {
+                background: #e3f2fd;
+            }
+
+            .date-number {
+                font-weight: bold;
+                margin-bottom: 4px;
+            }
+
+            .staff-badges {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 4px;
+                margin-top: 4px;
+            }
+
+            .staff-badge {
+                padding: 2px 6px;
+                border-radius: 12px;
+                font-size: 11px;
+                background: #e0e0e0;
+            }
+
+            .staff-badge.morning {
+                background: #ffecb3;
+            }
+
+            .staff-badge.afternoon {
+                background: #c5e1a5;
+            }
+
+            .staff-badge.evening {
+                background: #b3e5fc;
+            }
+
+            .staff-badge.full {
+                background: #d1c4e9;
+            }
+
+            /* サマリー */
+            .summary-section {
+                padding: 20px;
+                border-top: 1px solid #e0e0e0;
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 20px;
+            }
+
+            .summary-card {
+                padding: 15px;
+                background: #f8f8f8;
+                border-radius: 8px;
+            }
+
+            .summary-title {
+                font-size: 12px;
+                color: #666;
+                margin-bottom: 8px;
+            }
+
+            .summary-content {
+                font-size: 24px;
+                font-weight: bold;
+                color: #333;
+            }
+
+            /* モーダル */
+            .modal {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 1000;
+            }
+
+            .modal-content {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: white;
+                border-radius: 8px;
+                width: 90%;
+                max-width: 600px;
+                max-height: 80vh;
+                overflow-y: auto;
+            }
+
+            .modal-header {
+                padding: 20px;
+                border-bottom: 1px solid #e0e0e0;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .modal-body {
+                padding: 20px;
+            }
+
+            .close-button {
+                background: none;
+                border: none;
+                font-size: 24px;
+                cursor: pointer;
+                color: #666;
+            }
+
+            /* シフト編集フォーム */
+            .shift-form {
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .staff-shift-row {
+                display: grid;
+                grid-template-columns: 120px 1fr auto;
+                gap: 10px;
+                align-items: center;
+                padding: 10px;
+                background: #f8f8f8;
+                border-radius: 4px;
+            }
+
+            .staff-name {
+                font-weight: bold;
+            }
+
+            .time-inputs {
+                display: flex;
+                gap: 10px;
+                align-items: center;
+            }
+
+            .time-inputs select {
+                padding: 4px 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+            }
+
+            .checkbox-container {
+                display: flex;
+                align-items: center;
+                gap: 5px;
+            }
+
+            /* 一括編集モーダル専用スタイル */
+            .bulk-edit-section {
+                margin-bottom: 30px;
+            }
+
+            .bulk-edit-section h3 {
+                margin-bottom: 15px;
+                font-size: 16px;
+                color: #333;
+            }
+
+            .date-selection-grid {
+                display: grid;
+                grid-template-columns: repeat(7, 1fr);
+                gap: 10px;
+                margin-bottom: 15px;
+            }
+
+            .date-checkbox {
+                display: flex;
+                align-items: center;
+                padding: 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+
+            .date-checkbox:hover {
+                background: #f5f5f5;
+            }
+
+            .date-checkbox input[type="checkbox"] {
+                margin-right: 5px;
+            }
+
+            .date-checkbox input[type="checkbox"]:checked+span {
+                font-weight: bold;
+                color: #4CAF50;
+            }
+
+            .quick-select-buttons {
+                display: flex;
+                gap: 10px;
+                margin-top: 10px;
+            }
+
+            .quick-select-buttons button {
+                padding: 6px 12px;
+                border: 1px solid #ddd;
+                background: white;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 12px;
+            }
+
+            .quick-select-buttons button:hover {
+                background: #f0f0f0;
+            }
+
+            .bulk-staff-list {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .bulk-staff-row {
+                display: grid;
+                grid-template-columns: 30px 120px 150px 80px 20px 80px;
+                gap: 10px;
+                align-items: center;
+                padding: 10px;
+                background: #f8f8f8;
+                border-radius: 4px;
+            }
+
+            .shift-pattern-select {
+                padding: 6px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-size: 14px;
+            }
+
+            .time-input {
+                padding: 6px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-size: 14px;
+            }
+
+            .modal-actions {
+                display: flex;
+                justify-content: flex-end;
+                gap: 10px;
+                margin-top: 30px;
+            }
+
+            .btn-secondary {
+                padding: 8px 16px;
+                background: white;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 14px;
+            }
+
+            .btn-secondary:hover {
+                background: #f0f0f0;
+            }
+
+            /* スタッフ管理モーダル専用スタイル */
+            .staff-management-actions {
+                margin-bottom: 20px;
+            }
+
+            .staff-list {
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .staff-card {
+                display: grid;
+                grid-template-columns: 1fr 1fr auto;
+                gap: 20px;
+                padding: 20px;
+                background: #f8f8f8;
+                border-radius: 8px;
+                border: 1px solid #e0e0e0;
+            }
+
+            .staff-info h4 {
+                margin-bottom: 8px;
+                font-size: 16px;
+            }
+
+            .staff-details {
+                display: flex;
+                gap: 8px;
+            }
+
+            .staff-badge-status {
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 12px;
+            }
+
+            .staff-badge-status.active {
+                background: #e8f5e9;
+                color: #2e7d32;
+            }
+
+            .staff-badge-status.nomination {
+                background: #e3f2fd;
+                color: #1976d2;
+            }
+
+            .staff-badge-status.no-nomination {
+                background: #fafafa;
+                color: #757575;
+            }
+
+            .staff-schedule h5 {
+                font-size: 14px;
+                margin-bottom: 10px;
+                color: #666;
+            }
+
+            .default-schedule {
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+            }
+
+            .schedule-row {
+                display: flex;
+                gap: 10px;
+                font-size: 14px;
+            }
+
+            .day-label {
+                font-weight: bold;
+                min-width: 60px;
+            }
+
+            .staff-actions {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .staff-actions button {
+                padding: 6px 12px;
+                border: 1px solid #ddd;
+                background: white;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 14px;
+            }
+
+            .staff-actions button:hover {
+                background: #f0f0f0;
+            }
+
+            .btn-danger {
+                color: #d32f2f;
+                border-color: #ffcdd2 !important;
+            }
+
+            .btn-danger:hover {
+                background: #ffebee !important;
+            }
+
+            /* パターン管理モーダル専用スタイル */
+            .pattern-actions {
+                margin-bottom: 20px;
+            }
+
+            .pattern-list {
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .pattern-card {
+                padding: 20px;
+                background: #f8f8f8;
+                border-radius: 8px;
+                border: 1px solid #e0e0e0;
+            }
+
+            .pattern-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 15px;
+            }
+
+            .pattern-header h4 {
+                font-size: 16px;
+                margin: 0;
+            }
+
+            .pattern-badge {
+                padding: 4px 8px;
+                background: #fff3cd;
+                color: #856404;
+                border-radius: 4px;
+                font-size: 12px;
+            }
+
+            .pattern-content {
+                margin-bottom: 15px;
+            }
+
+            .pattern-staff {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .pattern-row {
+                display: flex;
+                gap: 10px;
+                font-size: 14px;
+            }
+
+            .pattern-row .staff-name {
+                font-weight: bold;
+                min-width: 50px;
+            }
+
+            .pattern-actions {
+                display: flex;
+                gap: 8px;
+            }
+
+            .pattern-actions button {
+                padding: 6px 12px;
+                border: 1px solid #ddd;
+                background: white;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 14px;
+            }
+
+            .pattern-actions button:hover {
+                background: #f0f0f0;
+            }
+
+            /* レスポンシブ対応 */
+            @media (max-width: 768px) {
+                .calendar-grid {
+                    font-size: 12px;
+                }
+
+                .calendar-cell {
+                    min-height: 80px;
+                    padding: 4px;
+                }
+
+                .staff-badge {
+                    font-size: 10px;
+                }
+            }
+
+        </style>
+    </head>
+
+    <body>
+        <div class="container">
+            <!-- ヘッダー -->
+            <div class="header">
+                <div class="month-navigation">
+                    <button onclick="changeMonth(-1)">◀</button>
+                    <span class="current-month">2025年9月</span>
+                    <button onclick="changeMonth(1)">▶</button>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn-primary" onclick="openBulkEdit()">一括編集</button>
+                    <button class="btn-primary" onclick="openPatternModal()">パターン管理</button>
+                    <button class="btn-primary" onclick="openStaffManagement()">スタッフ管理</button>
+                </div>
+            </div>
+
+            <!-- カレンダー -->
+            <div class="calendar-container">
+                <div class="calendar-grid">
+                    <!-- 曜日ヘッダー -->
+                    <div class="calendar-header sunday">日</div>
+                    <div class="calendar-header">月</div>
+                    <div class="calendar-header">火</div>
+                    <div class="calendar-header">水</div>
+                    <div class="calendar-header">木</div>
+                    <div class="calendar-header">金</div>
+                    <div class="calendar-header saturday">土</div>
+
+                    <!-- カレンダー日付 -->
+                    <!-- 前月の日付 -->
+                    <div class="calendar-cell other-month">
+                        <div class="date-number">31</div>
+                    </div>
+
+                    <!-- 当月の日付 -->
+                    <div class="calendar-cell" onclick="openShiftEdit('2025-09-01')">
+                        <div class="date-number">1</div>
+                        <div class="staff-badges">
+                            <span class="staff-badge full">田中</span>
+                            <span class="staff-badge morning">鈴木</span>
+                        </div>
+                    </div>
+
+                    <div class="calendar-cell" onclick="openShiftEdit('2025-09-02')">
+                        <div class="date-number">2</div>
+                        <div class="staff-badges">
+                            <span class="staff-badge full">田中</span>
+                            <span class="staff-badge afternoon">佐藤</span>
+                            <span class="staff-badge evening">山田</span>
+                        </div>
+                    </div>
+
+                    <div class="calendar-cell" onclick="openShiftEdit('2025-09-03')">
+                        <div class="date-number">3</div>
+                        <div class="staff-badges">
+                            <span class="staff-badge full">鈴木</span>
+                            <span class="staff-badge full">佐藤</span>
+                        </div>
+                    </div>
+
+                    <div class="calendar-cell" onclick="openShiftEdit('2025-09-04')">
+                        <div class="date-number">4</div>
+                        <div class="staff-badges">
+                            <span class="staff-badge morning">田中</span>
+                            <span class="staff-badge full">山田</span>
+                        </div>
+                    </div>
+
+                    <div class="calendar-cell" onclick="openShiftEdit('2025-09-05')">
+                        <div class="date-number">5</div>
+                        <div class="staff-badges">
+                            <span class="staff-badge full">田中</span>
+                            <span class="staff-badge full">鈴木</span>
+                            <span class="staff-badge afternoon">佐藤</span>
+                        </div>
+                    </div>
+
+                    <div class="calendar-cell" onclick="openShiftEdit('2025-09-06')">
+                        <div class="date-number">6</div>
+                        <div class="staff-badges">
+                            <span class="staff-badge full">全員</span>
+                        </div>
+                    </div>
+
+                    <!-- 残りの日付も同様に続く... -->
+                    <div class="calendar-cell" onclick="openShiftEdit('2025-09-07')">
+                        <div class="date-number">7</div>
+                    </div>
+
+                    <!-- 簡略化のため、残りは空欄 -->
+                    <div class="calendar-cell">
+                        <div class="date-number">8</div>
+                    </div>
+                    <div class="calendar-cell">
+                        <div class="date-number">9</div>
+                    </div>
+                    <div class="calendar-cell">
+                        <div class="date-number">10</div>
+                    </div>
+                    <div class="calendar-cell">
+                        <div class="date-number">11</div>
+                    </div>
+                    <div class="calendar-cell">
+                        <div class="date-number">12</div>
+                    </div>
+                    <div class="calendar-cell">
+                        <div class="date-number">13</div>
+                    </div>
+                    <div class="calendar-cell">
+                        <div class="date-number">14</div>
+                    </div>
+                    <div class="calendar-cell">
+                        <div class="date-number">15</div>
+                    </div>
+                    <div class="calendar-cell">
+                        <div class="date-number">16</div>
+                    </div>
+                    <div class="calendar-cell">
+                        <div class="date-number">17</div>
+                    </div>
+                    <div class="calendar-cell">
+                        <div class="date-number">18</div>
+                    </div>
+                    <div class="calendar-cell">
+                        <div class="date-number">19</div>
+                    </div>
+                    <div class="calendar-cell">
+                        <div class="date-number">20</div>
+                    </div>
+                    <div class="calendar-cell">
+                        <div class="date-number">21</div>
+                    </div>
+                    <div class="calendar-cell">
+                        <div class="date-number">22</div>
+                    </div>
+                    <div class="calendar-cell">
+                        <div class="date-number">23</div>
+                    </div>
+                    <div class="calendar-cell">
+                        <div class="date-number">24</div>
+                    </div>
+                    <div class="calendar-cell">
+                        <div class="date-number">25</div>
+                    </div>
+                    <div class="calendar-cell">
+                        <div class="date-number">26</div>
+                    </div>
+                    <div class="calendar-cell">
+                        <div class="date-number">27</div>
+                    </div>
+                    <div class="calendar-cell">
+                        <div class="date-number">28</div>
+                    </div>
+                    <div class="calendar-cell">
+                        <div class="date-number">29</div>
+                    </div>
+                    <div class="calendar-cell">
+                        <div class="date-number">30</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- サマリー -->
+            <div class="summary-section">
+                <div class="summary-card">
+                    <div class="summary-title">今月の総勤務時間</div>
+                    <div class="summary-content">520時間</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-title">平均スタッフ数/日</div>
+                    <div class="summary-content">2.8人</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-title">シフト入力率</div>
+                    <div class="summary-content">65%</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 一括編集モーダル -->
+        <div id="bulkEditModal" class="modal">
+            <div class="modal-content" style="max-width: 700px;">
+                <div class="modal-header">
+                    <h2>シフト一括編集</h2>
+                    <button class="close-button" onclick="closeBulkEditModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="bulk-edit-section">
+                        <h3>1. 対象日を選択</h3>
+                        <div class="date-selection-grid">
+                            <label class="date-checkbox">
+                                <input type="checkbox" name="bulk-date" value="2025-09-01">
+                                <span>9/1(月)</span>
+                            </label>
+                            <label class="date-checkbox">
+                                <input type="checkbox" name="bulk-date" value="2025-09-02">
+                                <span>9/2(火)</span>
+                            </label>
+                            <label class="date-checkbox">
+                                <input type="checkbox" name="bulk-date" value="2025-09-03">
+                                <span>9/3(水)</span>
+                            </label>
+                            <label class="date-checkbox">
+                                <input type="checkbox" name="bulk-date" value="2025-09-04">
+                                <span>9/4(木)</span>
+                            </label>
+                            <label class="date-checkbox">
+                                <input type="checkbox" name="bulk-date" value="2025-09-05">
+                                <span>9/5(金)</span>
+                            </label>
+                            <label class="date-checkbox">
+                                <input type="checkbox" name="bulk-date" value="2025-09-06">
+                                <span>9/6(土)</span>
+                            </label>
+                            <label class="date-checkbox">
+                                <input type="checkbox" name="bulk-date" value="2025-09-07">
+                                <span>9/7(日)</span>
+                            </label>
+                        </div>
+                        <div class="quick-select-buttons">
+                            <button onclick="selectWeekdays()">平日を選択</button>
+                            <button onclick="selectWeekends()">週末を選択</button>
+                            <button onclick="selectAll()">全て選択</button>
+                            <button onclick="clearSelection()">選択解除</button>
+                        </div>
+                    </div>
+
+                    <div class="bulk-edit-section">
+                        <h3>2. スタッフとシフトを設定</h3>
+                        <div class="bulk-staff-list">
+                            <div class="bulk-staff-row">
+                                <input type="checkbox" id="bulk-tanaka" checked>
+                                <label for="bulk-tanaka">田中 太郎</label>
+                                <select class="shift-pattern-select">
+                                    <option value="">カスタム</option>
+                                    <option value="full">終日(10:00-20:00)</option>
+                                    <option value="morning">朝(10:00-15:00)</option>
+                                    <option value="afternoon">昼(13:00-20:00)</option>
+                                </select>
+                                <input type="time" value="10:00" class="time-input">
+                                <span>〜</span>
+                                <input type="time" value="20:00" class="time-input">
+                            </div>
+
+                            <div class="bulk-staff-row">
+                                <input type="checkbox" id="bulk-suzuki">
+                                <label for="bulk-suzuki">鈴木 花子</label>
+                                <select class="shift-pattern-select">
+                                    <option value="">カスタム</option>
+                                    <option value="full">終日(10:00-20:00)</option>
+                                    <option value="morning">朝(10:00-15:00)</option>
+                                    <option value="afternoon">昼(13:00-20:00)</option>
+                                </select>
+                                <input type="time" class="time-input">
+                                <span>〜</span>
+                                <input type="time" class="time-input">
+                            </div>
+
+                            <div class="bulk-staff-row">
+                                <input type="checkbox" id="bulk-sato">
+                                <label for="bulk-sato">佐藤 次郎</label>
+                                <select class="shift-pattern-select">
+                                    <option value="">カスタム</option>
+                                    <option value="full">終日(10:00-20:00)</option>
+                                    <option value="morning">朝(10:00-15:00)</option>
+                                    <option value="afternoon">昼(13:00-20:00)</option>
+                                </select>
+                                <input type="time" class="time-input">
+                                <span>〜</span>
+                                <input type="time" class="time-input">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button class="btn-secondary" onclick="closeBulkEditModal()">キャンセル</button>
+                        <button class="btn-primary" onclick="saveBulkEdit()">一括登録</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- シフト編集モーダル -->
+        <div id="shiftModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>シフト編集 - <span id="modalDate">2025年9月1日</span></h2>
+                    <button class="close-button" onclick="closeModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form class="shift-form">
+                        <div class="staff-shift-row">
+                            <span class="staff-name">田中 太郎</span>
+                            <div class="time-inputs">
+                                <select>
+                                    <option>10:00</option>
+                                    <option>11:00</option>
+                                </select>
+                                <span>〜</span>
+                                <select>
+                                    <option>18:00</option>
+                                    <option>19:00</option>
+                                    <option selected>20:00</option>
+                                </select>
+                            </div>
+                            <div class="checkbox-container">
+                                <input type="checkbox" id="tanaka-holiday">
+                                <label for="tanaka-holiday">休み</label>
+                            </div>
+                        </div>
+
+                        <div class="staff-shift-row">
+                            <span class="staff-name">鈴木 花子</span>
+                            <div class="time-inputs">
+                                <select>
+                                    <option selected>10:00</option>
+                                    <option>11:00</option>
+                                </select>
+                                <span>〜</span>
+                                <select>
+                                    <option>14:00</option>
+                                    <option selected>15:00</option>
+                                </select>
+                            </div>
+                            <div class="checkbox-container">
+                                <input type="checkbox" id="suzuki-holiday">
+                                <label for="suzuki-holiday">休み</label>
+                            </div>
+                        </div>
+
+                        <div class="staff-shift-row">
+                            <span class="staff-name">佐藤 次郎</span>
+                            <div class="time-inputs">
+                                <select>
+                                    <option>--:--</option>
+                                    <option>10:00</option>
+                                    <option>11:00</option>
+                                </select>
+                                <span>〜</span>
+                                <select>
+                                    <option>--:--</option>
+                                    <option>18:00</option>
+                                    <option>19:00</option>
+                                </select>
+                            </div>
+                            <div class="checkbox-container">
+                                <input type="checkbox" id="sato-holiday" checked>
+                                <label for="sato-holiday">休み</label>
+                            </div>
+                        </div>
+
+                        <div class="staff-shift-row">
+                            <span class="staff-name">山田 美香</span>
+                            <div class="time-inputs">
+                                <select>
+                                    <option>--:--</option>
+                                    <option>13:00</option>
+                                    <option>14:00</option>
+                                </select>
+                                <span>〜</span>
+                                <select>
+                                    <option>--:--</option>
+                                    <option>19:00</option>
+                                    <option>20:00</option>
+                                </select>
+                            </div>
+                            <div class="checkbox-container">
+                                <input type="checkbox" id="yamada-holiday">
+                                <label for="yamada-holiday">休み</label>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 20px; text-align: right;">
+                            <button type="button" class="btn-primary" onclick="saveShift()">保存</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- スタッフ管理モーダル -->
+        <div id="staffManagementModal" class="modal">
+            <div class="modal-content" style="max-width: 800px;">
+                <div class="modal-header">
+                    <h2>スタッフ管理</h2>
+                    <button class="close-button" onclick="closeStaffManagementModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="staff-management-actions">
+                        <button class="btn-primary" onclick="openAddStaff()">+ スタッフを追加</button>
+                    </div>
+
+                    <div class="staff-list">
+                        <div class="staff-card">
+                            <div class="staff-info">
+                                <h4>田中 太郎</h4>
+                                <div class="staff-details">
+                                    <span class="staff-badge-status active">稼働中</span>
+                                    <span class="staff-badge-status nomination">指名可</span>
+                                </div>
+                            </div>
+                            <div class="staff-schedule">
+                                <h5>デフォルト勤務時間</h5>
+                                <div class="default-schedule">
+                                    <div class="schedule-row">
+                                        <span class="day-label">月-金:</span>
+                                        <span>10:00 - 20:00</span>
+                                    </div>
+                                    <div class="schedule-row">
+                                        <span class="day-label">土日:</span>
+                                        <span>休み</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="staff-actions">
+                                <button onclick="editStaff(1)">編集</button>
+                                <button onclick="deleteStaff(1)" class="btn-danger">削除</button>
+                            </div>
+                        </div>
+
+                        <div class="staff-card">
+                            <div class="staff-info">
+                                <h4>鈴木 花子</h4>
+                                <div class="staff-details">
+                                    <span class="staff-badge-status active">稼働中</span>
+                                    <span class="staff-badge-status nomination">指名可</span>
+                                </div>
+                            </div>
+                            <div class="staff-schedule">
+                                <h5>デフォルト勤務時間</h5>
+                                <div class="default-schedule">
+                                    <div class="schedule-row">
+                                        <span class="day-label">月水金:</span>
+                                        <span>10:00 - 15:00</span>
+                                    </div>
+                                    <div class="schedule-row">
+                                        <span class="day-label">火木土日:</span>
+                                        <span>休み</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="staff-actions">
+                                <button onclick="editStaff(2)">編集</button>
+                                <button onclick="deleteStaff(2)" class="btn-danger">削除</button>
+                            </div>
+                        </div>
+
+                        <div class="staff-card">
+                            <div class="staff-info">
+                                <h4>佐藤 次郎</h4>
+                                <div class="staff-details">
+                                    <span class="staff-badge-status active">稼働中</span>
+                                    <span class="staff-badge-status no-nomination">指名不可</span>
+                                </div>
+                            </div>
+                            <div class="staff-schedule">
+                                <h5>デフォルト勤務時間</h5>
+                                <div class="default-schedule">
+                                    <div class="schedule-row">
+                                        <span class="day-label">全日:</span>
+                                        <span>13:00 - 20:00</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="staff-actions">
+                                <button onclick="editStaff(3)">編集</button>
+                                <button onclick="deleteStaff(3)" class="btn-danger">削除</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- パターン管理モーダル -->
+        <div id="patternModal" class="modal">
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header">
+                    <h2>シフトパターン管理</h2>
+                    <button class="close-button" onclick="closePatternModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="pattern-actions">
+                        <button class="btn-primary" onclick="addPattern()">+ パターンを追加</button>
+                    </div>
+
+                    <div class="pattern-list">
+                        <div class="pattern-card">
+                            <div class="pattern-header">
+                                <h4>通常営業パターン</h4>
+                                <span class="pattern-badge">よく使う</span>
+                            </div>
+                            <div class="pattern-content">
+                                <div class="pattern-staff">
+                                    <div class="pattern-row">
+                                        <span class="staff-name">田中:</span>
+                                        <span>10:00 - 20:00</span>
+                                    </div>
+                                    <div class="pattern-row">
+                                        <span class="staff-name">鈴木:</span>
+                                        <span>10:00 - 15:00</span>
+                                    </div>
+                                    <div class="pattern-row">
+                                        <span class="staff-name">佐藤:</span>
+                                        <span>13:00 - 20:00</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="pattern-actions">
+                                <button onclick="applyPattern(1)">適用</button>
+                                <button onclick="editPattern(1)">編集</button>
+                                <button onclick="deletePattern(1)" class="btn-danger">削除</button>
+                            </div>
+                        </div>
+
+                        <div class="pattern-card">
+                            <div class="pattern-header">
+                                <h4>週末パターン</h4>
+                            </div>
+                            <div class="pattern-content">
+                                <div class="pattern-staff">
+                                    <div class="pattern-row">
+                                        <span class="staff-name">田中:</span>
+                                        <span>休み</span>
+                                    </div>
+                                    <div class="pattern-row">
+                                        <span class="staff-name">鈴木:</span>
+                                        <span>10:00 - 18:00</span>
+                                    </div>
+                                    <div class="pattern-row">
+                                        <span class="staff-name">佐藤:</span>
+                                        <span>10:00 - 20:00</span>
+                                    </div>
+                                    <div class="pattern-row">
+                                        <span class="staff-name">山田:</span>
+                                        <span>12:00 - 20:00</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="pattern-actions">
+                                <button onclick="applyPattern(2)">適用</button>
+                                <button onclick="editPattern(2)">編集</button>
+                                <button onclick="deletePattern(2)" class="btn-danger">削除</button>
+                            </div>
+                        </div>
+
+                        <div class="pattern-card">
+                            <div class="pattern-header">
+                                <h4>少人数パターン</h4>
+                            </div>
+                            <div class="pattern-content">
+                                <div class="pattern-staff">
+                                    <div class="pattern-row">
+                                        <span class="staff-name">田中:</span>
+                                        <span>10:00 - 20:00</span>
+                                    </div>
+                                    <div class="pattern-row">
+                                        <span class="staff-name">その他:</span>
+                                        <span>休み</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="pattern-actions">
+                                <button onclick="applyPattern(3)">適用</button>
+                                <button onclick="editPattern(3)">編集</button>
+                                <button onclick="deletePattern(3)" class="btn-danger">削除</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function changeMonth(direction) {
+                console.log('月を変更:', direction);
+            }
+
+            function openShiftEdit(date) {
+                document.getElementById('shiftModal').style.display = 'block';
+                document.getElementById('modalDate').textContent = formatDate(date);
+            }
+
+            function closeModal() {
+                document.getElementById('shiftModal').style.display = 'none';
+            }
+
+            function openBulkEdit() {
+                document.getElementById('bulkEditModal').style.display = 'block';
+            }
+
+            function closeBulkEditModal() {
+                document.getElementById('bulkEditModal').style.display = 'none';
+            }
+
+            function openStaffManagement() {
+                document.getElementById('staffManagementModal').style.display = 'block';
+            }
+
+            function closeStaffManagementModal() {
+                document.getElementById('staffManagementModal').style.display = 'none';
+            }
+
+            function openPatternModal() {
+                document.getElementById('patternModal').style.display = 'block';
+            }
+
+            function closePatternModal() {
+                document.getElementById('patternModal').style.display = 'none';
+            }
+
+            // 一括編集の日付選択機能
+            function selectWeekdays() {
+                const checkboxes = document.querySelectorAll('input[name="bulk-date"]');
+                checkboxes.forEach((cb, index) => {
+                    cb.checked = index >= 0 && index <= 4; // 月〜金
+                });
+            }
+
+            function selectWeekends() {
+                const checkboxes = document.querySelectorAll('input[name="bulk-date"]');
+                checkboxes.forEach((cb, index) => {
+                    cb.checked = index >= 5; // 土日
+                });
+            }
+
+            function selectAll() {
+                const checkboxes = document.querySelectorAll('input[name="bulk-date"]');
+                checkboxes.forEach(cb => cb.checked = true);
+            }
+
+            function clearSelection() {
+                const checkboxes = document.querySelectorAll('input[name="bulk-date"]');
+                checkboxes.forEach(cb => cb.checked = false);
+            }
+
+            function saveBulkEdit() {
+                console.log('一括編集を保存');
+                closeBulkEditModal();
+            }
+
+            // スタッフ管理機能
+            function openAddStaff() {
+                console.log('スタッフ追加画面を開く');
+            }
+
+            function editStaff(id) {
+                console.log('スタッフ編集:', id);
+            }
+
+            function deleteStaff(id) {
+                if (confirm('このスタッフを削除してもよろしいですか？')) {
+                    console.log('スタッフ削除:', id);
+                }
+            }
+
+            // パターン管理機能
+            function addPattern() {
+                console.log('パターン追加');
+            }
+
+            function applyPattern(id) {
+                console.log('パターン適用:', id);
+                // パターンを適用する日付を選択するUIを表示
+            }
+
+            function editPattern(id) {
+                console.log('パターン編集:', id);
+            }
+
+            function deletePattern(id) {
+                if (confirm('このパターンを削除してもよろしいですか？')) {
+                    console.log('パターン削除:', id);
+                }
+            }
+
+            function saveShift() {
+                console.log('シフトを保存');
+                closeModal();
+            }
+
+            function formatDate(dateString) {
+                const date = new Date(dateString);
+                return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+            }
+
+            // モーダル外クリックで閉じる
+            window.onclick = function (event) {
+                if (event.target.classList.contains('modal')) {
+                    event.target.style.display = 'none';
+                }
+            }
+        </script>
+    </body>
+
+</html>

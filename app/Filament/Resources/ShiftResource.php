@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Models\Store;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -30,6 +32,8 @@ class ShiftResource extends Resource
     
     protected static ?string $navigationGroup = 'スタッフ管理';
     
+    // 古いシフト一覧は非表示（ShiftManagementに統合）
+    protected static bool $shouldRegisterNavigation = false;
     protected static ?int $navigationSort = 2;
 
     public static function form(Form $form): Form
@@ -40,14 +44,38 @@ class ShiftResource extends Resource
                     ->schema([
                         Forms\Components\Select::make('user_id')
                             ->label('スタッフ')
-                            ->options(User::where('role', 'staff')->pluck('name', 'id'))
+                            ->options(function () {
+                                return User::where('is_active_staff', true)
+                                    ->orWhere('role', 'staff')
+                                    ->with('store')
+                                    ->get()
+                                    ->mapWithKeys(function ($user) {
+                                        $storeName = $user->store ? " ({$user->store->name})" : '';
+                                        return [$user->id => $user->name . $storeName];
+                                    });
+                            })
                             ->required()
-                            ->searchable(),
+                            ->searchable()
+                            ->reactive()
+                            ->afterStateUpdated(function ($state, Forms\Set $set) {
+                                if ($state) {
+                                    $user = User::find($state);
+                                    if ($user && $user->store_id) {
+                                        $set('store_id', $user->store_id);
+                                    }
+                                }
+                            }),
                         Forms\Components\Select::make('store_id')
                             ->label('店舗')
-                            ->options(Store::pluck('name', 'id'))
+                            ->options(Store::where('is_active', true)->pluck('name', 'id'))
                             ->required()
-                            ->searchable(),
+                            ->disabled(fn (Forms\Get $get) => (bool) User::find($get('user_id'))?->store_id)
+                            ->dehydrated()
+                            ->helperText(fn (Forms\Get $get) => 
+                                User::find($get('user_id'))?->store_id 
+                                    ? 'スタッフの所属店舗が自動設定されました' 
+                                    : '店舗を選択してください'
+                            ),
                         Forms\Components\DatePicker::make('shift_date')
                             ->label('シフト日')
                             ->required()
@@ -215,6 +243,7 @@ class ShiftResource extends Resource
         return [
             'index' => Pages\ListShifts::route('/'),
             'create' => Pages\CreateShift::route('/create'),
+            'create-bulk' => Pages\CreateBulkShifts::route('/create-bulk'),
             'edit' => Pages\EditShift::route('/{record}/edit'),
             'calendar' => Pages\ShiftCalendar::route('/calendar'),
             'time-tracking' => Pages\TimeTracking::route('/time-tracking'),

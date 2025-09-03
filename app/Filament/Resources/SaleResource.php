@@ -174,7 +174,7 @@ class SaleResource extends Resource
                         Forms\Components\Select::make('customer_id')
                             ->label('顧客')
                             ->relationship('customer', 'last_name')
-                            ->getOptionLabelFromRecordUsing(fn ($record) => "{$record->last_name} {$record->first_name}")
+                            ->getOptionLabelFromRecordUsing(fn ($record) => mb_convert_encoding(($record->last_name ?? '') . ' ' . ($record->first_name ?? ''), 'UTF-8', 'auto'))
                             ->searchable()
                             ->preload(),
                     ]),

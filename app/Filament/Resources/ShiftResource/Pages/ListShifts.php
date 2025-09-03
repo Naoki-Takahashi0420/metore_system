@@ -20,12 +20,18 @@ class ListShifts extends ListRecords
                 ->color('success')
                 ->size('lg'),
             Actions\CreateAction::make()
-                ->label('新規シフト登録'),
+                ->label('個別登録'),
+            Actions\Action::make('bulk-create')
+                ->label('一括登録')
+                ->icon('heroicon-o-squares-plus')
+                ->url(ShiftResource::getUrl('create-bulk'))
+                ->color('primary')
+                ->size('lg'),
             Actions\Action::make('calendar')
                 ->label('カレンダー表示')
                 ->icon('heroicon-o-calendar')
                 ->url(ShiftResource::getUrl('calendar'))
-                ->color('primary'),
+                ->color('info'),
         ];
     }
     

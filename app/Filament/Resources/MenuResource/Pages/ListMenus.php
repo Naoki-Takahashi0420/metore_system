@@ -5,15 +5,75 @@ namespace App\Filament\Resources\MenuResource\Pages;
 use App\Filament\Resources\MenuResource;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
+use App\Models\Store;
+use Illuminate\Database\Eloquent\Builder;
 
 class ListMenus extends ListRecords
 {
     protected static string $resource = MenuResource::class;
 
+    public ?string $selectedStore = null;
+
+    public function mount(): void
+    {
+        parent::mount();
+        
+        // 管理者は最初の店舗を選択、それ以外は自分の店舗
+        if (auth()->user()->hasRole('super_admin')) {
+            $this->selectedStore = request()->query('store_id') ?? Store::first()?->id;
+        } else {
+            $this->selectedStore = auth()->user()->store_id;
+        }
+    }
+
+    protected function getTableQuery(): ?Builder
+    {
+        $query = parent::getTableQuery();
+        
+        if ($this->selectedStore) {
+            $query->whereHas('menuCategory', function ($q) {
+                $q->where('store_id', $this->selectedStore);
+            });
+        }
+        
+        return $query;
+    }
+
     protected function getHeaderActions(): array
     {
-        return [
-            Actions\CreateAction::make(),
-        ];
+        $actions = [];
+        
+        // 管理者のみ店舗選択を表示
+        if (auth()->user()->hasRole('super_admin')) {
+            $stores = Store::all();
+            foreach ($stores as $store) {
+                $actions[] = Actions\Action::make('store_' . $store->id)
+                    ->label($store->name)
+                    ->color($this->selectedStore == $store->id ? 'primary' : 'gray')
+                    ->action(function () use ($store) {
+                        $this->selectedStore = $store->id;
+                        $this->resetTable();
+                    });
+            }
+        }
+        
+        // カテゴリの存在をチェック
+        $storeId = $this->selectedStore ?? auth()->user()->store_id;
+        $hasCategories = \App\Models\MenuCategory::where('store_id', $storeId)
+            ->where('is_active', true)
+            ->exists();
+        
+        if ($hasCategories) {
+            $actions[] = Actions\CreateAction::make();
+        } else {
+            $actions[] = Actions\Action::make('create_category_first')
+                ->label('メニュー作成')
+                ->icon('heroicon-o-plus')
+                ->disabled()
+                ->tooltip('まずカテゴリーを作成してください')
+                ->color('gray');
+        }
+        
+        return $actions;
     }
 }

@@ -10,6 +10,7 @@ use App\Models\Customer;
 use App\Models\CustomerSubscription;
 use App\Models\CustomerAccessToken;
 use App\Models\BlockedTimePeriod;
+use App\Models\Shift;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -464,6 +465,19 @@ class PublicReservationController extends Controller
                 return Carbon::parse($block->blocked_date)->format('Y-m-d');
             });
         
+        // シフト情報を取得
+        $shifts = Shift::where('store_id', $storeId)
+            ->whereDate('shift_date', '>=', $startDate->format('Y-m-d'))
+            ->whereDate('shift_date', '<=', $endDate->format('Y-m-d'))
+            ->where('is_available_for_reservation', true)
+            ->whereHas('user', function($query) {
+                $query->where('is_active_staff', true);
+            })
+            ->get()
+            ->groupBy(function($shift) {
+                return Carbon::parse($shift->shift_date)->format('Y-m-d');
+            });
+        
         foreach ($dates as $dateInfo) {
             $date = $dateInfo['date'];
             $dateStr = $date->format('Y-m-d');
@@ -525,6 +539,21 @@ class PublicReservationController extends Controller
                 });
                 
                 if ($isBlocked) {
+                    $availability[$dateStr][$slot] = false;
+                    continue;
+                }
+                
+                // シフトチェック：この時間帯に対応可能なスタッフがいるか確認
+                $dayShifts = $shifts->get($dateStr, collect());
+                $hasAvailableStaff = $dayShifts->contains(function ($shift) use ($slotTime, $slotEnd) {
+                    $shiftStart = Carbon::parse($shift->shift_date->format('Y-m-d') . ' ' . $shift->start_time);
+                    $shiftEnd = Carbon::parse($shift->shift_date->format('Y-m-d') . ' ' . $shift->end_time);
+                    
+                    // スタッフのシフト時間内に予約が収まるかチェック
+                    return $slotTime->gte($shiftStart) && $slotEnd->lte($shiftEnd);
+                });
+                
+                if (!$hasAvailableStaff) {
                     $availability[$dateStr][$slot] = false;
                     continue;
                 }
@@ -613,6 +642,25 @@ class PublicReservationController extends Controller
             foreach ($selectedOptions as $option) {
                 $totalAmount += $option->price;
                 $totalDuration += $option->duration;
+            }
+            
+            // シフトチェック: 予約時間に対応可能なスタッフがいるか確認
+            $reservationDateTime = Carbon::parse($validated['date'] . ' ' . $validated['time']);
+            $endTime = $reservationDateTime->copy()->addMinutes($totalDuration);
+            
+            $availableStaff = Shift::where('store_id', $validated['store_id'])
+                ->where('shift_date', $validated['date'])
+                ->where('start_time', '<=', $validated['time'])
+                ->where('end_time', '>=', $endTime->format('H:i'))
+                ->where('is_available_for_reservation', true)
+                ->whereHas('user', function($query) {
+                    $query->where('is_active_staff', true);
+                })
+                ->exists();
+            
+            if (!$availableStaff) {
+                DB::rollback();
+                return back()->with('error', '申し訳ございません。選択された時間帯に対応可能なスタッフがおりません。別の時間帯をお選びください。');
             }
             
             // 予約を作成

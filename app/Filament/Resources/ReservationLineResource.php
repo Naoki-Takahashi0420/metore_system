@@ -15,9 +15,12 @@ class ReservationLineResource extends Resource
 {
     protected static ?string $model = ReservationLine::class;
 
+    // ナビゲーションから非表示
+    protected static bool $shouldRegisterNavigation = false;
+    
     protected static ?string $navigationIcon = 'heroicon-o-queue-list';
     
-    protected static ?string $navigationLabel = '予約ライン管理';
+    protected static ?string $navigationLabel = '予約ライン管理（廃止予定）';
     
     protected static ?string $modelLabel = '予約ライン';
     
