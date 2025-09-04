@@ -14,17 +14,17 @@ class SubscriptionPlanResource extends Resource
 {
     protected static ?string $model = SubscriptionPlan::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-credit-card';
     
-    protected static ?string $navigationLabel = 'プラン設定';
+    protected static ?string $navigationLabel = 'サブスク設定';
     
-    protected static ?string $modelLabel = '定額プラン';
+    protected static ?string $modelLabel = 'サブスクプラン';
     
-    protected static ?string $pluralModelLabel = '定額プラン';
+    protected static ?string $pluralModelLabel = 'サブスクプラン';
     
-    protected static ?int $navigationSort = 9;
+    protected static ?int $navigationSort = 2;
     
-    protected static ?string $navigationGroup = '設定';
+    protected static ?string $navigationGroup = 'メニュー';
 
     public static function form(Form $form): Form
     {

@@ -12,6 +12,7 @@ class BlockedTimePeriod extends Model
         'blocked_date',
         'start_time',
         'end_time',
+        'is_all_day',
         'reason',
         'is_recurring',
         'recurrence_pattern'
@@ -19,6 +20,7 @@ class BlockedTimePeriod extends Model
 
     protected $casts = [
         'blocked_date' => 'date',
+        'is_all_day' => 'boolean',
         'is_recurring' => 'boolean',
     ];
 

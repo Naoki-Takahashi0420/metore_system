@@ -249,4 +249,91 @@ class CustomerResource extends Resource
             'edit' => Pages\EditCustomer::route('/{record}/edit'),
         ];
     }
+    
+    public static function canViewAny(): bool
+    {
+        $user = auth()->user();
+        if (!$user || !$user->roles()->exists()) {
+            return false;
+        }
+        
+        return $user->hasRole(['super_admin', 'owner', 'manager', 'staff']);
+    }
+    
+    public static function canView($record): bool
+    {
+        // 暫定対応: 全顧客を表示可能にする（インポート対策）
+        return true;
+        
+        // 以下は将来の実装用（コメントアウト）
+        /*
+        try {
+            $reservationCount = \DB::table('reservations')
+                ->where('customer_id', $record->id)
+                ->count();
+            
+            if ($reservationCount === 0) {
+                return true; // インポート顧客は表示
+            }
+            
+            $user = auth()->user();
+            if (!$user) return false;
+            
+            // 権限チェックロジック...
+            
+        } catch (\Exception $e) {
+            return true; // エラー時も表示（暫定対応）
+        }
+        */
+    }
+    
+    public static function canCreate(): bool
+    {
+        $user = auth()->user();
+        if (!$user || !$user->roles()->exists()) {
+            return false;
+        }
+        
+        return $user->hasRole(['super_admin', 'owner', 'manager', 'staff']);
+    }
+    
+    public static function canEdit($record): bool
+    {
+        $user = auth()->user();
+        if (!$user || !$user->roles()->exists()) {
+            return false;
+        }
+        
+        // 顧客編集は顧客閲覧権限と同じロジック
+        return static::canView($record);
+    }
+    
+    public static function canDelete($record): bool
+    {
+        // 予約履歴がない顧客（インポートされた顧客）は管理者権限があれば削除可能
+        if ($record->reservations()->count() === 0) {
+            $user = auth()->user();
+            return $user && $user->hasRole(['super_admin', 'owner']);
+        }
+        
+        $user = auth()->user();
+        if (!$user || !$user->roles()->exists()) {
+            return false;
+        }
+        
+        // 顧客削除はスーパーアドミンとオーナーのみ
+        if ($user->hasRole('super_admin')) {
+            return true;
+        }
+        
+        if ($user->hasRole('owner')) {
+            // 予約履歴がある場合は管理可能店舗の予約があるかチェック
+            $manageableStoreIds = $user->manageableStores()->pluck('stores.id');
+            return $record->reservations()
+                ->whereIn('store_id', $manageableStoreIds)
+                ->exists();
+        }
+        
+        return false;
+    }
 }

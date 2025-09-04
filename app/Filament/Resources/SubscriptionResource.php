@@ -16,15 +16,17 @@ class SubscriptionResource extends Resource
 {
     protected static ?string $model = CustomerSubscription::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-credit-card';
+    protected static ?string $navigationIcon = 'heroicon-o-users';
     
-    protected static ?string $navigationLabel = '定額プラン管理';
+    protected static ?string $navigationLabel = 'サブスク会員';
     
-    protected static ?string $modelLabel = '定額プラン契約';
+    protected static ?string $modelLabel = 'サブスク契約';
     
-    protected static ?string $pluralModelLabel = '定額プラン契約';
+    protected static ?string $pluralModelLabel = 'サブスク契約';
     
-    protected static ?int $navigationSort = 8;
+    protected static ?int $navigationSort = 3;
+    
+    protected static ?string $navigationGroup = 'メニュー';
 
     public static function form(Form $form): Form
     {

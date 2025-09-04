@@ -22,11 +22,23 @@ class AvailabilityController extends Controller
             'store_id' => 'required|exists:stores,id',
             'menu_id' => 'required|exists:menus,id',
             'date' => 'required|date|after_or_equal:today',
+            'staff_id' => 'nullable|exists:users,id', // 指名予約用
+            'customer_id' => 'nullable|exists:customers,id', // カルテチェック用
         ]);
 
         $store = Store::findOrFail($validated['store_id']);
         $menu = Menu::findOrFail($validated['menu_id']);
         $date = Carbon::parse($validated['date']);
+        $staffId = $validated['staff_id'] ?? null;
+        $customerId = $validated['customer_id'] ?? null;
+        
+        // 指名予約の制限チェック
+        if ($staffId && !$this->canMakeStaffReservation($store, $customerId)) {
+            return response()->json([
+                'message' => 'この店舗では指名予約はできません',
+                'available_slots' => []
+            ]);
+        }
         
         // シフトチェックを削除 - 営業時間のみで判断
         
@@ -102,7 +114,7 @@ class AvailabilityController extends Controller
                 }
             }
             
-            // 既存予約との重複チェック（席数を考慮）
+            // 既存予約との重複チェック（店舗設定に応じた席数制御）
             $overlappingCount = 0;
             foreach ($existingReservations as $reservation) {
                 // reservation_dateから日付部分のみを抽出
@@ -119,8 +131,8 @@ class AvailabilityController extends Controller
                 }
             }
             
-            // 店舗の席数（capacity）を確認
-            $storeCapacity = $store->capacity ?? 1;
+            // 店舗設定に応じてキャパシティを決定
+            $storeCapacity = $this->getSlotCapacity($store, $slotStart, $date);
             if ($overlappingCount >= $storeCapacity) {
                 return false;
             }
@@ -147,6 +159,63 @@ class AvailabilityController extends Controller
                 ];
             })
         ]);
+    }
+    
+    /**
+     * 店舗設定に応じた時間帯別キャパシティを取得
+     */
+    private function getSlotCapacity(Store $store, Carbon $slotTime, Carbon $date): int
+    {
+        // シフトベースの場合
+        if ($store->use_staff_assignment) {
+            $shifts = Shift::where('store_id', $store->id)
+                ->whereDate('shift_date', $date)
+                ->where('is_available_for_reservation', true)
+                ->where('status', 'scheduled')
+                ->get();
+            
+            $timeStr = $slotTime->format('H:i:s');
+            
+            // この時間帯に勤務中のスタッフ数を計算
+            $availableStaffCount = $shifts->filter(function ($shift) use ($timeStr) {
+                // 休憩時間を考慮
+                if ($shift->break_start && $shift->break_end) {
+                    if ($timeStr >= $shift->break_start && $timeStr < $shift->break_end) {
+                        return false; // 休憩中
+                    }
+                }
+                return $timeStr >= $shift->start_time && $timeStr <= $shift->end_time;
+            })->count();
+            
+            return max($availableStaffCount, 0);
+        }
+        
+        // 営業時間ベース（従来方式）
+        return $store->capacity ?? 1;
+    }
+    
+    /**
+     * 指名予約が可能かチェック
+     */
+    private function canMakeStaffReservation(Store $store, ?int $customerId): bool
+    {
+        // 営業時間ベースの店舗では指名予約不可
+        if (!$store->use_staff_assignment) {
+            return false;
+        }
+        
+        // 顧客IDがない場合は指名不可（初回予約）
+        if (!$customerId) {
+            return false;
+        }
+        
+        // 過去に予約履歴がある顧客のみ指名可能
+        $hasReservationHistory = Reservation::where('customer_id', $customerId)
+            ->where('store_id', $store->id)
+            ->whereNotIn('status', ['cancelled', 'no_show'])
+            ->exists();
+        
+        return $hasReservationHistory;
     }
     
     /**

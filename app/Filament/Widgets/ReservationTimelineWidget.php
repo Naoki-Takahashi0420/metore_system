@@ -72,8 +72,8 @@ class ReservationTimelineWidget extends Widget
         $date = Carbon::parse($this->selectedDate);
         
         // 店舗のライン設定を取得
-        $mainSeats = $store->main_seat_count ?? 3;
-        $subSeats = $store->sub_seat_count ?? 1;
+        $mainSeats = $store->main_lines_count ?? 3;
+        $subSeats = $store->sub_lines_count ?? 1;
         
         // 店舗の営業時間を取得（選択された日付の曜日に基づく）
         $dayOfWeek = $date->format('l'); // Monday, Tuesday, etc.
@@ -140,26 +140,35 @@ class ReservationTimelineWidget extends Widget
             ];
         }
         
-        // サブ枠
-        $timeline['sub'] = [
-            'label' => 'サブ枠',
-            'type' => 'sub',
-            'reservations' => []
-        ];
+        // サブ枠（複数対応）
+        for ($subSeat = 1; $subSeat <= $subSeats; $subSeat++) {
+            $timeline['sub_' . $subSeat] = [
+                'label' => 'サブ' . $subSeat,
+                'type' => 'sub',
+                'reservations' => []
+            ];
+        }
         
         // ブロック時間帯をタイムラインに配置
         $blockedSlots = [];
         foreach ($blockedPeriods as $blocked) {
-            $blockStart = Carbon::parse($blocked->start_time);
-            $blockEnd = Carbon::parse($blocked->end_time);
-            
-            // 時間スロットのインデックスを計算
-            $startSlot = max(0, ($blockStart->hour - $startHour) + ($blockStart->minute / 60));
-            $endSlot = min(count($slots), ($blockEnd->hour - $startHour) + ($blockEnd->minute / 60));
-            
-            // ブロックされているスロットを記録
-            for ($i = floor($startSlot); $i < ceil($endSlot); $i++) {
-                $blockedSlots[] = $i;
+            // 終日休みの場合は全スロットをブロック
+            if ($blocked->is_all_day) {
+                for ($i = 0; $i < count($slots); $i++) {
+                    $blockedSlots[] = $i;
+                }
+            } else {
+                $blockStart = Carbon::parse($blocked->start_time);
+                $blockEnd = Carbon::parse($blocked->end_time);
+                
+                // 時間スロットのインデックスを計算
+                $startSlot = max(0, ($blockStart->hour - $startHour) + ($blockStart->minute / 60));
+                $endSlot = min(count($slots), ($blockEnd->hour - $startHour) + ($blockEnd->minute / 60));
+                
+                // ブロックされているスロットを記録
+                for ($i = floor($startSlot); $i < ceil($endSlot); $i++) {
+                    $blockedSlots[] = $i;
+                }
             }
         }
         
@@ -222,7 +231,18 @@ class ReservationTimelineWidget extends Widget
             ];
             
             if ($reservation->is_sub) {
-                $timeline['sub']['reservations'][] = $reservationData;
+                // サブ枠の予約を適切なサブラインに配置
+                $subSeatNumber = $reservation->sub_seat_number ?? 1; // デフォルトはサブ1
+                $subKey = 'sub_' . $subSeatNumber;
+                if (isset($timeline[$subKey])) {
+                    $timeline[$subKey]['reservations'][] = $reservationData;
+                } else {
+                    // サブ番号が存在しない場合は最初のサブ枠に配置
+                    $firstSubKey = 'sub_1';
+                    if (isset($timeline[$firstSubKey])) {
+                        $timeline[$firstSubKey]['reservations'][] = $reservationData;
+                    }
+                }
             } elseif ($reservation->seat_number) {
                 $seatKey = 'seat_' . $reservation->seat_number;
                 if (isset($timeline[$seatKey])) {
@@ -244,7 +264,8 @@ class ReservationTimelineWidget extends Widget
             'slots' => $slots,
             'timeline' => $timeline,
             'blockedSlots' => $blockedSlots,
-            'conflictingReservations' => $conflictingReservations
+            'conflictingReservations' => $conflictingReservations,
+            'blockedPeriods' => $blockedPeriods->toArray() // デバッグ用
         ];
     }
     
@@ -301,6 +322,14 @@ class ReservationTimelineWidget extends Widget
     {
         $reservation = Reservation::find($reservationId);
         if ($reservation) {
+            // 過去の予約は移動不可
+            if ($reservation->reservation_date->isPast()) {
+                $this->dispatch('notify', [
+                    'type' => 'error',
+                    'message' => '過去の予約の席移動はできません'
+                ]);
+                return;
+            }
             // サブ枠に既に予約があるかチェック
             $temp = clone $reservation;
             $temp->is_sub = true;
@@ -333,6 +362,14 @@ class ReservationTimelineWidget extends Widget
     {
         $reservation = Reservation::find($reservationId);
         if ($reservation) {
+            // 過去の予約は移動不可
+            if ($reservation->reservation_date->isPast()) {
+                $this->dispatch('notify', [
+                    'type' => 'error',
+                    'message' => '過去の予約の席移動はできません'
+                ]);
+                return;
+            }
             // 指定席に既に予約があるかチェック
             $temp = clone $reservation;
             $temp->is_sub = false;

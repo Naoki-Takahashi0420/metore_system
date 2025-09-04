@@ -406,7 +406,12 @@
                     </div>
 
                     <div class="border-t pt-4">
-                        <p class="text-sm font-medium mb-3">座席を移動</p>
+                        @if($selectedReservation->reservation_date->isPast())
+                            <p class="text-sm text-gray-500 mb-3">⚠️ 過去の予約のため座席移動はできません</p>
+                        @else
+                            <p class="text-sm font-medium mb-3">座席を移動</p>
+                        @endif
+                        @if(!$selectedReservation->reservation_date->isPast())
                         <div class="flex gap-2 flex-wrap">
                             @if($selectedReservation->is_sub)
                                 @for($i = 1; $i <= 3; $i++)
@@ -454,6 +459,7 @@
                                 @endif
                             @endif
                         </div>
+                        @endif
                     </div>
                 </div>
             </div>

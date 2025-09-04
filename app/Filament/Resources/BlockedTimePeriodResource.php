@@ -33,22 +33,41 @@ class BlockedTimePeriodResource extends Resource
                 Forms\Components\DatePicker::make('blocked_date')
                     ->label('ブロック日')
                     ->required()
-                    ->minDate(now()),
+                    ->minDate(today()),
+                    
+                Forms\Components\Toggle::make('is_all_day')
+                    ->label('終日休み')
+                    ->helperText('終日休みの場合はONにしてください')
+                    ->default(false)
+                    ->reactive()
+                    ->afterStateUpdated(function ($state, $set) {
+                        if ($state) {
+                            // 終日の場合、営業時間全体を設定
+                            $set('start_time', '00:00:00');
+                            $set('end_time', '23:59:59');
+                        }
+                    }),
                     
                 Forms\Components\TimePicker::make('start_time')
                     ->label('開始時間')
                     ->required()
-                    ->seconds(false),
+                    ->seconds(false)
+                    ->visible(fn($get) => !$get('is_all_day'))
+                    ->default('09:00'),
                     
                 Forms\Components\TimePicker::make('end_time')
                     ->label('終了時間')
                     ->required()
                     ->seconds(false)
-                    ->after('start_time'),
+                    ->after('start_time')
+                    ->visible(fn($get) => !$get('is_all_day'))
+                    ->default('18:00'),
                     
                 Forms\Components\TextInput::make('reason')
                     ->label('理由')
-                    ->placeholder('例：研修、ミーティング、設備メンテナンス')
+                    ->placeholder(fn($get) => $get('is_all_day') 
+                        ? '例：臨時休業、年末年始、お盆休み' 
+                        : '例：研修、ミーティング、設備メンテナンス')
                     ->maxLength(255),
                     
                 Forms\Components\Toggle::make('is_recurring')
@@ -80,13 +99,16 @@ class BlockedTimePeriodResource extends Resource
                     ->date('Y/m/d')
                     ->sortable(),
                     
-                Tables\Columns\TextColumn::make('start_time')
-                    ->label('開始時間')
-                    ->time('H:i'),
-                    
-                Tables\Columns\TextColumn::make('end_time')
-                    ->label('終了時間')
-                    ->time('H:i'),
+                Tables\Columns\TextColumn::make('time_range')
+                    ->label('時間帯')
+                    ->getStateUsing(function ($record) {
+                        if ($record->is_all_day) {
+                            return '終日';
+                        }
+                        return substr($record->start_time, 0, 5) . ' - ' . substr($record->end_time, 0, 5);
+                    })
+                    ->badge()
+                    ->color(fn($record) => $record->is_all_day ? 'danger' : 'gray'),
                     
                 Tables\Columns\TextColumn::make('reason')
                     ->label('理由')

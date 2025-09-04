@@ -50,7 +50,7 @@ class UserResource extends Resource
                             ->maxLength(255),
                         Forms\Components\Select::make('store_id')
                             ->label('所属店舗')
-                            ->options(\App\Models\Store::whereNotNull('name')->where('name', '!=', '')->pluck('name', 'id'))
+                            ->options(\App\Models\Store::whereNotNull('name')->where('name', '!=', '')->get()->pluck('name', 'id')->filter())
                             ->searchable()
                             ->preload()
                             ->nullable(),
@@ -62,11 +62,12 @@ class UserResource extends Resource
                         Forms\Components\Select::make('roles')
                             ->label('ロール')
                             ->relationship('roles', 'name')
-                            ->getOptionLabelFromRecordUsing(fn ($record) => mb_convert_encoding($record->display_name ?? $record->name ?? 'Unknown', 'UTF-8', 'auto'))
+                            ->getOptionLabelFromRecordUsing(fn ($record) => mb_convert_encoding($record->display_name ?? $record->name ?? 'Unknown', 'UTF-8', 'auto') ?? 'Unknown')
                             ->preload()
                             ->required()
                             ->reactive()
-                            ->helperText('ユーザーの権限レベルを選択してください（1つのみ選択）'),
+                            ->multiple(false)
+                            ->helperText('ユーザーの権限レベルを選択してください'),
                         Forms\Components\Select::make('manageable_stores')
                             ->label('管理可能店舗')
                             ->relationship('manageableStores', 'name')
@@ -89,9 +90,6 @@ class UserResource extends Resource
                                 return false;
                             })
                             ->helperText('オーナーが管理できる複数店舗を選択'),
-                        Forms\Components\DateTimePicker::make('email_verified_at')
-                            ->label('メール確認日時')
-                            ->nullable(),
                     ]),
 
                 Forms\Components\Section::make('プロフィール')
@@ -154,11 +152,6 @@ class UserResource extends Resource
                 Tables\Columns\IconColumn::make('is_available')
                     ->label('予約受付')
                     ->boolean(),
-                Tables\Columns\TextColumn::make('email_verified_at')
-                    ->label('メール確認')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('登録日')
                     ->dateTime()
@@ -168,10 +161,11 @@ class UserResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('store_id')
                     ->label('店舗')
-                    ->options(\App\Models\Store::whereNotNull('name')->where('name', '!=', '')->pluck('name', 'id')),
+                    ->options(\App\Models\Store::whereNotNull('name')->where('name', '!=', '')->get()->pluck('name', 'id')->filter()),
                 Tables\Filters\SelectFilter::make('roles')
                     ->label('ロール')
-                    ->relationship('roles', 'display_name'),
+                    ->relationship('roles', 'display_name')
+                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->display_name ?? $record->name ?? 'Unknown'),
                 Tables\Filters\SelectFilter::make('status')
                     ->label('状態')
                     ->options([

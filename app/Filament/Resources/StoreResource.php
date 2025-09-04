@@ -346,4 +346,89 @@ class StoreResource extends Resource
             'edit' => Pages\EditStore::route('/{record}/edit'),
         ];
     }
+    
+    public static function canViewAny(): bool
+    {
+        $user = auth()->user();
+        if (!$user || !$user->roles()->exists()) {
+            return false;
+        }
+        
+        return $user->hasRole(['super_admin', 'owner', 'manager']);
+    }
+    
+    public static function canCreate(): bool
+    {
+        $user = auth()->user();
+        if (!$user || !$user->roles()->exists()) {
+            return false;
+        }
+        
+        return $user->hasRole(['super_admin']);
+    }
+    
+    public static function canEdit($record): bool
+    {
+        $user = auth()->user();
+        if (!$user || !$user->roles()->exists()) {
+            return false;
+        }
+        
+        // スーパーアドミンは全店舗編集可能
+        if ($user->hasRole('super_admin')) {
+            return true;
+        }
+        
+        // オーナーは管理可能店舗のみ編集可能
+        if ($user->hasRole('owner')) {
+            return $user->manageableStores()->where('stores.id', $record->id)->exists();
+        }
+        
+        // 店長は自分の店舗のみ編集可能
+        if ($user->hasRole('manager')) {
+            return $user->store_id === $record->id;
+        }
+        
+        return false;
+    }
+    
+    public static function canDelete($record): bool
+    {
+        $user = auth()->user();
+        if (!$user || !$user->roles()->exists()) {
+            return false;
+        }
+        
+        // 店舗削除はスーパーアドミンのみ
+        return $user->hasRole('super_admin');
+    }
+    
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user = auth()->user();
+        
+        if (!$user || !$user->roles()->exists()) {
+            return $query->whereRaw('1 = 0');
+        }
+        
+        // スーパーアドミンは全店舗表示
+        if ($user->hasRole('super_admin')) {
+            return $query;
+        }
+        
+        // オーナーは管理可能店舗のみ表示
+        if ($user->hasRole('owner')) {
+            $manageableStoreIds = $user->manageableStores()->pluck('stores.id');
+            return $query->whereIn('id', $manageableStoreIds);
+        }
+        
+        // 店長は自分の店舗のみ表示
+        if ($user->hasRole('manager')) {
+            return $query->where('id', $user->store_id);
+        }
+        
+        // 権限がない場合は空のクエリ
+        return $query->whereRaw('1 = 0');
+    }
 }

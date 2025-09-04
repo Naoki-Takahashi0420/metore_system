@@ -72,35 +72,54 @@
                         </tr>
                     </thead>
                     
-                    <!-- 店舗別予約行 -->
+                    <!-- 店舗別予約行（予約ライン数に応じて複数行表示） -->
                     <tbody>
                         @foreach($stores as $store)
                             @php
                                 $storeReservations = $reservations->where('store_id', $store->id);
                                 $businessHours = $this->getStoreBusinessHours($store);
+                                $totalLines = ($store->main_lines_count ?? 1) + ($store->sub_lines_count ?? 0);
+                                $mainLines = $store->main_lines_count ?? 1;
+                                
+                                // デバッグ用（一時的）
+                                echo "Store: {$store->name}, Main: {$store->main_lines_count}, Sub: {$store->sub_lines_count}, Total: {$totalLines}<br>";
                             @endphp
-                            <tr class="{{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">
-                                <!-- 店舗名列 -->
-                                <td class="border-2 border-gray-800 px-4 py-3 bg-blue-50">
-                                    <div class="font-bold text-gray-900 text-sm">{{ $store->name }}</div>
-                                    @if($businessHours['is_open'])
-                                        <div class="text-xs text-green-700 mt-1">
-                                            営業: {{ $businessHours['open'] }} - {{ $businessHours['close'] }}
-                                        </div>
-                                    @else
-                                        <div class="text-xs text-red-600 mt-1">
-                                            休業日
-                                        </div>
+                            
+                            @for($lineIndex = 0; $lineIndex < $totalLines; $lineIndex++)
+                                @php
+                                    $isMainLine = $lineIndex < $mainLines;
+                                    $lineType = $isMainLine ? '本' : '予';
+                                @endphp
+                                <tr class="{{ $loop->parent->even ? 'bg-gray-50' : 'bg-white' }} {{ $isMainLine ? 'border-l-4 border-blue-500' : 'border-l-4 border-orange-400' }}">
+                                    <!-- 店舗名列（最初の行のみ表示、他は結合） -->
+                                    @if($lineIndex === 0)
+                                        <td class="border-2 border-gray-800 px-4 py-3 bg-blue-50" rowspan="{{ $totalLines }}">
+                                            <div class="font-bold text-gray-900 text-sm">{{ $store->name }}</div>
+                                            @if($businessHours['is_open'])
+                                                <div class="text-xs text-green-700 mt-1">
+                                                    営業: {{ $businessHours['open'] }} - {{ $businessHours['close'] }}
+                                                </div>
+                                            @else
+                                                <div class="text-xs text-red-600 mt-1">
+                                                    休業日
+                                                </div>
+                                            @endif
+                                            <div class="text-xs text-gray-600 mt-1">
+                                                予約: {{ $storeReservations->count() }}件
+                                            </div>
+                                            <div class="text-xs text-blue-600 mt-1">
+                                                本ライン: {{ $mainLines }}
+                                                @if($store->sub_lines_count > 0)
+                                                    / 予備: {{ $store->sub_lines_count }}
+                                                @endif
+                                            </div>
+                                        </td>
                                     @endif
-                                    <div class="text-xs text-gray-600 mt-1">
-                                        予約: {{ $storeReservations->count() }}件
-                                    </div>
-                                </td>
                                 
                                 <!-- 時間軸セル -->
                                 @foreach($timeSlots as $slotIndex => $slot)
                                     @php
-                                        // この時間に予約があるかチェック（より厳密に）
+                                        // この時間・このラインに予約があるかチェック
                                         $slotReservations = $storeReservations->filter(function($reservation) use ($slot) {
                                             try {
                                                 // 時刻の正規化
@@ -120,7 +139,8 @@
                                             }
                                         });
                                         
-                                        $reservation = $slotReservations->first();
+                                        // このライン用の予約を取得（予約ライン別配置）
+                                        $reservation = $slotReservations->skip($lineIndex)->first();
                                         $isBusinessHour = $businessHours['is_open'] && ($slot >= $businessHours['open'] && $slot < $businessHours['close']);
                                         $isCurrentTimeSlot = ($isToday && $slot <= $currentTime && $currentTime < ($timeSlots[$slotIndex + 1] ?? '23:59'));
                                         
@@ -158,6 +178,13 @@
                                         <td class="border border-gray-600 text-center relative p-0" 
                                             style="height: 40px;" 
                                             @if($colspan > 1) colspan="{{ $colspan }}" @endif>
+                                            @if($slotIndex === 0)
+                                                <!-- ライン種別ラベル（最初のセルのみ） -->
+                                                <div class="absolute left-0 top-0 px-1 py-0.5 text-xs font-bold {{ $isMainLine ? 'bg-blue-500 text-white' : 'bg-orange-400 text-white' }}" 
+                                                     style="z-index: 10;">
+                                                    {{ $lineType }}{{ $lineIndex + 1 }}
+                                                </div>
+                                            @endif
                                             @if($reservation && $isStartCell)
                                                 <!-- 予約セル（結合対応） -->
                                                 <div class="reservation-cell {{ $reservation->is_new_customer ? 'new-customer' : 'existing-customer' }}"
@@ -198,6 +225,7 @@
                                     @endif
                                 @endforeach
                             </tr>
+                            @endfor
                         @endforeach
                     </tbody>
                 </table>
