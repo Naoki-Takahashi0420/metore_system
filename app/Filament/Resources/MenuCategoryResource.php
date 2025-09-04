@@ -60,8 +60,8 @@ class MenuCategoryResource extends Resource
                             ->image()
                             ->directory('category-images')
                             ->imageEditor()
-                            ->maxSize(5120)
-                            ->helperText('推奨サイズ: 1200x600px')
+                            ->maxSize(15360)
+                            ->helperText('最大15MBまでアップロード可能 | 推奨サイズ: 1200x600px')
                             ->columnSpanFull(),
 
                         Forms\Components\TextInput::make('sort_order')

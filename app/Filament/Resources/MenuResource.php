@@ -99,12 +99,17 @@ class MenuResource extends Resource
                         Forms\Components\Select::make('duration_minutes')
                             ->label('所要時間')
                             ->options(function (Forms\Get $get) {
-                                // 常にすべての選択肢を表示（エラーを避ける）
+                                // 15分刻みの選択肢を提供
                                 return [
                                     0 => 'オプション（時間なし）',
+                                    15 => '15分',
                                     30 => '30分',
-                                    50 => '50分',
-                                    80 => '80分',
+                                    45 => '45分',
+                                    60 => '60分（1時間）',
+                                    75 => '75分（1時間15分）',
+                                    90 => '90分（1時間30分）',
+                                    105 => '105分（1時間45分）',
+                                    120 => '120分（2時間）',
                                 ];
                             })
                             ->reactive()
