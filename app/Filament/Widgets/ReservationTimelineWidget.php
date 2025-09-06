@@ -99,13 +99,19 @@ class ReservationTimelineWidget extends Widget
             }
         }
         
-        // 営業時間を設定（見つからない場合はデフォルト10:00-20:00）
+        // 営業時間を設定（見つからない場合はデフォルト10:00-21:00）
         $startHour = 10;
-        $endHour = 20;
+        $endHour = 21;
         
         if ($todayHours && !empty($todayHours['open_time']) && !empty($todayHours['close_time'])) {
             $startHour = (int)substr($todayHours['open_time'], 0, 2);
-            $endHour = (int)substr($todayHours['close_time'], 0, 2);
+            $closeTime = $todayHours['close_time'];
+            $endHour = (int)substr($closeTime, 0, 2);
+            $endMinute = (int)substr($closeTime, 3, 2);
+            // 分がある場合は次の時間まで含める
+            if ($endMinute > 0) {
+                $endHour++;
+            }
         }
         
         // タイムラインデータを構築

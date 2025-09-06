@@ -75,7 +75,7 @@ class ShiftCalendarWidget extends Widget
                 'shifts' => $dayShifts->map(function($shift) {
                     return [
                         'id' => $shift->id,
-                        'staff_name' => $shift->user->name,
+                        'staff_name' => $shift->user ? $shift->user->name : '未割当',
                         'staff_id' => $shift->user_id,
                         'start' => Carbon::parse($shift->start_time)->format('H:i'),
                         'end' => Carbon::parse($shift->end_time)->format('H:i'),

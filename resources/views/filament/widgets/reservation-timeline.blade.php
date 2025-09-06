@@ -20,12 +20,32 @@
                 font-weight: normal;
                 font-size: 14px;
                 text-align: center;
-                width: 80px;
+                min-width: 20px;
+            }
+            
+            .timeline-table th[colspan] {
+                min-width: 80px;
+                border-right: 2px solid #999;
+            }
+            
+            .timeline-table th[colspan]:last-child {
+                border-right: 1px solid #e0e0e0;
             }
             
             .timeline-table td {
-                width: 80px;
+                width: 20px;
+                min-width: 20px;
                 cursor: pointer;
+            }
+            
+            /* 15分ごとの細い線 */
+            .timeline-table td:not(:last-child) {
+                border-right: 1px solid #e0e0e0;
+            }
+            
+            /* 1時間ごとの太い線 */
+            .timeline-table td:nth-child(4n+1):not(:first-child) {
+                border-left: 2px solid #999;
             }
             
             .timeline-table td:hover {
@@ -66,10 +86,14 @@
                 box-shadow: 0 2px 8px rgba(0,0,0,0.15);
             }
             
-            .booking-block.span-1 { width: calc(100% - 4px); }
-            .booking-block.span-2 { width: calc(200% - 4px); }
-            .booking-block.span-3 { width: calc(300% - 4px); }
-            .booking-block.span-4 { width: calc(400% - 4px); }
+            .booking-block.span-1 { width: calc(20px - 4px); }
+            .booking-block.span-2 { width: calc(40px - 4px); }
+            .booking-block.span-3 { width: calc(60px - 4px); }
+            .booking-block.span-4 { width: calc(80px - 4px); }
+            .booking-block.span-5 { width: calc(100px - 4px); }
+            .booking-block.span-6 { width: calc(120px - 4px); }
+            .booking-block.span-7 { width: calc(140px - 4px); }
+            .booking-block.span-8 { width: calc(160px - 4px); }
             
             .booking-name {
                 font-weight: bold;
@@ -242,9 +266,19 @@
                 <table class="timeline-table">
                     <thead>
                         <tr>
-                            <th>席数</th>
-                            @foreach($timelineData['slots'] as $slot)
-                                <th>{{ $slot }}</th>
+                            <th style="vertical-align: middle;">席数</th>
+                            @php
+                                $hourGroups = [];
+                                foreach($timelineData['slots'] as $index => $slot) {
+                                    $hour = substr($slot, 0, 2);
+                                    if (!isset($hourGroups[$hour])) {
+                                        $hourGroups[$hour] = 0;
+                                    }
+                                    $hourGroups[$hour]++;
+                                }
+                            @endphp
+                            @foreach($hourGroups as $hour => $count)
+                                <th colspan="{{ $count }}" style="font-weight: bold;">{{ $hour }}:00</th>
                             @endforeach
                         </tr>
                     </thead>
