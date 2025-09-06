@@ -117,46 +117,90 @@ class StoreResource extends Resource
                                     ->label('予約枠の長さ（分）')
                                     ->numeric()
                                     ->default(30)
-                                    ->required(),
+                                    ->required()
+                                    ->helperText('予約可能な時間間隔（例：30分ごと）'),
                                 Forms\Components\TextInput::make('max_advance_days')
                                     ->label('予約可能な最大日数')
                                     ->numeric()
                                     ->default(30)
-                                    ->required(),
+                                    ->required()
+                                    ->helperText('何日先まで予約を受け付けるか'),
                                 Forms\Components\TextInput::make('cancellation_deadline_hours')
                                     ->label('キャンセル期限（時間前）')
                                     ->numeric()
                                     ->default(24)
-                                    ->required(),
-                                Forms\Components\Toggle::make('require_confirmation')
-                                    ->label('予約確認を必須にする')
-                                    ->default(false),
+                                    ->required()
+                                    ->helperText('予約時刻の何時間前までキャンセル可能か'),
                             ])
                             ->columns(2),
 
-                        Forms\Components\Tabs\Tab::make('予約ライン設定')
+                        Forms\Components\Tabs\Tab::make('予約管理方式')
                             ->schema([
-                                Forms\Components\Section::make('ライン設定')
+                                Forms\Components\Section::make('予約受付方式の選択')
+                                    ->description('店舗の規模や運営スタイルに合わせて、予約管理方式を選択してください')
                                     ->schema([
-                                        Forms\Components\TextInput::make('main_lines_count')
-                                            ->label('本ライン数')
-                                            ->numeric()
-                                            ->default(1)
-                                            ->required()
-                                            ->helperText('新規顧客が利用可能なメインライン数'),
-                                        Forms\Components\TextInput::make('sub_lines_count')
-                                            ->label('予備ライン数')
-                                            ->numeric()
-                                            ->default(0)
-                                            ->helperText('既存顧客優先の予備ライン数'),
-                                        Forms\Components\Toggle::make('use_staff_assignment')
-                                            ->label('スタッフ指定制を使用')
-                                            ->helperText('小山・新宿店などで使用'),
-                                        Forms\Components\Toggle::make('use_equipment_management')
-                                            ->label('機材管理を使用')
-                                            ->helperText('機材数に制限がある場合'),
+                                        Forms\Components\Radio::make('use_staff_assignment')
+                                            ->label('予約管理方式')
+                                            ->options([
+                                                false => '営業時間ベース（シンプル）',
+                                                true => 'スタッフシフトベース（詳細管理）',
+                                            ])
+                                            ->descriptions([
+                                                false => '営業時間内で固定の予約枠数を設定。小規模店舗向け',
+                                                true => 'スタッフの出勤状況に応じて予約枠が変動。中〜大規模店舗向け',
+                                            ])
+                                            ->default(false)
+                                            ->reactive(),
+                                    ]),
+                                
+                                Forms\Components\Section::make('営業時間ベースの設定')
+                                    ->description('予約受付ラインの設定')
+                                    ->schema([
+                                        Forms\Components\Grid::make(2)
+                                            ->schema([
+                                                Forms\Components\TextInput::make('main_lines_count')
+                                                    ->label('メインライン数')
+                                                    ->numeric()
+                                                    ->default(1)
+                                                    ->required()
+                                                    ->minValue(1)
+                                                    ->maxValue(10)
+                                                    ->reactive()
+                                                    ->afterStateUpdated(function ($state, $get, $set) {
+                                                        $total = ($state ?? 0) + ($get('sub_lines_count') ?? 0);
+                                                        $set('capacity', $total);
+                                                    })
+                                                    ->helperText('新規・既存顧客が利用できる基本ライン'),
+                                                Forms\Components\Hidden::make('sub_lines_count')
+                                                    ->default(1)
+                                                    ->dehydrated(),
+                                            ]),
+                                        Forms\Components\Placeholder::make('total_capacity')
+                                            ->label('')
+                                            ->content(fn ($get) => 
+                                                '公開予約枠: ' . ($get('main_lines_count') ?? 1) . '席 + サブライン: 1席（内部管理用）'
+                                            ),
+                                        Forms\Components\Hidden::make('capacity')
+                                            ->default(fn ($get) => ($get('main_lines_count') ?? 1) + 1), // サブライン1を加算
                                     ])
-                                    ->columns(2),
+                                    ->visible(fn ($get) => !$get('use_staff_assignment')),
+                                
+                                Forms\Components\Section::make('スタッフシフトベースの設定')
+                                    ->description('スタッフ管理と連動した予約管理')
+                                    ->schema([
+                                        Forms\Components\Placeholder::make('shift_info')
+                                            ->content('この方式では、シフト管理で登録されたスタッフの出勤人数に応じて、自動的に予約可能枠が決まります。'),
+                                        Forms\Components\Placeholder::make('staff_example')
+                                            ->label('')
+                                            ->content('例：10時に3人出勤 → 10時の予約枠は3件まで受付可能'),
+                                        Forms\Components\Hidden::make('main_lines_count')
+                                            ->default(1),
+                                        Forms\Components\Hidden::make('sub_lines_count')
+                                            ->default(1), // スタッフベースもサブライン1固定
+                                        Forms\Components\Hidden::make('capacity')
+                                            ->default(1),
+                                    ])
+                                    ->visible(fn ($get) => $get('use_staff_assignment')),
                             ]),
 
                         Forms\Components\Tabs\Tab::make('LINE設定')

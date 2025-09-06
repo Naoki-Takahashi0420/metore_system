@@ -88,12 +88,47 @@ class MenuResource extends Resource
                     ])
                     ->columns(2),
 
-                Forms\Components\Section::make('料金・時間設定')
+                Forms\Components\Section::make('メニュータイプ選択')
+                    ->schema([
+                        Forms\Components\Toggle::make('is_subscription')
+                            ->label('サブスクリプションメニューとして提供')
+                            ->default(false)
+                            ->reactive()
+                            ->helperText('ONにすると月額プランとして、OFFにすると通常メニューとして提供されます'),
+                    ])
+                    ->columns(1),
+
+                Forms\Components\Section::make('サブスクリプション料金設定')
+                    ->visible(fn (Forms\Get $get) => $get('is_subscription'))
+                    ->schema([
+                        Forms\Components\TextInput::make('subscription_monthly_price')
+                            ->label('月額料金')
+                            ->numeric()
+                            ->prefix('¥')
+                            ->required(fn (Forms\Get $get) => $get('is_subscription'))
+                            ->helperText('毎月のサブスクリプション料金'),
+                        Forms\Components\TextInput::make('default_contract_months')
+                            ->label('契約期間')
+                            ->numeric()
+                            ->suffix('ヶ月')
+                            ->default(1)
+                            ->required(fn (Forms\Get $get) => $get('is_subscription'))
+                            ->helperText('最低契約期間'),
+                        Forms\Components\TextInput::make('max_monthly_usage')
+                            ->label('月間利用回数上限')
+                            ->numeric()
+                            ->suffix('回')
+                            ->helperText('空欄の場合は無制限'),
+                    ])
+                    ->columns(2),
+
+                Forms\Components\Section::make('通常メニュー料金設定')
+                    ->visible(fn (Forms\Get $get) => !$get('is_subscription'))
                     ->schema([
                         Forms\Components\TextInput::make('price')
                             ->label('料金')
                             ->numeric()
-                            ->required()
+                            ->required(fn (Forms\Get $get) => !$get('is_subscription'))
                             ->prefix('¥')
                             ->suffixIcon('heroicon-m-currency-yen'),
                         Forms\Components\Select::make('duration_minutes')
@@ -113,59 +148,66 @@ class MenuResource extends Resource
                                 ];
                             })
                             ->reactive()
-                            ->required()
-                            ->helperText('選択した時間に応じて料金が自動設定されます'),
+                            ->required(fn (Forms\Get $get) => !$get('is_subscription'))
+                            ->helperText('施術にかかる時間'),
+                    ])
+                    ->columns(2),
+
+                Forms\Components\Section::make('表示設定')
+                    ->schema([
                         Forms\Components\Toggle::make('is_available')
                             ->label('利用可能')
-                            ->default(true),
+                            ->default(true)
+                            ->helperText('一時的に利用停止する場合はOFF'),
                         Forms\Components\Toggle::make('is_visible_to_customer')
                             ->label('顧客に表示')
                             ->default(true)
-                            ->helperText('オフにすると管理画面のみで表示'),
+                            ->helperText('管理画面のみで使用する場合はOFF'),
                         Forms\Components\Toggle::make('is_subscription_only')
-                            ->label('サブスク限定')
+                            ->label('サブスク会員限定')
                             ->default(false)
-                            ->helperText('サブスク契約者のみ利用可'),
+                            ->visible(fn (Forms\Get $get) => !$get('is_subscription'))
+                            ->helperText('サブスク契約者のみ予約可能にする'),
                         Forms\Components\Toggle::make('requires_staff')
                             ->label('スタッフ指定必須')
                             ->default(false)
-                            ->helperText('スタッフ指名が必要なメニュー'),
+                            ->helperText('予約時にスタッフ選択を必須にする'),
+                    ])
+                    ->columns(2),
+
+                Forms\Components\Section::make('オプションメニュー設定')
+                    ->visible(fn (Forms\Get $get) => !$get('is_subscription'))
+                    ->schema([
                         Forms\Components\Toggle::make('show_in_upsell')
-                            ->label('オプションメニューとして表示')
-                            ->helperText('ONにすると「ご一緒にいかがですか？」で追加提案されます。OFFの場合は通常のメインメニューとして表示されます。')
-                            ->default(false),
-                        Forms\Components\Toggle::make('is_popular')
-                            ->label('人気メニュー')
-                            ->helperText('人気No.1タグを表示')
+                            ->label('追加オプションとして提案')
+                            ->helperText('ONにすると「ご一緒にいかがですか？」で追加提案されます')
+                            ->reactive()
                             ->default(false),
                         Forms\Components\Textarea::make('upsell_description')
                             ->label('追加提案メッセージ')
                             ->placeholder('例：お疲れの目をさらにケアしませんか？')
                             ->rows(2)
                             ->maxLength(200)
-                            ->visible(fn($get) => $get('show_in_upsell')),
+                            ->visible(fn($get) => $get('show_in_upsell'))
+                            ->columnSpanFull(),
                     ])
                     ->columns(2),
 
-                Forms\Components\Section::make('顧客タイプ制限')
+                Forms\Components\Section::make('予約窓口制限')
                     ->schema([
                         Forms\Components\Select::make('customer_type_restriction')
-                            ->label('表示対象の顧客タイプ')
+                            ->label('表示する予約窓口')
                             ->options([
-                                'all' => '全ての顧客',
-                                'new' => '新規顧客のみ',
-                                'existing' => '既存顧客のみ',
+                                'all' => '全ての窓口（新規予約・カルテ両方）',
+                                'new' => '新規予約窓口のみ',
+                                'existing' => 'カルテからの予約のみ',
                             ])
                             ->default('all')
-                            ->helperText('このメニューを表示する顧客タイプを選択してください')
-                            ->reactive(),
-                        Forms\Components\Toggle::make('medical_record_only')
-                            ->label('カルテからのみ予約可能')
-                            ->helperText('ONにすると、このメニューはカルテからの予約でのみ表示されます（一般予約画面では非表示）')
-                            ->default(false)
-                            ->visible(fn($get) => $get('customer_type_restriction') === 'existing'),
+                            ->helperText('どの予約窓口でこのメニューを表示するか選択')
+                            ->reactive()
+                            ->columnSpanFull(),
                     ])
-                    ->columns(2),
+                    ->columns(1),
                     
             ]);
     }

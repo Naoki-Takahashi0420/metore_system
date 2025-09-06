@@ -12,22 +12,33 @@ class SubscriptionPlan extends Model
 
     protected $fillable = [
         'name',
+        'code',
         'description',
         'price',
-        'duration_days',
-        'features',
         'max_reservations',
-        'discount_rate',
+        'contract_months',
+        'max_users',
+        'notes',
         'is_active',
         'sort_order',
     ];
 
+    protected static function boot()
+    {
+        parent::boot();
+        
+        static::creating(function ($plan) {
+            if (empty($plan->code)) {
+                $plan->code = 'PLAN_' . strtoupper(uniqid());
+            }
+        });
+    }
+    
     protected $casts = [
         'price' => 'integer',
-        'duration_days' => 'integer',
-        'features' => 'array',
         'max_reservations' => 'integer',
-        'discount_rate' => 'integer',
+        'contract_months' => 'integer',
+        'max_users' => 'integer',
         'is_active' => 'boolean',
         'sort_order' => 'integer',
     ];

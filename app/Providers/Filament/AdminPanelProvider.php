@@ -73,6 +73,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->plugins([
                 FilamentFullCalendarPlugin::make(),
-            ]);
+            ])
+            ->theme(asset('css/filament/admin/theme.css'));
     }
 }

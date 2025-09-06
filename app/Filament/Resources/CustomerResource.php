@@ -113,18 +113,89 @@ class CustomerResource extends Resource
                     ])
                     ->columns(2),
                     
-                Forms\Components\Section::make('その他')
+                Forms\Components\Section::make('サブスク契約')
                     ->schema([
-                        Forms\Components\Toggle::make('is_active')
-                            ->label('有効')
-                            ->default(true),
-                        Forms\Components\KeyValue::make('preferences')
-                            ->label('設定')
-                            ->keyLabel('項目')
-                            ->valueLabel('値'),
-                        Forms\Components\Textarea::make('notes')
-                            ->label('備考')
-                            ->columnSpanFull(),
+                        Forms\Components\Repeater::make('subscriptions')
+                            ->relationship('subscriptions')
+                            ->label('契約中のサブスク')
+                            ->schema([
+                                Forms\Components\Select::make('menu_id')
+                                    ->label('契約メニュー')
+                                    ->options(function () {
+                                        return \App\Models\Menu::where('is_subscription', true)
+                                            ->where('is_available', true)
+                                            ->pluck('name', 'id');
+                                    })
+                                    ->required()
+                                    ->reactive()
+                                    ->afterStateUpdated(function ($state, Forms\Set $set) {
+                                        if ($state) {
+                                            $menu = \App\Models\Menu::find($state);
+                                            if ($menu) {
+                                                $set('monthly_price', $menu->subscription_monthly_price);
+                                                $set('contract_months', $menu->default_contract_months);
+                                            }
+                                        }
+                                    }),
+                                Forms\Components\DatePicker::make('billing_date')
+                                    ->label('課金開始日')
+                                    ->required()
+                                    ->default(now()),
+                                Forms\Components\DatePicker::make('start_date')
+                                    ->label('サービス開始日')
+                                    ->required()
+                                    ->default(now())
+                                    ->reactive()
+                                    ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
+                                        if ($state && $get('contract_months')) {
+                                            $endDate = \Carbon\Carbon::parse($state)
+                                                ->addMonths($get('contract_months'))
+                                                ->subDay();
+                                            $set('end_date', $endDate->format('Y-m-d'));
+                                        }
+                                    }),
+                                Forms\Components\TextInput::make('contract_months')
+                                    ->label('契約期間')
+                                    ->numeric()
+                                    ->suffix('ヶ月')
+                                    ->required()
+                                    ->reactive()
+                                    ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
+                                        if ($state && $get('start_date')) {
+                                            $endDate = \Carbon\Carbon::parse($get('start_date'))
+                                                ->addMonths($state)
+                                                ->subDay();
+                                            $set('end_date', $endDate->format('Y-m-d'));
+                                        }
+                                    }),
+                                Forms\Components\DatePicker::make('end_date')
+                                    ->label('終了日')
+                                    ->disabled()
+                                    ->dehydrated()
+                                    ->helperText('自動計算'),
+                                Forms\Components\TextInput::make('monthly_price')
+                                    ->label('月額料金')
+                                    ->numeric()
+                                    ->prefix('¥')
+                                    ->disabled()
+                                    ->dehydrated(),
+                                Forms\Components\Select::make('status')
+                                    ->label('状態')
+                                    ->options([
+                                        'active' => '有効',
+                                        'paused' => '一時停止',
+                                        'cancelled' => '解約済み',
+                                    ])
+                                    ->default('active')
+                                    ->required(),
+                            ])
+                            ->columns(3)
+                            ->defaultItems(0)
+                            ->collapsible()
+                            ->cloneable()
+                            ->deleteAction(
+                                fn (Forms\Components\Actions\Action $action) => $action->requiresConfirmation(),
+                            ),
                     ]),
             ]);
     }

@@ -124,12 +124,41 @@ class BlockedTimePeriodResource extends Resource
                     ->options(Store::pluck('name', 'id')),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(function ($record) {
+                        $user = auth()->user();
+                        // スーパーアドミンとオーナーは常に編集可能
+                        if ($user->hasRole(['super_admin', 'owner'])) {
+                            return true;
+                        }
+                        // スタッフと店長は未来の予約ブロックのみ編集可能
+                        if ($user->hasRole(['staff', 'manager'])) {
+                            return $record->blocked_date->isFuture() || $record->blocked_date->isToday();
+                        }
+                        return false;
+                    }),
+                Tables\Actions\DeleteAction::make()
+                    ->visible(function ($record) {
+                        $user = auth()->user();
+                        // スーパーアドミンとオーナーは常に削除可能
+                        if ($user->hasRole(['super_admin', 'owner'])) {
+                            return true;
+                        }
+                        // スタッフと店長は未来の予約ブロックのみ削除可能
+                        if ($user->hasRole(['staff', 'manager'])) {
+                            return $record->blocked_date->isFuture() || $record->blocked_date->isToday();
+                        }
+                        return false;
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->visible(function () {
+                            $user = auth()->user();
+                            // スーパーアドミンとオーナーのみ一括削除可能
+                            return $user->hasRole(['super_admin', 'owner']);
+                        }),
                 ]),
             ])
             ->defaultSort('blocked_date', 'desc');

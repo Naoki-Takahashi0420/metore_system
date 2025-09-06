@@ -29,12 +29,15 @@ class Menu extends Model
         'customer_type_restriction',
         'is_popular',
         'reservation_count',
-        'medical_record_only',
         'max_daily_quantity',
         'sort_order',
         'display_order',
         'options',
         'tags',
+        'is_subscription',
+        'subscription_monthly_price',
+        'default_contract_months',
+        'max_monthly_usage',
     ];
 
     protected $casts = [
@@ -48,12 +51,15 @@ class Menu extends Model
         'show_in_upsell' => 'boolean',
         'is_popular' => 'boolean',
         'reservation_count' => 'integer',
-        'medical_record_only' => 'boolean',
         'max_daily_quantity' => 'integer',
         'sort_order' => 'integer',
         'display_order' => 'integer',
         'options' => 'array',
         'tags' => 'array',
+        'is_subscription' => 'boolean',
+        'subscription_monthly_price' => 'integer',
+        'default_contract_months' => 'integer',
+        'max_monthly_usage' => 'integer',
     ];
 
     /**

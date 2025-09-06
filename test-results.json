@@ -68,14 +68,14 @@
   },
   "suites": [
     {
-      "title": "admin-dashboard-test.spec.js",
-      "file": "admin-dashboard-test.spec.js",
+      "title": "menu-create-test.spec.js",
+      "file": "menu-create-test.spec.js",
       "column": 0,
       "line": 0,
       "specs": [
         {
-          "title": "Admin dashboard timeline displays without errors",
-          "ok": true,
+          "title": "Check menu create page functionality",
+          "ok": false,
           "tags": [],
           "tests": [
             {
@@ -88,29 +88,120 @@
                 {
                   "workerIndex": 0,
                   "parallelIndex": 0,
-                  "status": "passed",
-                  "duration": 1559,
-                  "errors": [],
-                  "stdout": [
-                    {
-                      "text": "BRK blocks found: 0\n"
+                  "status": "failed",
+                  "duration": 2580,
+                  "error": {
+                    "message": "Error: page.goto: net::ERR_ABORTED at http://127.0.0.1:8000/admin/menus/create\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:8000/admin/menus/create\", waiting until \"load\"\u001b[22m\n",
+                    "stack": "Error: page.goto: net::ERR_ABORTED at http://127.0.0.1:8000/admin/menus/create\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:8000/admin/menus/create\", waiting until \"load\"\u001b[22m\n\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/menu-create-test.spec.js:16:14",
+                    "location": {
+                      "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/menu-create-test.spec.js",
+                      "column": 14,
+                      "line": 16
                     },
+                    "snippet": "  14 |   \n  15 |   // メニュー作成ページへアクセス\n> 16 |   await page.goto('http://127.0.0.1:8000/admin/menus/create');\n     |              ^\n  17 |   await page.waitForLoadState('networkidle');\n  18 |   \n  19 |   // サブスクリプショントグルの存在確認"
+                  },
+                  "errors": [
                     {
-                      "text": "Regular reservations found: 5\n"
+                      "location": {
+                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/menu-create-test.spec.js",
+                        "column": 14,
+                        "line": 16
+                      },
+                      "message": "Error: page.goto: net::ERR_ABORTED at http://127.0.0.1:8000/admin/menus/create\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:8000/admin/menus/create\", waiting until \"load\"\u001b[22m\n\n\n  14 |   \n  15 |   // メニュー作成ページへアクセス\n> 16 |   await page.goto('http://127.0.0.1:8000/admin/menus/create');\n     |              ^\n  17 |   await page.waitForLoadState('networkidle');\n  18 |   \n  19 |   // サブスクリプショントグルの存在確認\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/menu-create-test.spec.js:16:14"
                     }
                   ],
+                  "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2025-09-02T12:05:22.364Z",
+                  "startTime": "2025-09-05T04:30:04.220Z",
                   "annotations": [],
-                  "attachments": []
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/menu-create-test-Check-menu-create-page-functionality-chromium/test-failed-1.png"
+                    },
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/menu-create-test-Check-menu-create-page-functionality-chromium/video.webm"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/menu-create-test-Check-menu-create-page-functionality-chromium/error-context.md"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/menu-create-test.spec.js",
+                    "column": 14,
+                    "line": 16
+                  }
+                },
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 2334,
+                  "error": {
+                    "message": "Error: page.goto: net::ERR_ABORTED at http://127.0.0.1:8000/admin/menus/create\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:8000/admin/menus/create\", waiting until \"load\"\u001b[22m\n",
+                    "stack": "Error: page.goto: net::ERR_ABORTED at http://127.0.0.1:8000/admin/menus/create\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:8000/admin/menus/create\", waiting until \"load\"\u001b[22m\n\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/menu-create-test.spec.js:16:14",
+                    "location": {
+                      "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/menu-create-test.spec.js",
+                      "column": 14,
+                      "line": 16
+                    },
+                    "snippet": "  14 |   \n  15 |   // メニュー作成ページへアクセス\n> 16 |   await page.goto('http://127.0.0.1:8000/admin/menus/create');\n     |              ^\n  17 |   await page.waitForLoadState('networkidle');\n  18 |   \n  19 |   // サブスクリプショントグルの存在確認"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/menu-create-test.spec.js",
+                        "column": 14,
+                        "line": 16
+                      },
+                      "message": "Error: page.goto: net::ERR_ABORTED at http://127.0.0.1:8000/admin/menus/create\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:8000/admin/menus/create\", waiting until \"load\"\u001b[22m\n\n\n  14 |   \n  15 |   // メニュー作成ページへアクセス\n> 16 |   await page.goto('http://127.0.0.1:8000/admin/menus/create');\n     |              ^\n  17 |   await page.waitForLoadState('networkidle');\n  18 |   \n  19 |   // サブスクリプショントグルの存在確認\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/menu-create-test.spec.js:16:14"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 1,
+                  "startTime": "2025-09-05T04:30:08.520Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/menu-create-test-Check-menu-create-page-functionality-chromium-retry1/test-failed-1.png"
+                    },
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/menu-create-test-Check-menu-create-page-functionality-chromium-retry1/video.webm"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/menu-create-test-Check-menu-create-page-functionality-chromium-retry1/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/menu-create-test-Check-menu-create-page-functionality-chromium-retry1/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/menu-create-test.spec.js",
+                    "column": 14,
+                    "line": 16
+                  }
                 }
               ],
-              "status": "expected"
+              "status": "unexpected"
             }
           ],
-          "id": "fa370342eed988c6b367-9ea4b3ef41de6fedac0b",
-          "file": "admin-dashboard-test.spec.js",
+          "id": "5cf8c47c15202bcd96d3-5a6d380ababdbc941285",
+          "file": "menu-create-test.spec.js",
           "line": 3,
           "column": 1
         }
@@ -119,11 +210,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-09-02T12:05:22.050Z",
-    "duration": 2143.444,
-    "expected": 1,
+    "startTime": "2025-09-05T04:30:03.618Z",
+    "duration": 7874.806,
+    "expected": 0,
     "skipped": 0,
-    "unexpected": 0,
+    "unexpected": 1,
     "flaky": 0
   }
 }

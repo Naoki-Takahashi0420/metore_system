@@ -117,7 +117,7 @@
             </h2>
             
             <a href="?week={{ $weekOffset + 1 }}" 
-               class="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300">
+               class="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300 {{ $weekOffset >= ($maxWeeks - 1) ? 'invisible' : '' }}">
                 次の一週間 →
             </a>
         </div>

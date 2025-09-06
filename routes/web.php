@@ -126,6 +126,43 @@ Route::prefix('customer')->group(function () {
 Route::post('/admin/menu-categories/update-order', [App\Http\Controllers\Admin\MenuCategoryController::class, 'updateOrder'])
     ->name('admin.menu-categories.update-order');
 
+// 勤怠レポートPDF出力用ルート
+Route::get('/admin/attendance-report/pdf', function() {
+    $storeId = request('store');
+    $year = request('year');
+    $month = request('month');
+    
+    $user = auth()->user();
+    
+    // アクセス可能な店舗を取得
+    if ($user->hasRole('super_admin')) {
+        $stores = \App\Models\Store::where('is_active', true)->get();
+    } elseif ($user->hasRole('owner')) {
+        $stores = $user->manageableStores()->get();
+    } else {
+        $stores = $user->store ? collect([$user->store]) : collect();
+    }
+    
+    // AttendanceReportページのインスタンスを作成してレポート生成
+    $report = new \App\Filament\Pages\AttendanceReport();
+    $report->stores = $stores;
+    $report->selectedStore = $storeId ?: $stores->first()?->id;
+    $report->selectedYear = $year ?: now()->year;
+    $report->selectedMonth = $month ?: now()->month;
+    $report->generateReport();
+    
+    // シンプルなHTML出力（印刷用）
+    $html = view('reports.attendance-pdf', [
+        'reportData' => $report->reportData,
+        'staffSummary' => $report->staffSummary,
+        'dailySummary' => $report->dailySummary,
+        'patternAnalysis' => $report->patternAnalysis
+    ])->render();
+    
+    return response($html)
+        ->header('Content-Type', 'text/html; charset=UTF-8');
+})->name('attendance-report.pdf')->middleware('auth');
+
 // パスワードリセット用ルート
 Route::get('/admin/password-reset', [PasswordResetController::class, 'showRequestForm'])->name('password.request');
 Route::post('/admin/password-reset', [PasswordResetController::class, 'sendResetLink'])->name('password.email');

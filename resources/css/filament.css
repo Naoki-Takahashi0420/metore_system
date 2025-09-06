@@ -1,0 +1,51 @@
+/* Filament管理画面のカスタムスタイル */
+
+/* モーダル背景のブラー効果 */
+.fi-modal-open {
+    overflow: hidden !important;
+}
+
+/* モーダルのオーバーレイ背景 */
+.fi-modal-close-overlay {
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+    background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Livewireモーダル用 */
+[x-show="isOpen"] > div:first-child,
+[x-transition\:enter] > div:first-child,
+.fixed.inset-0.z-40 {
+    backdrop-filter: blur(5px) !important;
+    -webkit-backdrop-filter: blur(5px) !important;
+    background-color: rgba(0, 0, 0, 0.6) !important;
+}
+
+/* モーダルウィンドウ自体のスタイル改善 */
+.fi-modal-window {
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ダークモード対応 */
+.dark .fi-modal-close-overlay {
+    background-color: rgba(0, 0, 0, 0.7) !important;
+}
+
+.dark [x-show="isOpen"] > div:first-child,
+.dark [x-transition\:enter] > div:first-child,
+.dark .fixed.inset-0.z-40 {
+    background-color: rgba(0, 0, 0, 0.8) !important;
+}
+
+/* アニメーション効果 */
+.fi-modal-close-overlay,
+[x-show="isOpen"] > div:first-child {
+    transition: all 0.3s ease-in-out !important;
+}
+
+/* フォーカスリングの改善 */
+.fi-modal-window:focus {
+    outline: 2px solid rgba(59, 130, 246, 0.5);
+    outline-offset: 2px;
+}

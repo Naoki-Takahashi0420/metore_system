@@ -18,6 +18,7 @@ class Shift extends Model
         'end_time',
         'break_start',
         'break_end',
+        'additional_breaks',
         'status',
         'notes',
         'is_available_for_reservation',
@@ -30,6 +31,7 @@ class Shift extends Model
     protected $casts = [
         'shift_date' => 'date',
         'is_available_for_reservation' => 'boolean',
+        'additional_breaks' => 'array',
     ];
 
     /**

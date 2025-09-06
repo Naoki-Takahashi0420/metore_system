@@ -28,8 +28,9 @@ class SubscriptionServiceTest extends TestCase
         $customer = Customer::factory()->create();
         $plan = SubscriptionPlan::create([
             'name' => 'ベーシックプラン',
+            'code' => 'BASIC_PLAN',
             'price' => 5000,
-            'duration_days' => 30,
+            'contract_months' => 1,
             'is_active' => true,
         ]);
         
@@ -55,14 +56,16 @@ class SubscriptionServiceTest extends TestCase
         $customer = Customer::factory()->create();
         $oldPlan = SubscriptionPlan::create([
             'name' => '旧プラン',
+            'code' => 'OLD_PLAN',
             'price' => 3000,
-            'duration_days' => 30,
+            'contract_months' => 1,
             'is_active' => true,
         ]);
         $newPlan = SubscriptionPlan::create([
             'name' => '新プラン',
+            'code' => 'NEW_PLAN',
             'price' => 5000,
-            'duration_days' => 30,
+            'contract_months' => 1,
             'is_active' => true,
         ]);
         
@@ -84,8 +87,9 @@ class SubscriptionServiceTest extends TestCase
         $customer = Customer::factory()->create();
         $plan = SubscriptionPlan::create([
             'name' => '自動更新プラン',
+            'code' => 'AUTO_RENEW_PLAN',
             'price' => 5000,
-            'duration_days' => 30,
+            'contract_months' => 1,
             'is_active' => true,
         ]);
         
@@ -121,8 +125,9 @@ class SubscriptionServiceTest extends TestCase
         $customer = Customer::factory()->create();
         $plan = SubscriptionPlan::create([
             'name' => '手動更新プラン',
+            'code' => 'MANUAL_RENEW_PLAN',
             'price' => 5000,
-            'duration_days' => 30,
+            'contract_months' => 1,
             'is_active' => true,
         ]);
         
@@ -149,8 +154,9 @@ class SubscriptionServiceTest extends TestCase
         $customer = Customer::factory()->create();
         $plan = SubscriptionPlan::create([
             'name' => 'キャンセルテストプラン',
+            'code' => 'CANCEL_TEST_PLAN',
             'price' => 5000,
-            'duration_days' => 30,
+            'contract_months' => 1,
             'is_active' => true,
         ]);
         
@@ -174,8 +180,9 @@ class SubscriptionServiceTest extends TestCase
         $customer = Customer::factory()->create();
         $plan = SubscriptionPlan::create([
             'name' => '期限切れテストプラン',
+            'code' => 'EXPIRED_TEST_PLAN',
             'price' => 5000,
-            'duration_days' => 30,
+            'contract_months' => 1,
             'is_active' => true,
         ]);
         
@@ -221,8 +228,9 @@ class SubscriptionServiceTest extends TestCase
         $customer2 = Customer::factory()->create();
         $plan = SubscriptionPlan::create([
             'name' => '一括更新テストプラン',
+            'code' => 'BATCH_UPDATE_PLAN',
             'price' => 5000,
-            'duration_days' => 30,
+            'contract_months' => 1,
             'is_active' => true,
         ]);
         

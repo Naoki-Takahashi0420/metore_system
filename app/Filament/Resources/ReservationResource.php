@@ -396,6 +396,28 @@ class ReservationResource extends Resource
                         ]);
                     })
                     ->visible(fn ($record) => in_array($record->status, ['booked', 'in_progress'])),
+                Tables\Actions\Action::make('move_to_sub')
+                    ->label('サブラインへ移動')
+                    ->icon('heroicon-o-arrow-right-circle')
+                    ->color('warning')
+                    ->requiresConfirmation()
+                    ->modalHeading('サブラインへ移動')
+                    ->modalDescription('この予約をサブラインに移動します。メインラインの枠が空きます。')
+                    ->action(function ($record) {
+                        $record->moveToSubLine();
+                    })
+                    ->visible(fn ($record) => $record->line_type === 'main' && $record->status === 'booked'),
+                Tables\Actions\Action::make('move_to_main')
+                    ->label('メインラインへ戻す')
+                    ->icon('heroicon-o-arrow-left-circle')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalHeading('メインラインへ戻す')
+                    ->modalDescription('この予約をメインラインに戻します。')
+                    ->action(function ($record) {
+                        $record->moveToMainLine();
+                    })
+                    ->visible(fn ($record) => $record->line_type === 'sub' && $record->status === 'booked'),
                 Tables\Actions\Action::make('create_medical_record')
                     ->label('カルテ作成')
                     ->icon('heroicon-o-document-text')

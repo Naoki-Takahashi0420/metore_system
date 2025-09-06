@@ -22,6 +22,8 @@ class Reservation extends Model
         'start_time',
         'end_time',
         'status',
+        'line_type',  // 追加: main/sub
+        'line_number',  // 追加: ライン番号
         'guest_count',
         'total_amount',
         'deposit_amount',
@@ -34,7 +36,7 @@ class Reservation extends Model
         'cancel_reason',
         'confirmed_at',
         'cancelled_at',
-        'is_sub',
+        'is_sub',  // 互換性のため保持
         'seat_number',
         'reservation_time',
     ];
@@ -49,7 +51,32 @@ class Reservation extends Model
         'cancelled_at' => 'datetime',
         'is_sub' => 'boolean',
         'seat_number' => 'integer',
+        'line_number' => 'integer',
     ];
+    
+    /**
+     * サブラインに移動
+     */
+    public function moveToSubLine($subLineNumber = 1)
+    {
+        $this->update([
+            'line_type' => 'sub',
+            'line_number' => $subLineNumber,
+            'is_sub' => true  // 互換性のため
+        ]);
+    }
+    
+    /**
+     * メインラインに戻す
+     */
+    public function moveToMainLine($mainLineNumber = 1)
+    {
+        $this->update([
+            'line_type' => 'main',
+            'line_number' => $mainLineNumber,
+            'is_sub' => false  // 互換性のため
+        ]);
+    }
 
     /**
      * モデル作成時の処理
@@ -228,11 +255,17 @@ class Reservation extends Model
             });
         });
         
-        // サブ枠の場合
-        if ($reservation->is_sub) {
-            // サブ枠でも時間の重複をチェック
+        // サブラインの場合
+        if ($reservation->line_type === 'sub' || $reservation->is_sub) {
+            // 同じサブライン番号での重複をチェック
             $overlapping = $overlappingReservations
-                ->where('is_sub', true)
+                ->where(function($q) use ($reservation) {
+                    $q->where('line_type', 'sub')
+                      ->where('line_number', $reservation->line_number ?? 1);
+                })
+                ->orWhere(function($q) {
+                    $q->where('is_sub', true); // 互換性のため
+                })
                 ->exists();
                 
             return !$overlapping;

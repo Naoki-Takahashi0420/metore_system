@@ -24,7 +24,9 @@ class SubscriptionPlanResource extends Resource
     
     protected static ?int $navigationSort = 2;
     
-    protected static ?string $navigationGroup = 'メニュー';
+    protected static ?string $navigationGroup = 'メニュー管理';
+    
+    protected static bool $shouldRegisterNavigation = false; // 廃止
 
     public static function form(Form $form): Form
     {
@@ -38,12 +40,9 @@ class SubscriptionPlanResource extends Resource
                             ->maxLength(100)
                             ->placeholder('例: ゴールドプラン'),
                         
-                        Forms\Components\TextInput::make('code')
-                            ->label('プランコード')
-                            ->required()
-                            ->unique(ignoreRecord: true)
-                            ->maxLength(50)
-                            ->placeholder('例: GOLD_PLAN'),
+                        Forms\Components\Hidden::make('code')
+                            ->default(fn() => 'PLAN_' . strtoupper(uniqid()))
+                            ->dehydrated(),
                         
                         Forms\Components\Textarea::make('description')
                             ->label('説明')
@@ -59,64 +58,27 @@ class SubscriptionPlanResource extends Resource
                 Forms\Components\Section::make('料金設定')
                     ->schema([
                         Forms\Components\TextInput::make('price')
-                            ->label('基本料金')
+                            ->label('月額料金')
                             ->numeric()
                             ->prefix('¥')
                             ->required(),
                         
-                        Forms\Components\Select::make('billing_cycle')
-                            ->label('請求周期')
-                            ->options([
-                                'monthly' => '毎月',
-                                'quarterly' => '3ヶ月ごと',
-                                'semi_annual' => '6ヶ月ごと',
-                                'annual' => '年一括',
-                            ])
-                            ->required(),
-                        
-                        Forms\Components\TextInput::make('trial_days')
-                            ->label('お試し期間（日数）')
+                        Forms\Components\TextInput::make('max_reservations')
+                            ->label('月間最大予約数')
                             ->numeric()
-                            ->default(0)
-                            ->suffix('日間'),
-                        
-                        Forms\Components\TextInput::make('discount_rate')
-                            ->label('割引率')
-                            ->numeric()
-                            ->suffix('%')
-                            ->default(0),
+                            ->suffix('回')
+                            ->helperText('空欄の場合は無制限'),
                     ])
                     ->columns(2),
                 
-                Forms\Components\Section::make('特典内容')
-                    ->schema([
-                        Forms\Components\Repeater::make('benefits')
-                            ->label('特典リスト')
-                            ->schema([
-                                Forms\Components\TextInput::make('benefit')
-                                    ->label('特典内容')
-                                    ->required(),
-                                Forms\Components\TextInput::make('value')
-                                    ->label('値/回数')
-                                    ->placeholder('例: 月2回、20%OFF'),
-                            ])
-                            ->columns(2)
-                            ->defaultItems(3),
-                        
-                        Forms\Components\KeyValue::make('features')
-                            ->label('機能制限')
-                            ->keyLabel('機能名')
-                            ->valueLabel('制限値')
-                            ->addActionLabel('機能を追加'),
-                    ]),
-                
                 Forms\Components\Section::make('利用条件')
                     ->schema([
-                        Forms\Components\TextInput::make('min_contract_months')
-                            ->label('最低契約期間')
+                        Forms\Components\TextInput::make('contract_months')
+                            ->label('契約期間')
                             ->numeric()
                             ->suffix('ヶ月')
-                            ->default(0),
+                            ->default(1)
+                            ->required(),
                         
                         Forms\Components\TextInput::make('max_users')
                             ->label('最大利用人数')
@@ -124,9 +86,11 @@ class SubscriptionPlanResource extends Resource
                             ->suffix('名')
                             ->helperText('空欄の場合は無制限'),
                         
-                        Forms\Components\Textarea::make('terms')
-                            ->label('利用規約')
-                            ->rows(5),
+                        Forms\Components\Textarea::make('notes')
+                            ->label('メモ・備考')
+                            ->rows(3)
+                            ->placeholder('内部用のメモや注意事項など')
+                            ->columnSpanFull(),
                     ])
                     ->columns(2),
             ]);
@@ -151,19 +115,18 @@ class SubscriptionPlanResource extends Resource
                     ->money('JPY')
                     ->sortable(),
                 
-                Tables\Columns\TextColumn::make('billing_cycle')
-                    ->label('請求周期')
-                    ->formatStateUsing(fn ($state) => match($state) {
-                        'monthly' => '毎月',
-                        'quarterly' => '3ヶ月',
-                        'semi_annual' => '6ヶ月',
-                        'annual' => '年額',
-                        default => $state,
-                    }),
+                Tables\Columns\TextColumn::make('contract_months')
+                    ->label('契約期間')
+                    ->formatStateUsing(fn ($state) => "{$state}ヶ月"),
                 
-                Tables\Columns\TextColumn::make('trial_days')
-                    ->label('お試し期間')
-                    ->formatStateUsing(fn ($state) => $state ? "{$state}日間" : 'なし'),
+                Tables\Columns\TextColumn::make('max_reservations')
+                    ->label('月間最大予約数')
+                    ->formatStateUsing(fn ($state) => $state ? "{$state}回" : '無制限'),
+                
+                Tables\Columns\TextColumn::make('max_users')
+                    ->label('最大利用人数')
+                    ->formatStateUsing(fn ($state) => $state ? "{$state}名" : '無制限')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('有効')
@@ -184,13 +147,13 @@ class SubscriptionPlanResource extends Resource
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('有効状態'),
                 
-                Tables\Filters\SelectFilter::make('billing_cycle')
-                    ->label('請求周期')
+                Tables\Filters\SelectFilter::make('contract_months')
+                    ->label('契約期間')
                     ->options([
-                        'monthly' => '毎月',
-                        'quarterly' => '3ヶ月',
-                        'semi_annual' => '6ヶ月',
-                        'annual' => '年額',
+                        1 => '1ヶ月',
+                        3 => '3ヶ月',
+                        6 => '6ヶ月',
+                        12 => '12ヶ月',
                     ]),
             ])
             ->actions([

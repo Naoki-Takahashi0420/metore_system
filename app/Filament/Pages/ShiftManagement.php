@@ -13,8 +13,9 @@ use Illuminate\Support\Facades\DB;
 class ShiftManagement extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-calendar-days';
-    protected static ?string $navigationLabel = 'シフト管理';
-    protected static ?int $navigationSort = 5;
+    protected static ?string $navigationLabel = 'シフト管理（旧）';
+    protected static ?int $navigationSort = 99;
+    protected static bool $shouldRegisterNavigation = false; // 非表示にする
     protected static string $view = 'filament.pages.shift-management';
     
     protected static ?string $navigationGroup = 'スタッフ管理';

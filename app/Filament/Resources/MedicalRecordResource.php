@@ -154,21 +154,25 @@ class MedicalRecordResource extends Resource
                                                     ->default(now())
                                                     ->required(),
                                                 
-                                                Forms\Components\Select::make('intensity')
+                                                Forms\Components\TextInput::make('intensity')
                                                     ->label('強度')
-                                                    ->options([
-                                                        '弱' => '弱',
-                                                        '中' => '中',
-                                                        '強' => '強',
-                                                    ]),
+                                                    ->numeric()
+                                                    ->minValue(1)
+                                                    ->maxValue(10)
+                                                    ->placeholder('1-10')
+                                                    ->helperText('1（弱）〜 10（強）'),
                                                 
                                                 Forms\Components\Select::make('duration')
                                                     ->label('時間')
                                                     ->options([
+                                                        '15分' => '15分',
                                                         '30分' => '30分',
                                                         '45分' => '45分',
                                                         '60分' => '60分',
+                                                        '75分' => '75分',
                                                         '90分' => '90分',
+                                                        '105分' => '105分',
+                                                        '120分' => '120分',
                                                     ]),
                                             ]),
                                         

@@ -73,7 +73,7 @@ class ReservationTimelineWidget extends Widget
         
         // 店舗のライン設定を取得
         $mainSeats = $store->main_lines_count ?? 3;
-        $subSeats = $store->sub_lines_count ?? 1;
+        $subSeats = 1; // サブライン1で固定
         
         // 店舗の営業時間を取得（選択された日付の曜日に基づく）
         $dayOfWeek = $date->format('l'); // Monday, Tuesday, etc.
@@ -140,14 +140,12 @@ class ReservationTimelineWidget extends Widget
             ];
         }
         
-        // サブ枠（複数対応）
-        for ($subSeat = 1; $subSeat <= $subSeats; $subSeat++) {
-            $timeline['sub_' . $subSeat] = [
-                'label' => 'サブ' . $subSeat,
-                'type' => 'sub',
-                'reservations' => []
-            ];
-        }
+        // サブ枠（固定1席）
+        $timeline['sub_1'] = [
+            'label' => 'サブ',
+            'type' => 'sub',
+            'reservations' => []
+        ];
         
         // ブロック時間帯をタイムラインに配置
         $blockedSlots = [];

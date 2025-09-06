@@ -13,7 +13,38 @@ class EditBlockedTimePeriod extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\DeleteAction::make(),
+            Actions\DeleteAction::make()
+                ->visible(function () {
+                    $user = auth()->user();
+                    $record = $this->record;
+                    
+                    // スーパーアドミンとオーナーは常に削除可能
+                    if ($user->hasRole(['super_admin', 'owner'])) {
+                        return true;
+                    }
+                    
+                    // スタッフと店長は未来の予約ブロックのみ削除可能
+                    if ($user->hasRole(['staff', 'manager'])) {
+                        return $record->blocked_date->isFuture() || $record->blocked_date->isToday();
+                    }
+                    
+                    return false;
+                }),
         ];
+    }
+    
+    protected function authorizeAccess(): void
+    {
+        parent::authorizeAccess();
+        
+        $user = auth()->user();
+        $record = $this->record;
+        
+        // スタッフと店長は過去の予約ブロックを編集できない
+        if ($user->hasRole(['staff', 'manager'])) {
+            if ($record->blocked_date->isPast() && !$record->blocked_date->isToday()) {
+                abort(403, '過去の予約ブロックは編集できません。');
+            }
+        }
     }
 }

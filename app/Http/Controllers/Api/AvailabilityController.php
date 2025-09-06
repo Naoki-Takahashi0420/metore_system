@@ -84,9 +84,10 @@ class AvailabilityController extends Controller
             return strcmp($a['time'], $b['time']);
         });
         
-        // 既存の予約を取得（キャンセル以外のすべて）
+        // 既存の予約を取得（メインラインのみカウント）
         $existingReservations = Reservation::where('store_id', $store->id)
             ->whereDate('reservation_date', $date)
+            ->where('line_type', 'main')  // メインラインのみ
             ->whereNotIn('status', ['cancelled', 'canceled', 'no_show'])
             ->get();
         
@@ -190,8 +191,8 @@ class AvailabilityController extends Controller
             return max($availableStaffCount, 0);
         }
         
-        // 営業時間ベース（従来方式）
-        return $store->capacity ?? 1;
+        // 営業時間ベース（メインラインのみを公開）
+        return $store->main_lines_count ?? 1;  // サブラインは内部管理用のため含めない
     }
     
     /**

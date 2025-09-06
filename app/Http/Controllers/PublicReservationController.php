@@ -259,6 +259,18 @@ class PublicReservationController extends Controller
         
         // 選択された週を取得（デフォルトは今週）
         $weekOffset = (int) $request->get('week', 0);
+        
+        // 店舗の最大予約可能日数を取得（デフォルト30日）
+        $maxAdvanceDays = $selectedStore->max_advance_days ?? 30;
+        
+        // 最大週数を計算（最大日数を7で割って切り上げ）
+        $maxWeeks = ceil($maxAdvanceDays / 7);
+        
+        // 週オフセットが最大値を超えないように制限
+        if ($weekOffset >= $maxWeeks) {
+            $weekOffset = $maxWeeks - 1;
+        }
+        
         // 今日から始まる7日間を表示（月曜始まりではなく）
         $startDate = Carbon::today()->addWeeks($weekOffset);
         
@@ -296,7 +308,8 @@ class PublicReservationController extends Controller
             'dates',
             'timeSlots',
             'availability',
-            'weekOffset'
+            'weekOffset',
+            'maxWeeks'
         ));
     }
     

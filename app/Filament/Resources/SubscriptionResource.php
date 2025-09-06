@@ -26,7 +26,7 @@ class SubscriptionResource extends Resource
     
     protected static ?int $navigationSort = 3;
     
-    protected static ?string $navigationGroup = 'メニュー';
+    protected static ?string $navigationGroup = 'メニュー管理';
 
     public static function form(Form $form): Form
     {
@@ -52,7 +52,7 @@ class SubscriptionResource extends Resource
                                     $plan = SubscriptionPlan::find($state);
                                     if ($plan) {
                                         $set('amount', $plan->price);
-                                        $set('billing_cycle', $plan->billing_cycle);
+                                        $set('contract_months', $plan->contract_months);
                                     }
                                 }
                             }),
@@ -64,36 +64,57 @@ class SubscriptionResource extends Resource
                             ->required()
                             ->disabled(),
                         
-                        Forms\Components\Select::make('billing_cycle')
-                            ->label('支払い周期')
-                            ->options([
-                                'monthly' => '毎月',
-                                'quarterly' => '3ヶ月ごと',
-                                'semi_annual' => '6ヶ月ごと',
-                                'annual' => '年一括',
-                            ])
-                            ->required()
-                            ->disabled(),
                     ])
                     ->columns(2),
                 
                 Forms\Components\Section::make('契約期間')
                     ->schema([
-                        Forms\Components\DatePicker::make('start_date')
-                            ->label('開始日')
+                        Forms\Components\DatePicker::make('billing_date')
+                            ->label('課金開始日')
                             ->required()
-                            ->default(now()),
+                            ->default(now())
+                            ->helperText('料金の請求を開始する日'),
+                        
+                        Forms\Components\DatePicker::make('start_date')
+                            ->label('サービス開始日')
+                            ->required()
+                            ->default(now())
+                            ->reactive()
+                            ->afterStateUpdated(function ($state, $set, $get) {
+                                if ($state && $get('contract_months')) {
+                                    $endDate = \Carbon\Carbon::parse($state)
+                                        ->addMonths($get('contract_months'))
+                                        ->subDay(); // 最終日は-1日
+                                    $set('end_date', $endDate->format('Y-m-d'));
+                                }
+                            }),
+                        
+                        Forms\Components\TextInput::make('contract_months')
+                            ->label('契約期間')
+                            ->numeric()
+                            ->suffix('ヶ月')
+                            ->default(1)
+                            ->required()
+                            ->reactive()
+                            ->afterStateUpdated(function ($state, $set, $get) {
+                                if ($state && $get('start_date')) {
+                                    $endDate = \Carbon\Carbon::parse($get('start_date'))
+                                        ->addMonths($state)
+                                        ->subDay();
+                                    $set('end_date', $endDate->format('Y-m-d'));
+                                }
+                            }),
                         
                         Forms\Components\DatePicker::make('end_date')
                             ->label('終了日')
-                            ->after('start_date'),
+                            ->disabled()
+                            ->dehydrated()
+                            ->helperText('スタート日+契約期間で自動計算'),
                         
                         Forms\Components\DatePicker::make('next_billing_date')
-                            ->label('次回請求日')
-                            ->required(),
-                        
-                        Forms\Components\DatePicker::make('trial_ends_at')
-                            ->label('トライアル終了日'),
+                            ->label('次回課金日')
+                            ->required()
+                            ->default(fn() => now()->addMonth()),
                     ])
                     ->columns(2),
                 
@@ -134,29 +155,30 @@ class SubscriptionResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('customer.store.name')
+                    ->label('店舗')
+                    ->sortable()
+                    ->searchable(),
+                
                 Tables\Columns\TextColumn::make('customer.full_name')
                     ->label('顧客名')
                     ->searchable(['customers.last_name', 'customers.first_name'])
-                    ->sortable(),
+                    ->sortable()
+                    ->url(fn ($record) => $record->customer_id ? CustomerResource::getUrl('edit', ['record' => $record->customer_id]) : null),
                 
-                Tables\Columns\TextColumn::make('plan.name')
-                    ->label('プラン')
-                    ->sortable(),
+                Tables\Columns\TextColumn::make('menu.name')
+                    ->label('契約メニュー')
+                    ->sortable()
+                    ->default('-'),
                 
                 Tables\Columns\TextColumn::make('amount')
                     ->label('金額')
                     ->money('JPY')
                     ->sortable(),
                 
-                Tables\Columns\TextColumn::make('billing_cycle')
-                    ->label('支払い周期')
-                    ->formatStateUsing(fn ($state) => match($state) {
-                        'monthly' => '毎月',
-                        'quarterly' => '3ヶ月ごと',
-                        'semi_annual' => '6ヶ月ごと',
-                        'annual' => '年一括',
-                        default => $state,
-                    }),
+                Tables\Columns\TextColumn::make('plan.contract_months')
+                    ->label('契約期間')
+                    ->formatStateUsing(fn ($state) => $state ? "{$state}ヶ月" : '-'),
                 
                 Tables\Columns\BadgeColumn::make('status')
                     ->label('状態')
@@ -184,19 +206,37 @@ class SubscriptionResource extends Resource
                     ->label('自動更新')
                     ->boolean(),
                 
-                Tables\Columns\TextColumn::make('start_date')
-                    ->label('開始日')
+                Tables\Columns\TextColumn::make('billing_date')
+                    ->label('課金開始日')
                     ->date('Y/m/d')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->sortable(),
+                
+                Tables\Columns\TextColumn::make('start_date')
+                    ->label('サービス開始')
+                    ->date('Y/m/d')
+                    ->sortable(),
                 
                 Tables\Columns\TextColumn::make('end_date')
                     ->label('終了日')
                     ->date('Y/m/d')
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->formatStateUsing(function ($record) {
+                        if ($record->start_date && $record->contract_months) {
+                            return \Carbon\Carbon::parse($record->start_date)
+                                ->addMonths($record->contract_months)
+                                ->subDay()
+                                ->format('Y/m/d');
+                        }
+                        return $record->end_date ? \Carbon\Carbon::parse($record->end_date)->format('Y/m/d') : '-';
+                    }),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('store_id')
+                    ->label('店舗')
+                    ->relationship('customer.store', 'name')
+                    ->searchable()
+                    ->preload(),
+                
                 Tables\Filters\SelectFilter::make('status')
                     ->label('状態')
                     ->options([
@@ -205,18 +245,25 @@ class SubscriptionResource extends Resource
                         'paused' => '一時停止',
                         'cancelled' => '解約済み',
                         'expired' => '期限切れ',
-                    ]),
+                    ])
+                    ->default('active'),
                 
-                Tables\Filters\SelectFilter::make('plan_id')
-                    ->label('定額プラン')
-                    ->options(SubscriptionPlan::where('is_active', true)->pluck('name', 'id')),
+                Tables\Filters\Filter::make('expiring_soon')
+                    ->label('期限切れ間近')
+                    ->query(fn ($query) => $query->whereDate('end_date', '<=', now()->addDays(30)))
+                    ->toggle(),
                 
                 Tables\Filters\TernaryFilter::make('auto_renew')
                     ->label('自動更新'),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\ViewAction::make()
+                    ->label('詳細'),
+                Tables\Actions\Action::make('edit_customer')
+                    ->label('顧客編集')
+                    ->icon('heroicon-o-pencil')
+                    ->url(fn ($record) => $record->customer_id ? CustomerResource::getUrl('edit', ['record' => $record->customer_id]) : null)
+                    ->openUrlInNewTab(),
                 
                 Tables\Actions\Action::make('renew')
                     ->label('更新')

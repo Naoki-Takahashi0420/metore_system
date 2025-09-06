@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@tailwind variants;
+@import '../../../../vendor/filament/filament/resources/css/base.css';
+
+@config 'tailwind.config.js';
+
+/* モーダル背景のブラー効果 */
+@layer utilities {
+    /* モーダルのオーバーレイ背景 */
+    .fi-modal-close-overlay {
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        background-color: rgba(0, 0, 0, 0.5);
+    }
+    
+    /* Filamentのモーダル背景 */
+    [role="dialog"][aria-modal="true"] {
+        z-index: 50;
+    }
+    
+    /* モーダル背景のオーバーレイ */
+    [role="dialog"][aria-modal="true"] ~ .fixed.inset-0,
+    .fi-modal-backdrop,
+    .fixed.inset-0.bg-gray-950\/50 {
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        background-color: rgba(0, 0, 0, 0.4);
+    }
+    
+    /* ダークモード対応 */
+    .dark .fi-modal-close-overlay,
+    .dark [role="dialog"][aria-modal="true"] ~ .fixed.inset-0,
+    .dark .fi-modal-backdrop,
+    .dark .fixed.inset-0.bg-gray-950\/50 {
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        background-color: rgba(0, 0, 0, 0.7);
+    }
+    
+    /* モーダルウィンドウのシャドウ強化 */
+    .fi-modal-window,
+    [role="dialog"][aria-modal="true"] > div {
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    /* トランジション効果 */
+    .fi-modal-backdrop,
+    .fixed.inset-0 {
+        transition: all 0.3s ease-in-out;
+    }
+}

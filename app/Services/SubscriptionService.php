@@ -29,7 +29,7 @@ class SubscriptionService
                 'plan_id' => $plan->id,
                 'status' => 'active',
                 'started_at' => $options['started_at'] ?? now(),
-                'expires_at' => $options['expires_at'] ?? now()->addDays($plan->duration_days),
+                'expires_at' => $options['expires_at'] ?? now()->addMonths($plan->contract_months),
                 'auto_renew' => $options['auto_renew'] ?? true,
                 'payment_method' => $options['payment_method'] ?? 'credit_card',
                 'metadata' => $options['metadata'] ?? null,
@@ -62,7 +62,7 @@ class SubscriptionService
             
             // 期限を延長
             $subscription->update([
-                'expires_at' => $subscription->expires_at->addDays($plan->duration_days),
+                'expires_at' => $subscription->expires_at->addMonths($plan->contract_months),
                 'renewed_at' => now(),
             ]);
             
