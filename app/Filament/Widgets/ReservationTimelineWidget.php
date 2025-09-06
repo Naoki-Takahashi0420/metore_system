@@ -128,7 +128,12 @@ class ReservationTimelineWidget extends Widget
         $slots = [];
         
         for ($hour = $startHour; $hour <= $endHour; $hour++) {
-            $slots[] = sprintf('%02d:00', $hour);
+            for ($minute = 0; $minute < 60; $minute += 15) {
+                // 最終時刻を超えない範囲で追加
+                if ($hour < $endHour || ($hour == $endHour && $minute == 0)) {
+                    $slots[] = sprintf('%02d:%02d', $hour, $minute);
+                }
+            }
         }
         
         // 座席データを初期化
@@ -159,9 +164,9 @@ class ReservationTimelineWidget extends Widget
                 $blockStart = Carbon::parse($blocked->start_time);
                 $blockEnd = Carbon::parse($blocked->end_time);
                 
-                // 時間スロットのインデックスを計算
-                $startSlot = max(0, ($blockStart->hour - $startHour) + ($blockStart->minute / 60));
-                $endSlot = min(count($slots), ($blockEnd->hour - $startHour) + ($blockEnd->minute / 60));
+                // 時間スロットのインデックスを計算（15分刻み）
+                $startSlot = max(0, ($blockStart->hour - $startHour) * 4 + ($blockStart->minute / 15));
+                $endSlot = min(count($slots), ($blockEnd->hour - $startHour) * 4 + ($blockEnd->minute / 15));
                 
                 // ブロックされているスロットを記録
                 for ($i = floor($startSlot); $i < ceil($endSlot); $i++) {
@@ -195,9 +200,9 @@ class ReservationTimelineWidget extends Widget
                 $isNewCustomer = ($previousReservationCount === 0);
             }
             
-            // 時間スロットのインデックスを計算
-            $startSlot = ($startTime->hour - $startHour) + ($startTime->minute / 60);
-            $span = $duration / 60; // 1時間を1単位とする
+            // 時間スロットのインデックスを計算（15分刻み）
+            $startSlot = ($startTime->hour - $startHour) * 4 + ($startTime->minute / 15);
+            $span = $duration / 15; // 15分を1単位とする
             
             // ブロック時間帯との競合をチェック
             $isConflicting = false;
