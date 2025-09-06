@@ -167,7 +167,14 @@ class MenuResource extends Resource
                             ->label('サブスク会員限定')
                             ->default(false)
                             ->visible(fn (Forms\Get $get) => !$get('is_subscription'))
-                            ->helperText('サブスク契約者のみ予約可能にする'),
+                            ->helperText('サブスク契約者のみ予約可能にする')
+                            ->reactive(),
+                        Forms\Components\Select::make('subscription_plan_ids')
+                            ->label('対象サブスクプラン')
+                            ->multiple()
+                            ->options(\App\Models\SubscriptionPlan::where('is_active', true)->pluck('name', 'id'))
+                            ->helperText('このメニューを利用できるサブスクプラン')
+                            ->visible(fn (Forms\Get $get) => $get('is_subscription_only') && !$get('is_subscription')),
                         Forms\Components\Toggle::make('requires_staff')
                             ->label('スタッフ指定必須')
                             ->default(false)
