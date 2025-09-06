@@ -43,6 +43,8 @@ class Reservation extends Model
 
     protected $casts = [
         'reservation_date' => 'date',
+        'start_time' => 'datetime:H:i',
+        'end_time' => 'datetime:H:i',
         'guest_count' => 'integer',
         'total_amount' => 'decimal:2',
         'deposit_amount' => 'decimal:2',

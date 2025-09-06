@@ -25,49 +25,32 @@ class ReservationCalendarWidget extends FullCalendarWidget
     
     public ?int $selectedStoreId = null;
     
+    protected $listeners = ['storeChanged' => 'updateStoreId'];
+    
     public function mount(): void
     {
-        // スーパーアドミンの場合は最初の店舗を選択
-        // 店舗管理者の場合は自分の店舗を選択
-        $user = auth()->user();
-        
-        if ($user->hasRole('super_admin')) {
-            // スーパーアドミンの場合、最初の店舗を選択
-            $firstStore = Store::first();
-            $this->selectedStoreId = $firstStore?->id;
-        } else {
-            // 店舗管理者の場合、自分の店舗IDを設定
-            $this->selectedStoreId = $user->store_id;
+        // 親ページから店舗IDを受け取る、または初期値を設定
+        if (!$this->selectedStoreId) {
+            $user = auth()->user();
+            
+            if ($user->hasRole('super_admin')) {
+                // スーパーアドミンの場合、最初の店舗を選択
+                $firstStore = Store::first();
+                $this->selectedStoreId = $firstStore?->id;
+            } else {
+                // 店舗管理者の場合、自分の店舗IDを設定
+                $this->selectedStoreId = $user->store_id;
+            }
         }
     }
     
-    protected function getHeaderActions(): array
+    public function updateStoreId($storeId): void
     {
-        $actions = [];
-        
-        // スーパーアドミンの場合のみ店舗選択を表示
-        if (auth()->user()->hasRole('super_admin')) {
-            $actions[] = \Filament\Actions\Action::make('selectStore')
-                ->label('店舗選択')
-                ->icon('heroicon-o-building-storefront')
-                ->form([
-                    Select::make('store_id')
-                        ->label('店舗')
-                        ->options(Store::pluck('name', 'id'))
-                        ->default($this->selectedStoreId)
-                        ->required(),
-                ])
-                ->fillForm([
-                    'store_id' => $this->selectedStoreId,
-                ])
-                ->action(function (array $data): void {
-                    $this->selectedStoreId = $data['store_id'];
-                    $this->dispatch('refreshCalendar');
-                });
-        }
-        
-        return $actions;
+        $this->selectedStoreId = $storeId;
+        // カレンダーを再描画
+        $this->refreshEvents();
     }
+    
     
     public function fetchEvents(array $info): array
     {
@@ -107,8 +90,16 @@ class ReservationCalendarWidget extends FullCalendarWidget
             };
             
             // 日付と時間を正しく結合
-            $startDateTime = Carbon::parse($reservation->reservation_date)->format('Y-m-d') . ' ' . $reservation->start_time;
-            $endDateTime = Carbon::parse($reservation->reservation_date)->format('Y-m-d') . ' ' . $reservation->end_time;
+            $reservationDate = Carbon::parse($reservation->reservation_date)->format('Y-m-d');
+            $startTimeStr = is_string($reservation->start_time) ? 
+                Carbon::parse($reservation->start_time)->format('H:i:s') : 
+                $reservation->start_time->format('H:i:s');
+            $endTimeStr = is_string($reservation->end_time) ? 
+                Carbon::parse($reservation->end_time)->format('H:i:s') : 
+                $reservation->end_time->format('H:i:s');
+            
+            $startDateTime = $reservationDate . ' ' . $startTimeStr;
+            $endDateTime = $reservationDate . ' ' . $endTimeStr;
             
             // より多くの情報を表示
             $phone = $reservation->customer->phone ?? '';

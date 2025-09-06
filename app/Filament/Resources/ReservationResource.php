@@ -10,6 +10,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Filament\Notifications\Notification;
 
 class ReservationResource extends Resource
 {
@@ -26,6 +27,46 @@ class ReservationResource extends Resource
     protected static ?int $navigationSort = 3;
     
     protected static ?string $navigationGroup = '予約管理';
+
+    protected static function checkAvailability($date, $startTime, $endTime, $staffId = null): array
+    {
+        $query = Reservation::where('reservation_date', $date)
+            ->where('status', '!=', 'cancelled')
+            ->where(function ($q) use ($startTime, $endTime) {
+                $q->whereBetween('start_time', [$startTime, $endTime])
+                  ->orWhereBetween('end_time', [$startTime, $endTime])
+                  ->orWhere(function ($q2) use ($startTime, $endTime) {
+                      $q2->where('start_time', '<=', $startTime)
+                         ->where('end_time', '>=', $endTime);
+                  });
+            });
+
+        if ($staffId) {
+            $query->where('staff_id', $staffId);
+            $count = $query->count();
+            
+            if ($count > 0) {
+                return [
+                    'is_available' => false,
+                    'message' => "選択したスタッフは指定時間に{$count}件の予約があります"
+                ];
+            }
+        } else {
+            $count = $query->count();
+            
+            if ($count >= 3) { // 同時刻に3件以上の予約がある場合は混雑
+                return [
+                    'is_available' => false,
+                    'message' => "指定時間は混雑しています（{$count}件の予約あり）"
+                ];
+            }
+        }
+
+        return [
+            'is_available' => true,
+            'message' => '予約可能です'
+        ];
+    }
 
     public static function form(Form $form): Form
     {
@@ -58,9 +99,39 @@ class ReservationResource extends Resource
                             ->label('顧客')
                             ->relationship('customer', 'last_name')
                             ->getOptionLabelFromRecordUsing(fn ($record) => mb_convert_encoding(($record->last_name ?? '') . ' ' . ($record->first_name ?? '') . ' (' . ($record->phone ?? '') . ')', 'UTF-8', 'auto'))
-                            ->searchable(['last_name', 'first_name', 'phone'])
+                            ->searchable(['last_name', 'first_name', 'phone', 'last_name_kana', 'first_name_kana'])
+                            ->placeholder('電話番号、名前、カナで検索')
+                            ->helperText('電話番号の一部でも検索可能です')
                             ->required()
                             ->reactive()
+                            ->createOptionForm([
+                                Forms\Components\Grid::make(2)
+                                    ->schema([
+                                        Forms\Components\TextInput::make('last_name')
+                                            ->label('姓')
+                                            ->required(),
+                                        Forms\Components\TextInput::make('first_name')
+                                            ->label('名')
+                                            ->required(),
+                                        Forms\Components\TextInput::make('last_name_kana')
+                                            ->label('姓（カナ）'),
+                                        Forms\Components\TextInput::make('first_name_kana')
+                                            ->label('名（カナ）'),
+                                        Forms\Components\TextInput::make('phone')
+                                            ->label('電話番号')
+                                            ->tel()
+                                            ->required(),
+                                        Forms\Components\TextInput::make('email')
+                                            ->label('メールアドレス')
+                                            ->email(),
+                                    ]),
+                            ])
+                            ->createOptionAction(function ($action) {
+                                return $action
+                                    ->modalHeading('新規顧客登録')
+                                    ->modalButton('登録')
+                                    ->modalWidth('lg');
+                            })
                             ->afterStateUpdated(function ($state, $set, $get) {
                                 if ($state) {
                                     // 顧客の最新カルテから推奨日を取得
@@ -78,8 +149,40 @@ class ReservationResource extends Resource
                             }),
                         Forms\Components\Select::make('menu_id')
                             ->label('メニュー')
-                            ->relationship('menu', 'name')
-                            ->required(),
+                            ->relationship('menu', 'name', function ($query) {
+                                return $query->where('is_available', true)
+                                    ->where('is_visible_to_customer', true);
+                            })
+                            ->getOptionLabelFromRecordUsing(function ($record) {
+                                $label = $record->name;
+                                if ($record->duration_minutes) {
+                                    $label .= ' (' . $record->duration_minutes . '分)';
+                                }
+                                if ($record->is_subscription) {
+                                    $label .= ' [サブスク]';
+                                } elseif ($record->price) {
+                                    $label .= ' ¥' . number_format($record->price);
+                                }
+                                return $label;
+                            })
+                            ->searchable()
+                            ->required()
+                            ->reactive()
+                            ->afterStateUpdated(function ($state, $set) {
+                                if ($state) {
+                                    $menu = \App\Models\Menu::find($state);
+                                    if ($menu) {
+                                        // メニューの時間から終了時刻を自動計算
+                                        $startTime = request()->get('start_time');
+                                        if ($startTime && $menu->duration_minutes) {
+                                            $endTime = \Carbon\Carbon::parse($startTime)
+                                                ->addMinutes($menu->duration_minutes)
+                                                ->format('H:i');
+                                            $set('end_time', $endTime);
+                                        }
+                                    }
+                                }
+                            }),
                         Forms\Components\Placeholder::make('option_menus_info')
                             ->label('選択されたオプション')
                             ->content(function ($record) {
@@ -94,8 +197,33 @@ class ReservationResource extends Resource
                             ->columnSpanFull(),
                         Forms\Components\Select::make('staff_id')
                             ->label('担当スタッフ')
-                            ->relationship('staff', 'name')
-                            ->searchable(),
+                            ->relationship('staff', 'name', function ($query) {
+                                return $query->where('is_active', true);
+                            })
+                            ->placeholder('スタッフを選択（任意）')
+                            ->searchable()
+                            ->reactive()
+                            ->afterStateUpdated(function ($state, $set, $get) {
+                                // スタッフの空き時間をチェック
+                                if ($state && $get('reservation_date') && $get('start_time')) {
+                                    $hasConflict = \App\Models\Reservation::where('staff_id', $state)
+                                        ->where('reservation_date', $get('reservation_date'))
+                                        ->where('status', '!=', 'cancelled')
+                                        ->where(function ($query) use ($get) {
+                                            $query->whereBetween('start_time', [$get('start_time'), $get('end_time')])
+                                                  ->orWhereBetween('end_time', [$get('start_time'), $get('end_time')]);
+                                        })
+                                        ->exists();
+                                    
+                                    if ($hasConflict) {
+                                        Notification::make()
+                                            ->warning()
+                                            ->title('スタッフの予約が重複しています')
+                                            ->body('選択した時間帯に既に予約があります')
+                                            ->send();
+                                    }
+                                }
+                            }),
                     ])
                     ->columns(2),
 
@@ -140,6 +268,25 @@ class ReservationResource extends Resource
                             ->label('予約日')
                             ->required()
                             ->reactive()
+                            ->afterStateUpdated(function ($state, $set, $get) {
+                                // 日付変更時に空き状況を確認
+                                if ($state && $get('start_time') && $get('end_time')) {
+                                    $availableSlots = static::checkAvailability(
+                                        $state,
+                                        $get('start_time'),
+                                        $get('end_time'),
+                                        $get('staff_id')
+                                    );
+                                    
+                                    if (!$availableSlots['is_available']) {
+                                        Notification::make()
+                                            ->warning()
+                                            ->title('予約が混雑しています')
+                                            ->body($availableSlots['message'])
+                                            ->send();
+                                    }
+                                }
+                            })
                             ->minDate(function ($get) {
                                 $storeId = $get('store_id');
                                 if (!$storeId) {
@@ -209,6 +356,19 @@ class ReservationResource extends Resource
                             ->label('開始時刻')
                             ->required()
                             ->reactive()
+                            ->seconds(false)
+                            ->afterStateUpdated(function ($state, $set, $get) {
+                                // メニューが選択されている場合、終了時刻を自動計算
+                                if ($state && $get('menu_id')) {
+                                    $menu = \App\Models\Menu::find($get('menu_id'));
+                                    if ($menu && $menu->duration_minutes) {
+                                        $endTime = \Carbon\Carbon::parse($state)
+                                            ->addMinutes($menu->duration_minutes)
+                                            ->format('H:i');
+                                        $set('end_time', $endTime);
+                                    }
+                                }
+                            })
                             ->helperText(function ($get) {
                                 $storeId = $get('store_id');
                                 $reservationDate = $get('reservation_date');
@@ -225,7 +385,8 @@ class ReservationResource extends Resource
                             }),
                         Forms\Components\TimePicker::make('end_time')
                             ->label('終了時刻')
-                            ->required(),
+                            ->required()
+                            ->seconds(false),
                         Forms\Components\TextInput::make('guest_count')
                             ->label('来店人数')
                             ->numeric()

@@ -54,6 +54,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->widgets([
                 \App\Filament\Widgets\ReservationTimelineWidget::class,
+                \App\Filament\Widgets\ReservationCalendarWidget::class,
                 \App\Filament\Widgets\TodayReservationsWidget::class,
                 \App\Filament\Widgets\ShiftCalendarWidget::class,
             ])

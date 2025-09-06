@@ -9,10 +9,17 @@
             
             .timeline-table th,
             .timeline-table td {
-                border: 1px solid #e0e0e0;
+                border-top: 1px solid #e0e0e0;
+                border-bottom: 1px solid #e0e0e0;
+                border-left: 1px solid #e0e0e0;
                 padding: 0;
                 height: 60px;
                 position: relative;
+            }
+            
+            .timeline-table th:last-child,
+            .timeline-table td:last-child {
+                border-right: 1px solid #e0e0e0;
             }
             
             .timeline-table th {
@@ -25,10 +32,6 @@
             
             .timeline-table th[colspan] {
                 min-width: 80px;
-                border-right: 2px solid #999;
-            }
-            
-            .timeline-table th[colspan]:last-child {
                 border-right: 1px solid #e0e0e0;
             }
             
@@ -38,15 +41,6 @@
                 cursor: pointer;
             }
             
-            /* 15分ごとの細い線 */
-            .timeline-table td:not(:last-child) {
-                border-right: 1px solid #e0e0e0;
-            }
-            
-            /* 1時間ごとの太い線 */
-            .timeline-table td:nth-child(4n+1):not(:first-child) {
-                border-left: 2px solid #999;
-            }
             
             .timeline-table td:hover {
                 background: #f5f5f5;

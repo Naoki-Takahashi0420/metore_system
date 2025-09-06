@@ -135,8 +135,8 @@ class ReservationTimelineWidget extends Widget
         
         for ($hour = $startHour; $hour <= $endHour; $hour++) {
             for ($minute = 0; $minute < 60; $minute += 15) {
-                // 最終時刻を超えない範囲で追加
-                if ($hour < $endHour || ($hour == $endHour && $minute == 0)) {
+                // 最終時刻まで15分刻みで追加（21時台も4つ作る）
+                if ($hour < $endHour) {
                     $slots[] = sprintf('%02d:%02d', $hour, $minute);
                 }
             }

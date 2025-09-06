@@ -135,21 +135,11 @@ class SimpleShiftManagement extends Page implements HasForms
             }
         }
         
-        // 終了時間の次の時間まで含めて完全な時間帯を作る（15分×4=1時間分）
-        $adjustedEnd = $end->copy();
-        // 終了時間が00分でない場合は、次の00分まで拡張
-        if ($end->minute > 0) {
-            $adjustedEnd->addMinutes(60 - $end->minute);
-        }
-        
-        while ($start < $adjustedEnd || ($start->eq($adjustedEnd) && $start->minute == 0)) {
+        // 15分刻みで時間スロットを生成
+        // 終了時間の時まで完全に4分割する（例：21時終了なら20:45まで）
+        while ($start->hour < $end->hour) {
             $this->timeSlots[] = $start->format('H:i');
             $start->addMinutes(15); // 15分刻み
-            
-            // 次の時間の00分まで達したら終了
-            if ($start->minute == 0 && $start > $end) {
-                break;
-            }
         }
     }
     
