@@ -18,7 +18,7 @@
                     <a href="/customer/medical-records" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
                         カルテ
                     </a>
-                    <a href="{{ url('/reservation') }}" class="bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">
+                    <a href="/stores" class="bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">
                         新規予約
                     </a>
                     <button id="logout-btn" class="bg-gray-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-600 transition-colors">
@@ -45,7 +45,7 @@
             </div>
             <h3 class="text-lg font-medium text-gray-900 mb-2">予約履歴がありません</h3>
             <p class="text-gray-500 mb-6">まだ予約をされていません。ぜひ最初の予約をお取りください。</p>
-            <a href="{{ url('/reservation') }}" class="bg-primary-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-700 transition-colors inline-block">
+            <a href="/stores" class="bg-primary-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-700 transition-colors inline-block">
                 初回予約をする
             </a>
         </div>
@@ -240,7 +240,11 @@ function formatDate(dateString) {
 }
 
 function formatTime(timeString) {
-    return timeString.substring(0, 5); // HH:MM format
+    // 時間データから時刻部分を取得
+    if (timeString.includes(' ')) {
+        return timeString.split(' ').pop().substring(0, 5); // '2025-09-07 14:00:00' -> '14:00'
+    }
+    return timeString.substring(0, 5); // 既に '14:00:00' 形式の場合 -> '14:00'
 }
 
 function canModify(reservation) {
@@ -249,11 +253,21 @@ function canModify(reservation) {
     }
     
     // 48時間前までは変更可能
-    const reservationDateTime = new Date(reservation.reservation_date + 'T' + reservation.start_time);
+    const reservationDateStr = reservation.reservation_date.split(' ')[0]; // '2025-09-10'
+    const startTimeStr = getTimeString(reservation.start_time); // '14:00:00'
+    const reservationDateTime = new Date(reservationDateStr + 'T' + startTimeStr);
     const now = new Date();
     const hoursDiff = (reservationDateTime - now) / (1000 * 60 * 60);
     
     return hoursDiff > 48;
+}
+
+function getTimeString(timeData) {
+    // 時間データから時刻部分を取得
+    if (timeData.includes(' ')) {
+        return timeData.split(' ').pop(); // '2025-09-07 14:00:00' -> '14:00:00'
+    }
+    return timeData; // 既に '14:00:00' 形式の場合
 }
 
 function canCancel(reservation) {
@@ -262,7 +276,9 @@ function canCancel(reservation) {
     }
     
     // 24時間前まではキャンセル可能
-    const reservationDateTime = new Date(reservation.reservation_date + 'T' + reservation.start_time);
+    const reservationDateStr = reservation.reservation_date.split(' ')[0]; // '2025-09-10'
+    const startTimeStr = getTimeString(reservation.start_time); // '14:00:00'
+    const reservationDateTime = new Date(reservationDateStr + 'T' + startTimeStr);
     const now = new Date();
     const hoursDiff = (reservationDateTime - now) / (1000 * 60 * 60);
     

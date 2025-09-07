@@ -39,30 +39,6 @@
         </div>
     </div>
 
-    {{-- ポイント・特典カード風 --}}
-    <div class="max-w-lg mx-auto px-4 py-4">
-        <div class="bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-6 text-white shadow-lg">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <p class="text-sm opacity-90">利用可能ポイント</p>
-                    <p class="text-3xl font-bold">1,250<span class="text-lg ml-1">P</span></p>
-                </div>
-                <div class="bg-white/20 rounded-lg px-3 py-1">
-                    <p class="text-xs">ゴールド会員</p>
-                </div>
-            </div>
-            <div class="flex justify-between items-center">
-                <div>
-                    <p class="text-xs opacity-75">今月の予約</p>
-                    <p class="text-lg font-semibold">3回</p>
-                </div>
-                <div>
-                    <p class="text-xs opacity-75">次回ランクアップまで</p>
-                    <p class="text-lg font-semibold">あと2回</p>
-                </div>
-            </div>
-        </div>
-    </div>
 
     {{-- クイックアクション --}}
     <div class="max-w-lg mx-auto px-4 pb-4">

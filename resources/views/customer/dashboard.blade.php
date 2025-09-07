@@ -23,7 +23,7 @@
         <!-- メインメニュー -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-8">
             <!-- 新規予約 -->
-            <a href="/reservation/store" class="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200">
+            <a href="#" onclick="goToReservation(); return false;" class="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200">
                 <div class="p-6">
                     <div class="flex items-center justify-between mb-4">
                         <div class="bg-white/20 p-3 rounded-lg">
@@ -31,10 +31,10 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                             </svg>
                         </div>
-                        <span class="bg-white/30 px-3 py-1 rounded-full text-sm font-medium">NEW</span>
+                        <span class="bg-white/30 px-3 py-1 rounded-full text-sm font-medium">予約する</span>
                     </div>
-                    <h3 class="text-xl font-bold mb-2">新規予約</h3>
-                    <p class="text-white/90 text-sm">新しい予約を取る</p>
+                    <h3 class="text-xl font-bold mb-2">予約する</h3>
+                    <p class="text-white/90 text-sm">次回の予約を取る</p>
                 </div>
             </a>
 
@@ -71,40 +71,6 @@
             </a>
         </div>
 
-        <!-- サブメニュー -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
-            <!-- プロフィール編集 -->
-            <a href="/customer/profile" class="bg-white rounded-lg shadow-md hover:shadow-lg p-4 text-center transition-all">
-                <svg class="w-6 h-6 md:w-8 md:h-8 mx-auto mb-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                <span class="text-xs md:text-sm font-medium text-gray-800">プロフィール</span>
-            </a>
-
-            <!-- 通知設定 -->
-            <a href="/customer/notifications" class="bg-white rounded-lg shadow-md hover:shadow-lg p-4 text-center transition-all">
-                <svg class="w-6 h-6 md:w-8 md:h-8 mx-auto mb-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
-                <span class="text-xs md:text-sm font-medium text-gray-800">通知設定</span>
-            </a>
-
-            <!-- LINE連携 -->
-            <a href="/customer/line" class="bg-white rounded-lg shadow-md hover:shadow-lg p-4 text-center transition-all">
-                <svg class="w-6 h-6 md:w-8 md:h-8 mx-auto mb-2 text-green-500" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 2C6.48 2 2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15h-2v-3h2v-2c0-2.21 1.79-4 4-4h2v3h-2c-.55 0-1 .45-1 1v2h3l-.5 3H13v6.95c5.05-.5 9-4.76 9-9.95 0-5.52-4.48-10-10-10z"/>
-                </svg>
-                <span class="text-xs md:text-sm font-medium text-gray-800">LINE連携</span>
-            </a>
-
-            <!-- ヘルプ -->
-            <a href="/customer/help" class="bg-white rounded-lg shadow-md hover:shadow-lg p-4 text-center transition-all">
-                <svg class="w-6 h-6 md:w-8 md:h-8 mx-auto mb-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span class="text-xs md:text-sm font-medium text-gray-800">ヘルプ</span>
-            </a>
-        </div>
 
         <!-- 予約一覧セクション -->
         <div id="reservations" class="bg-white rounded-lg shadow-md p-4 md:p-6">
@@ -375,8 +341,12 @@ function displayReservations() {
                 
                 <div class="flex gap-2">
                     ${!isPast && canCancel(reservation) ? `
+                        <button onclick="changeReservationDate(${reservation.id})" 
+                                class="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+                            日程変更
+                        </button>
                         <button onclick="cancelReservation(${reservation.id})" 
-                                class="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors">
+                                class="bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors">
                             キャンセル
                         </button>
                     ` : ''}
@@ -438,6 +408,27 @@ function canCancel(reservation) {
     const hoursDiff = (reservationDateTime - now) / (1000 * 60 * 60);
     
     return hoursDiff > 24;
+}
+
+// マイページから既存顧客として予約
+function goToReservation() {
+    // 顧客データを取得
+    const customerData = localStorage.getItem('customer_data');
+    if (customerData) {
+        const customer = JSON.parse(customerData);
+        // セッションストレージに既存顧客情報を保存
+        sessionStorage.setItem('existing_customer_id', customer.id);
+        sessionStorage.setItem('from_mypage', 'true');
+    }
+    // 予約ページへ遷移
+    window.location.href = '/reservation/store';
+}
+
+// 日程変更
+function changeReservationDate(reservationId) {
+    alert('日程変更機能は準備中です。\nお電話でお問い合わせください。');
+    // TODO: 日程変更ページへの遷移を実装
+    // window.location.href = `/customer/reservations/${reservationId}/change`;
 }
 
 async function cancelReservation(reservationId) {

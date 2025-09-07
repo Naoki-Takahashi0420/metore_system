@@ -71,9 +71,27 @@ class PublicReservationController extends Controller
         
         $store = Store::find($storeId);
         
+        // マイページからの予約かチェック
+        $fromMypage = $request->get('from_mypage', false);
+        $existingCustomerId = $request->get('existing_customer_id');
+        
+        // 既存顧客の判定
+        $isExistingCustomer = $fromMypage || $existingCustomerId;
+        
         // アクティブなカテゴリーを取得（sort_order優先）
-        $categories = MenuCategory::where('store_id', $storeId)
-            ->where('is_active', true)
+        $categoriesQuery = MenuCategory::where('store_id', $storeId)
+            ->where('is_active', true);
+            
+        // 既存顧客の場合、メニューの制限を適用
+        if ($isExistingCustomer) {
+            $categoriesQuery->whereHas('menus', function($query) {
+                $query->where('is_available', true)
+                      ->where('customer_type_restriction', '!=', 'new_only')
+                      ->where('medical_record_only', false);
+            });
+        }
+        
+        $categories = $categoriesQuery
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get();
@@ -100,6 +118,12 @@ class PublicReservationController extends Controller
         $isFromMedicalRecord = $request->get('from_medical_record', false);
         $customerId = $request->get('customer_id');
         
+        // マイページから予約の場合（JavaScriptでsessionStorageに保存されたデータを使用）
+        $fromMypage = $request->get('from_mypage', false);
+        if (!$customerId && $fromMypage) {
+            $customerId = $request->get('existing_customer_id');
+        }
+        
         // 顧客のサブスクリプション状態を確認
         $hasSubscription = false;
         if ($customerId) {
@@ -116,6 +140,11 @@ class PublicReservationController extends Controller
                 ->whereNotIn('status', ['cancelled', 'canceled'])
                 ->count();
             $isNewCustomer = $existingReservations === 0;
+        }
+        
+        // マイページからの場合は必ず既存顧客として扱う
+        if ($fromMypage) {
+            $isNewCustomer = false;
         }
         
         // カテゴリーに属するメニューを時間別に取得
@@ -143,7 +172,8 @@ class PublicReservationController extends Controller
         }
         
         // カルテからのみ予約可能なメニューのフィルタリング
-        if (!$isFromMedicalRecord) {
+        // マイページからの場合もカルテからの予約として扱う（既存顧客のため）
+        if (!$isFromMedicalRecord && !$fromMypage) {
             $menusQuery->where('medical_record_only', false);
         }
         
@@ -642,6 +672,26 @@ class PublicReservationController extends Controller
         // まず最初に電話番号で既存予約をチェック（新規顧客作成前）
         $existingCustomerByPhone = Customer::where('phone', $validated['phone'])->first();
         if ($existingCustomerByPhone) {
+            // 最新の予約（完了済みも含む）を取得
+            $latestReservation = Reservation::where('customer_id', $existingCustomerByPhone->id)
+                ->whereIn('status', ['pending', 'confirmed', 'booked', 'completed'])
+                ->orderBy('reservation_date', 'desc')
+                ->orderBy('start_time', 'desc')
+                ->first();
+                
+            // 5日間の制限チェック（予約日が送信されている場合のみ）
+            if ($latestReservation && isset($validated['date'])) {
+                $lastVisitDate = Carbon::parse($latestReservation->reservation_date);
+                $requestedDate = Carbon::parse($validated['date']);
+                $daysDiff = $lastVisitDate->diffInDays($requestedDate, false);
+                
+                if ($daysDiff < 5) {
+                    $nextAvailableDate = $lastVisitDate->addDays(5)->format('Y年m月d日');
+                    return back()->with('error', "前回のご予約から最低5日間空ける必要があります。次回予約可能日: {$nextAvailableDate}以降");
+                }
+            }
+            
+            // 既存の未来予約チェック（重複防止）
             $futureReservations = Reservation::where('customer_id', $existingCustomerByPhone->id)
                 ->whereIn('status', ['pending', 'confirmed', 'booked'])
                 ->where('reservation_date', '>=', today())

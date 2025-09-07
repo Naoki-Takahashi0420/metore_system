@@ -39,7 +39,7 @@ Route::get('/stores', function () {
 // 現在は○×形式のカレンダー（/reservation/calendar）を使用
 
 // Public reservation routes - 新フロー（カテゴリー→時間→カレンダー）
-Route::get('/reservation/store', [App\Http\Controllers\PublicReservationController::class, 'selectStore'])->name('reservation.select-store');
+// 店舗選択は /stores を使用（/reservation/store は削除済み）
 Route::post('/reservation/store-selection', [App\Http\Controllers\PublicReservationController::class, 'storeStoreSelection'])->name('reservation.store-store');
 
 // 新しい予約フロー
@@ -76,8 +76,8 @@ Route::prefix('customer')->group(function () {
     });
     
     Route::get('/dashboard', function () {
-        // モダン版を表示（メルカリ風UI）
-        return view('customer.dashboard-modern');
+        // シンプル版を表示
+        return view('customer.dashboard-simple');
     });
     
     // 旧ダッシュボード（スタンダード版）

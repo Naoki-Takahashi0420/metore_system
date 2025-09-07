@@ -49,9 +49,11 @@
 
         <div class="space-y-4">
             @foreach($categories as $category)
-                <form action="{{ route('reservation.select-time') }}" method="POST">
+                <form action="{{ route('reservation.select-time') }}" method="POST" class="category-form">
                     @csrf
                     <input type="hidden" name="category_id" value="{{ $category->id }}">
+                    <input type="hidden" name="from_mypage" class="from-mypage-input" value="">
+                    <input type="hidden" name="existing_customer_id" class="existing-customer-id-input" value="">
                     
                     <button type="submit" class="w-full text-left group hover:shadow-xl transition-all duration-300">
                         <div class="border-2 border-gray-200 rounded-lg overflow-hidden group-hover:border-blue-500 transition-all">
@@ -130,14 +132,14 @@
             <div class="text-center py-12">
                 <p class="text-xl text-gray-500">現在、予約可能なコースはありません。</p>
                 <p class="text-gray-400 mt-2">別の店舗をお選びください。</p>
-                <a href="{{ route('reservation.select-store') }}" class="mt-6 inline-block px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                <a href="/stores" class="mt-6 inline-block px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
                     店舗選択に戻る
                 </a>
             </div>
         @endif
 
         <div class="mt-6 md:mt-8 text-center">
-            <a href="{{ route('reservation.select-store') }}" class="text-gray-600 hover:text-gray-800 underline text-sm md:text-lg">
+            <a href="/stores" class="text-gray-600 hover:text-gray-800 underline text-sm md:text-lg">
                 ← 店舗選択に戻る
             </a>
         </div>
@@ -154,4 +156,29 @@
         </ol>
     </div>
 </div>
+@endsection
+
+@section('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // sessionStorageからマイページ情報を取得
+    const fromMypage = sessionStorage.getItem('from_mypage');
+    const existingCustomerId = sessionStorage.getItem('existing_customer_id');
+    
+    // 各フォームにhidden inputとして追加
+    if (fromMypage || existingCustomerId) {
+        document.querySelectorAll('.category-form').forEach(form => {
+            if (fromMypage) {
+                form.querySelector('.from-mypage-input').value = fromMypage;
+            }
+            if (existingCustomerId) {
+                form.querySelector('.existing-customer-id-input').value = existingCustomerId;
+            }
+        });
+        
+        console.log('マイページからの予約:', fromMypage);
+        console.log('既存顧客ID:', existingCustomerId);
+    }
+});
+</script>
 @endsection
