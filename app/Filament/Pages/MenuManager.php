@@ -114,7 +114,22 @@ class MenuManager extends Page implements HasForms, HasActions
         $this->loadData();
         
         Notification::make()
-            ->title('並び順を更新しました')
+            ->title('メニューの並び順を更新しました')
+            ->success()
+            ->duration(1000)
+            ->send();
+    }
+
+    public function updateCategoryOrder($categoryIds): void
+    {
+        foreach ($categoryIds as $index => $categoryId) {
+            MenuCategory::where('id', $categoryId)->update(['sort_order' => $index]);
+        }
+        
+        $this->loadData();
+        
+        Notification::make()
+            ->title('カテゴリーの並び順を更新しました')
             ->success()
             ->duration(1000)
             ->send();

@@ -23,6 +23,8 @@ class ReservationResource extends Resource
     protected static ?string $modelLabel = '予約';
 
     protected static ?string $pluralModelLabel = '予約';
+    
+    protected static ?string $recordTitleAttribute = 'reservation_number';
 
     protected static ?int $navigationSort = 3;
     

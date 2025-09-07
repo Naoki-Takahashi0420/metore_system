@@ -79,14 +79,14 @@ class ReservationCalendarWidget extends FullCalendarWidget
             
             // 24時間以内の予約かチェック
             $isNewReservation = Carbon::parse($reservation->created_at)->diffInHours(now()) <= 24;
-            $newLabel = $isNewReservation ? ' 🆕NEW' : '';
+            $newBadge = $isNewReservation ? '🔴 ' : '';  // 赤い丸で新規を表現
             
             // ステータスに応じて色を設定
             $backgroundColor = match($reservation->status) {
-                'booked' => $isNewReservation ? '#1d4ed8' : '#3b82f6', // 予約済み: 青（新規は濃い青）
-                'visited' => $isNewReservation ? '#059669' : '#10b981', // 来店済み: 緑（新規は濃い緑）
-                'cancelled' => '#ef4444', // キャンセル: 赤
-                default => $isNewReservation ? '#1d4ed8' : '#3b82f6', // デフォルト: 青
+                'booked' => '#3b82f6', // 予約済み: 青
+                'completed' => '#9ca3af', // 完了: グレー
+                'cancelled' => '#fca5a5', // キャンセル: 薄い赤
+                default => '#3b82f6', // デフォルト: 青
             };
             
             // 日付と時間を正しく結合
@@ -106,24 +106,19 @@ class ReservationCalendarWidget extends FullCalendarWidget
             $reservationNumber = $reservation->reservation_number ?? '';
             $statusText = match($reservation->status) {
                 'booked' => '予約済み',
-                'visited' => '来店済み',
+                'completed' => '完了',
                 'cancelled' => 'キャンセル',
                 default => $reservation->status,
             };
             
+            // シンプルな表示形式に変更
             return [
                 'id' => $reservation->id,
                 'title' => sprintf(
-                    "🕐 %s-%s%s\n👤 %s様\n📞 %s\n🎯 %s\n🏢 %s\n📋 %s\n📄 #%s",
-                    $startTime,
-                    $endTime,
-                    $newLabel,
+                    "%s%s様\n%s",
+                    $newBadge,
                     $customerName,
-                    $phone,
-                    $menuName,
-                    $storeName,
-                    $statusText,
-                    $reservationNumber
+                    $menuName
                 ),
                 'start' => $startDateTime,
                 'end' => $endDateTime,
@@ -142,6 +137,8 @@ class ReservationCalendarWidget extends FullCalendarWidget
                     'isNew' => $isNewReservation,
                     'totalAmount' => $reservation->total_amount,
                     'guestCount' => $reservation->guest_count,
+                    'startTime' => $startTime,
+                    'endTime' => $endTime,
                 ],
             ];
         })->toArray();
@@ -425,11 +422,15 @@ class ReservationCalendarWidget extends FullCalendarWidget
             
             // ツールチップ設定（追加情報表示）
             'eventDidMount' => 'function(info) {
+                var startTime = info.event.extendedProps.startTime || "";
+                var endTime = info.event.extendedProps.endTime || "";
                 info.el.setAttribute("title", 
-                    info.event.title + "\\n\\n" +
+                    startTime + " - " + endTime + "\\n" +
+                    info.event.extendedProps.customer + "様\\n" +
+                    info.event.extendedProps.menu + "\\n" +
+                    "📞 " + (info.event.extendedProps.phone || "電話番号なし") + "\\n" +
                     "💰 " + (info.event.extendedProps.totalAmount || "未設定") + "円\\n" +
-                    "👥 " + (info.event.extendedProps.guestCount || 1) + "名\\n" +
-                    "📝 " + (info.event.extendedProps.notes || "備考なし")
+                    "👥 " + (info.event.extendedProps.guestCount || 1) + "名"
                 );
                 info.el.style.cursor = "pointer";
             }',

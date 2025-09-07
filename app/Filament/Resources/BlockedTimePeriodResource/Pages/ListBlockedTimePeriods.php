@@ -44,10 +44,6 @@ class ListBlockedTimePeriods extends ListRecords
     
     public function getHeader(): ?\Illuminate\Contracts\View\View
     {
-        // 一時的にカスタムヘッダーを無効化（新規作成ボタンを表示するため）
-        return null;
-        
-        /*
         $user = auth()->user();
         $storeOptions = collect();
         
@@ -78,7 +74,6 @@ class ListBlockedTimePeriods extends ListRecords
         }
         
         return null;
-        */
     }
     
     public function getTableQuery(): ?\Illuminate\Database\Eloquent\Builder

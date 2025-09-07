@@ -45,9 +45,6 @@ class ListCustomers extends ListRecords
     
     public function getHeader(): ?\Illuminate\Contracts\View\View
     {
-        // 一時的にヘッダーを無効化（Livewireエラー回避のため）
-        return null;
-        
         $user = auth()->user();
         $storeOptions = collect();
         

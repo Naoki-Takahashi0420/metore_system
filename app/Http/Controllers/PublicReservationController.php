@@ -71,7 +71,7 @@ class PublicReservationController extends Controller
         
         $store = Store::find($storeId);
         
-        // アクティブなカテゴリーを取得
+        // アクティブなカテゴリーを取得（sort_order優先）
         $categories = MenuCategory::where('store_id', $storeId)
             ->where('is_active', true)
             ->orderBy('sort_order')
@@ -119,6 +119,12 @@ class PublicReservationController extends Controller
         }
         
         // カテゴリーに属するメニューを時間別に取得
+        \Log::info('Fetching menus', [
+            'store_id' => $storeId, 
+            'category_id' => $validated['category_id'],
+            'category_name' => $category->name ?? 'Unknown'
+        ]);
+        
         $menusQuery = Menu::where('store_id', $storeId)
             ->where('category_id', $validated['category_id'])
             ->where('is_available', true)
@@ -141,16 +147,30 @@ class PublicReservationController extends Controller
             $menusQuery->where('medical_record_only', false);
         }
         
-        $menus = $menusQuery->orderBy('duration_minutes')
+        // SQLクエリをログに出力
+        $sql = $menusQuery->toSql();
+        $bindings = $menusQuery->getBindings();
+        \Log::info('SQL Query', ['sql' => $sql, 'bindings' => $bindings]);
+        
+        $menus = $menusQuery->orderBy('sort_order')
+            ->orderBy('duration_minutes')
             ->orderBy('price')
             ->get();
             
-        // 時間別にグループ化（オプションメニューは除外）
-        $menusByDuration = $menus->where('duration_minutes', '>', 0)
-            ->groupBy('duration_minutes')
-            ->sortKeys();
+        \Log::info('Found menus', [
+            'total_count' => $menus->count(),
+            'menus' => $menus->map(function($m) {
+                return ['id' => $m->id, 'name' => $m->name, 'duration' => $m->duration_minutes];
+            })
+        ]);
+            
+        // オプションメニューは除外して、sort_order順にそのまま渡す
+        $sortedMenus = $menus->where('duration_minutes', '>', 0);
         
-        return view('reservation.time-select', compact('menusByDuration', 'store', 'category', 'hasSubscription'));
+        // 互換性のため、時間別グループ化も残す（ただし表示はsortedMenusを使う）
+        $menusByDuration = $sortedMenus->groupBy('duration_minutes')->sortKeys();
+        
+        return view('reservation.time-select', compact('menusByDuration', 'sortedMenus', 'store', 'category', 'hasSubscription'));
     }
     
     /**
@@ -556,20 +576,23 @@ class PublicReservationController extends Controller
                     continue;
                 }
                 
-                // シフトチェック：この時間帯に対応可能なスタッフがいるか確認
-                $dayShifts = $shifts->get($dateStr, collect());
-                $hasAvailableStaff = $dayShifts->contains(function ($shift) use ($slotTime, $slotEnd) {
-                    $shiftStart = Carbon::parse($shift->shift_date->format('Y-m-d') . ' ' . $shift->start_time);
-                    $shiftEnd = Carbon::parse($shift->shift_date->format('Y-m-d') . ' ' . $shift->end_time);
+                // シフトチェック：スタッフシフトベースの場合のみチェック
+                if ($store->use_staff_assignment) {
+                    $dayShifts = $shifts->get($dateStr, collect());
+                    $hasAvailableStaff = $dayShifts->contains(function ($shift) use ($slotTime, $slotEnd) {
+                        $shiftStart = Carbon::parse($shift->shift_date->format('Y-m-d') . ' ' . $shift->start_time);
+                        $shiftEnd = Carbon::parse($shift->shift_date->format('Y-m-d') . ' ' . $shift->end_time);
+                        
+                        // スタッフのシフト時間内に予約が収まるかチェック
+                        return $slotTime->gte($shiftStart) && $slotEnd->lte($shiftEnd);
+                    });
                     
-                    // スタッフのシフト時間内に予約が収まるかチェック
-                    return $slotTime->gte($shiftStart) && $slotEnd->lte($shiftEnd);
-                });
-                
-                if (!$hasAvailableStaff) {
-                    $availability[$dateStr][$slot] = false;
-                    continue;
+                    if (!$hasAvailableStaff) {
+                        $availability[$dateStr][$slot] = false;
+                        continue;
+                    }
                 }
+                // 営業時間ベースの場合はシフトチェックをスキップ
                 
                 // 予約が重複していないかチェック（席数を考慮）
                 $overlappingCount = $dayReservations->filter(function ($reservation) use ($slotTime, $slotEnd) {
@@ -584,9 +607,12 @@ class PublicReservationController extends Controller
                     );
                 })->count();
                 
-                // 店舗の席数を確認
-                $storeCapacity = $store->capacity ?? 1;
-                $availability[$dateStr][$slot] = $overlappingCount < $storeCapacity;
+                // 店舗の同時予約可能数を確認
+                // 営業時間ベースの場合はmain_lines_count、シフトベースの場合はcapacityを使用
+                $maxConcurrent = $store->use_staff_assignment 
+                    ? ($store->capacity ?? 1)
+                    : ($store->main_lines_count ?? 1);
+                $availability[$dateStr][$slot] = $overlappingCount < $maxConcurrent;
             }
         }
         
@@ -657,24 +683,30 @@ class PublicReservationController extends Controller
                 $totalDuration += $option->duration;
             }
             
-            // シフトチェック: 予約時間に対応可能なスタッフがいるか確認
-            $reservationDateTime = Carbon::parse($validated['date'] . ' ' . $validated['time']);
-            $endTime = $reservationDateTime->copy()->addMinutes($totalDuration);
+            // 店舗設定を取得
+            $store = Store::find($validated['store_id']);
             
-            $availableStaff = Shift::where('store_id', $validated['store_id'])
-                ->where('shift_date', $validated['date'])
-                ->where('start_time', '<=', $validated['time'])
-                ->where('end_time', '>=', $endTime->format('H:i'))
-                ->where('is_available_for_reservation', true)
-                ->whereHas('user', function($query) {
-                    $query->where('is_active_staff', true);
-                })
-                ->exists();
-            
-            if (!$availableStaff) {
-                DB::rollback();
-                return back()->with('error', '申し訳ございません。選択された時間帯に対応可能なスタッフがおりません。別の時間帯をお選びください。');
+            // シフトチェック: スタッフシフトベースの場合のみチェック
+            if ($store->use_staff_assignment) {
+                $reservationDateTime = Carbon::parse($validated['date'] . ' ' . $validated['time']);
+                $endTime = $reservationDateTime->copy()->addMinutes($totalDuration);
+                
+                $availableStaff = Shift::where('store_id', $validated['store_id'])
+                    ->where('shift_date', $validated['date'])
+                    ->where('start_time', '<=', $validated['time'])
+                    ->where('end_time', '>=', $endTime->format('H:i'))
+                    ->where('is_available_for_reservation', true)
+                    ->whereHas('user', function($query) {
+                        $query->where('is_active_staff', true);
+                    })
+                    ->exists();
+                
+                if (!$availableStaff) {
+                    DB::rollback();
+                    return back()->with('error', '申し訳ございません。選択された時間帯に対応可能なスタッフがおりません。別の時間帯をお選びください。');
+                }
             }
+            // 営業時間ベースの場合はシフトチェックをスキップ
             
             // 予約を作成
             $reservation = Reservation::create([

@@ -39,7 +39,7 @@
                         <span class="text-gray-600">日時</span>
                         <span>
                             {{ \Carbon\Carbon::parse($reservation->reservation_date)->format('Y年n月j日') }}
-                            {{ $reservation->start_time }} - {{ $reservation->end_time }}
+                            {{ \Carbon\Carbon::parse($reservation->start_time)->format('H:i') }} - {{ \Carbon\Carbon::parse($reservation->end_time)->format('H:i') }}
                         </span>
                     </div>
                     

@@ -42,7 +42,7 @@ class MedicalRecordResource extends Resource
                                         Forms\Components\Select::make('customer_id')
                                             ->label('顧客')
                                             ->options(Customer::all()->mapWithKeys(function ($customer) {
-                                                $name = mb_convert_encoding(($customer->last_name ?? '') . ' ' . ($customer->first_name ?? '') . ' (' . ($customer->phone ?? '') . ')', 'UTF-8', 'auto');
+                                                $name = ($customer->last_name ?? '') . ' ' . ($customer->first_name ?? '') . ' (' . ($customer->phone ?? '') . ')';
                                                 return [$customer->id => $name];
                                             }))
                                             ->searchable()
@@ -58,7 +58,7 @@ class MedicalRecordResource extends Resource
                                                     ->orderBy('reservation_date', 'desc')
                                                     ->get()
                                                     ->mapWithKeys(function ($reservation) {
-                                                        $dateTime = mb_convert_encoding(($reservation->reservation_date ? $reservation->reservation_date->format('Y/m/d') : '') . ' ' . ($reservation->reservation_time ?? ''), 'UTF-8', 'auto');
+                                                        $dateTime = ($reservation->reservation_date ? $reservation->reservation_date->format('Y/m/d') : '') . ' ' . ($reservation->reservation_time ?? '');
                                                         return [$reservation->id => $dateTime];
                                                     });
                                             })
@@ -234,7 +234,7 @@ class MedicalRecordResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('customer.last_name')
                     ->label('顧客名')
-                    ->formatStateUsing(fn ($record) => $record->customer ? mb_convert_encoding(($record->customer->last_name ?? '') . ' ' . ($record->customer->first_name ?? ''), 'UTF-8', 'auto') : '-')
+                    ->formatStateUsing(fn ($record) => $record->customer ? (($record->customer->last_name ?? '') . ' ' . ($record->customer->first_name ?? '')) : '-')
                     ->searchable(['customers.last_name', 'customers.first_name'])
                     ->sortable(),
                 

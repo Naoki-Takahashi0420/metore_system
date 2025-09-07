@@ -55,6 +55,9 @@ class TodayReservationsWidget extends BaseWidget
                     ->whereDate('reservation_date', $this->selectedDate ?? today())
                     ->orderBy('start_time', 'asc')
             )
+            ->emptyStateHeading('予約がありません')
+            ->emptyStateDescription('この日の予約はまだ登録されていません')
+            ->emptyStateIcon('heroicon-o-calendar')
             ->columns([
                 Tables\Columns\TextColumn::make('start_time')
                     ->label('時間')

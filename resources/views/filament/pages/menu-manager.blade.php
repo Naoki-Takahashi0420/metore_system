@@ -1,4 +1,7 @@
 <x-filament-panels::page>
+    {{-- SortableJS CDN --}}
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    
     <div class="space-y-6">
         {{-- 店舗選択（柔軟な表示方式） --}}
         @if(auth()->user()->hasRole('super_admin'))
@@ -116,13 +119,18 @@
         {{-- メインコンテンツ --}}
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {{-- カテゴリーとメニュー一覧 --}}
-            <div class="lg:col-span-2 space-y-4">
+            <div class="lg:col-span-2 space-y-4" id="categories-container">
                 @forelse($categories as $category)
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 category-item" data-category-id="{{ $category['id'] }}">
                         {{-- カテゴリーヘッダー --}}
                         <div class="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-3">
+                                    <button class="category-drag-handle cursor-move p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" title="ドラッグして並び替え">
+                                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                                        </svg>
+                                    </button>
                                     <span class="text-lg font-bold">{{ $category['name'] }}</span>
                                     <span class="px-2 py-1 text-xs rounded-full {{ $category['is_active'] ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
                                         {{ $category['is_active'] ? '有効' : '無効' }}
@@ -165,19 +173,26 @@
                         {{-- メニューリスト --}}
                         <div class="p-4">
                             @if(count($category['menus']) > 0)
-                                <div class="space-y-2">
+                                <div class="space-y-2 menu-list" data-category-id="{{ $category['id'] }}">
                                     @foreach($category['menus'] as $menu)
-                                        <div class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                                            <div class="flex-1">
-                                                <div class="flex items-center gap-2">
-                                                    <span class="font-medium">{{ $menu['name'] }}</span>
-                                                    @if($menu['show_in_upsell'])
-                                                        <span class="px-2 py-0.5 text-xs bg-purple-100 text-purple-800 rounded">オプション</span>
-                                                    @endif
-                                                </div>
-                                                <div class="flex items-center gap-4 mt-1 text-sm text-gray-600">
-                                                    <span>{{ $menu['duration_minutes'] }}分</span>
-                                                    <span>¥{{ number_format($menu['price']) }}</span>
+                                        <div class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors menu-item" data-menu-id="{{ $menu['id'] }}">
+                                            <div class="flex items-center gap-3">
+                                                <button class="menu-drag-handle cursor-move p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" title="ドラッグして並び替え">
+                                                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16"></path>
+                                                    </svg>
+                                                </button>
+                                                <div class="flex-1">
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="font-medium">{{ $menu['name'] }}</span>
+                                                        @if($menu['show_in_upsell'])
+                                                            <span class="px-2 py-0.5 text-xs bg-purple-100 text-purple-800 rounded">オプション</span>
+                                                        @endif
+                                                    </div>
+                                                    <div class="flex items-center gap-4 mt-1 text-sm text-gray-600">
+                                                        <span>{{ $menu['duration_minutes'] }}分</span>
+                                                        <span>¥{{ number_format($menu['price']) }}</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                             <div class="flex items-center gap-2">
@@ -277,6 +292,7 @@
                 <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
                     <h3 class="font-semibold mb-2 text-blue-900 dark:text-blue-400">使い方</h3>
                     <ul class="text-sm space-y-1 text-blue-800 dark:text-blue-300">
+                        <li>• カテゴリーやメニューをドラッグして並び替え</li>
                         <li>• カテゴリーで時間と料金を設定</li>
                         <li>• メニュー作成時に自動反映</li>
                         <li>• チェックマークで有効/無効切替</li>
@@ -286,4 +302,45 @@
             </div>
         </div>
     </div>
+    
+    {{-- ドラッグ&ドロップ用JavaScript --}}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // カテゴリーの並び替え
+            const categoriesContainer = document.getElementById('categories-container');
+            if (categoriesContainer) {
+                new Sortable(categoriesContainer, {
+                    animation: 150,
+                    handle: '.category-drag-handle',
+                    draggable: '.category-item',
+                    ghostClass: 'opacity-50',
+                    onEnd: function(evt) {
+                        const categoryIds = [];
+                        document.querySelectorAll('.category-item').forEach(function(item) {
+                            categoryIds.push(item.dataset.categoryId);
+                        });
+                        @this.updateCategoryOrder(categoryIds);
+                    }
+                });
+            }
+            
+            // 各カテゴリー内のメニューの並び替え
+            document.querySelectorAll('.menu-list').forEach(function(menuList) {
+                new Sortable(menuList, {
+                    animation: 150,
+                    handle: '.menu-drag-handle',
+                    draggable: '.menu-item',
+                    ghostClass: 'opacity-50',
+                    onEnd: function(evt) {
+                        const categoryId = menuList.dataset.categoryId;
+                        const menuIds = [];
+                        menuList.querySelectorAll('.menu-item').forEach(function(item) {
+                            menuIds.push(item.dataset.menuId);
+                        });
+                        @this.updateMenuOrder(categoryId, menuIds);
+                    }
+                });
+            });
+        });
+    </script>
 </x-filament-panels::page>

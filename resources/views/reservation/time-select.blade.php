@@ -135,8 +135,8 @@
     {{-- メニューリスト --}}
     <div class="bg-white rounded-lg p-4">
         @php $menuIndex = 1; @endphp
-        @foreach($menusByDuration as $duration => $menus)
-            @foreach($menus as $menu)
+        @if(isset($sortedMenus))
+            @foreach($sortedMenus as $menu)
                 <div class="menu-item-card">
                     <div class="menu-number">{{ $menuIndex++ }}</div>
                     
@@ -200,10 +200,77 @@
                     </div>
                 </div>
             @endforeach
-        @endforeach
+        @else
+            @foreach($menusByDuration as $duration => $menus)
+                @foreach($menus as $menu)
+                    <div class="menu-item-card">
+                        <div class="menu-number">{{ $menuIndex++ }}</div>
+                        
+                        {{-- タグ部分 --}}
+                        <div class="mb-2 ml-10 md:ml-8">
+                            @if($menu->is_subscription_only)
+                                <span class="menu-tag">サブスク</span>
+                            @endif
+                            <span class="menu-tag">{{ $menu->duration_minutes }}分</span>
+                            @if($menu->is_popular)
+                                <span class="menu-tag new">人気No.1</span>
+                            @endif
+                        </div>
+                        
+                        <div class="px-2 md:px-0 md:ml-8">
+                            {{-- 画像 (16:9) --}}
+                            <div class="mb-4">
+                                @if($menu->image_path)
+                                    <img src="{{ Storage::url($menu->image_path) }}" alt="{{ $menu->name }}" 
+                                        class="w-full md:w-96 h-auto aspect-video object-cover rounded-lg">
+                                @else
+                                    <div class="w-full md:w-96 aspect-video bg-gray-200 rounded-lg"></div>
+                                @endif
+                            </div>
+                            
+                            {{-- コンテンツ部分（モバイルは縦並び、PCは横並び） --}}
+                            <div class="flex flex-col md:flex-row md:items-start gap-4">
+                                <div class="flex-1">
+                                    {{-- タイトル --}}
+                                    <h3 class="font-bold text-lg mb-2">【{{ $menu->name }}】</h3>
+                                    
+                                    {{-- 説明文 --}}
+                                    <div class="text-sm text-gray-700 mb-3 leading-relaxed">
+                                        @if($menu->description)
+                                            {{ $menu->description }}
+                                        @else
+                                            プロの施術で心身ともにリフレッシュ。{{ $menu->duration_minutes }}分間の充実したケアをご提供します。
+                                        @endif
+                                    </div>
+                                    
+                                    {{-- メニュー詳細情報 --}}
+                                    <div class="text-xs text-gray-500 mb-3">
+                                        <span class="text-blue-600">施術時間：</span>{{ $menu->duration_minutes }}分<br>
+                                        <span class="text-blue-600">カテゴリー：</span>{{ $category->name }}<br>
+                                        <span class="text-blue-600">店舗：</span>{{ $store->name }}
+                                        @if($menu->requires_staff)
+                                            <br><span class="text-blue-600">スタッフ指定：</span>必須
+                                        @endif
+                                    </div>
+                                </div>
+                                
+                                {{-- 右側：価格とボタン（モバイルは下部に） --}}
+                                <div class="w-full md:w-auto md:text-right md:ml-4 md:min-w-[150px]">
+                                    <div class="price-display mb-3 text-center md:text-right">¥{{ number_format($menu->price) }}</div>
+                                    <button type="button" onclick="selectMenu({{ $menu->id }}, '{{ $menu->name }}', {{ $menu->price }})" 
+                                        class="reserve-button w-full">
+                                        予約する
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+            @endforeach
+        @endif
     </div>
 
-        @if($menusByDuration->isEmpty())
+        @if((isset($sortedMenus) && $sortedMenus->isEmpty()) || (!isset($sortedMenus) && $menusByDuration->isEmpty()))
             <div class="text-center py-12">
                 <p class="text-xl text-gray-500">現在、予約可能なメニューはありません。</p>
                 <p class="text-gray-400 mt-2">別のコースをお選びください。</p>

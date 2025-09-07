@@ -11,6 +11,15 @@
             width: 192px; /* w-48 */
         }
         
+        /* モーダル位置調整 */
+        #optionModal {
+            display: none;
+        }
+        
+        #optionModal.flex {
+            display: flex !important;
+        }
+        
         /* モーダル内のボタン調整 */
         #optionModal .flex.gap-3.justify-center {
             margin-bottom: 1rem;
@@ -386,7 +395,7 @@
         </div>
 
         <!-- オプション選択モーダル -->
-        <div id="optionModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-60 z-50 hidden flex items-center justify-center p-4">
+        <div id="optionModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-60 z-50 hidden items-center justify-center p-4">
             <div class="modal-content bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
                 <!-- モーダルヘッダー -->
                 <div class="bg-gradient-to-r from-blue-500 to-green-500 text-white p-6">
@@ -594,7 +603,7 @@
             
             // 選択中のメニュー情報を表示
             selectedMenuInfo.textContent = `${selectedMenu.name} - ${selectedMenu.duration}分`;
-            basePrice.innerHTML = `<span class="text-xs">¥</span>${selectedMenu.price.toLocaleString()}`;
+            basePrice.innerHTML = `<span class="text-xs">¥</span>${Number(selectedMenu.price).toLocaleString('ja-JP')}`;
             updateTotalPrice();
 
             // オプションリストを作成（カード形式）
@@ -630,7 +639,7 @@
                                         </div>
                                     </div>
                                     <div class="text-right flex-shrink-0">
-                                        <div class="text-xl font-bold text-green-600">+<span class="text-xs">¥</span>${Math.floor(option.price).toLocaleString()}</div>
+                                        <div class="text-xl font-bold text-green-600">+<span class="text-xs">¥</span>${Number(option.price).toLocaleString('ja-JP')}</div>
                                         <div class="text-xs text-gray-500">税込</div>
                                     </div>
                                 </div>
@@ -718,7 +727,7 @@
             const totalPriceElement = document.getElementById('totalPrice');
             const selectedOptionsCount = document.getElementById('selectedOptionsCount');
             
-            totalPriceElement.innerHTML = `<span class="text-sm">¥</span>${Math.floor(totalPrice).toLocaleString()}`;
+            totalPriceElement.innerHTML = `<span class="text-sm">¥</span>${Number(totalPrice).toLocaleString('ja-JP')}`;
             
             // オプション数の表示
             if (selectedOptions.length > 0) {
