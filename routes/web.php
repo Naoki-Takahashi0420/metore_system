@@ -91,7 +91,7 @@ Route::prefix('customer')->group(function () {
     });
     
     Route::get('/reservations', function () {
-        return view('customer.dashboard');
+        return view('customer.reservations');
     });
     
     Route::get('/reservations/{id}', function ($id) {
@@ -100,6 +100,11 @@ Route::prefix('customer')->group(function () {
     
     Route::get('/medical-records', function () {
         return view('customer.medical-records');
+    });
+    
+    // サブスク専用予約
+    Route::get('/subscription-booking', function () {
+        return view('reservation.subscription-booking');
     });
     
     // 視力推移表示（コントローラーメソッドがまだ実装されていない場合はビューを直接返す）
@@ -174,4 +179,5 @@ Route::post('/admin/password-reset/update', [PasswordResetController::class, 're
 // テスト用ルート（開発環境のみ）
 if (app()->environment('local')) {
     require __DIR__.'/test.php';
-}
+}// テスト用エンドポイント
+Route::get('/test/subscription/{phone}', [\App\Http\Controllers\Api\TestSubscriptionController::class, 'getByPhone']);

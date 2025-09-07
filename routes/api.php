@@ -48,6 +48,7 @@ Route::post('customer/check-phone', [CustomerCheckController::class, 'checkPhone
 Route::middleware('auth:sanctum')->prefix('customer')->group(function () {
     // 予約管理
     Route::get('reservations', [ReservationController::class, 'customerReservations']);
+    Route::post('reservations', [ReservationController::class, 'createReservation']); // 予約作成
     Route::get('reservations/{id}', [ReservationController::class, 'customerReservationDetail']);
     Route::post('reservations/{id}/cancel', [ReservationController::class, 'cancelReservation']);
     Route::put('reservations/{id}', [ReservationController::class, 'updateReservation']);

@@ -3,7 +3,7 @@
 @section('title', '予約詳細')
 
 @section('content')
-<div class="bg-gray-50 min-h-screen py-8">
+<div class="bg-gray-50 min-h-screen py-8 pb-24 md:pb-8">
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <!-- Header -->
         <div class="mb-6">
@@ -150,9 +150,6 @@
                     <a href="/customer/reservations" class="bg-gray-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-600 transition-colors">
                         戻る
                     </a>
-                    <a href="/reservation" class="bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 transition-colors">
-                        新規予約
-                    </a>
                 </div>
             </div>
         </div>
@@ -212,7 +209,8 @@ function displayReservationDetail(reservation) {
     document.getElementById('reservation-number').textContent = `予約番号: ${reservation.reservation_number}`;
     document.getElementById('menu-name').textContent = reservation.menu?.name || 'メニュー情報なし';
     document.getElementById('store-name').textContent = reservation.store?.name || '店舗情報なし';
-    document.getElementById('total-amount').textContent = `¥${reservation.total_amount?.toLocaleString() || '0'}`;
+    const isSubscription = reservation.total_amount === 0 || reservation.menu?.name?.includes('サブスク');
+    document.getElementById('total-amount').textContent = isSubscription ? 'サブスク利用' : `¥${reservation.total_amount?.toLocaleString() || '0'}`;
     
     // Reservation details
     document.getElementById('reservation-date').textContent = formatDate(reservation.reservation_date);
@@ -229,6 +227,8 @@ function displayReservationDetail(reservation) {
     // Menu details
     if (reservation.menu) {
         const menuContent = document.getElementById('menu-details-content');
+        const isSubscription = reservation.total_amount === 0 || reservation.menu.name?.includes('サブスク');
+        
         menuContent.innerHTML = `
             <div class="space-y-3">
                 <div>
@@ -244,11 +244,11 @@ function displayReservationDetail(reservation) {
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <div class="text-sm text-gray-500">所要時間</div>
-                        <div class="font-medium">${reservation.menu.duration || '-'}分</div>
+                        <div class="font-medium">${reservation.menu.duration || reservation.menu.duration_minutes || '60'}分</div>
                     </div>
                     <div>
                         <div class="text-sm text-gray-500">料金</div>
-                        <div class="font-medium">¥${reservation.menu.price?.toLocaleString() || '0'}</div>
+                        <div class="font-medium">${isSubscription ? 'サブスク利用' : `¥${reservation.menu.price?.toLocaleString() || '0'}`}</div>
                     </div>
                 </div>
             </div>
@@ -283,11 +283,13 @@ function displayReservationDetail(reservation) {
 
 function getStatusColor(status) {
     const colors = {
+        'booked': 'bg-green-100 text-green-800',
         'pending': 'bg-yellow-100 text-yellow-800',
         'confirmed': 'bg-green-100 text-green-800',
         'in_progress': 'bg-blue-100 text-blue-800',
         'completed': 'bg-gray-100 text-gray-800',
         'cancelled': 'bg-red-100 text-red-800',
+        'canceled': 'bg-red-100 text-red-800',
         'no_show': 'bg-red-100 text-red-800'
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
@@ -295,11 +297,13 @@ function getStatusColor(status) {
 
 function getStatusText(status) {
     const texts = {
+        'booked': '予約確定',
         'pending': '確認待ち',
         'confirmed': '確定',
         'in_progress': '施術中',
         'completed': '完了',
         'cancelled': 'キャンセル済み',
+        'canceled': 'キャンセル済み',
         'no_show': '無断キャンセル'
     };
     return texts[status] || status;
@@ -378,4 +382,7 @@ async function cancelReservation(reservationId) {
     }
 }
 </script>
+
+{{-- モバイル用固定ナビゲーションバー --}}
+@include('components.mobile-nav')
 @endsection

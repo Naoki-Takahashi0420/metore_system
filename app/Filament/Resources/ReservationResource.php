@@ -551,7 +551,52 @@ class ReservationResource extends Resource
                     ->requiresConfirmation()
                     ->modalHeading('予約を完了にする')
                     ->modalDescription('この予約を完了（来店済み）にマークします。')
-                    ->action(fn ($record) => $record->update(['status' => 'completed']))
+                    ->action(function ($record) {
+                        $record->update(['status' => 'completed']);
+                        
+                        // サブスクリプション利用回数を更新
+                        $customer = $record->customer;
+                        if ($customer) {
+                            $subscription = $customer->activeSubscription;
+                            if ($subscription) {
+                                $subscription->recordVisit();
+                                
+                                Notification::make()
+                                    ->success()
+                                    ->title('サブスク利用回数を更新しました')
+                                    ->body("残り回数: {$subscription->remaining_visits}回")
+                                    ->send();
+                            }
+                        }
+                        
+                        // カルテが既に存在するかチェック
+                        $existingRecord = \App\Models\MedicalRecord::where('reservation_id', $record->id)->first();
+                        
+                        if ($existingRecord) {
+                            // 既存のカルテを編集
+                            $url = "/admin/medical-records/{$existingRecord->id}/edit";
+                            $message = '既存のカルテを確認・編集してください';
+                            $buttonLabel = 'カルテを確認';
+                        } else {
+                            // 新しいカルテを作成
+                            $url = "/admin/medical-records/create?customer_id={$record->customer_id}&reservation_id={$record->id}";
+                            $message = '続いてカルテを作成してください';
+                            $buttonLabel = 'カルテを作成';
+                        }
+                        
+                        Notification::make()
+                            ->success()
+                            ->title('予約を完了しました')
+                            ->body($message)
+                            ->actions([
+                                \Filament\Notifications\Actions\Action::make('create_medical_record')
+                                    ->label($buttonLabel)
+                                    ->url($url)
+                                    ->button()
+                            ])
+                            ->persistent()
+                            ->send();
+                    })
                     ->visible(fn ($record) => $record->status === 'booked'),
                 Tables\Actions\Action::make('no_show')
                     ->label('来店なし')

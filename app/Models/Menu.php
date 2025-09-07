@@ -63,6 +63,23 @@ class Menu extends Model
         'default_contract_months' => 'integer',
         'max_monthly_usage' => 'integer',
     ];
+    
+    protected static function boot()
+    {
+        parent::boot();
+        
+        static::creating(function ($menu) {
+            // サブスクメニューの場合、priceとduration_minutesにデフォルト値を設定
+            if ($menu->is_subscription) {
+                if ($menu->price === null) {
+                    $menu->price = 0;
+                }
+                if ($menu->duration_minutes === null) {
+                    $menu->duration_minutes = 60;
+                }
+            }
+        });
+    }
 
     /**
      * リレーション: カテゴリー

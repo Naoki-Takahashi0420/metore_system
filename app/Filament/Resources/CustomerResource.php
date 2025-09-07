@@ -119,27 +119,48 @@ class CustomerResource extends Resource
                             ->relationship('subscriptions')
                             ->label('契約中のサブスク')
                             ->schema([
-                                Forms\Components\Select::make('plan_id')
-                                    ->label('サブスクプラン')
+                                Forms\Components\Select::make('store_id')
+                                    ->label('店舗')
                                     ->options(function () {
-                                        return \App\Models\SubscriptionPlan::where('is_active', true)
-                                            ->orderBy('sort_order')
+                                        return \App\Models\Store::where('is_active', true)
                                             ->pluck('name', 'id');
                                     })
                                     ->required()
                                     ->reactive()
                                     ->afterStateUpdated(function ($state, Forms\Set $set) {
+                                        $set('menu_id', null); // 店舗変更時にメニュー選択をリセット
+                                    }),
+                                Forms\Components\Select::make('menu_id')
+                                    ->label('サブスクメニュー')
+                                    ->options(function (Forms\Get $get) {
+                                        $storeId = $get('store_id');
+                                        if (!$storeId) {
+                                            return [];
+                                        }
+                                        return \App\Models\Menu::where('store_id', $storeId)
+                                            ->where('is_subscription', true)
+                                            ->where('is_available', true)
+                                            ->pluck('name', 'id');
+                                    })
+                                    ->required()
+                                    ->reactive()
+                                    ->disabled(fn (Forms\Get $get) => !$get('store_id'))
+                                    ->afterStateUpdated(function ($state, Forms\Set $set) {
                                         if ($state) {
-                                            $plan = \App\Models\SubscriptionPlan::find($state);
-                                            if ($plan) {
-                                                $set('plan_name', $plan->name);
-                                                $set('plan_type', $plan->code);
-                                                $set('monthly_price', $plan->price);
-                                                $set('monthly_limit', $plan->max_reservations);
-                                                $set('contract_months', $plan->contract_months ?? 3);
+                                            $menu = \App\Models\Menu::find($state);
+                                            if ($menu) {
+                                                $set('plan_name', $menu->name);
+                                                $set('plan_type', 'MENU_' . $menu->id);
+                                                $set('monthly_price', $menu->subscription_monthly_price);
+                                                $set('monthly_limit', $menu->max_monthly_usage);
+                                                $set('contract_months', $menu->default_contract_months ?? 3);
                                             }
                                         }
                                     }),
+                                Forms\Components\Hidden::make('plan_name')
+                                    ->default(''),
+                                Forms\Components\Hidden::make('plan_type')
+                                    ->default(''),
                                 Forms\Components\DatePicker::make('billing_start_date')
                                     ->label('課金開始日')
                                     ->required()

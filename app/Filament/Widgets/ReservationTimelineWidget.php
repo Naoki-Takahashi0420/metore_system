@@ -239,9 +239,9 @@ class ReservationTimelineWidget extends Widget
                 'is_new_customer' => $isNewCustomer
             ];
             
-            if ($reservation->is_sub) {
+            if ($reservation->line_type === 'sub') {
                 // サブ枠の予約を適切なサブラインに配置
-                $subSeatNumber = $reservation->sub_seat_number ?? 1; // デフォルトはサブ1
+                $subSeatNumber = $reservation->line_number ?? 1; // デフォルトはサブ1
                 $subKey = 'sub_' . $subSeatNumber;
                 if (isset($timeline[$subKey])) {
                     $timeline[$subKey]['reservations'][] = $reservationData;
@@ -252,13 +252,13 @@ class ReservationTimelineWidget extends Widget
                         $timeline[$firstSubKey]['reservations'][] = $reservationData;
                     }
                 }
-            } elseif ($reservation->seat_number) {
-                $seatKey = 'seat_' . $reservation->seat_number;
+            } elseif ($reservation->line_type === 'main' && $reservation->line_number) {
+                $seatKey = 'seat_' . $reservation->line_number;
                 if (isset($timeline[$seatKey])) {
                     $timeline[$seatKey]['reservations'][] = $reservationData;
                 }
             } else {
-                // seat_numberがnullで is_sub = 0 の場合、空いている席に自動配置
+                // line_numberがない場合、空いている席に自動配置
                 for ($seat = 1; $seat <= $mainSeats; $seat++) {
                     $seatKey = 'seat_' . $seat;
                     if (isset($timeline[$seatKey])) {

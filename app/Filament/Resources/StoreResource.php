@@ -134,6 +134,52 @@ class StoreResource extends Resource
                             ])
                             ->columns(2),
 
+                        Forms\Components\Tabs\Tab::make('カルテ設定')
+                            ->schema([
+                                Forms\Components\Section::make('支払い方法設定')
+                                    ->description('この店舗で利用可能な支払い方法を設定してください')
+                                    ->schema([
+                                        Forms\Components\Repeater::make('payment_methods')
+                                            ->label('支払い方法')
+                                            ->schema([
+                                                Forms\Components\TextInput::make('name')
+                                                    ->label('支払い方法名')
+                                                    ->placeholder('現金')
+                                                    ->required(),
+                                            ])
+                                            ->defaultItems(3)
+                                            ->default([
+                                                ['name' => '現金'],
+                                                ['name' => 'クレジットカード'],
+                                                ['name' => 'サブスク'],
+                                            ])
+                                            ->addActionLabel('支払い方法を追加')
+                                            ->collapsible(),
+                                    ]),
+                                    
+                                Forms\Components\Section::make('来店経路設定')
+                                    ->description('顧客の来店経路として表示する選択肢を設定してください')
+                                    ->schema([
+                                        Forms\Components\Repeater::make('visit_sources')
+                                            ->label('来店経路')
+                                            ->schema([
+                                                Forms\Components\TextInput::make('name')
+                                                    ->label('来店経路名')
+                                                    ->placeholder('ホームページ')
+                                                    ->required(),
+                                            ])
+                                            ->defaultItems(4)
+                                            ->default([
+                                                ['name' => 'ホームページ'],
+                                                ['name' => '電話'],
+                                                ['name' => 'LINE'],
+                                                ['name' => '紹介'],
+                                            ])
+                                            ->addActionLabel('来店経路を追加')
+                                            ->collapsible(),
+                                    ]),
+                            ]),
+
                         Forms\Components\Tabs\Tab::make('予約管理方式')
                             ->schema([
                                 Forms\Components\Section::make('予約受付方式の選択')

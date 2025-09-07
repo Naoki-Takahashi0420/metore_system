@@ -94,6 +94,13 @@ class MenuResource extends Resource
                             ->label('サブスクリプションメニューとして提供')
                             ->default(false)
                             ->reactive()
+                            ->afterStateUpdated(function ($state, Forms\Set $set) {
+                                if ($state) {
+                                    // サブスクメニューの場合、priceとduration_minutesにデフォルト値を設定
+                                    $set('price', 0);
+                                    $set('duration_minutes', 60);
+                                }
+                            })
                             ->helperText('ONにすると月額プランとして、OFFにすると通常メニューとして提供されます'),
                     ])
                     ->columns(1),
@@ -129,6 +136,8 @@ class MenuResource extends Resource
                             ->label('料金')
                             ->numeric()
                             ->required(fn (Forms\Get $get) => !$get('is_subscription'))
+                            ->default(0)
+                            ->dehydrated()
                             ->prefix('¥')
                             ->suffixIcon('heroicon-m-currency-yen'),
                         Forms\Components\Select::make('duration_minutes')
@@ -149,6 +158,8 @@ class MenuResource extends Resource
                             })
                             ->reactive()
                             ->required(fn (Forms\Get $get) => !$get('is_subscription'))
+                            ->default(60)
+                            ->dehydrated()
                             ->helperText('施術にかかる時間'),
                     ])
                     ->columns(2),

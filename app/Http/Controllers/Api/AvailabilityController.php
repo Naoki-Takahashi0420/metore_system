@@ -226,36 +226,60 @@ class AvailabilityController extends Controller
     {
         $validated = $request->validate([
             'store_id' => 'required|exists:stores,id',
-            'year' => 'required|integer|min:2024|max:2030',
-            'month' => 'required|integer|min:1|max:12',
+            'menu_id' => 'nullable|exists:menus,id',  // menu_idはオプション
+            'year' => 'nullable|integer|min:2024|max:2030',
+            'month' => 'nullable|integer|min:1|max:12',
         ]);
         
         $store = Store::findOrFail($validated['store_id']);
-        $startDate = Carbon::create($validated['year'], $validated['month'], 1);
-        $endDate = $startDate->copy()->endOfMonth();
         
-        $availableDays = [];
+        // yearとmonthが指定されていない場合は今月から7日間を返す
+        if (!isset($validated['year']) || !isset($validated['month'])) {
+            $startDate = Carbon::today();
+            $endDate = $startDate->copy()->addDays(7);
+        } else {
+            $startDate = Carbon::create($validated['year'], $validated['month'], 1);
+            $endDate = $startDate->copy()->endOfMonth();
+        }
+        
+        $menu = isset($validated['menu_id']) ? Menu::find($validated['menu_id']) : null;
+        $availability = [];
         $currentDate = $startDate->copy();
         
         while ($currentDate->lte($endDate)) {
-            $dayOfWeek = strtolower($currentDate->format('l'));
-            $businessHours = collect($store->business_hours)->firstWhere('day', $dayOfWeek);
-            
-            $availableDays[] = [
-                'date' => $currentDate->format('Y-m-d'),
-                'day_of_week' => $dayOfWeek,
-                'is_closed' => !$businessHours || $businessHours['is_closed'],
-                'is_past' => $currentDate->lt(today()),
-            ];
+            if ($currentDate->gte(today())) {  // 過去の日付はスキップ
+                $dayOfWeek = strtolower($currentDate->format('l'));
+                $businessHours = collect($store->business_hours)->firstWhere('day', $dayOfWeek);
+                
+                // 営業日かつ定休日でない場合は空き時間を取得
+                if ($businessHours && !$businessHours['is_closed']) {
+                    $openTime = Carbon::parse($currentDate->format('Y-m-d') . ' ' . $businessHours['open_time']);
+                    $closeTime = Carbon::parse($currentDate->format('Y-m-d') . ' ' . $businessHours['close_time']);
+                    
+                    $slots = [];
+                    $currentTime = $openTime->copy();
+                    $slotDuration = $store->reservation_slot_duration ?? 30;
+                    
+                    while ($currentTime->lte($closeTime)) {
+                        // 現在時刻より未来の時間のみ追加
+                        if ($currentTime->gt(now())) {
+                            $slots[] = $currentTime->format('H:i');
+                        }
+                        $currentTime->addMinutes($slotDuration);
+                    }
+                    
+                    if (count($slots) > 0) {
+                        $availability[$currentDate->format('Y-m-d')] = $slots;
+                    }
+                }
+            }
             
             $currentDate->addDay();
         }
         
         return response()->json([
             'message' => '予約可能日を取得しました',
-            'year' => $validated['year'],
-            'month' => $validated['month'],
-            'available_days' => $availableDays
+            'availability' => $availability
         ]);
     }
 }

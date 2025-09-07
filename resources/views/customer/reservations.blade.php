@@ -3,49 +3,53 @@
 @section('title', '予約履歴')
 
 @section('content')
-<div class="bg-gray-50 min-h-screen py-8">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="bg-white min-h-screen pb-20 md:pb-0">
+    <div class="max-w-4xl mx-auto px-4">
         <!-- Header -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-            <div class="flex justify-between items-start">
+        <div class="py-6 border-b border-gray-100">
+            <div class="flex justify-between items-center">
                 <div>
-                    <h1 class="text-2xl font-bold text-gray-900 mb-2">予約履歴</h1>
-                    <p class="text-gray-600" id="customer-info">
+                    <h1 class="text-xl font-semibold text-gray-900">予約履歴</h1>
+                    <p class="text-sm text-gray-500 mt-1" id="customer-info">
                         読み込み中...
                     </p>
                 </div>
-                <div class="flex space-x-3">
-                    <a href="/customer/medical-records" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-                        カルテ
+                <div class="flex items-center gap-2">
+                    <button onclick="history.back()" class="text-gray-600 hover:text-gray-900 p-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </button>
+                    <a href="/customer/dashboard" class="text-gray-600 hover:text-gray-900 p-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
                     </a>
-                    <a href="/stores" class="bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">
+                    <a href="/stores" class="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-800 transition-colors">
                         新規予約
                     </a>
-                    <button id="logout-btn" class="bg-gray-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-600 transition-colors">
-                        ログアウト
-                    </button>
                 </div>
             </div>
         </div>
 
         <!-- Reservations List -->
-        <div id="reservations-container">
-            <div class="text-center py-8">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
-                <p class="text-gray-500 mt-2">予約情報を読み込み中...</p>
+        <div id="reservations-container" class="py-4">
+            <div class="text-center py-12">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+                <p class="text-gray-500 mt-3 text-sm">予約情報を読み込み中...</p>
             </div>
         </div>
 
         <!-- Empty State -->
-        <div id="empty-state" class="hidden bg-white rounded-lg shadow-md p-8 text-center">
-            <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        <div id="empty-state" class="hidden py-16 text-center">
+            <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
             </div>
-            <h3 class="text-lg font-medium text-gray-900 mb-2">予約履歴がありません</h3>
-            <p class="text-gray-500 mb-6">まだ予約をされていません。ぜひ最初の予約をお取りください。</p>
-            <a href="/stores" class="bg-primary-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-700 transition-colors inline-block">
+            <h3 class="text-base font-medium text-gray-900 mb-2">予約履歴がありません</h3>
+            <p class="text-sm text-gray-500 mb-6">まだ予約をされていません</p>
+            <a href="/stores" class="bg-gray-900 text-white px-5 py-2.5 rounded-lg text-sm hover:bg-gray-800 transition-colors inline-block">
                 初回予約をする
             </a>
         </div>
@@ -125,74 +129,41 @@ function displayReservations(reservations) {
     }
     
     container.innerHTML = reservations.map(reservation => `
-        <div class="bg-white rounded-lg shadow-md p-6 mb-4">
+        <div class="border-b border-gray-100 py-4 hover:bg-gray-50 transition-colors">
             <div class="flex justify-between items-start">
                 <div class="flex-1">
-                    <div class="flex items-center mb-3">
-                        <span class="text-xs font-medium px-2 py-1 rounded-full ${getStatusColor(reservation.status)}">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-xs px-2 py-0.5 rounded ${getStatusColor(reservation.status)}">
                             ${getStatusText(reservation.status)}
                         </span>
-                        <span class="text-sm text-gray-500 ml-3">予約番号: ${reservation.reservation_number}</span>
+                        <span class="text-xs text-gray-500">${reservation.reservation_number}</span>
                     </div>
                     
-                    <div class="grid md:grid-cols-2 gap-4">
-                        <div>
-                            <h3 class="font-semibold text-gray-900 mb-2">${reservation.menu?.name || 'メニュー情報なし'}</h3>
-                            <div class="text-sm text-gray-600 space-y-1">
-                                <div class="flex items-center">
-                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                    </svg>
-                                    ${reservation.store?.name || '店舗情報なし'}
-                                </div>
-                                <div class="flex items-center">
-                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                    </svg>
-                                    ${formatDate(reservation.reservation_date)}
-                                </div>
-                                <div class="flex items-center">
-                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                    ${formatTime(reservation.start_time)} - ${formatTime(reservation.end_time)}
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="text-right">
-                            <div class="text-lg font-semibold text-gray-900">
-                                ¥${reservation.total_amount?.toLocaleString() || '0'}
-                            </div>
-                        </div>
+                    <h3 class="font-medium text-gray-900 mb-1">${reservation.menu?.name || 'メニュー'}</h3>
+                    
+                    <div class="text-sm text-gray-600 space-y-0.5">
+                        <div>${reservation.store?.name || '店舗'}</div>
+                        <div>${formatDate(reservation.reservation_date)} ${formatTime(reservation.start_time)}</div>
                     </div>
                     
-                    ${reservation.notes ? `
-                        <div class="mt-3 pt-3 border-t border-gray-100">
-                            <p class="text-sm text-gray-600">
-                                <strong>備考:</strong> ${reservation.notes}
-                            </p>
-                        </div>
-                    ` : ''}
+                    <div class="mt-2 text-sm font-medium text-gray-900">
+                        ¥${Math.floor(reservation.total_amount || 0).toLocaleString()}
+                    </div>
                 </div>
                 
-                <div class="ml-4 flex flex-col space-y-2">
-                    <a href="/customer/reservations/${reservation.id}" 
-                       class="bg-primary-600 text-white px-3 py-1 rounded text-sm font-medium hover:bg-primary-700 transition-colors text-center">
-                        詳細
-                    </a>
-                    ${canModify(reservation) ? `
-                        <button onclick="modifyReservation(${reservation.id})" 
-                                class="bg-blue-600 text-white px-3 py-1 rounded text-sm font-medium hover:bg-blue-700 transition-colors">
-                            変更
-                        </button>
-                    ` : ''}
+                <div class="flex items-center gap-2">
                     ${canCancel(reservation) ? `
                         <button onclick="cancelReservation(${reservation.id})" 
-                                class="bg-red-600 text-white px-3 py-1 rounded text-sm font-medium hover:bg-red-700 transition-colors">
+                                class="text-red-600 hover:text-red-700 text-sm">
                             キャンセル
                         </button>
                     ` : ''}
+                    <a href="/customer/reservations/${reservation.id}" 
+                       class="text-gray-600 hover:text-gray-900">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </a>
                 </div>
             </div>
         </div>
@@ -201,16 +172,16 @@ function displayReservations(reservations) {
 
 function getStatusColor(status) {
     const colors = {
-        'pending': 'bg-yellow-100 text-yellow-800',
-        'confirmed': 'bg-green-100 text-green-800',
-        'booked': 'bg-green-100 text-green-800',
-        'in_progress': 'bg-blue-100 text-blue-800',
-        'completed': 'bg-gray-100 text-gray-800',
-        'cancelled': 'bg-red-100 text-red-800',
-        'canceled': 'bg-red-100 text-red-800',
-        'no_show': 'bg-red-100 text-red-800'
+        'pending': 'bg-amber-50 text-amber-700',
+        'confirmed': 'bg-emerald-50 text-emerald-700',
+        'booked': 'bg-emerald-50 text-emerald-700',
+        'in_progress': 'bg-blue-50 text-blue-700',
+        'completed': 'bg-gray-100 text-gray-700',
+        'cancelled': 'bg-red-50 text-red-700',
+        'canceled': 'bg-red-50 text-red-700',
+        'no_show': 'bg-red-50 text-red-700'
     };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+    return colors[status] || 'bg-gray-100 text-gray-700';
 }
 
 function getStatusText(status) {
@@ -233,7 +204,7 @@ function formatDate(dateString) {
     const date = new Date(dateString);
     return date.toLocaleDateString('ja-JP', { 
         year: 'numeric', 
-        month: 'long', 
+        month: 'numeric', 
         day: 'numeric',
         weekday: 'short'
     });
@@ -345,4 +316,7 @@ function modifyReservation(reservationId) {
     }
 }
 </script>
+
+{{-- モバイル用固定ナビゲーションバー --}}
+@include('components.mobile-nav')
 @endsection

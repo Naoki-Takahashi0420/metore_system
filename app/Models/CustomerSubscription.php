@@ -15,6 +15,7 @@ class CustomerSubscription extends Model
         'customer_id',
         'store_id',
         'plan_id',
+        'menu_id',
         'plan_type',
         'plan_name',
         'monthly_limit',
@@ -37,7 +38,7 @@ class CustomerSubscription extends Model
 
     protected $casts = [
         'monthly_limit' => 'integer',
-        'monthly_price' => 'decimal:2',
+        'monthly_price' => 'integer',
         'billing_date' => 'date',
         'billing_start_date' => 'date',
         'service_start_date' => 'date',
@@ -50,6 +51,34 @@ class CustomerSubscription extends Model
         'reset_day' => 'integer',
     ];
 
+    protected static function boot()
+    {
+        parent::boot();
+        
+        static::creating(function ($subscription) {
+            // menu_idが設定されている場合、メニュー情報から自動設定
+            if ($subscription->menu_id) {
+                $menu = \App\Models\Menu::find($subscription->menu_id);
+                if ($menu) {
+                    if (!$subscription->plan_name) {
+                        $subscription->plan_name = $menu->name;
+                    }
+                    if (!$subscription->plan_type) {
+                        $subscription->plan_type = 'MENU_' . $menu->id;
+                    }
+                }
+            }
+            
+            // plan_typeとplan_nameが空の場合のデフォルト値
+            if (!$subscription->plan_type) {
+                $subscription->plan_type = 'CUSTOM';
+            }
+            if (!$subscription->plan_name) {
+                $subscription->plan_name = 'カスタムプラン';
+            }
+        });
+    }
+    
     /**
      * 顧客
      */

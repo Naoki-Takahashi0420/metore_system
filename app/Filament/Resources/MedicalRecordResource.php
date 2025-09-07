@@ -54,19 +54,55 @@ class MedicalRecordResource extends Resource
                                                 if (!$get('customer_id')) {
                                                     return [];
                                                 }
-                                                return Reservation::where('customer_id', $get('customer_id'))
+                                                return Reservation::with(['store', 'menu'])
+                                                    ->where('customer_id', $get('customer_id'))
                                                     ->orderBy('reservation_date', 'desc')
                                                     ->get()
                                                     ->mapWithKeys(function ($reservation) {
-                                                        $dateTime = ($reservation->reservation_date ? $reservation->reservation_date->format('Y/m/d') : '') . ' ' . ($reservation->reservation_time ?? '');
-                                                        return [$reservation->id => $dateTime];
+                                                        $date = $reservation->reservation_date ? $reservation->reservation_date->format('Y/m/d') : '';
+                                                        $time = $reservation->start_time ? ' ' . date('H:i', strtotime($reservation->start_time)) : '';
+                                                        $menu = $reservation->menu ? ' - ' . $reservation->menu->name : '';
+                                                        $store = $reservation->store ? ' (' . $reservation->store->name . ')' : '';
+                                                        $status = $reservation->status === 'completed' ? ' [完了]' : '';
+                                                        
+                                                        $label = $date . $time . $menu . $store . $status;
+                                                        return [$reservation->id => $label];
                                                     });
                                             })
-                                            ->searchable(),
+                                            ->searchable()
+                                            ->reactive()
+                                            ->afterStateUpdated(function ($state, $set) {
+                                                // 予約選択時に担当スタッフを自動設定
+                                                if ($state) {
+                                                    $reservation = Reservation::with(['staff'])->find($state);
+                                                    if ($reservation && $reservation->staff) {
+                                                        $set('handled_by', $reservation->staff->name);
+                                                    }
+                                                }
+                                            }),
                                         
-                                        Forms\Components\TextInput::make('handled_by')
+                                        Forms\Components\Select::make('handled_by')
                                             ->label('対応者')
+                                            ->options(function ($get) {
+                                                // 予約から店舗情報を取得
+                                                $reservationId = $get('reservation_id');
+                                                if ($reservationId) {
+                                                    $reservation = Reservation::with(['store'])->find($reservationId);
+                                                    if ($reservation && $reservation->store_id) {
+                                                        // 店舗に紐づくスタッフを取得
+                                                        return \App\Models\User::where('store_id', $reservation->store_id)
+                                                            ->where('is_active', true)
+                                                            ->pluck('name', 'name');
+                                                    }
+                                                }
+                                                
+                                                // 予約が未選択の場合は全スタッフを表示
+                                                return \App\Models\User::where('is_active', true)
+                                                    ->pluck('name', 'name');
+                                            })
                                             ->default(Auth::user()->name)
+                                            ->searchable()
+                                            ->reactive()
                                             ->required(),
                                         
                                         Forms\Components\DatePicker::make('treatment_date')
@@ -83,24 +119,95 @@ class MedicalRecordResource extends Resource
                                     ->schema([
                                         Forms\Components\Select::make('payment_method')
                                             ->label('支払い方法')
-                                            ->options([
-                                                'cash' => '現金',
-                                                'credit' => 'クレジットカード',
-                                                'paypay' => 'PayPay',
-                                                'bank_transfer' => '銀行振込',
-                                                'subscription' => 'サブスク',
-                                            ]),
+                                            ->options(function ($get) {
+                                                // 予約から店舗情報を取得
+                                                $reservationId = $get('reservation_id');
+                                                if ($reservationId) {
+                                                    $reservation = Reservation::with(['store'])->find($reservationId);
+                                                    if ($reservation && $reservation->store && $reservation->store->payment_methods) {
+                                                        $options = [];
+                                                        foreach ($reservation->store->payment_methods as $method) {
+                                                            // 新しいシンプル構造: ['name' => '現金']
+                                                            if (is_array($method) && isset($method['name'])) {
+                                                                $options[$method['name']] = $method['name'];
+                                                            }
+                                                            // 旧キー・ラベル構造: ['key' => 'cash', 'label' => '現金']
+                                                            elseif (is_array($method) && isset($method['key']) && isset($method['label'])) {
+                                                                $options[$method['key']] = $method['label'];
+                                                            }
+                                                            // 古い構造: 'cash'
+                                                            elseif (is_string($method)) {
+                                                                $legacyLabels = [
+                                                                    'cash' => '現金',
+                                                                    'credit' => 'クレジットカード',
+                                                                    'paypay' => 'PayPay',
+                                                                    'bank_transfer' => '銀行振込',
+                                                                    'subscription' => 'サブスク',
+                                                                ];
+                                                                $options[$method] = $legacyLabels[$method] ?? $method;
+                                                            }
+                                                        }
+                                                        return $options;
+                                                    }
+                                                }
+                                                
+                                                // デフォルト（店舗未選択時）
+                                                return [
+                                                    'cash' => '現金',
+                                                    'credit' => 'クレジットカード',
+                                                    'paypay' => 'PayPay',
+                                                    'bank_transfer' => '銀行振込',
+                                                    'subscription' => 'サブスク',
+                                                ];
+                                            })
+                                            ->reactive(),
                                         
                                         Forms\Components\Select::make('reservation_source')
-                                            ->label('予約媒体')
-                                            ->options([
-                                                'hp' => 'ホームページ',
-                                                'phone' => '電話',
-                                                'line' => 'LINE',
-                                                'instagram' => 'Instagram',
-                                                'referral' => '紹介',
-                                                'walk_in' => '飛び込み',
-                                            ]),
+                                            ->label('来店経路')
+                                            ->options(function ($get) {
+                                                // 予約から店舗情報を取得
+                                                $reservationId = $get('reservation_id');
+                                                if ($reservationId) {
+                                                    $reservation = Reservation::with(['store'])->find($reservationId);
+                                                    if ($reservation && $reservation->store && $reservation->store->visit_sources) {
+                                                        $options = [];
+                                                        foreach ($reservation->store->visit_sources as $source) {
+                                                            // 新しいシンプル構造: ['name' => 'ホームページ']
+                                                            if (is_array($source) && isset($source['name'])) {
+                                                                $options[$source['name']] = $source['name'];
+                                                            }
+                                                            // 旧キー・ラベル構造: ['key' => 'hp', 'label' => 'ホームページ']
+                                                            elseif (is_array($source) && isset($source['key']) && isset($source['label'])) {
+                                                                $options[$source['key']] = $source['label'];
+                                                            }
+                                                            // 古い構造: 'hp'
+                                                            elseif (is_string($source)) {
+                                                                $legacyLabels = [
+                                                                    'hp' => 'ホームページ',
+                                                                    'phone' => '電話',
+                                                                    'line' => 'LINE',
+                                                                    'instagram' => 'Instagram',
+                                                                    'referral' => '紹介',
+                                                                    'walk_in' => '飛び込み',
+                                                                ];
+                                                                $options[$source] = $legacyLabels[$source] ?? $source;
+                                                            }
+                                                        }
+                                                        return $options;
+                                                    }
+                                                }
+                                                
+                                                // デフォルト（店舗未選択時）
+                                                return [
+                                                    'hp' => 'ホームページ',
+                                                    'phone' => '電話',
+                                                    'line' => 'LINE',
+                                                    'instagram' => 'Instagram',
+                                                    'referral' => '紹介',
+                                                    'walk_in' => '飛び込み',
+                                                ];
+                                            })
+                                            ->reactive(),
                                         
                                         Forms\Components\Textarea::make('visit_purpose')
                                             ->label('来店目的')
@@ -158,42 +265,92 @@ class MedicalRecordResource extends Resource
                                                     ->label('強度')
                                                     ->numeric()
                                                     ->minValue(1)
-                                                    ->maxValue(10)
-                                                    ->placeholder('1-10')
-                                                    ->helperText('1（弱）〜 10（強）'),
+                                                    ->maxValue(50)
+                                                    ->placeholder('1-50')
+                                                    ->helperText('1（弱）〜 50（強）'),
                                                 
-                                                Forms\Components\Select::make('duration')
-                                                    ->label('時間')
-                                                    ->options([
-                                                        '15分' => '15分',
-                                                        '30分' => '30分',
-                                                        '45分' => '45分',
-                                                        '60分' => '60分',
-                                                        '75分' => '75分',
-                                                        '90分' => '90分',
-                                                        '105分' => '105分',
-                                                        '120分' => '120分',
-                                                    ]),
+                                                Forms\Components\TextInput::make('duration')
+                                                    ->label('時間（分）')
+                                                    ->numeric()
+                                                    ->default(function ($get) {
+                                                        // 予約からメニュー情報を取得して時間を自動設定
+                                                        $reservationId = $get('../../reservation_id');
+                                                        if ($reservationId) {
+                                                            $reservation = Reservation::with(['menu'])->find($reservationId);
+                                                            if ($reservation && $reservation->menu && $reservation->menu->duration_minutes) {
+                                                                return $reservation->menu->duration_minutes;
+                                                            }
+                                                        }
+                                                        return 60; // デフォルト60分
+                                                    })
+                                                    ->suffix('分'),
                                             ]),
                                         
-                                        Forms\Components\Grid::make(4)
+                                        // 施術前視力（1回目：裸眼）
+                                        Forms\Components\Section::make('施術前視力 - 裸眼')
                                             ->schema([
-                                                Forms\Components\TextInput::make('before_left')
-                                                    ->label('施術前視力（左）')
-                                                    ->placeholder('0.5'),
-                                                
-                                                Forms\Components\TextInput::make('before_right')
-                                                    ->label('施術前視力（右）')
-                                                    ->placeholder('0.5'),
-                                                
-                                                Forms\Components\TextInput::make('after_left')
-                                                    ->label('施術後視力（左）')
-                                                    ->placeholder('0.8'),
-                                                
-                                                Forms\Components\TextInput::make('after_right')
-                                                    ->label('施術後視力（右）')
-                                                    ->placeholder('0.8'),
-                                            ]),
+                                                Forms\Components\Grid::make(2)
+                                                    ->schema([
+                                                        Forms\Components\TextInput::make('before_naked_left')
+                                                            ->label('左眼')
+                                                            ->placeholder('0.5'),
+                                                        
+                                                        Forms\Components\TextInput::make('before_naked_right')
+                                                            ->label('右眼')
+                                                            ->placeholder('0.5'),
+                                                    ]),
+                                            ])
+                                            ->collapsible(),
+                                        
+                                        // 施術前視力（2回目：矯正）
+                                        Forms\Components\Section::make('施術前視力 - 矯正（メガネ・コンタクト）')
+                                            ->schema([
+                                                Forms\Components\Grid::make(2)
+                                                    ->schema([
+                                                        Forms\Components\TextInput::make('before_corrected_left')
+                                                            ->label('左眼')
+                                                            ->placeholder('1.0'),
+                                                        
+                                                        Forms\Components\TextInput::make('before_corrected_right')
+                                                            ->label('右眼')
+                                                            ->placeholder('1.0'),
+                                                    ]),
+                                            ])
+                                            ->collapsible()
+                                            ->collapsed(),
+                                        
+                                        // 施術後視力（1回目：裸眼）
+                                        Forms\Components\Section::make('施術後視力 - 裸眼')
+                                            ->schema([
+                                                Forms\Components\Grid::make(2)
+                                                    ->schema([
+                                                        Forms\Components\TextInput::make('after_naked_left')
+                                                            ->label('左眼')
+                                                            ->placeholder('0.8'),
+                                                        
+                                                        Forms\Components\TextInput::make('after_naked_right')
+                                                            ->label('右眼')
+                                                            ->placeholder('0.8'),
+                                                    ]),
+                                            ])
+                                            ->collapsible(),
+                                        
+                                        // 施術後視力（2回目：矯正）
+                                        Forms\Components\Section::make('施術後視力 - 矯正（メガネ・コンタクト）')
+                                            ->schema([
+                                                Forms\Components\Grid::make(2)
+                                                    ->schema([
+                                                        Forms\Components\TextInput::make('after_corrected_left')
+                                                            ->label('左眼')
+                                                            ->placeholder('1.2'),
+                                                        
+                                                        Forms\Components\TextInput::make('after_corrected_right')
+                                                            ->label('右眼')
+                                                            ->placeholder('1.2'),
+                                                    ]),
+                                            ])
+                                            ->collapsible()
+                                            ->collapsed(),
                                         
                                         Forms\Components\Textarea::make('public_memo')
                                             ->label('メモ（顧客に表示）')

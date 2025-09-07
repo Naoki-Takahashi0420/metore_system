@@ -3,12 +3,55 @@
 namespace App\Filament\Resources\MedicalRecordResource\Pages;
 
 use App\Filament\Resources\MedicalRecordResource;
+use App\Models\Reservation;
+use App\Models\Customer;
 use Filament\Actions;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateMedicalRecord extends CreateRecord
 {
     protected static string $resource = MedicalRecordResource::class;
+    
+    protected function getFormModel(): string 
+    {
+        return static::$resource::getModel();
+    }
+    
+    protected function fillForm(): void
+    {
+        $data = [];
+        
+        // URLパラメータから顧客IDと予約IDを取得して自動設定
+        $customerId = request()->query('customer_id');
+        $reservationId = request()->query('reservation_id');
+        
+        if ($customerId) {
+            $data['customer_id'] = (int) $customerId;
+        }
+        
+        if ($reservationId) {
+            $data['reservation_id'] = (int) $reservationId;
+            
+            // 予約情報から自動設定
+            $reservation = Reservation::with(['customer', 'store', 'staff'])->find($reservationId);
+            if ($reservation) {
+                // 施術日を予約日に設定
+                $data['treatment_date'] = $reservation->reservation_date->format('Y-m-d');
+                
+                // 顧客IDが未設定の場合は予約から取得
+                if (!isset($data['customer_id'])) {
+                    $data['customer_id'] = $reservation->customer_id;
+                }
+                
+                // 担当スタッフがいる場合は対応者に設定
+                if ($reservation->staff_id && $reservation->staff) {
+                    $data['handled_by'] = $reservation->staff->name;
+                }
+            }
+        }
+        
+        $this->form->fill($data);
+    }
     
     protected function mutateFormDataBeforeCreate(array $data): array
     {

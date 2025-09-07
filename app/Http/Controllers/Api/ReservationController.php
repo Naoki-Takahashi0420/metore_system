@@ -49,6 +49,59 @@ class ReservationController extends Controller
     }
 
     /**
+     * 予約作成（顧客用）
+     */
+    public function createReservation(Request $request)
+    {
+        $customer = $request->user();
+        
+        $validated = $request->validate([
+            'store_id' => 'required|exists:stores,id',
+            'menu_id' => 'required|exists:menus,id',
+            'reservation_date' => 'required|date|after_or_equal:today',
+            'start_time' => 'required',
+            'is_subscription' => 'boolean'
+        ]);
+        
+        // メニュー情報取得
+        $menu = \App\Models\Menu::find($validated['menu_id']);
+        
+        // 予約番号生成
+        $reservationNumber = 'R' . date('YmdHis') . rand(100, 999);
+        
+        // 終了時間計算
+        $startTime = \Carbon\Carbon::parse($validated['reservation_date'] . ' ' . $validated['start_time']);
+        $endTime = $startTime->copy()->addMinutes($menu->duration_minutes ?? 60);
+        
+        // 予約作成（既存システムと同じフィールド形式）
+        $reservation = Reservation::create([
+            'reservation_number' => $reservationNumber,
+            'customer_id' => $customer->id,
+            'store_id' => $validated['store_id'],
+            'menu_id' => $validated['menu_id'],
+            'reservation_date' => $validated['reservation_date'], // 日付のみ（例：2025-09-11）
+            'start_time' => $validated['start_time'], // 時刻のみ（例：14:00:00）
+            'end_time' => $endTime->format('H:i:s'), // 時刻のみ
+            'total_amount' => ($validated['is_subscription'] ?? false) ? 0 : $menu->price,
+            'status' => 'booked',
+            'first_name' => $customer->first_name,
+            'last_name' => $customer->last_name,
+            'first_name_kana' => $customer->first_name_kana,
+            'last_name_kana' => $customer->last_name_kana,
+            'phone' => $customer->phone,
+            'email' => $customer->email,
+            'source' => 'online', // 既存システムと同じ
+            'notes' => 'サブスクリプション予約'
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => '予約が完了しました',
+            'data' => $reservation->load(['store', 'menu'])
+        ], 201);
+    }
+
+    /**
      * 顧客の予約履歴取得
      */
     public function customerReservations(Request $request)
@@ -59,7 +112,15 @@ class ReservationController extends Controller
             ->with(['store', 'menu', 'staff'])
             ->orderBy('reservation_date', 'desc')
             ->orderBy('start_time', 'desc')
-            ->get();
+            ->get()
+            ->map(function ($reservation) {
+                // 日付フィールドを明示的にフォーマット
+                $reservation->reservation_date = $reservation->reservation_date instanceof \Carbon\Carbon 
+                    ? $reservation->reservation_date->format('Y-m-d')
+                    : $reservation->reservation_date;
+                    
+                return $reservation;
+            });
 
         return response()->json([
             'message' => '予約履歴を取得しました',
@@ -117,7 +178,27 @@ class ReservationController extends Controller
         }
 
         // 24時間前チェック
-        $reservationDateTime = \Carbon\Carbon::parse($reservation->reservation_date . ' ' . $reservation->start_time);
+        // reservation_dateから日付部分、start_timeから時刻部分を取得
+        $dateStr = is_string($reservation->reservation_date) ? 
+            $reservation->reservation_date : 
+            $reservation->reservation_date->format('Y-m-d');
+        
+        $timeStr = is_string($reservation->start_time) ? 
+            $reservation->start_time : 
+            $reservation->start_time->format('H:i:s');
+            
+        // 日付部分のみを取得（タイムスタンプが含まれている場合）
+        if (strpos($dateStr, ' ') !== false) {
+            $dateStr = explode(' ', $dateStr)[0];
+        }
+        
+        // 時刻部分のみを取得（日付が含まれている場合）
+        if (strpos($timeStr, ' ') !== false) {
+            $parts = explode(' ', $timeStr);
+            $timeStr = end($parts);
+        }
+        
+        $reservationDateTime = \Carbon\Carbon::parse($dateStr . ' ' . $timeStr);
         $now = \Carbon\Carbon::now();
         $hoursUntilReservation = $now->diffInHours($reservationDateTime, false);
         

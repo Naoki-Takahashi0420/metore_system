@@ -42,9 +42,6 @@ class Reservation extends Model
     ];
 
     protected $casts = [
-        'reservation_date' => 'date',
-        'start_time' => 'datetime:H:i',
-        'end_time' => 'datetime:H:i',
         'guest_count' => 'integer',
         'total_amount' => 'decimal:2',
         'deposit_amount' => 'decimal:2',
@@ -63,8 +60,7 @@ class Reservation extends Model
     {
         $this->update([
             'line_type' => 'sub',
-            'line_number' => $subLineNumber,
-            'is_sub' => true  // 互換性のため
+            'line_number' => $subLineNumber
         ]);
     }
     
@@ -75,8 +71,7 @@ class Reservation extends Model
     {
         $this->update([
             'line_type' => 'main',
-            'line_number' => $mainLineNumber,
-            'is_sub' => false  // 互換性のため
+            'line_number' => $mainLineNumber
         ]);
     }
 
