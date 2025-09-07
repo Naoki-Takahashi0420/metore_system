@@ -12,10 +12,39 @@
                     <h1 class="text-2xl font-bold text-gray-900 mb-2">マイページ</h1>
                     <p class="text-lg text-gray-700" id="customer-name">読み込み中...</p>
                     <p class="text-sm text-gray-500">会員ID: <span id="customer-id" class="font-mono">-</span></p>
+                    <div id="subscription-badge" class="hidden mt-2">
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <svg class="-ml-0.5 mr-1.5 h-2 w-2 text-green-400" fill="currentColor" viewBox="0 0 8 8">
+                                <circle cx="4" cy="4" r="3" />
+                            </svg>
+                            <span id="subscription-label">サブスク契約中</span>
+                        </span>
+                    </div>
                 </div>
                 <button onclick="logout()" class="text-sm text-gray-600 hover:text-gray-900 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
                     ログアウト
                 </button>
+            </div>
+        </div>
+
+        {{-- サブスク情報カード --}}
+        <div id="subscription-info" class="hidden bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg shadow-sm p-6 mb-6 border border-purple-200">
+            <div class="flex items-start justify-between">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-900 mb-1">
+                        <span class="text-purple-600">🎆</span> <span id="subscription-plan-name">プラン名</span>
+                    </h2>
+                    <p class="text-sm text-gray-600 mb-2">
+                        今月の利用: <span class="font-bold text-lg" id="subscription-usage">0/0回</span>
+                    </p>
+                    <p class="text-xs text-gray-500">
+                        有効期限: <span id="subscription-end-date">-</span>まで
+                    </p>
+                </div>
+                <div class="text-right">
+                    <p class="text-xs text-gray-500 mb-1">残り</p>
+                    <p class="text-2xl font-bold text-purple-600" id="subscription-remaining">-回</p>
+                </div>
             </div>
         </div>
 
@@ -107,7 +136,61 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // 予約情報を取得
     await fetchNextReservation();
+    
+    // サブスク情報を取得
+    await fetchSubscriptionInfo();
 });
+
+async function fetchSubscriptionInfo() {
+    try {
+        const token = localStorage.getItem('customer_token');
+        if (!token) return;
+        
+        const response = await fetch('/api/customer/subscription', {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.subscription) {
+                // バッジ表示
+                document.getElementById('subscription-badge').classList.remove('hidden');
+                document.getElementById('subscription-info').classList.remove('hidden');
+                
+                // 情報更新
+                document.getElementById('subscription-label').textContent = data.subscription.plan_name + '契約中';
+                document.getElementById('subscription-plan-name').textContent = data.subscription.plan_name;
+                
+                // 利用状況
+                const limit = data.subscription.monthly_limit || '無制限';
+                const usage = data.subscription.current_month_visits || 0;
+                document.getElementById('subscription-usage').textContent = `${usage}/${limit}回`;
+                
+                // 有効期限
+                if (data.subscription.end_date) {
+                    const endDate = new Date(data.subscription.end_date);
+                    document.getElementById('subscription-end-date').textContent = 
+                        endDate.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
+                } else {
+                    document.getElementById('subscription-end-date').textContent = '無期限';
+                }
+                
+                // 残り回数
+                if (data.subscription.monthly_limit) {
+                    const remaining = Math.max(0, data.subscription.monthly_limit - usage);
+                    document.getElementById('subscription-remaining').textContent = remaining + '回';
+                } else {
+                    document.getElementById('subscription-remaining').textContent = '無制限';
+                }
+            }
+        }
+    } catch (error) {
+        console.error('サブスク情報の取得エラー:', error);
+    }
+}
 
 async function fetchNextReservation() {
     try {

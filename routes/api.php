@@ -59,6 +59,8 @@ Route::middleware('auth:sanctum')->prefix('customer')->group(function () {
     // 通知設定
     Route::get('notification-preferences', [NotificationPreferenceController::class, 'show']);
     Route::put('notification-preferences', [NotificationPreferenceController::class, 'update']);
+    // サブスクリプション情報
+    Route::get('subscription', [\App\Http\Controllers\Api\CustomerSubscriptionController::class, 'show']);
 });
 
 // SMS配信停止（認証不要・トークンベース）

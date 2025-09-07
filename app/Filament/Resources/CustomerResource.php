@@ -119,30 +119,29 @@ class CustomerResource extends Resource
                             ->relationship('subscriptions')
                             ->label('契約中のサブスク')
                             ->schema([
-                                Forms\Components\Select::make('menu_id')
-                                    ->label('契約メニュー')
+                                Forms\Components\Select::make('plan_id')
+                                    ->label('サブスクプラン')
                                     ->options(function () {
-                                        return \App\Models\Menu::where('is_subscription', true)
-                                            ->where('is_available', true)
+                                        return \App\Models\SubscriptionPlan::where('is_active', true)
+                                            ->orderBy('sort_order')
                                             ->pluck('name', 'id');
                                     })
                                     ->required()
                                     ->reactive()
                                     ->afterStateUpdated(function ($state, Forms\Set $set) {
                                         if ($state) {
-                                            $menu = \App\Models\Menu::find($state);
-                                            if ($menu) {
-                                                $set('monthly_price', $menu->subscription_monthly_price);
-                                                $set('contract_months', $menu->default_contract_months);
+                                            $plan = \App\Models\SubscriptionPlan::find($state);
+                                            if ($plan) {
+                                                $set('plan_name', $plan->name);
+                                                $set('plan_type', $plan->code);
+                                                $set('monthly_price', $plan->price);
+                                                $set('monthly_limit', $plan->max_reservations);
+                                                $set('contract_months', $plan->contract_months ?? 3);
                                             }
                                         }
                                     }),
-                                Forms\Components\DatePicker::make('billing_date')
+                                Forms\Components\DatePicker::make('billing_start_date')
                                     ->label('課金開始日')
-                                    ->required()
-                                    ->default(now()),
-                                Forms\Components\DatePicker::make('start_date')
-                                    ->label('サービス開始日')
                                     ->required()
                                     ->default(now())
                                     ->reactive()
@@ -154,31 +153,44 @@ class CustomerResource extends Resource
                                             $set('end_date', $endDate->format('Y-m-d'));
                                         }
                                     }),
+                                Forms\Components\DatePicker::make('service_start_date')
+                                    ->label('施術開始日')
+                                    ->required()
+                                    ->default(now())
+                                    ->helperText('サブスク限定メニューが利用可能になる日'),
                                 Forms\Components\TextInput::make('contract_months')
                                     ->label('契約期間')
                                     ->numeric()
                                     ->suffix('ヶ月')
+                                    ->default(3)
                                     ->required()
                                     ->reactive()
                                     ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
-                                        if ($state && $get('start_date')) {
-                                            $endDate = \Carbon\Carbon::parse($get('start_date'))
+                                        if ($state && $get('billing_start_date')) {
+                                            $endDate = \Carbon\Carbon::parse($get('billing_start_date'))
                                                 ->addMonths($state)
                                                 ->subDay();
                                             $set('end_date', $endDate->format('Y-m-d'));
                                         }
                                     }),
                                 Forms\Components\DatePicker::make('end_date')
-                                    ->label('終了日')
+                                    ->label('契約終了日')
                                     ->disabled()
                                     ->dehydrated()
-                                    ->helperText('自動計算'),
+                                    ->helperText('課金開始日と契約期間から自動計算'),
                                 Forms\Components\TextInput::make('monthly_price')
                                     ->label('月額料金')
                                     ->numeric()
                                     ->prefix('¥')
                                     ->disabled()
                                     ->dehydrated(),
+                                Forms\Components\TextInput::make('monthly_limit')
+                                    ->label('月間利用回数')
+                                    ->numeric()
+                                    ->suffix('回')
+                                    ->disabled()
+                                    ->dehydrated()
+                                    ->helperText('空欄の場合は無制限'),
                                 Forms\Components\Select::make('status')
                                     ->label('状態')
                                     ->options([
@@ -188,8 +200,13 @@ class CustomerResource extends Resource
                                     ])
                                     ->default('active')
                                     ->required(),
+                                Forms\Components\Textarea::make('notes')
+                                    ->label('メモ')
+                                    ->rows(2)
+                                    ->placeholder('例：初月無料キャンペーン適用')
+                                    ->columnSpanFull(),
                             ])
-                            ->columns(3)
+                            ->columns(2)
                             ->defaultItems(0)
                             ->collapsible()
                             ->cloneable()
@@ -240,6 +257,14 @@ class CustomerResource extends Resource
                     ->label('予約数')
                     ->counts('reservations')
                     ->sortable(),
+                Tables\Columns\IconColumn::make('has_subscription')
+                    ->label('サブスク')
+                    ->getStateUsing(fn ($record) => $record->hasActiveSubscription())
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-badge')
+                    ->falseIcon('heroicon-o-minus-circle')
+                    ->trueColor('success')
+                    ->falseColor('gray'),
                 Tables\Columns\TextColumn::make('latest_store')
                     ->label('最新利用店舗')
                     ->getStateUsing(function ($record) {
@@ -262,6 +287,26 @@ class CustomerResource extends Resource
             ->filters([
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('有効状態'),
+                Tables\Filters\Filter::make('has_subscription')
+                    ->label('サブスク契約中')
+                    ->query(fn ($query) => $query->whereHas('subscriptions', function ($q) {
+                        $q->where('status', 'active')
+                          ->where(function ($q2) {
+                              $q2->where('service_start_date', '<=', now())
+                                 ->orWhereNull('service_start_date');
+                          })
+                          ->where(function ($q3) {
+                              $q3->where('end_date', '>=', now())
+                                 ->orWhereNull('end_date');
+                          });
+                    })),
+                Tables\Filters\Filter::make('subscription_expiring')
+                    ->label('サブスク期限切れ間近（7日以内）')
+                    ->query(fn ($query) => $query->whereHas('subscriptions', function ($q) {
+                        $q->where('status', 'active')
+                          ->whereNotNull('end_date')
+                          ->whereBetween('end_date', [now(), now()->addDays(7)]);
+                    })),
                 Tables\Filters\SelectFilter::make('gender')
                     ->label('性別')
                     ->options([

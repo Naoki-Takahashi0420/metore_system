@@ -20,6 +20,8 @@ class CustomerSubscription extends Model
         'monthly_limit',
         'monthly_price',
         'billing_date',
+        'billing_start_date',
+        'service_start_date',
         'start_date',
         'contract_months',
         'end_date',
@@ -37,6 +39,8 @@ class CustomerSubscription extends Model
         'monthly_limit' => 'integer',
         'monthly_price' => 'decimal:2',
         'billing_date' => 'date',
+        'billing_start_date' => 'date',
+        'service_start_date' => 'date',
         'start_date' => 'date',
         'contract_months' => 'integer',
         'end_date' => 'date',
@@ -85,8 +89,11 @@ class CustomerSubscription extends Model
      */
     public function isActive(): bool
     {
+        // service_start_dateがあればそれを使用、なければstart_dateを使用
+        $startDate = $this->service_start_date ?? $this->start_date;
+        
         return $this->status === 'active' 
-            && $this->start_date <= now()
+            && $startDate <= now()
             && ($this->end_date === null || $this->end_date >= now());
     }
 
