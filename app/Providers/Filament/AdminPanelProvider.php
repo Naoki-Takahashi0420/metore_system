@@ -57,6 +57,7 @@ class AdminPanelProvider extends PanelProvider
                 \App\Filament\Widgets\ReservationCalendarWidget::class,
                 \App\Filament\Widgets\TodayReservationsWidget::class,
                 \App\Filament\Widgets\ShiftCalendarWidget::class,
+                \App\Filament\Widgets\SubscriptionStatsWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,

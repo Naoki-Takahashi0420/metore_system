@@ -267,7 +267,7 @@ class SubscriptionResource extends Resource
                 
                 Tables\Actions\Action::make('renew')
                     ->label('更新')
-                    ->icon('heroicon-o-refresh')
+                    ->icon('heroicon-o-arrow-path')
                     ->color('success')
                     ->visible(fn ($record) => $record->status === 'active')
                     ->action(function ($record) {
