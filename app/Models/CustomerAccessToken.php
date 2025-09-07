@@ -127,6 +127,24 @@ class CustomerAccessToken extends Model
     }
 
     /**
+     * LINE友だち追加URL（QRコード用）
+     */
+    public function getLineAddFriendUrl(): string
+    {
+        if (!$this->store_id || !$this->store) {
+            return '';
+        }
+
+        $store = $this->store;
+        if (!$store->line_bot_basic_id) {
+            return '';
+        }
+
+        // LINE友だち追加用のURL（token付き）
+        return "https://line.me/R/ti/p/@{$store->line_bot_basic_id}?token={$this->token}";
+    }
+
+    /**
      * スコープ: アクティブなトークン
      */
     public function scopeActive($query)

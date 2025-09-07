@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Reservation;
+use App\Events\ReservationCancelled;
+use App\Events\ReservationChanged;
 use Illuminate\Http\Request;
 
 class ReservationController extends Controller
@@ -219,6 +221,9 @@ class ReservationController extends Controller
             'cancelled_at' => now()
         ]);
 
+        // キャンセル通知を送信
+        event(new ReservationCancelled($reservation));
+
         return response()->json([
             'success' => true,
             'message' => '予約をキャンセルしました',
@@ -272,6 +277,9 @@ class ReservationController extends Controller
             'menu_id' => 'sometimes|exists:menus,id'
         ]);
 
+        // 変更前の予約情報を保存
+        $oldReservation = $reservation->replicate();
+        
         // 変更実行
         if (isset($validated['reservation_date'])) {
             $reservation->reservation_date = $validated['reservation_date'];
@@ -294,6 +302,9 @@ class ReservationController extends Controller
         }
 
         $reservation->save();
+        
+        // 予約変更通知を送信
+        event(new ReservationChanged($oldReservation, $reservation));
 
         return response()->json([
             'success' => true,

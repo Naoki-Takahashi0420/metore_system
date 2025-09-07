@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>予約完了 - 目のトレーニング</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    @if($lineQrCodeUrl)
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    @endif
 </head>
 <body class="bg-gray-50">
     <div class="container mx-auto px-4 py-8 max-w-2xl">
@@ -70,6 +73,23 @@
                 </ul>
             </div>
 
+            <!-- LINE友だち追加 -->
+            @if($lineQrCodeUrl)
+            <div class="bg-blue-50 border border-blue-200 rounded-md p-6 mb-6 text-center">
+                <h3 class="font-semibold text-blue-800 mb-3">📱 LINE友だち追加でもっと便利に！</h3>
+                <div class="mb-4">
+                    <div id="line-qr-code" class="inline-block border border-gray-200 p-2 bg-white rounded"></div>
+                </div>
+                <p class="text-sm text-blue-700 mb-3">QRコードを読み取って{{ $reservation->store->name }}のLINE公式アカウントを友だち追加すると：</p>
+                <ul class="text-sm text-blue-700 space-y-1 text-left max-w-md mx-auto">
+                    <li>• 予約の変更・キャンセルがLINEで簡単に</li>
+                    <li>• 来店前日にリマインダー通知</li>
+                    <li>• お得なキャンペーン情報をお届け</li>
+                </ul>
+                <p class="text-xs text-blue-600 mt-3">※30日以内に友だち追加してください</p>
+            </div>
+            @endif
+
             <!-- 店舗情報 -->
             <div class="mb-6">
                 <h3 class="font-semibold mb-2">店舗情報</h3>
@@ -93,5 +113,28 @@
             </div>
         </div>
     </div>
+
+    @if($lineQrCodeUrl)
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const qrElement = document.getElementById('line-qr-code');
+            if (qrElement) {
+                QRCode.toCanvas(qrElement, '{!! addslashes($lineQrCodeUrl) !!}', {
+                    width: 200,
+                    margin: 2,
+                    color: {
+                        dark: '#000000',
+                        light: '#FFFFFF'
+                    }
+                }, function (error) {
+                    if (error) {
+                        console.error('QRCode generation error:', error);
+                        qrElement.innerHTML = '<p class="text-red-500 text-sm">QRコードの生成に失敗しました</p>';
+                    }
+                });
+            }
+        });
+    </script>
+    @endif
 </body>
 </html>

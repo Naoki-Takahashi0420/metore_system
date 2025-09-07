@@ -31,6 +31,8 @@ class User extends Authenticatable implements FilamentUser
         'hourly_rate',
         'is_active',
         'last_login_at',
+        'phone',
+        'notification_preferences',
     ];
 
     /**
@@ -56,6 +58,7 @@ class User extends Authenticatable implements FilamentUser
         'hourly_rate' => 'decimal:2',
         'is_active' => 'boolean',
         'last_login_at' => 'datetime',
+        'notification_preferences' => 'array',
     ];
 
     /**

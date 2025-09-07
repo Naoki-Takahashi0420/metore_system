@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Store;
 use App\Models\Customer;
+use App\Models\CustomerAccessToken;
+use App\Services\SimpleLineService;
 use Illuminate\Support\Facades\Log;
 
 class LineWebhookController extends Controller
@@ -100,7 +102,16 @@ class LineWebhookController extends Controller
             'store_id' => $store->id
         ]);
         
-        // ウェルカムメッセージ送信などの処理を追加可能
+        // URLのトークンパラメータをチェック
+        $token = request()->input('token');
+        
+        if ($token) {
+            // トークンベース顧客連携処理
+            $this->linkCustomerByToken($lineUserId, $token, $store);
+        } else {
+            // 通常の友だち追加の場合、ウェルカムメッセージ送信
+            $this->sendWelcomeMessage($lineUserId, $store);
+        }
     }
     
     /**
@@ -144,5 +155,111 @@ class LineWebhookController extends Controller
         ]);
         
         // 自動応答などの処理を追加可能
+    }
+
+    /**
+     * トークンによる顧客連携
+     */
+    private function linkCustomerByToken(string $lineUserId, string $token, Store $store): void
+    {
+        try {
+            // トークンの有効性チェック
+            $accessToken = CustomerAccessToken::where('token', $token)
+                ->where('store_id', $store->id)
+                ->where('purpose', 'line_linking')
+                ->first();
+
+            if (!$accessToken || !$accessToken->isValid()) {
+                Log::warning('LINE連携: 無効なトークン', [
+                    'token' => $token,
+                    'line_user_id' => $lineUserId,
+                    'store_id' => $store->id
+                ]);
+                return;
+            }
+
+            // 顧客を取得
+            $customer = $accessToken->customer;
+            if (!$customer) {
+                Log::error('LINE連携: 顧客が見つからない', [
+                    'token' => $token,
+                    'customer_id' => $accessToken->customer_id
+                ]);
+                return;
+            }
+
+            // 他の顧客が既に同じLINEユーザーIDを使用していないかチェック
+            $existingCustomer = Customer::where('line_user_id', $lineUserId)
+                ->where('id', '!=', $customer->id)
+                ->first();
+
+            if ($existingCustomer) {
+                Log::warning('LINE連携: 既に他の顧客が同じLINEユーザーIDを使用', [
+                    'existing_customer_id' => $existingCustomer->id,
+                    'new_customer_id' => $customer->id,
+                    'line_user_id' => $lineUserId
+                ]);
+                return;
+            }
+
+            // 顧客にLINEユーザーIDを関連付け
+            $customer->linkToLine($lineUserId);
+
+            // トークン使用を記録
+            $accessToken->recordUsage();
+
+            Log::info('LINE連携成功', [
+                'customer_id' => $customer->id,
+                'line_user_id' => $lineUserId,
+                'store_id' => $store->id
+            ]);
+
+            // 連携完了メッセージを送信
+            $this->sendLinkingCompleteMessage($lineUserId, $customer, $store);
+
+        } catch (\Exception $e) {
+            Log::error('LINE連携エラー', [
+                'token' => $token,
+                'line_user_id' => $lineUserId,
+                'store_id' => $store->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * ウェルカムメッセージ送信
+     */
+    private function sendWelcomeMessage(string $lineUserId, Store $store): void
+    {
+        $lineService = new SimpleLineService();
+        
+        $message = "いらっしゃいませ！\n{$store->name}のLINE公式アカウントにご登録いただき、ありがとうございます。\n\nこちらから予約の確認や変更、キャンセルが可能です。";
+        
+        $lineService->sendMessage($store, $lineUserId, $message);
+    }
+
+    /**
+     * 連携完了メッセージ送信
+     */
+    private function sendLinkingCompleteMessage(string $lineUserId, Customer $customer, Store $store): void
+    {
+        $lineService = new SimpleLineService();
+        
+        // 予約情報があれば含める
+        $accessToken = CustomerAccessToken::where('customer_id', $customer->id)
+            ->where('store_id', $store->id)
+            ->where('purpose', 'line_linking')
+            ->latest()
+            ->first();
+
+        $reservationInfo = '';
+        if ($accessToken && isset($accessToken->metadata['reservation_number'])) {
+            $reservationInfo = "\n\n【ご予約情報】\n予約番号: {$accessToken->metadata['reservation_number']}";
+        }
+
+        $message = "LINE連携が完了しました！\n{$customer->last_name} {$customer->first_name}様\n\n今後、予約の変更・キャンセル、リマインダー通知などをLINEでお受け取りいただけます。{$reservationInfo}";
+        
+        $lineService->sendMessage($store, $lineUserId, $message);
     }
 }

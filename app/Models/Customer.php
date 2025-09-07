@@ -37,6 +37,10 @@ class Customer extends Model
         'notification_preferences',
         'last_visit_at',
         'phone_verified_at',
+        'line_user_id',
+        'line_notifications_enabled',
+        'line_linked_at',
+        'line_profile',
     ];
 
     protected $casts = [
@@ -48,6 +52,9 @@ class Customer extends Model
         'notification_preferences' => 'array',
         'last_visit_at' => 'datetime',
         'phone_verified_at' => 'datetime',
+        'line_notifications_enabled' => 'boolean',
+        'line_linked_at' => 'datetime',
+        'line_profile' => 'array',
     ];
 
     protected $appends = ['full_name', 'full_name_kana'];
@@ -176,5 +183,81 @@ class Customer extends Model
             ->where('store_id', $storeId)
             ->where('status', 'active')
             ->first();
+    }
+
+    /**
+     * LINE連携済みかチェック
+     */
+    public function isLinkedToLine(): bool
+    {
+        return !empty($this->line_user_id);
+    }
+
+    /**
+     * LINE通知を送信できるかチェック
+     */
+    public function canReceiveLineNotifications(): bool
+    {
+        return $this->isLinkedToLine() && $this->line_notifications_enabled;
+    }
+
+    /**
+     * LINE IDで顧客を検索
+     */
+    public static function findByLineUserId(string $lineUserId): ?self
+    {
+        return self::where('line_user_id', $lineUserId)->first();
+    }
+
+    /**
+     * LINEアカウント連携
+     */
+    public function linkToLine(string $lineUserId, array $lineProfile = null): void
+    {
+        $this->update([
+            'line_user_id' => $lineUserId,
+            'line_linked_at' => now(),
+            'line_profile' => $lineProfile,
+            'line_notifications_enabled' => true,
+        ]);
+    }
+
+    /**
+     * LINE連携解除
+     */
+    public function unlinkFromLine(): void
+    {
+        $this->update([
+            'line_user_id' => null,
+            'line_linked_at' => null,
+            'line_profile' => null,
+            'line_notifications_enabled' => false,
+        ]);
+    }
+
+    /**
+     * アクセストークンを取得または生成
+     */
+    public function getOrCreateAccessToken(Store $store = null, array $options = []): CustomerAccessToken
+    {
+        // 既存のアクティブなトークンをチェック
+        $existingToken = CustomerAccessToken::where('customer_id', $this->id)
+            ->where('store_id', $store?->id)
+            ->where('purpose', 'line_linking')
+            ->where('is_active', true)
+            ->whereNull('expires_at')
+            ->orWhere('expires_at', '>', now())
+            ->first();
+
+        if ($existingToken && $existingToken->isValid()) {
+            return $existingToken;
+        }
+
+        // 新しいトークンを生成
+        return CustomerAccessToken::generateFor($this, $store, array_merge([
+            'purpose' => 'line_linking',
+            'expires_at' => now()->addDays(30),
+            'max_usage' => 1,
+        ], $options));
     }
 }

@@ -182,6 +182,14 @@ class SimpleLineService
     }
     
     /**
+     * 汎用メッセージ送信
+     */
+    public function sendMessage(Store $store, string $lineUserId, string $message): bool
+    {
+        return $this->sendToStore($store, $lineUserId, $message);
+    }
+    
+    /**
      * 変数を適用
      */
     private function applyVariables(string $template, array $variables): string

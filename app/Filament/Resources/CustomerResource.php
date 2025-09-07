@@ -100,15 +100,62 @@ class CustomerResource extends Resource
                     ->columns(2),
 
                 Forms\Components\Section::make('通知設定')
+                    ->description('顧客への通知方法と連携状態を管理します')
                     ->schema([
+                        Forms\Components\Placeholder::make('line_status_info')
+                            ->label('')
+                            ->content(function ($record) {
+                                if (!$record) return '';
+                                
+                                $lineStatus = $record->isLinkedToLine() 
+                                    ? '<span class="text-green-600 font-semibold">✅ LINE連携済み</span>' 
+                                    : '<span class="text-gray-500">❌ LINE未連携</span>';
+                                
+                                $linkedDate = $record->line_linked_at 
+                                    ? ' (連携日: ' . $record->line_linked_at->format('Y年n月j日') . ')'
+                                    : '';
+                                
+                                $explanation = !$record->isLinkedToLine() 
+                                    ? '<p class="mt-2 text-sm text-gray-600">💡 顧客のLINE連携は予約完了画面で表示されるQRコードから行われます。<br>連携後は自動的にLINE通知が優先されます。</p>'
+                                    : '';
+                                
+                                return new \Illuminate\Support\HtmlString(
+                                    '<div class="bg-gray-50 rounded-lg p-4">
+                                        <h4 class="font-semibold mb-2">LINE連携状態: ' . $lineStatus . $linkedDate . '</h4>
+                                        <div class="text-sm space-y-2">
+                                            <p>📱 通知優先順位:</p>
+                                            <ol class="list-decimal list-inside ml-4">
+                                                <li>LINE通知（連携済みの場合）</li>
+                                                <li>SMS通知（LINE失敗時または未連携時）</li>
+                                            </ol>
+                                            ' . $explanation . '
+                                        </div>
+                                    </div>'
+                                );
+                            })
+                            ->columnSpanFull(),
+                        
+                        Forms\Components\Toggle::make('line_notifications_enabled')
+                            ->label('LINE通知を受け取る')
+                            ->default(true)
+                            ->helperText('LINE連携済みの場合、予約確認やリマインダーをLINEで受信')
+                            ->disabled(fn ($record) => !$record || !$record->isLinkedToLine()),
+                        
                         Forms\Components\Toggle::make('sms_notifications_enabled')
                             ->label('SMS通知を受け取る')
                             ->default(true)
-                            ->helperText('予約リマインダーなどのSMS通知を受信します'),
+                            ->helperText('LINE未連携またはLINE送信失敗時にSMSで通知'),
+                        
+                        Forms\Components\TextInput::make('line_user_id')
+                            ->label('LINE User ID')
+                            ->disabled()
+                            ->helperText('システムが自動管理するID')
+                            ->visible(fn ($record) => $record && $record->isLinkedToLine()),
+                        
                         Forms\Components\Toggle::make('is_blocked')
                             ->label('要注意顧客')
                             ->default(false)
-                            ->helperText('問題のある顧客としてマークします')
+                            ->helperText('問題のある顧客としてマーク（通知は送信されません）')
                             ->columnSpan(1),
                     ])
                     ->columns(2),

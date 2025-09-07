@@ -14,7 +14,7 @@
         "laravel/sanctum": "*",
         "laravel/tinker": "^2.10.1",
         "saade/filament-fullcalendar": "^3.0",
-        "simplesoftwareio/simple-qrcode": "*",
+        "simplesoftwareio/simple-qrcode": "^4.2",
         "spatie/laravel-permission": "*",
         "twilio/sdk": "^8.7"
     },

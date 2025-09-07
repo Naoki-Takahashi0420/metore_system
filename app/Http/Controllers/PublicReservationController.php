@@ -11,6 +11,9 @@ use App\Models\CustomerSubscription;
 use App\Models\CustomerAccessToken;
 use App\Models\BlockedTimePeriod;
 use App\Models\Shift;
+use App\Events\ReservationCreated;
+use App\Events\ReservationCancelled;
+use App\Events\ReservationChanged;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -786,6 +789,9 @@ class PublicReservationController extends Controller
             
             DB::commit();
             
+            // 新規予約通知を送信
+            event(new ReservationCreated($reservation));
+            
             return redirect()->route('reservation.complete', $reservation->reservation_number);
             
         } catch (\Exception $e) {
@@ -800,7 +806,26 @@ class PublicReservationController extends Controller
         $reservation = Reservation::with(['store', 'customer', 'menu', 'optionMenus'])
             ->where('reservation_number', $reservationNumber)
             ->firstOrFail();
+
+        // LINE QRコード用トークンを生成
+        $lineToken = null;
+        $lineQrCodeUrl = null;
+        
+        // 顧客がまだLINE連携していない場合のみQRコードを表示
+        if (!$reservation->customer->isLinkedToLine() && $reservation->store->line_enabled) {
+            $lineToken = $reservation->customer->getOrCreateAccessToken($reservation->store, [
+                'purpose' => 'line_linking',
+                'expires_at' => now()->addDays(30),
+                'max_usage' => 1,
+                'metadata' => [
+                    'reservation_id' => $reservation->id,
+                    'reservation_number' => $reservation->reservation_number,
+                ]
+            ]);
             
-        return view('reservation.public.complete', compact('reservation'));
+            $lineQrCodeUrl = $lineToken->getLineAddFriendUrl();
+        }
+            
+        return view('reservation.public.complete', compact('reservation', 'lineToken', 'lineQrCodeUrl'));
     }
 }

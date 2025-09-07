@@ -252,44 +252,96 @@ class StoreResource extends Resource
                         Forms\Components\Tabs\Tab::make('LINE設定')
                             ->schema([
                                 Forms\Components\Section::make('LINE API設定')
-                                    ->description('店舗専用のLINE公式アカウントの設定')
+                                    ->description('店舗専用のLINE公式アカウントの設定を行います。')
                                     ->schema([
+                                        Forms\Components\Placeholder::make('line_setup_guide')
+                                            ->label('')
+                                            ->content(new \Illuminate\Support\HtmlString('
+                                                <div class="space-y-3 text-sm">
+                                                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                                        <h4 class="font-semibold text-blue-900 mb-2">📋 LINE設定の流れ</h4>
+                                                        <ol class="list-decimal list-inside space-y-1 text-blue-700">
+                                                            <li>LINE Developersコンソールでチャネルを作成</li>
+                                                            <li>Messaging APIを有効化</li>
+                                                            <li>Channel Access TokenとChannel Secretを取得</li>
+                                                            <li>Webhook URLを設定: <code class="bg-gray-100 px-1">https://your-domain.com/api/line/webhook/{store_code}</code></li>
+                                                            <li>下記フォームに情報を入力</li>
+                                                        </ol>
+                                                    </div>
+                                                    <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                                                        <h4 class="font-semibold text-amber-900 mb-2">⚠️ 重要な注意事項</h4>
+                                                        <ul class="list-disc list-inside space-y-1 text-amber-700">
+                                                            <li>各店舗ごとに個別のLINE公式アカウントが必要です</li>
+                                                            <li>無料プランでは月1,000通まで送信可能です</li>
+                                                            <li>Channel Access Tokenは定期的に更新が必要です（最長2年）</li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            ')),
+                                        
                                         Forms\Components\Toggle::make('line_enabled')
                                             ->label('LINE連携を有効にする')
+                                            ->helperText('有効にすると、顧客へのLINE通知機能が利用可能になります')
                                             ->reactive(),
                                         
                                         Forms\Components\TextInput::make('line_official_account_id')
                                             ->label('LINE公式アカウントID')
                                             ->placeholder('@ginza_eye_training')
-                                            ->helperText('@で始まるID')
+                                            ->helperText('LINE公式アカウントの@で始まるID（友だち追加時に使用）')
+                                            ->visible(fn ($get) => $get('line_enabled')),
+                                        
+                                        Forms\Components\TextInput::make('line_bot_basic_id')
+                                            ->label('Bot Basic ID')
+                                            ->placeholder('@123abcde')
+                                            ->helperText('LINE Developersコンソールで確認できるBot固有のID')
                                             ->visible(fn ($get) => $get('line_enabled')),
                                         
                                         Forms\Components\Textarea::make('line_channel_access_token')
                                             ->label('Channel Access Token')
                                             ->rows(3)
+                                            ->helperText('LINE Messaging APIのアクセストークン（長期トークンを推奨）')
                                             ->visible(fn ($get) => $get('line_enabled')),
                                         
                                         Forms\Components\TextInput::make('line_channel_secret')
                                             ->label('Channel Secret')
                                             ->password()
+                                            ->helperText('Webhook署名検証用のシークレットキー')
                                             ->visible(fn ($get) => $get('line_enabled')),
                                         
                                         Forms\Components\TextInput::make('line_add_friend_url')
                                             ->label('友だち追加URL')
                                             ->url()
                                             ->placeholder('https://lin.ee/xxxxx')
+                                            ->helperText('LINE公式アカウントマネージャーで取得できる友だち追加用のURL')
                                             ->visible(fn ($get) => $get('line_enabled')),
                                     ])
                                     ->columns(1),
 
                                 Forms\Components\Section::make('送信設定')
+                                    ->description('どのタイミングで顧客にLINE通知を送信するかを設定します')
                                     ->schema([
+                                        Forms\Components\Placeholder::make('notification_flow_guide')
+                                            ->label('')
+                                            ->content(new \Illuminate\Support\HtmlString('
+                                                <div class="bg-green-50 border border-green-200 rounded-lg p-4 text-sm">
+                                                    <h4 class="font-semibold text-green-900 mb-2">📱 通知の優先順位</h4>
+                                                    <ol class="list-decimal list-inside space-y-1 text-green-700">
+                                                        <li><strong>LINE通知</strong>を最優先で送信</li>
+                                                        <li>LINE送信失敗またはLINE未連携の場合は<strong>SMS送信</strong></li>
+                                                        <li>両方失敗した場合は管理者にエラー通知</li>
+                                                    </ol>
+                                                    <p class="mt-2 text-green-600">※ 顧客のLINE連携は予約完了画面のQRコードから行われます</p>
+                                                </div>
+                                            ')),
+                                        
                                         Forms\Components\Toggle::make('line_send_reservation_confirmation')
                                             ->label('予約確認を送信')
+                                            ->helperText('予約完了時に自動で確認メッセージを送信')
                                             ->default(true),
                                         
                                         Forms\Components\Toggle::make('line_send_reminder')
                                             ->label('リマインダーを送信')
+                                            ->helperText('予約日の前日に自動でリマインダーを送信')
                                             ->default(true)
                                             ->reactive(),
                                         

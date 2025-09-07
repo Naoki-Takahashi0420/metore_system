@@ -68,151 +68,231 @@
   },
   "suites": [
     {
-      "title": "menu-create-test.spec.js",
-      "file": "menu-create-test.spec.js",
+      "title": "e2e-notification-test.spec.js",
+      "file": "e2e-notification-test.spec.js",
       "column": 0,
       "line": 0,
-      "specs": [
+      "specs": [],
+      "suites": [
         {
-          "title": "Check menu create page functionality",
-          "ok": false,
-          "tags": [],
-          "tests": [
+          "title": "アドミン通知システムE2Eテスト",
+          "file": "e2e-notification-test.spec.js",
+          "line": 5,
+          "column": 6,
+          "specs": [
             {
-              "timeout": 60000,
-              "annotations": [],
-              "expectedStatus": "passed",
-              "projectId": "chromium",
-              "projectName": "chromium",
-              "results": [
+              "title": "新規予約作成時にアドミン通知が送信される",
+              "ok": false,
+              "tags": [],
+              "tests": [
                 {
-                  "workerIndex": 0,
-                  "parallelIndex": 0,
-                  "status": "failed",
-                  "duration": 2580,
-                  "error": {
-                    "message": "Error: page.goto: net::ERR_ABORTED at http://127.0.0.1:8000/admin/menus/create\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:8000/admin/menus/create\", waiting until \"load\"\u001b[22m\n",
-                    "stack": "Error: page.goto: net::ERR_ABORTED at http://127.0.0.1:8000/admin/menus/create\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:8000/admin/menus/create\", waiting until \"load\"\u001b[22m\n\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/menu-create-test.spec.js:16:14",
-                    "location": {
-                      "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/menu-create-test.spec.js",
-                      "column": 14,
-                      "line": 16
-                    },
-                    "snippet": "  14 |   \n  15 |   // メニュー作成ページへアクセス\n> 16 |   await page.goto('http://127.0.0.1:8000/admin/menus/create');\n     |              ^\n  17 |   await page.waitForLoadState('networkidle');\n  18 |   \n  19 |   // サブスクリプショントグルの存在確認"
-                  },
-                  "errors": [
-                    {
-                      "location": {
-                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/menu-create-test.spec.js",
-                        "column": 14,
-                        "line": 16
-                      },
-                      "message": "Error: page.goto: net::ERR_ABORTED at http://127.0.0.1:8000/admin/menus/create\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:8000/admin/menus/create\", waiting until \"load\"\u001b[22m\n\n\n  14 |   \n  15 |   // メニュー作成ページへアクセス\n> 16 |   await page.goto('http://127.0.0.1:8000/admin/menus/create');\n     |              ^\n  17 |   await page.waitForLoadState('networkidle');\n  18 |   \n  19 |   // サブスクリプショントグルの存在確認\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/menu-create-test.spec.js:16:14"
-                    }
-                  ],
-                  "stdout": [],
-                  "stderr": [],
-                  "retry": 0,
-                  "startTime": "2025-09-05T04:30:04.220Z",
+                  "timeout": 60000,
                   "annotations": [],
-                  "attachments": [
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
                     {
-                      "name": "screenshot",
-                      "contentType": "image/png",
-                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/menu-create-test-Check-menu-create-page-functionality-chromium/test-failed-1.png"
-                    },
-                    {
-                      "name": "video",
-                      "contentType": "video/webm",
-                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/menu-create-test-Check-menu-create-page-functionality-chromium/video.webm"
-                    },
-                    {
-                      "name": "error-context",
-                      "contentType": "text/markdown",
-                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/menu-create-test-Check-menu-create-page-functionality-chromium/error-context.md"
-                    }
-                  ],
-                  "errorLocation": {
-                    "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/menu-create-test.spec.js",
-                    "column": 14,
-                    "line": 16
-                  }
-                },
-                {
-                  "workerIndex": 1,
-                  "parallelIndex": 0,
-                  "status": "failed",
-                  "duration": 2334,
-                  "error": {
-                    "message": "Error: page.goto: net::ERR_ABORTED at http://127.0.0.1:8000/admin/menus/create\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:8000/admin/menus/create\", waiting until \"load\"\u001b[22m\n",
-                    "stack": "Error: page.goto: net::ERR_ABORTED at http://127.0.0.1:8000/admin/menus/create\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:8000/admin/menus/create\", waiting until \"load\"\u001b[22m\n\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/menu-create-test.spec.js:16:14",
-                    "location": {
-                      "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/menu-create-test.spec.js",
-                      "column": 14,
-                      "line": 16
-                    },
-                    "snippet": "  14 |   \n  15 |   // メニュー作成ページへアクセス\n> 16 |   await page.goto('http://127.0.0.1:8000/admin/menus/create');\n     |              ^\n  17 |   await page.waitForLoadState('networkidle');\n  18 |   \n  19 |   // サブスクリプショントグルの存在確認"
-                  },
-                  "errors": [
-                    {
-                      "location": {
-                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/menu-create-test.spec.js",
-                        "column": 14,
-                        "line": 16
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 32016,
+                      "error": {
+                        "message": "TimeoutError: page.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"last_name\"]')\u001b[22m\n",
+                        "stack": "TimeoutError: page.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"last_name\"]')\u001b[22m\n\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e-notification-test.spec.js:53:16",
+                        "location": {
+                          "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e-notification-test.spec.js",
+                          "column": 16,
+                          "line": 53
+                        },
+                        "snippet": "  51 |     const randomEmail = 'e2e-test-' + Math.floor(Math.random() * 10000) + '@example.com';\n  52 |     \n> 53 |     await page.fill('input[name=\"last_name\"]', 'E2Eテスト');\n     |                ^\n  54 |     await page.fill('input[name=\"first_name\"]', '太郎');\n  55 |     await page.fill('input[name=\"phone\"]', randomPhone);\n  56 |     await page.fill('input[name=\"email\"]', randomEmail);"
                       },
-                      "message": "Error: page.goto: net::ERR_ABORTED at http://127.0.0.1:8000/admin/menus/create\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:8000/admin/menus/create\", waiting until \"load\"\u001b[22m\n\n\n  14 |   \n  15 |   // メニュー作成ページへアクセス\n> 16 |   await page.goto('http://127.0.0.1:8000/admin/menus/create');\n     |              ^\n  17 |   await page.waitForLoadState('networkidle');\n  18 |   \n  19 |   // サブスクリプショントグルの存在確認\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/menu-create-test.spec.js:16:14"
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e-notification-test.spec.js",
+                            "column": 16,
+                            "line": 53
+                          },
+                          "message": "TimeoutError: page.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"last_name\"]')\u001b[22m\n\n\n  51 |     const randomEmail = 'e2e-test-' + Math.floor(Math.random() * 10000) + '@example.com';\n  52 |     \n> 53 |     await page.fill('input[name=\"last_name\"]', 'E2Eテスト');\n     |                ^\n  54 |     await page.fill('input[name=\"first_name\"]', '太郎');\n  55 |     await page.fill('input[name=\"phone\"]', randomPhone);\n  56 |     await page.fill('input[name=\"email\"]', randomEmail);\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e-notification-test.spec.js:53:16"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "📝 新規予約フローのE2Eテストを開始します\n"
+                        },
+                        {
+                          "text": "✅ 予約ページにアクセスしました\n"
+                        },
+                        {
+                          "text": "🧹 テストクリーンアップ完了\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-07T15:34:52.053Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-notification-test-アドミン通知システムE2Eテスト-新規予約作成時にアドミン通知が送信される-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-notification-test-アドミン通知システムE2Eテスト-新規予約作成時にアドミン通知が送信される-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-notification-test-アドミン通知システムE2Eテスト-新規予約作成時にアドミン通知が送信される-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e-notification-test.spec.js",
+                        "column": 16,
+                        "line": 53
+                      }
+                    },
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 31905,
+                      "error": {
+                        "message": "TimeoutError: page.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"last_name\"]')\u001b[22m\n",
+                        "stack": "TimeoutError: page.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"last_name\"]')\u001b[22m\n\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e-notification-test.spec.js:53:16",
+                        "location": {
+                          "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e-notification-test.spec.js",
+                          "column": 16,
+                          "line": 53
+                        },
+                        "snippet": "  51 |     const randomEmail = 'e2e-test-' + Math.floor(Math.random() * 10000) + '@example.com';\n  52 |     \n> 53 |     await page.fill('input[name=\"last_name\"]', 'E2Eテスト');\n     |                ^\n  54 |     await page.fill('input[name=\"first_name\"]', '太郎');\n  55 |     await page.fill('input[name=\"phone\"]', randomPhone);\n  56 |     await page.fill('input[name=\"email\"]', randomEmail);"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e-notification-test.spec.js",
+                            "column": 16,
+                            "line": 53
+                          },
+                          "message": "TimeoutError: page.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"last_name\"]')\u001b[22m\n\n\n  51 |     const randomEmail = 'e2e-test-' + Math.floor(Math.random() * 10000) + '@example.com';\n  52 |     \n> 53 |     await page.fill('input[name=\"last_name\"]', 'E2Eテスト');\n     |                ^\n  54 |     await page.fill('input[name=\"first_name\"]', '太郎');\n  55 |     await page.fill('input[name=\"phone\"]', randomPhone);\n  56 |     await page.fill('input[name=\"email\"]', randomEmail);\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e-notification-test.spec.js:53:16"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "📝 新規予約フローのE2Eテストを開始します\n"
+                        },
+                        {
+                          "text": "✅ 予約ページにアクセスしました\n"
+                        },
+                        {
+                          "text": "🧹 テストクリーンアップ完了\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 1,
+                      "startTime": "2025-09-07T15:35:24.710Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-notification-test-アドミン通知システムE2Eテスト-新規予約作成時にアドミン通知が送信される-chromium-retry1/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-notification-test-アドミン通知システムE2Eテスト-新規予約作成時にアドミン通知が送信される-chromium-retry1/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-notification-test-アドミン通知システムE2Eテスト-新規予約作成時にアドミン通知が送信される-chromium-retry1/error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-notification-test-アドミン通知システムE2Eテスト-新規予約作成時にアドミン通知が送信される-chromium-retry1/trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e-notification-test.spec.js",
+                        "column": 16,
+                        "line": 53
+                      }
                     }
                   ],
-                  "stdout": [],
-                  "stderr": [],
-                  "retry": 1,
-                  "startTime": "2025-09-05T04:30:08.520Z",
-                  "annotations": [],
-                  "attachments": [
-                    {
-                      "name": "screenshot",
-                      "contentType": "image/png",
-                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/menu-create-test-Check-menu-create-page-functionality-chromium-retry1/test-failed-1.png"
-                    },
-                    {
-                      "name": "video",
-                      "contentType": "video/webm",
-                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/menu-create-test-Check-menu-create-page-functionality-chromium-retry1/video.webm"
-                    },
-                    {
-                      "name": "error-context",
-                      "contentType": "text/markdown",
-                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/menu-create-test-Check-menu-create-page-functionality-chromium-retry1/error-context.md"
-                    },
-                    {
-                      "name": "trace",
-                      "contentType": "application/zip",
-                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/menu-create-test-Check-menu-create-page-functionality-chromium-retry1/trace.zip"
-                    }
-                  ],
-                  "errorLocation": {
-                    "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/menu-create-test.spec.js",
-                    "column": 14,
-                    "line": 16
-                  }
+                  "status": "unexpected"
                 }
               ],
-              "status": "unexpected"
+              "id": "fda6a89f090ecd07ab3d-52383bbf35a3aae2c45a",
+              "file": "e2e-notification-test.spec.js",
+              "line": 7,
+              "column": 3
+            },
+            {
+              "title": "予約キャンセル時にアドミン通知が送信される",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 233,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "📝 予約キャンセルフローのE2Eテストを開始します\n"
+                        },
+                        {
+                          "text": "📋 テスト用予約を作成中...\n"
+                        },
+                        {
+                          "text": "⚠️  キャンセルテストは実装中（認証フローに依存）\n"
+                        },
+                        {
+                          "text": "🧹 テストクリーンアップ完了\n"
+                        }
+                      ],
+                      "stderr": [
+                        {
+                          "text": "❌ ブラウザコンソールエラー: Failed to load resource: the server responded with a status of 404 (Not Found)\n"
+                        }
+                      ],
+                      "retry": 0,
+                      "startTime": "2025-09-07T15:35:57.859Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "fda6a89f090ecd07ab3d-1baeb0465450c18cf427",
+              "file": "e2e-notification-test.spec.js",
+              "line": 83,
+              "column": 3
             }
-          ],
-          "id": "5cf8c47c15202bcd96d3-5a6d380ababdbc941285",
-          "file": "menu-create-test.spec.js",
-          "line": 3,
-          "column": 1
+          ]
         }
       ]
     }
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-09-05T04:30:03.618Z",
-    "duration": 7874.806,
-    "expected": 0,
+    "startTime": "2025-09-07T15:34:50.776Z",
+    "duration": 67568.545,
+    "expected": 1,
     "skipped": 0,
     "unexpected": 1,
     "flaky": 0
