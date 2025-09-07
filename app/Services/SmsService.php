@@ -7,18 +7,21 @@ use Illuminate\Support\Facades\Log;
 
 class SmsService
 {
-    private SnsClient $snsClient;
+    private ?SnsClient $snsClient = null;
     
     public function __construct()
     {
-        $this->snsClient = new SnsClient([
-            'region' => config('services.sns.region', 'ap-northeast-1'),
-            'version' => 'latest',
-            'credentials' => [
-                'key' => config('services.sns.key'),
-                'secret' => config('services.sns.secret'),
-            ],
-        ]);
+        // AWS認証情報がある場合のみSNSクライアントを初期化
+        if (config('services.sns.key') && config('services.sns.secret')) {
+            $this->snsClient = new SnsClient([
+                'region' => config('services.sns.region', 'ap-northeast-1'),
+                'version' => 'latest',
+                'credentials' => [
+                    'key' => config('services.sns.key'),
+                    'secret' => config('services.sns.secret'),
+                ],
+            ]);
+        }
     }
     
     /**
@@ -30,6 +33,14 @@ class SmsService
      */
     public function sendSms(string $phone, string $message): bool
     {
+        // AWS認証情報が設定されていない場合
+        if (!$this->snsClient) {
+            Log::warning('AWS SNS認証情報が設定されていないため、SMS送信をスキップ', [
+                'phone' => $phone,
+            ]);
+            return false;
+        }
+        
         try {
             // 電話番号をE.164形式に変換
             $phone = $this->formatPhoneNumber($phone);
@@ -76,11 +87,13 @@ class SmsService
      */
     public function sendOtp(string $phone, string $otp): bool
     {
-        // テスト環境では実際にSMS送信せず成功扱い
-        if (config('app.env') === 'local' || config('app.env') === 'testing') {
-            Log::info('テスト環境のため、SMS送信をスキップ', [
+        // テスト環境またはAWS認証情報がない場合は実際にSMS送信せず成功扱い
+        if (config('app.env') === 'local' || config('app.env') === 'testing' || !$this->snsClient) {
+            Log::info('テスト環境またはAWS未設定のため、SMS送信をスキップ', [
                 'phone' => $phone,
                 'otp' => $otp,
+                'env' => config('app.env'),
+                'aws_configured' => $this->snsClient !== null,
             ]);
             return true;
         }
