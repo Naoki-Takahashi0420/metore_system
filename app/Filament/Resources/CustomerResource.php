@@ -109,7 +109,7 @@ class CustomerResource extends Resource
                                 
                                 $lineStatus = $record->isLinkedToLine() 
                                     ? '<span class="text-green-600 font-semibold">✅ LINE連携済み</span>' 
-                                    : '<span class="text-gray-500">❌ LINE未連携</span>';
+                                    : '<span class="text-gray-500">⚪ LINE未連携</span>';
                                 
                                 $linkedDate = $record->line_linked_at 
                                     ? ' (連携日: ' . $record->line_linked_at->format('Y年n月j日') . ')'

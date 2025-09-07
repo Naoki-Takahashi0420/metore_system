@@ -182,10 +182,13 @@ class ReservationCalendarWidget extends FullCalendarWidget
                         ->content(fn ($record) => $record->reservation_number ?? 'N/A'),
                     Forms\Components\Placeholder::make('reservation_date')
                         ->label('予約日')
-                        ->content(fn ($record) => $record->reservation_date?->format('Y年m月d日') ?? 'N/A'),
+                        ->content(fn ($record) => $record->reservation_date ? 
+                            \Carbon\Carbon::parse($record->reservation_date)->format('Y年m月d日') : 'N/A'),
                     Forms\Components\Placeholder::make('time')
                         ->label('時間')
-                        ->content(fn ($record) => $record->start_time . ' - ' . $record->end_time),
+                        ->content(fn ($record) => 
+                            \Carbon\Carbon::parse($record->start_time)->format('H:i') . ' - ' . 
+                            \Carbon\Carbon::parse($record->end_time)->format('H:i')),
                     Forms\Components\Placeholder::make('customer_name')
                         ->label('顧客名')
                         ->content(fn ($record) => $record->customer ? 
