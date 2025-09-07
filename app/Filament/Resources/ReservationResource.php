@@ -397,8 +397,9 @@ class ReservationResource extends Resource
                         Forms\Components\Select::make('status')
                             ->label('ステータス')
                             ->options([
-                                'booked' => '予約確定',
-                                'completed' => '完了（来店済み）',
+                                'booked' => '予約済み',
+                                'completed' => '完了',
+                                'no_show' => '来店なし',
                                 'cancelled' => 'キャンセル',
                             ])
                             ->default('booked')
@@ -488,14 +489,16 @@ class ReservationResource extends Resource
                     ->colors([
                         'primary' => 'booked',
                         'success' => 'completed',
+                        'warning' => 'no_show',
                         'danger' => 'cancelled',
                     ])
                     ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'booked' => '予約確定',
+                        'booked' => '予約済み',
                         'completed' => '完了',
+                        'no_show' => '来店なし',
                         'cancelled' => 'キャンセル',
-                        'pending' => '予約確定',  // 旧データ用
-                        'confirmed' => '予約確定', // 旧データ用
+                        'pending' => '予約済み',  // 旧データ用
+                        'confirmed' => '予約済み', // 旧データ用
                         default => $state,
                     }),
                 Tables\Columns\TextColumn::make('total_amount')
@@ -511,8 +514,9 @@ class ReservationResource extends Resource
                 Tables\Filters\SelectFilter::make('status')
                     ->label('ステータス')
                     ->options([
-                        'booked' => '予約確定',
-                        'completed' => '完了（来店済み）',
+                        'booked' => '予約済み',
+                        'completed' => '完了',
+                        'no_show' => '来店なし',
                         'cancelled' => 'キャンセル',
                     ]),
                 Tables\Filters\SelectFilter::make('store_id')
@@ -540,6 +544,24 @@ class ReservationResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\Action::make('complete')
+                    ->label('完了')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalHeading('予約を完了にする')
+                    ->modalDescription('この予約を完了（来店済み）にマークします。')
+                    ->action(fn ($record) => $record->update(['status' => 'completed']))
+                    ->visible(fn ($record) => $record->status === 'booked'),
+                Tables\Actions\Action::make('no_show')
+                    ->label('来店なし')
+                    ->icon('heroicon-o-user-minus')
+                    ->color('warning')
+                    ->requiresConfirmation()
+                    ->modalHeading('来店なしにする')
+                    ->modalDescription('この予約を来店なし（ノーショー）にマークします。')
+                    ->action(fn ($record) => $record->update(['status' => 'no_show']))
+                    ->visible(fn ($record) => $record->status === 'booked'),
                 Tables\Actions\Action::make('cancel')
                     ->label('キャンセル')
                     ->icon('heroicon-o-x-circle')
@@ -558,7 +580,16 @@ class ReservationResource extends Resource
                             'cancelled_at' => now(),
                         ]);
                     })
-                    ->visible(fn ($record) => in_array($record->status, ['booked', 'in_progress'])),
+                    ->visible(fn ($record) => $record->status === 'booked'),
+                Tables\Actions\Action::make('restore')
+                    ->label('予約を復元')
+                    ->icon('heroicon-o-arrow-uturn-left')
+                    ->color('info')
+                    ->requiresConfirmation()
+                    ->modalHeading('予約を復元')
+                    ->modalDescription('この予約を予約済みステータスに戻します。')
+                    ->action(fn ($record) => $record->update(['status' => 'booked']))
+                    ->visible(fn ($record) => in_array($record->status, ['cancelled', 'no_show'])),
                 Tables\Actions\Action::make('move_to_sub')
                     ->label('サブラインへ移動')
                     ->icon('heroicon-o-arrow-right-circle')
@@ -589,7 +620,7 @@ class ReservationResource extends Resource
                         'customer_id' => $record->customer_id,
                         'reservation_id' => $record->id
                     ]))
-                    ->visible(fn ($record) => in_array($record->status, ['completed', 'in_progress'])),
+                    ->visible(fn ($record) => $record->status === 'completed'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
