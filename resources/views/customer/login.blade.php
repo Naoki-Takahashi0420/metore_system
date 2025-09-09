@@ -99,11 +99,19 @@
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('login-form');
     const otpModal = document.getElementById('otp-modal');
-    const otpInputs = document.querySelectorAll('[id^="otp"]');
     const verifyButton = document.getElementById('verify-otp');
     const resendButton = document.getElementById('resend-otp');
     const closeModalButton = document.getElementById('close-modal');
     const otpError = document.getElementById('otp-error');
+    
+    // OTP入力フィールドを個別に取得（確実にするため）
+    const otp1 = document.getElementById('otp1');
+    const otp2 = document.getElementById('otp2');
+    const otp3 = document.getElementById('otp3');
+    const otp4 = document.getElementById('otp4');
+    const otp5 = document.getElementById('otp5');
+    const otp6 = document.getElementById('otp6');
+    const otpInputs = [otp1, otp2, otp3, otp4, otp5, otp6];
     
     let currentPhone = '';
     
@@ -154,17 +162,82 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // OTP input handling
+    // OTP input handling - 改善版
     otpInputs.forEach((input, index) => {
-        input.addEventListener('input', function(e) {
-            if (e.target.value && index < otpInputs.length - 1) {
-                otpInputs[index + 1].focus();
+        // 入力制限と自動移動
+        input.addEventListener('keyup', function(e) {
+            const value = e.target.value;
+            
+            // 数字以外を削除
+            if (value && !/^\d$/.test(value)) {
+                e.target.value = value.replace(/[^\d]/g, '').slice(0, 1);
+            }
+            
+            // 数字が入力されたら次のフィールドへ
+            if (e.target.value.length === 1) {
+                if (index < otpInputs.length - 1) {
+                    // 次のフィールドにフォーカス
+                    setTimeout(() => {
+                        otpInputs[index + 1].focus();
+                    }, 10);
+                } else {
+                    // 最後のフィールドの場合、全体をチェック
+                    const otp = otpInputs.map(inp => inp.value).join('');
+                    if (otp.length === 6) {
+                        // 自動で認証ボタンをクリック（オプション）
+                        // verifyButton.click();
+                    }
+                }
             }
         });
         
+        // バックスペース処理
         input.addEventListener('keydown', function(e) {
-            if (e.key === 'Backspace' && !e.target.value && index > 0) {
-                otpInputs[index - 1].focus();
+            if (e.key === 'Backspace') {
+                if (!e.target.value && index > 0) {
+                    // 前のフィールドに移動
+                    e.preventDefault();
+                    otpInputs[index - 1].focus();
+                    otpInputs[index - 1].value = '';
+                }
+            }
+            // 数字キー以外の入力を防ぐ（タブ、バックスペース、削除キーは許可）
+            else if (!/^\d$/.test(e.key) && !['Tab', 'Delete', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                e.preventDefault();
+            }
+        });
+        
+        // ペースト対応
+        input.addEventListener('paste', function(e) {
+            e.preventDefault();
+            const pastedData = e.clipboardData.getData('text');
+            const digits = pastedData.replace(/\D/g, '').slice(0, 6);
+            
+            // 各フィールドに1文字ずつ設定
+            digits.split('').forEach((digit, i) => {
+                if (otpInputs[i]) {
+                    otpInputs[i].value = digit;
+                }
+            });
+            
+            // 最後に入力されたフィールドの次、または最後のフィールドにフォーカス
+            const nextIndex = Math.min(digits.length, otpInputs.length - 1);
+            otpInputs[nextIndex].focus();
+        });
+        
+        // フォーカス時の処理
+        input.addEventListener('focus', function() {
+            // フィールドが既に埋まっている場合は選択状態にする
+            if (this.value) {
+                this.select();
+            }
+        });
+        
+        // 値の変更を監視（プログラムによる変更も含む）
+        input.addEventListener('input', function(e) {
+            // 複数文字が入力された場合、最初の1文字のみ残す
+            if (e.target.value.length > 1) {
+                e.target.value = e.target.value[0];
             }
         });
     });

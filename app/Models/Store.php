@@ -39,7 +39,10 @@ class Store extends Model
         // 予約ライン設定
         'main_lines_count',
         'sub_lines_count',
+        'shift_based_capacity',
         'use_staff_assignment',
+        'mode_change_date',
+        'future_use_staff_assignment',
         'use_equipment_management',
         'line_allocation_rules',
         // LINE設定（1店舗1LINE）
@@ -79,6 +82,9 @@ class Store extends Model
         // 予約ライン
         'line_allocation_rules' => 'array',
         'use_staff_assignment' => 'boolean',
+        'future_use_staff_assignment' => 'boolean',
+        'mode_change_date' => 'date',
+        'shift_based_capacity' => 'integer',
         'use_equipment_management' => 'boolean',
         // LINE設定
         'line_enabled' => 'boolean',

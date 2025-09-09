@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\ShiftPattern;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\On;
 
 class ShiftCalendarWidget extends Widget
 {
@@ -40,6 +41,15 @@ class ShiftCalendarWidget extends Widget
         $this->currentYear = now()->year;
         $this->loadCalendarData();
         $this->loadStaffList();
+        $this->loadPatterns();
+        $this->calculateMonthlySummary();
+    }
+    
+    #[On('store-changed')]
+    public function updateStore($storeId, $date = null): void
+    {
+        $this->selectedStore = $storeId;
+        $this->loadCalendarData();
         $this->loadPatterns();
         $this->calculateMonthlySummary();
     }

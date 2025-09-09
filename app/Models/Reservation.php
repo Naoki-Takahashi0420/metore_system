@@ -42,6 +42,7 @@ class Reservation extends Model
     ];
 
     protected $casts = [
+        'reservation_date' => 'date',
         'guest_count' => 'integer',
         'total_amount' => 'decimal:2',
         'deposit_amount' => 'decimal:2',

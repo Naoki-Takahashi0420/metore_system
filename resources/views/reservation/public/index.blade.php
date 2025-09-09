@@ -85,11 +85,42 @@
                     <p class="text-lg font-semibold text-gray-800">{{ $selectedMenu->name }}</p>
                     <p class="text-sm text-gray-600">{{ $selectedMenu->duration }}分 / ¥{{ number_format($selectedMenu->price) }}</p>
                 </div>
+                @if(!Session::has('is_reservation_change'))
                 <a href="{{ route('reservation.menu') }}" class="text-blue-500 hover:text-blue-700 text-sm underline">
                     メニューを変更
                 </a>
+                @endif
             </div>
         </div>
+        
+        <!-- 予約変更の場合の案内表示 -->
+        @if(Session::has('is_reservation_change'))
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+            <div class="flex items-start">
+                <svg class="w-5 h-5 text-yellow-600 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                    <p class="text-sm font-semibold text-yellow-800 mb-1">予約日時の変更</p>
+                    <p class="text-sm text-yellow-700">
+                        現在の予約日時は<span class="font-semibold bg-yellow-200 px-1 rounded">黄色</span>で表示されています。
+                        新しい日時を選択してください。
+                    </p>
+                    @if(Session::has('original_reservation_date') && Session::has('original_reservation_time'))
+                        @php
+                            $originalDate = Session::get('original_reservation_date');
+                            $originalTime = Session::get('original_reservation_time');
+                            $originalDateStr = is_string($originalDate) ? explode(' ', $originalDate)[0] : $originalDate->format('Y-m-d');
+                            $originalTimeStr = is_string($originalTime) ? substr($originalTime, 0, 5) : $originalTime->format('H:i');
+                        @endphp
+                        <p class="text-sm text-yellow-700 mt-2">
+                            現在の予約: <span class="font-semibold">{{ \Carbon\Carbon::parse($originalDateStr)->format('Y年n月j日') }} {{ $originalTimeStr }}</span>
+                        </p>
+                    @endif
+                </div>
+            </div>
+        </div>
+        @endif
 
         <!-- 選択済み店舗の表示 -->
         <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
@@ -150,9 +181,40 @@
                                 @php
                                     $dateStr = $date['date']->format('Y-m-d');
                                     $isAvailable = $availability[$dateStr][$slot] ?? false;
+                                    
+                                    // 元の予約日時かチェック（日程変更の場合）
+                                    $isOriginalReservation = false;
+                                    if (Session::has('is_reservation_change')) {
+                                        $originalDate = Session::get('original_reservation_date');
+                                        $originalTime = Session::get('original_reservation_time');
+                                        
+                                        // 日付を正規化して比較
+                                        if ($originalDate) {
+                                            $originalDateStr = is_string($originalDate) ? 
+                                                explode(' ', $originalDate)[0] : 
+                                                $originalDate->format('Y-m-d');
+                                            
+                                            $originalTimeStr = is_string($originalTime) ? 
+                                                substr($originalTime, 0, 5) : 
+                                                $originalTime->format('H:i');
+                                                
+                                            $isOriginalReservation = ($dateStr === $originalDateStr && $slot === $originalTimeStr);
+                                        }
+                                    }
                                 @endphp
-                                <td class="py-3 px-2 {{ $date['is_today'] ? 'bg-blue-50' : '' }}">
-                                    @if($isAvailable)
+                                <td class="py-3 px-2 {{ $date['is_today'] ? 'bg-blue-50' : '' }} {{ $isOriginalReservation ? 'bg-yellow-100 ring-2 ring-yellow-400' : '' }}">
+                                    @if($isOriginalReservation)
+                                        <div class="relative">
+                                            <span class="absolute -top-1 -right-1 bg-yellow-500 text-white text-xs px-1 rounded">現在</span>
+                                            <button type="button" 
+                                                    class="time-slot w-8 h-8 rounded-full bg-yellow-500 text-white font-bold hover:bg-yellow-600"
+                                                    data-date="{{ $dateStr }}"
+                                                    data-time="{{ $slot }}"
+                                                    onclick="selectTimeSlot(this)">
+                                                ●
+                                            </button>
+                                        </div>
+                                    @elseif($isAvailable)
                                         <button type="button" 
                                                 class="time-slot w-8 h-8 rounded-full bg-green-500 text-white font-bold hover:bg-green-600"
                                                 data-date="{{ $dateStr }}"
@@ -277,6 +339,75 @@
 
     <script>
         let selectedSlot = null;
+        
+        // ページ読み込み時に既存顧客情報をチェック
+        document.addEventListener('DOMContentLoaded', function() {
+            checkExistingCustomer();
+        });
+        
+        function checkExistingCustomer() {
+            // セッションストレージから既存顧客情報を取得
+            const existingCustomerId = sessionStorage.getItem('existing_customer_id');
+            const fromMypage = sessionStorage.getItem('from_mypage');
+            const isSubscriptionBooking = sessionStorage.getItem('is_subscription_booking');
+            
+            if (existingCustomerId && fromMypage) {
+                // LocalStorageから顧客データを取得
+                const customerData = localStorage.getItem('customer_data');
+                if (customerData) {
+                    try {
+                        const customer = JSON.parse(customerData);
+                        // 顧客情報をフォームに自動入力
+                        fillCustomerForm(customer);
+                        
+                        // サブスク予約の場合は追加情報を表示
+                        if (isSubscriptionBooking) {
+                            showSubscriptionInfo();
+                        }
+                    } catch (e) {
+                        console.error('Customer data parse error:', e);
+                    }
+                }
+            }
+        }
+        
+        function fillCustomerForm(customer) {
+            // 顧客情報をフォームに自動入力
+            const form = document.querySelector('form');
+            if (form) {
+                const lastNameInput = form.querySelector('input[name="last_name"]');
+                const firstNameInput = form.querySelector('input[name="first_name"]');
+                const phoneInput = form.querySelector('input[name="phone"]');
+                const emailInput = form.querySelector('input[name="email"]');
+                
+                if (lastNameInput) lastNameInput.value = customer.last_name || '';
+                if (firstNameInput) firstNameInput.value = customer.first_name || '';
+                if (phoneInput) phoneInput.value = customer.phone || '';
+                if (emailInput) emailInput.value = customer.email || '';
+                
+                // 入力フィールドを読み取り専用にする（既存顧客の場合）
+                if (lastNameInput) lastNameInput.readOnly = true;
+                if (firstNameInput) firstNameInput.readOnly = true;
+                if (phoneInput) phoneInput.readOnly = true;
+                
+                // 背景色を変更して読み取り専用であることを示す
+                const readOnlyStyle = 'background-color: #f9fafb; cursor: not-allowed;';
+                if (lastNameInput) lastNameInput.style.cssText = readOnlyStyle;
+                if (firstNameInput) firstNameInput.style.cssText = readOnlyStyle;
+                if (phoneInput) phoneInput.style.cssText = readOnlyStyle;
+            }
+        }
+        
+        function showSubscriptionInfo() {
+            // サブスク予約であることを示すメッセージを表示
+            const menuDiv = document.querySelector('.bg-gray-50.rounded');
+            if (menuDiv) {
+                const subscriptionBadge = document.createElement('div');
+                subscriptionBadge.className = 'bg-green-100 border border-green-200 rounded p-2 mt-2';
+                subscriptionBadge.innerHTML = '<p class="text-sm text-green-700 font-medium">🎉 サブスクリプション予約</p>';
+                menuDiv.appendChild(subscriptionBadge);
+            }
+        }
         
         function selectTimeSlot(button) {
             // 以前の選択を解除

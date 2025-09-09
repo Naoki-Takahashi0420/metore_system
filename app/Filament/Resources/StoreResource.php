@@ -235,10 +235,29 @@ class StoreResource extends Resource
                                     ->description('スタッフ管理と連動した予約管理')
                                     ->schema([
                                         Forms\Components\Placeholder::make('shift_info')
-                                            ->content('この方式では、シフト管理で登録されたスタッフの出勤人数に応じて、自動的に予約可能枠が決まります。'),
-                                        Forms\Components\Placeholder::make('staff_example')
+                                            ->content('この方式では、シフト管理で登録されたスタッフの出勤人数に応じて、タイムラインが表示されます。'),
+                                        
+                                        Forms\Components\TextInput::make('shift_based_capacity')
+                                            ->label('実際の予約可能席数')
+                                            ->numeric()
+                                            ->default(1)
+                                            ->required()
+                                            ->minValue(1)
+                                            ->maxValue(10)
+                                            ->helperText('機械台数など物理的制約による上限。スタッフが何人いても、この数が予約可能枠の上限になります。'),
+                                        
+                                        Forms\Components\Placeholder::make('capacity_info')
                                             ->label('')
-                                            ->content('例：10時に3人出勤 → 10時の予約枠は3件まで受付可能'),
+                                            ->content(fn ($get) => 
+                                                '設備制約: ' . ($get('shift_based_capacity') ?? 1) . '席 + サブライン: 1席（臨時対応用）'
+                                            ),
+                                        
+                                        Forms\Components\Placeholder::make('staff_example')
+                                            ->label('動作例')
+                                            ->content(fn ($get) => 
+                                                'スタッフ3人出勤 + 設備制約' . ($get('shift_based_capacity') ?? 1) . '席 → 実際の予約枠は' . ($get('shift_based_capacity') ?? 1) . '席'
+                                            ),
+                                        
                                         Forms\Components\Hidden::make('main_lines_count')
                                             ->default(1),
                                         Forms\Components\Hidden::make('sub_lines_count')

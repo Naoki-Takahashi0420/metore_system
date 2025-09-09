@@ -51,6 +51,7 @@ Route::middleware('auth:sanctum')->prefix('customer')->group(function () {
     Route::post('reservations', [ReservationController::class, 'createReservation']); // 予約作成
     Route::get('reservations/{id}', [ReservationController::class, 'customerReservationDetail']);
     Route::post('reservations/{id}/cancel', [ReservationController::class, 'cancelReservation']);
+    Route::post('reservations/{id}/change', [ReservationController::class, 'changeReservationDate']);
     Route::put('reservations/{id}', [ReservationController::class, 'updateReservation']);
     // プロフィール管理
     Route::get('profile', [CustomerController::class, 'show']);
@@ -61,6 +62,7 @@ Route::middleware('auth:sanctum')->prefix('customer')->group(function () {
     Route::get('notification-preferences', [NotificationPreferenceController::class, 'show']);
     Route::put('notification-preferences', [NotificationPreferenceController::class, 'update']);
     // サブスクリプション情報
+    Route::get('subscriptions', [\App\Http\Controllers\Api\CustomerSubscriptionController::class, 'index']);
     Route::get('subscription', [\App\Http\Controllers\Api\CustomerSubscriptionController::class, 'show']);
 });
 

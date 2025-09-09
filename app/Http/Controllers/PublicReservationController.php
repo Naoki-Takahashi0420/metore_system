@@ -641,9 +641,9 @@ class PublicReservationController extends Controller
                 })->count();
                 
                 // 店舗の同時予約可能数を確認
-                // 営業時間ベースの場合はmain_lines_count、シフトベースの場合はcapacityを使用
+                // 営業時間ベースの場合はmain_lines_count、シフトベースの場合はshift_based_capacityを使用
                 $maxConcurrent = $store->use_staff_assignment 
-                    ? ($store->capacity ?? 1)
+                    ? ($store->shift_based_capacity ?? 1)
                     : ($store->main_lines_count ?? 1);
                 $availability[$dateStr][$slot] = $overlappingCount < $maxConcurrent;
             }
@@ -672,39 +672,98 @@ class PublicReservationController extends Controller
             'notes' => 'nullable|string|max:500',
         ]);
         
+        // 日程変更の場合の処理
+        if (Session::has('change_reservation_id')) {
+            $reservationId = Session::get('change_reservation_id');
+            $existingReservation = Reservation::find($reservationId);
+            
+            if ($existingReservation) {
+                // 既存予約を更新
+                $menu = Menu::find($validated['menu_id']);
+                $startTime = Carbon::parse($validated['date'] . ' ' . $validated['time']);
+                $endTime = $startTime->copy()->addMinutes($menu->duration ?? 60);
+                
+                $existingReservation->update([
+                    'reservation_date' => $validated['date'],
+                    'start_time' => $validated['time'],
+                    'end_time' => $endTime->format('H:i:s'),
+                    'store_id' => $validated['store_id'],
+                    'menu_id' => $validated['menu_id'],
+                ]);
+                
+                // セッションをクリア
+                Session::forget('change_reservation_id');
+                Session::forget('is_reservation_change');
+                Session::forget('original_reservation_date');
+                Session::forget('original_reservation_time');
+                
+                // 予約変更完了ページへ
+                return redirect()->route('reservation.complete', $existingReservation->reservation_number)
+                    ->with('success', '予約日時を変更しました');
+            }
+        }
+        
         // まず最初に電話番号で既存予約をチェック（新規顧客作成前）
         $existingCustomerByPhone = Customer::where('phone', $validated['phone'])->first();
         if ($existingCustomerByPhone) {
-            // 最新の予約（完了済みも含む）を取得
-            $latestReservation = Reservation::where('customer_id', $existingCustomerByPhone->id)
-                ->whereIn('status', ['pending', 'confirmed', 'booked', 'completed'])
-                ->orderBy('reservation_date', 'desc')
-                ->orderBy('start_time', 'desc')
-                ->first();
-                
-            // 5日間の制限チェック（予約日が送信されている場合のみ）
-            if ($latestReservation && isset($validated['date'])) {
-                $lastVisitDate = Carbon::parse($latestReservation->reservation_date);
-                $requestedDate = Carbon::parse($validated['date']);
-                $daysDiff = $lastVisitDate->diffInDays($requestedDate, false);
-                
-                if ($daysDiff < 5) {
-                    $nextAvailableDate = $lastVisitDate->addDays(5)->format('Y年m月d日');
-                    return back()->with('error', "前回のご予約から最低5日間空ける必要があります。次回予約可能日: {$nextAvailableDate}以降");
-                }
-            }
+            // サブスクリプション会員かチェック
+            $hasActiveSubscription = $existingCustomerByPhone->hasActiveSubscription();
             
-            // 既存の未来予約チェック（重複防止）
-            $futureReservations = Reservation::where('customer_id', $existingCustomerByPhone->id)
-                ->whereIn('status', ['pending', 'confirmed', 'booked'])
-                ->where('reservation_date', '>=', today())
-                ->orderBy('reservation_date')
-                ->orderBy('start_time')
-                ->with(['store', 'menu'])
-                ->get();
+            // デバッグログ
+            \Log::info('Subscription check for customer', [
+                'customer_id' => $existingCustomerByPhone->id,
+                'phone' => $existingCustomerByPhone->phone,
+                'has_active_subscription' => $hasActiveSubscription,
+                'store_id' => $validated['store_id'] ?? null
+            ]);
+            
+            // サブスク会員でない場合のみ制限をチェック
+            if (!$hasActiveSubscription) {
+                // 最新の予約（完了済みも含む）を取得
+                $latestReservation = Reservation::where('customer_id', $existingCustomerByPhone->id)
+                    ->whereIn('status', ['pending', 'confirmed', 'booked', 'completed'])
+                    ->orderBy('reservation_date', 'desc')
+                    ->orderBy('start_time', 'desc')
+                    ->first();
+                    
+                // 5日間の制限チェック（予約日が送信されている場合のみ）
+                if ($latestReservation && isset($validated['date'])) {
+                    $lastVisitDate = Carbon::parse($latestReservation->reservation_date);
+                    $requestedDate = Carbon::parse($validated['date']);
+                    $daysDiff = $lastVisitDate->diffInDays($requestedDate, false);
+                    
+                    if ($daysDiff < 5) {
+                        $nextAvailableDate = $lastVisitDate->addDays(5)->format('Y年m月d日');
+                        return back()->with('error', "前回のご予約から最低5日間空ける必要があります。次回予約可能日: {$nextAvailableDate}以降");
+                    }
+                }
                 
-            if ($futureReservations->isNotEmpty()) {
-                return back()->with('error', 'この電話番号で既にご予約があります。2回目以降のお客様は、管理画面から予約の変更・追加を行ってください。');
+                // 既存の未来予約チェック（重複防止）
+                $futureReservations = Reservation::where('customer_id', $existingCustomerByPhone->id)
+                    ->whereIn('status', ['pending', 'confirmed', 'booked'])
+                    ->where('reservation_date', '>=', today())
+                    ->orderBy('reservation_date')
+                    ->orderBy('start_time')
+                    ->with(['store', 'menu'])
+                    ->get();
+                    
+                if ($futureReservations->isNotEmpty()) {
+                    return back()->with('error', 'この電話番号で既にご予約があります。2回目以降のお客様は、管理画面から予約の変更・追加を行ってください。');
+                }
+            } else {
+                // サブスク会員の場合、月の利用回数をチェック
+                $activeSubscription = $existingCustomerByPhone->activeSubscription()->first();
+                if ($activeSubscription && $activeSubscription->monthly_limit) {
+                    $currentMonthReservations = Reservation::where('customer_id', $existingCustomerByPhone->id)
+                        ->whereNotIn('status', ['cancelled', 'canceled', 'no_show'])
+                        ->whereMonth('reservation_date', now()->month)
+                        ->whereYear('reservation_date', now()->year)
+                        ->count();
+                    
+                    if ($currentMonthReservations >= $activeSubscription->monthly_limit) {
+                        return back()->with('error', "今月のサブスクリプション利用回数（{$activeSubscription->monthly_limit}回）に達しています。");
+                    }
+                }
             }
         }
         
@@ -799,6 +858,51 @@ class PublicReservationController extends Controller
             \Log::error('Reservation creation failed: ' . $e->getMessage());
             return back()->with('error', '予約の作成に失敗しました: ' . $e->getMessage());
         }
+    }
+    
+    /**
+     * 予約変更準備（セッションに情報を保存してカレンダーへリダイレクト）
+     */
+    public function prepareChange(Request $request)
+    {
+        $validated = $request->validate([
+            'reservation_id' => 'required|integer',
+            'store_id' => 'required|integer',
+            'menu_id' => 'required|integer',
+            'store_name' => 'nullable|string',
+            'menu_name' => 'nullable|string',
+            'menu_price' => 'nullable|numeric',
+            'menu_duration' => 'nullable|integer'
+        ]);
+        
+        // メニュー情報を取得またはリクエストから作成
+        $menu = Menu::find($validated['menu_id']);
+        if (!$menu) {
+            // メニューが見つからない場合はリクエストデータから作成
+            $menu = new Menu();
+            $menu->id = $validated['menu_id'];
+            $menu->name = $validated['menu_name'] ?? 'メニュー';
+            $menu->price = $validated['menu_price'] ?? 0;
+            $menu->duration = $validated['menu_duration'] ?? 60;
+        }
+        
+        // 元の予約情報を取得
+        $originalReservation = Reservation::find($validated['reservation_id']);
+        
+        // セッションに保存
+        Session::put('reservation_menu', $menu);
+        Session::put('selected_store_id', $validated['store_id']);
+        Session::put('is_reservation_change', true);
+        Session::put('change_reservation_id', $validated['reservation_id']);
+        
+        // 元の予約日時も保存（カレンダーで強調表示用）
+        if ($originalReservation) {
+            Session::put('original_reservation_date', $originalReservation->reservation_date);
+            Session::put('original_reservation_time', $originalReservation->start_time);
+        }
+        
+        // カレンダーページへリダイレクト
+        return redirect()->route('reservation.index');
     }
     
     public function complete($reservationNumber)

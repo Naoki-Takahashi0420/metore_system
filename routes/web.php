@@ -61,6 +61,9 @@ Route::get('/reservation', function () {
 // ○×形式のカレンダー表示（PublicReservationControllerのindexメソッド）
 Route::get('/reservation/calendar', [App\Http\Controllers\PublicReservationController::class, 'index'])->name('reservation.index');
 
+// 予約変更準備（セッションに情報を保存してカレンダーへ）
+Route::post('/reservation/prepare-change', [App\Http\Controllers\PublicReservationController::class, 'prepareChange'])->name('reservation.prepare-change');
+
 // 予約フローはすべて店舗選択から開始
 Route::post('/reservation/submit', [App\Http\Controllers\PublicReservationController::class, 'store'])->name('reservation.store');
 Route::get('/reservation/complete/{reservationNumber}', [App\Http\Controllers\PublicReservationController::class, 'complete'])->name('reservation.complete');
@@ -76,18 +79,7 @@ Route::prefix('customer')->group(function () {
     });
     
     Route::get('/dashboard', function () {
-        // シンプル版を表示
-        return view('customer.dashboard-simple');
-    });
-    
-    // 旧ダッシュボード（スタンダード版）
-    Route::get('/dashboard-standard', function () {
-        return view('customer.dashboard-new');
-    });
-    
-    // モダンダッシュボード（メルカリ風）
-    Route::get('/dashboard-modern', function () {
-        return view('customer.dashboard-modern');
+        return view('customer.dashboard');
     });
     
     Route::get('/reservations', function () {

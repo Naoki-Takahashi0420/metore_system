@@ -3,134 +3,145 @@
 namespace App\Filament\Widgets;
 
 use App\Models\Reservation;
-use App\Models\Store;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
-use Livewire\Attributes\On;
+use Carbon\Carbon;
 
 class TodayReservationsWidget extends BaseWidget
 {
-    protected static ?int $sort = 2; // タイムラインの下に表示
+    protected static ?int $sort = 3;
     
     protected int | string | array $columnSpan = 'full';
     
-    public $selectedStore = null;
-    public $selectedDate = null;
+    public ?string $storeFilter = null;
     
-    public function mount(): void
+    protected $listeners = ['store-changed' => 'updateStore'];
+    
+    public function updateStore($storeId): void
     {
-        $firstStore = Store::where('is_active', true)->first();
-        $this->selectedStore = $firstStore?->id;
-        $this->selectedDate = Carbon::today()->format('Y-m-d');
+        $this->storeFilter = $storeId;
     }
     
-    #[On('store-changed')]
-    public function updateStore($storeId, $date): void
+    protected function getTableHeading(): string
     {
-        $this->selectedStore = $storeId;
-        $this->selectedDate = $date;
-        $this->resetTable();
-    }
-    
-    public function getHeading(): ?string
-    {
-        $date = Carbon::parse($this->selectedDate ?? today());
-        $dateStr = $date->format('n月j日');
-        $storeName = $this->selectedStore ? Store::find($this->selectedStore)?->name : '全店舗';
-        return "{$dateStr}の予約 - {$storeName}";
+        $query = Reservation::whereDate('reservation_date', Carbon::today())
+            ->whereNotIn('status', ['cancelled', 'canceled']);
+            
+        if ($this->storeFilter) {
+            $query->where('store_id', $this->storeFilter);
+        }
+        
+        $count = $query->count();
+        $storeName = '';
+        if ($this->storeFilter) {
+            $store = \App\Models\Store::find($this->storeFilter);
+            $storeName = $store ? " - {$store->name}" : '';
+        }
+        
+        return "今日の予約 ({$count}件) - " . Carbon::today()->format('Y年n月j日') . $storeName;
     }
     
     public function table(Table $table): Table
     {
+        $query = Reservation::query()
+            ->with(['customer', 'store', 'menu', 'staff'])
+            ->whereDate('reservation_date', Carbon::today())
+            ->whereNotIn('status', ['cancelled', 'canceled']);
+            
+        if ($this->storeFilter) {
+            $query->where('store_id', $this->storeFilter);
+        }
+        
         return $table
-            ->query(
-                Reservation::query()
-                    ->with(['customer', 'store', 'menu'])
-                    ->when($this->selectedStore, fn($query) => 
-                        $query->where('store_id', $this->selectedStore)
-                    )
-                    ->whereDate('reservation_date', $this->selectedDate ?? today())
-                    ->orderBy('start_time', 'asc')
-            )
-            ->emptyStateHeading('予約がありません')
-            ->emptyStateDescription('この日の予約はまだ登録されていません')
-            ->emptyStateIcon('heroicon-o-calendar')
+            ->query($query->orderBy('start_time', 'asc'))
             ->columns([
                 Tables\Columns\TextColumn::make('start_time')
                     ->label('時間')
-                    ->time('H:i')
+                    ->formatStateUsing(fn ($record) => 
+                        Carbon::parse($record->start_time)->format('H:i') . '-' . 
+                        Carbon::parse($record->end_time)->format('H:i')
+                    )
                     ->sortable(),
+                    
+                Tables\Columns\TextColumn::make('store.name')
+                    ->label('店舗')
+                    ->searchable(),
+                    
                 Tables\Columns\TextColumn::make('customer.full_name')
                     ->label('顧客名')
-                    ->getStateUsing(fn ($record) => 
-                        $record->customer ? "{$record->customer->last_name} {$record->customer->first_name}" : '-'
+                    ->formatStateUsing(fn ($record) => 
+                        $record->customer ? 
+                        $record->customer->last_name . ' ' . $record->customer->first_name : 
+                        '未設定'
                     )
+                    ->searchable(['customer.last_name', 'customer.first_name']),
+                    
+                Tables\Columns\TextColumn::make('customer.phone')
+                    ->label('電話番号')
                     ->searchable(),
+                    
                 Tables\Columns\TextColumn::make('menu.name')
                     ->label('メニュー')
-                    ->default('-'),
-                Tables\Columns\TextColumn::make('seat_display')
-                    ->label('配置')
-                    ->getStateUsing(function ($record) {
-                        if ($record->is_sub) {
-                            return 'サブ枠';
-                        } elseif ($record->seat_number) {
-                            return '席' . $record->seat_number;
-                        }
-                        return '-';
-                    })
-                    ->badge()
-                    ->color(fn ($state) => 
-                        $state === 'サブ枠' ? 'warning' : 'primary'
-                    ),
+                    ->limit(20),
+                    
+                Tables\Columns\TextColumn::make('staff.name')
+                    ->label('担当')
+                    ->placeholder('未定'),
+                    
                 Tables\Columns\BadgeColumn::make('status')
-                    ->label('ステータス')
-                    ->getStateUsing(function ($record) {
-                        // 24時間以内の新規予約
-                        $isNew = Carbon::parse($record->created_at)->diffInHours(now()) <= 24;
-                        
-                        $statusLabel = match($record->status) {
-                            'booked' => '予約済み',
-                            'visited' => '来店済み',
-                            'cancelled' => 'キャンセル',
-                            default => $record->status,
-                        };
-                        
-                        return $isNew && $record->status === 'booked' ? '🆕 ' . $statusLabel : $statusLabel;
-                    })
+                    ->label('状態')
                     ->colors([
-                        'primary' => fn ($state) => str_contains($state, '🆕'),
-                        'success' => fn ($state) => str_contains($state, '来店済み'),
-                        'danger' => fn ($state) => str_contains($state, 'キャンセル'),
-                        'warning' => fn ($state) => str_contains($state, '予約済み') && !str_contains($state, '🆕'),
-                    ]),
-                Tables\Columns\TextColumn::make('total_amount')
-                    ->label('金額')
-                    ->money('JPY')
-                    ->sortable(),
+                        'success' => 'completed',
+                        'warning' => 'booked',
+                        'info' => 'arrived',
+                        'danger' => ['cancelled', 'no_show'],
+                    ])
+                    ->formatStateUsing(function ($state) {
+                        return match($state) {
+                            'booked' => '予約済',
+                            'arrived' => '来店済',
+                            'completed' => '完了',
+                            'no_show' => '無断欠席',
+                            'cancelled', 'canceled' => 'キャンセル',
+                            default => $state,
+                        };
+                    }),
             ])
-            ->defaultSort('start_time', 'asc')
-            ->paginated([5, 10, 25])
             ->actions([
-                Tables\Actions\Action::make('view')
-                    ->label('詳細')
-                    ->icon('heroicon-o-eye')
-                    ->url(fn ($record) => "/admin/reservations/{$record->id}/edit"),
-            ])
-            ->headerActions([
-                Tables\Actions\Action::make('view_all')
-                    ->label('すべての予約を見る')
-                    ->icon('heroicon-o-arrow-right')
+                Tables\Actions\Action::make('arrive')
+                    ->label('来店')
+                    ->icon('heroicon-m-user-plus')
+                    ->color('info')
+                    ->visible(fn ($record) => $record->status === 'booked')
+                    ->requiresConfirmation()
+                    ->action(fn ($record) => $record->update(['status' => 'arrived'])),
+                    
+                Tables\Actions\Action::make('complete')
+                    ->label('完了')
+                    ->icon('heroicon-m-check-circle')
+                    ->color('success')
+                    ->visible(fn ($record) => in_array($record->status, ['booked', 'arrived']))
+                    ->requiresConfirmation()
+                    ->action(fn ($record) => $record->update(['status' => 'completed'])),
+                    
+                Tables\Actions\Action::make('create_medical_record')
+                    ->label('カルテ作成')
+                    ->icon('heroicon-m-document-plus')
                     ->color('primary')
-                    ->url('/admin/reservations'),
-            ]);
-    }
-    
-    public function getTableRecordsPerPageSelectOptions(): array
-    {
-        return [5, 10, 25];
+                    ->url(fn ($record) => "/admin/medical-records/create?reservation_id={$record->id}")
+                    ->visible(fn ($record) => 
+                        in_array($record->status, ['arrived', 'completed']) &&
+                        !$record->medicalRecords()->exists()
+                    ),
+                    
+                Tables\Actions\EditAction::make()
+                    ->label('編集')
+                    ->icon('heroicon-m-pencil-square'),
+            ])
+            ->bulkActions([])
+            ->paginated(false)
+            ->defaultSort('start_time', 'asc');
     }
 }

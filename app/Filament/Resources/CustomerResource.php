@@ -40,14 +40,6 @@ class CustomerResource extends Resource
                             ->label('名')
                             ->required()
                             ->maxLength(50),
-                        Forms\Components\TextInput::make('last_name_kana')
-                            ->label('姓（カナ）')
-                            ->required()
-                            ->maxLength(50),
-                        Forms\Components\TextInput::make('first_name_kana')
-                            ->label('名（カナ）')
-                            ->required()
-                            ->maxLength(50),
                     ])
                     ->columns(2),
 
@@ -296,11 +288,6 @@ class CustomerResource extends Resource
                     ->label('顧客名')
                     ->formatStateUsing(fn ($record) => $record->last_name . ' ' . $record->first_name)
                     ->searchable(['last_name', 'first_name']),
-                Tables\Columns\TextColumn::make('last_name_kana')
-                    ->label('顧客名（カナ）')
-                    ->formatStateUsing(fn ($record) => $record->last_name_kana . ' ' . $record->first_name_kana)
-                    ->searchable(['last_name_kana', 'first_name_kana'])
-                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('phone')
                     ->label('電話番号')
                     ->searchable(),

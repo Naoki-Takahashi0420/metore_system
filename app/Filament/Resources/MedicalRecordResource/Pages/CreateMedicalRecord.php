@@ -35,8 +35,8 @@ class CreateMedicalRecord extends CreateRecord
             // 予約情報から自動設定
             $reservation = Reservation::with(['customer', 'store', 'staff'])->find($reservationId);
             if ($reservation) {
-                // 施術日を予約日に設定
-                $data['treatment_date'] = $reservation->reservation_date->format('Y-m-d');
+                // 施術日を予約日に設定 - Carbon::parseで文字列を日付オブジェクトに変換
+                $data['treatment_date'] = \Carbon\Carbon::parse($reservation->reservation_date)->format('Y-m-d');
                 
                 // 顧客IDが未設定の場合は予約から取得
                 if (!isset($data['customer_id'])) {

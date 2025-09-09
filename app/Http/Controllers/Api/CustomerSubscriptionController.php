@@ -9,6 +9,65 @@ use App\Models\Customer;
 class CustomerSubscriptionController extends Controller
 {
     /**
+     * すべてのサブスクリプション情報を取得
+     */
+    public function index(Request $request)
+    {
+        $customer = $request->user();
+        
+        if (!$customer) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+        
+        $subscriptions = $customer->subscriptions()
+            ->where('status', 'active')
+            ->with(['store'])
+            ->get();
+        
+        return response()->json([
+            'data' => $subscriptions->map(function ($sub) {
+                // 月末までの利用回数をリセット
+                $currentMonth = now()->format('Y-m');
+                $subMonth = $sub->updated_at ? $sub->updated_at->format('Y-m') : $currentMonth;
+                
+                // 月が変わった場合は利用回数をリセット
+                if ($currentMonth !== $subMonth && $sub->monthly_limit) {
+                    $sub->current_month_visits = 0;
+                    $sub->save();
+                }
+                
+                $remaining = $sub->monthly_limit ? 
+                    max(0, $sub->monthly_limit - $sub->current_month_visits) : 
+                    ($sub->remaining_sessions ?? 0);
+                    
+                // プランがない場合のメニューID取得
+                $menuId = null;
+                if ($sub->plan_id) {
+                    $plan = \App\Models\SubscriptionPlan::find($sub->plan_id);
+                    $menuId = $plan ? $plan->menu_id : null;
+                }
+                    
+                return [
+                    'id' => $sub->id,
+                    'status' => $sub->status,
+                    'plan' => [
+                        'id' => $sub->plan_id,
+                        'name' => $sub->plan_name ?? 'プラン',
+                        'menu_id' => $menuId,
+                    ],
+                    'remaining_sessions' => $remaining,
+                    'monthly_limit' => $sub->monthly_limit,
+                    'current_month_visits' => $sub->current_month_visits,
+                    'store' => $sub->store ? [
+                        'id' => $sub->store->id,
+                        'name' => $sub->store->name,
+                    ] : null,
+                ];
+            })
+        ]);
+    }
+    
+    /**
      * 顧客のサブスクリプション情報を取得
      */
     public function show(Request $request)

@@ -19,7 +19,13 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                     </svg>
                 </div>
-                <h1 class="text-2xl font-bold text-gray-800 mb-2">予約が完了しました</h1>
+                <h1 class="text-2xl font-bold text-gray-800 mb-2">
+                    @if(session('success'))
+                        {{ session('success') }}
+                    @else
+                        予約が完了しました
+                    @endif
+                </h1>
                 <p class="text-gray-600">ご予約ありがとうございます</p>
             </div>
 
@@ -106,6 +112,11 @@
                    class="inline-block px-6 py-3 bg-gray-500 text-white rounded-md hover:bg-gray-600 text-center">
                     トップページへ戻る
                 </a>
+                <a href="/customer/dashboard" 
+                   id="mypage-button"
+                   class="inline-block px-6 py-3 bg-green-500 text-white rounded-md hover:bg-green-600 text-center">
+                    マイページへ
+                </a>
                 <button onclick="window.print()" 
                         class="inline-block px-6 py-3 bg-blue-500 text-white rounded-md hover:bg-blue-600">
                     予約内容を印刷
@@ -114,9 +125,24 @@
         </div>
     </div>
 
-    @if($lineQrCodeUrl)
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // 予約完了時に顧客情報をセッションに保存（初回予約の人もマイページにアクセスできるように）
+            const reservationCustomer = {
+                phone: '{{ $reservation->customer->phone }}',
+                last_name: '{{ $reservation->customer->last_name }}',
+                first_name: '{{ $reservation->customer->first_name }}',
+                id: {{ $reservation->customer->id }}
+            };
+            
+            // 初回予約の場合は、マイページアクセス用の情報を保存
+            if (!localStorage.getItem('customer_token')) {
+                // 電話番号を一時的に保存（ログイン時に使用）
+                sessionStorage.setItem('temp_customer_phone', reservationCustomer.phone);
+                sessionStorage.setItem('temp_customer_data', JSON.stringify(reservationCustomer));
+            }
+            
+            @if($lineQrCodeUrl)
             const qrElement = document.getElementById('line-qr-code');
             if (qrElement) {
                 QRCode.toCanvas(qrElement, '{!! addslashes($lineQrCodeUrl) !!}', {
@@ -133,8 +159,8 @@
                     }
                 });
             }
+            @endif
         });
     </script>
-    @endif
 </body>
 </html>

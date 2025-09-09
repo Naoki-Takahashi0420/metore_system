@@ -7,6 +7,7 @@ use App\Models\Store;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
 use Livewire\Attributes\Url;
+use App\Filament\Widgets\TodayReservationsWidget;
 
 class ListReservations extends ListRecords
 {
@@ -67,5 +68,14 @@ class ListReservations extends ListRecords
         }
         
         return $query;
+    }
+    
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            TodayReservationsWidget::make([
+                'storeFilter' => $this->storeFilter,
+            ]),
+        ];
     }
 }

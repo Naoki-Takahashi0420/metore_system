@@ -180,6 +180,8 @@
             @php
                 $storeCount = $stores->count();
                 $currentStore = $stores->firstWhere('id', $selectedStore);
+                $useStaffAssignment = $currentStore->use_staff_assignment ?? false;
+                $shiftBasedCapacity = $currentStore->shift_based_capacity ?? 1;
             @endphp
             
             @if($storeCount <= 3)
@@ -238,6 +240,19 @@
                 </div>
             @endif
             
+            {{-- 予約管理モード表示 --}}
+            <div class="flex items-center gap-2 px-3 py-1 rounded-lg text-sm {{ $useStaffAssignment ? 'bg-blue-50 text-blue-700' : 'bg-gray-50 text-gray-700' }}">
+                @if($useStaffAssignment)
+                    <x-heroicon-m-user-group class="w-4 h-4" />
+                    <span>シフトベース</span>
+                    <span class="font-medium">（最大{{ $shiftBasedCapacity }}席）</span>
+                @else
+                    <x-heroicon-m-clock class="w-4 h-4" />
+                    <span>営業時間ベース</span>
+                    <span class="font-medium">（{{ $currentStore->main_lines_count ?? 3 }}席）</span>
+                @endif
+            </div>
+            
             <div class="flex items-center gap-4">
                 <div class="flex items-center gap-2">
                     <button wire:click="changeDate('prev')" class="px-3 py-1 border rounded hover:bg-gray-100">
@@ -251,6 +266,23 @@
                         ▶
                     </button>
                 </div>
+                
+                <!-- 新規予約ボタン -->
+                <button 
+                    wire:click="openNewReservationModal"
+                    type="button"
+                    class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition">
+                    <x-heroicon-o-plus-circle class="w-5 h-5" />
+                    <span>新規予約</span>
+                </button>
+                
+                <!-- デバッグ用 -->
+                <button 
+                    wire:click="$set('showNewReservationModal', true)"
+                    type="button"
+                    class="px-3 py-1 bg-blue-500 text-white text-xs rounded">
+                    テスト
+                </button>
             </div>
         </div>
         
@@ -283,8 +315,32 @@
                                     {{ $seat['label'] }}
                                 </td>
                                 @foreach($timelineData['slots'] as $index => $slot)
-                                    <td class="time-cell {{ in_array($index, $timelineData['blockedSlots']) ? 'blocked-cell' : '' }}">
-                                        @if(in_array($index, $timelineData['blockedSlots']))
+                                    @php
+                                        $hasReservation = false;
+                                        foreach($seat['reservations'] as $reservation) {
+                                            if($reservation['start_slot'] <= $index && $index < $reservation['start_slot'] + $reservation['span']) {
+                                                $hasReservation = true;
+                                                break;
+                                            }
+                                        }
+                                        $isBlocked = in_array($index, $timelineData['blockedSlots']);
+                                        
+                                        // 過去の時間帯かチェック（現在時刻から30分前まで許可）
+                                        $slotDateTime = \Carbon\Carbon::parse($selectedDate . ' ' . $slot);
+                                        $minimumTime = \Carbon\Carbon::now()->subMinutes(30);
+                                        $isPast = $slotDateTime->lt($minimumTime);
+                                        
+                                        $isClickable = !$hasReservation && !$isBlocked && !$isPast;
+                                    @endphp
+                                    <td class="time-cell {{ $isBlocked ? 'blocked-cell' : '' }} {{ $isClickable ? 'empty-slot' : '' }}"
+                                        @if($isClickable)
+                                            wire:click="openNewReservationFromSlot('{{ $key }}', '{{ $slot }}')"
+                                            style="cursor: pointer; position: relative;"
+                                            onmouseover="this.style.backgroundColor='#e3f2fd'" 
+                                            onmouseout="this.style.backgroundColor=''"
+                                            title="クリックして予約を作成"
+                                        @endif>
+                                        @if($isBlocked)
                                             <div style="background: #9e9e9e; color: white; height: 100%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">
                                                 BRK
                                             </div>
@@ -434,12 +490,16 @@
                     </div>
 
                     <div class="border-t pt-4">
-                        @if($selectedReservation->reservation_date->isPast())
+                        @php
+                            $reservationDateTime = \Carbon\Carbon::parse($selectedReservation->reservation_date->format('Y-m-d') . ' ' . $selectedReservation->start_time);
+                            $isPastReservation = $reservationDateTime->isPast();
+                        @endphp
+                        @if($isPastReservation)
                             <p class="text-sm text-gray-500 mb-3">⚠️ 過去の予約のため座席移動はできません</p>
                         @else
                             <p class="text-sm font-medium mb-3">座席を移動</p>
                         @endif
-                        @if(!$selectedReservation->reservation_date->isPast())
+                        @if(!$isPastReservation)
                         <div class="flex gap-2 flex-wrap">
                             @if($selectedReservation->is_sub)
                                 @for($i = 1; $i <= 3; $i++)
@@ -490,6 +550,276 @@
                         @endif
                     </div>
                 </div>
+            </div>
+        </div>
+    @endif
+    
+    <!-- 新規予約作成モーダル -->
+    @if($showNewReservationModal)
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" wire:click="closeNewReservationModal">
+            <div class="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" wire:click.stop>
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold">新規予約作成</h2>
+                    <button wire:click="closeNewReservationModal" class="text-gray-500 hover:text-gray-700">
+                        <x-heroicon-s-x-mark class="w-6 h-6" />
+                    </button>
+                </div>
+                
+                <!-- Step 1: 顧客選択 -->
+                @if($reservationStep === 1)
+                    <div class="space-y-4">
+                        <!-- 選択された時間と席の情報 -->
+                        @if(!empty($newReservation['start_time']))
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                <div class="text-sm font-medium text-blue-900">
+                                    予約時間: {{ $newReservation['date'] }} {{ $newReservation['start_time'] }}
+                                    @if($newReservation['line_type'] === 'main')
+                                        （席{{ $newReservation['line_number'] }}）
+                                    @else
+                                        （サブライン）
+                                    @endif
+                                </div>
+                            </div>
+                        @endif
+                        
+                        <div class="grid grid-cols-2 gap-2 mb-4">
+                            <button 
+                                wire:click="$set('customerSelectionMode', 'existing')"
+                                class="px-4 py-2 {{ $customerSelectionMode === 'existing' ? 'bg-primary-600 text-white' : 'bg-gray-100' }} rounded-lg transition">
+                                既存顧客
+                            </button>
+                            <button 
+                                wire:click="$set('customerSelectionMode', 'new')"
+                                class="px-4 py-2 {{ $customerSelectionMode === 'new' ? 'bg-primary-600 text-white' : 'bg-gray-100' }} rounded-lg transition">
+                                新規顧客
+                            </button>
+                        </div>
+                        
+                        @if($customerSelectionMode === 'existing')
+                            <div>
+                                <label class="block text-sm font-medium mb-2">電話番号・名前で検索</label>
+                                <input 
+                                    type="text" 
+                                    wire:model.live.debounce.300ms="phoneSearch"
+                                    class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                    placeholder="電話番号または名前を入力"
+                                    autofocus>
+                            </div>
+                        @else
+                            <button 
+                                wire:click="$set('reservationStep', 2); $set('newCustomer.phone', phoneSearch)"
+                                class="w-full px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition">
+                                新規顧客情報を入力
+                            </button>
+                        @endif
+                        
+                        @if(strlen($phoneSearch) >= 2)
+                            @if(count($searchResults) > 0)
+                                <div class="border rounded-lg divide-y">
+                                    <div class="bg-gray-50 px-4 py-2 font-medium text-sm">
+                                        検索結果 ({{ count($searchResults) }}件)
+                                    </div>
+                                    @foreach($searchResults as $customer)
+                                        <div 
+                                            wire:click="selectCustomer({{ $customer->id }})"
+                                            class="px-4 py-3 hover:bg-blue-50 cursor-pointer transition">
+                                            <div class="flex justify-between items-start">
+                                                <div>
+                                                    <div class="font-medium">
+                                                        {{ $customer->last_name }} {{ $customer->first_name }}
+                                                        <span class="text-sm text-gray-500">({{ $customer->last_name_kana }} {{ $customer->first_name_kana }})</span>
+                                                    </div>
+                                                    <div class="text-sm text-gray-600">
+                                                        📞 {{ $customer->phone }}
+                                                        @if($customer->email)
+                                                            | ✉️ {{ $customer->email }}
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                                <div class="text-right text-sm">
+                                                    <div class="text-gray-500">来店回数: {{ $customer->reservations_count ?? 0 }}回</div>
+                                                    @if($customer->last_visit_date)
+                                                        <div class="text-gray-500">最終: {{ \Carbon\Carbon::parse($customer->last_visit_date)->format('n/j') }}</div>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @else
+                                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <x-heroicon-o-exclamation-triangle class="w-5 h-5 text-yellow-600" />
+                                        <span class="font-medium">該当する顧客が見つかりません</span>
+                                    </div>
+                                    <button 
+                                        wire:click="startNewCustomerRegistration"
+                                        class="w-full mt-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition">
+                                        新規顧客として登録
+                                    </button>
+                                </div>
+                            @endif
+                        @endif
+                    </div>
+                @endif
+                
+                <!-- Step 2: 新規顧客登録 -->
+                @if($reservationStep === 2)
+                    <div class="space-y-4">
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                            <div class="font-medium text-blue-900">新規顧客登録</div>
+                            <div class="text-sm text-blue-700">電話番号: {{ $phoneSearch }}</div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">姓 <span class="text-red-500">*</span></label>
+                                <input 
+                                    type="text" 
+                                    wire:model="newCustomer.last_name"
+                                    class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                    placeholder="山田">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">名 <span class="text-red-500">*</span></label>
+                                <input 
+                                    type="text" 
+                                    wire:model="newCustomer.first_name"
+                                    class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                    placeholder="太郎">
+                            </div>
+                            <div class="col-span-2">
+                                <label class="block text-sm font-medium mb-1">電話番号 <span class="text-red-500">*</span></label>
+                                <input 
+                                    type="tel" 
+                                    wire:model="newCustomer.phone"
+                                    class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                    placeholder="090-1234-5678">
+                            </div>
+                            <div class="col-span-2">
+                                <label class="block text-sm font-medium mb-1">メールアドレス</label>
+                                <input 
+                                    type="email" 
+                                    wire:model="newCustomer.email"
+                                    class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                    placeholder="yamada@example.com">
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-2">
+                            <button 
+                                wire:click="$set('reservationStep', 1)"
+                                class="px-4 py-2 border rounded-lg hover:bg-gray-50 transition">
+                                戻る
+                            </button>
+                            <button 
+                                wire:click="createNewCustomer"
+                                class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition">
+                                登録して予約作成へ
+                            </button>
+                        </div>
+                    </div>
+                @endif
+                
+                <!-- Step 3: 予約詳細入力 -->
+                @if($reservationStep === 3)
+                    <div class="space-y-4">
+                        @if($selectedCustomer)
+                            <div class="bg-green-50 border border-green-200 rounded-lg p-3">
+                                <div class="font-medium text-green-900">
+                                    {{ $selectedCustomer->last_name }} {{ $selectedCustomer->first_name }} 様
+                                </div>
+                                <div class="text-sm text-green-700">
+                                    📞 {{ $selectedCustomer->phone }}
+                                    @if($selectedCustomer->email)
+                                        | ✉️ {{ $selectedCustomer->email }}
+                                    @endif
+                                </div>
+                            </div>
+                        @endif
+                        
+                        <div>
+                            <label class="block text-sm font-medium mb-1">予約日時</label>
+                            <div class="grid grid-cols-3 gap-2">
+                                <input 
+                                    type="date" 
+                                    wire:model="newReservation.date"
+                                    value="{{ $selectedDate }}"
+                                    class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                <input 
+                                    type="time" 
+                                    wire:model="newReservation.start_time"
+                                    class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                <select 
+                                    wire:model="newReservation.duration"
+                                    class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                    <option value="60">60分</option>
+                                    <option value="90">90分</option>
+                                    <option value="120">120分</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium mb-1">メニュー</label>
+                            <select 
+                                wire:model="newReservation.menu_id"
+                                class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                <option value="">選択してください</option>
+                                @foreach(\App\Models\Menu::where('is_available', true)->get() as $menu)
+                                    <option value="{{ $menu->id }}">
+                                        {{ $menu->name }} ({{ $menu->duration_minutes }}分) - ¥{{ number_format($menu->price) }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium mb-1">ライン（席）</label>
+                            <select 
+                                wire:model="newReservation.line_type"
+                                class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                <option value="main">メインライン</option>
+                                <option value="sub">サブライン</option>
+                            </select>
+                        </div>
+                        
+                        @if($newReservation['line_type'] === 'main')
+                            <div>
+                                <label class="block text-sm font-medium mb-1">席番号</label>
+                                <select 
+                                    wire:model="newReservation.line_number"
+                                    class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                    @for($i = 1; $i <= 3; $i++)
+                                        <option value="{{ $i }}">席{{ $i }}</option>
+                                    @endfor
+                                </select>
+                            </div>
+                        @endif
+                        
+                        <div>
+                            <label class="block text-sm font-medium mb-1">備考</label>
+                            <textarea 
+                                wire:model="newReservation.notes"
+                                class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                rows="3"
+                                placeholder="電話予約、特記事項など"></textarea>
+                        </div>
+                        
+                        <div class="flex gap-2">
+                            <button 
+                                wire:click="$set('reservationStep', 1)"
+                                class="px-4 py-2 border rounded-lg hover:bg-gray-50 transition">
+                                戻る
+                            </button>
+                            <button 
+                                wire:click="createReservation"
+                                class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium">
+                                予約を作成
+                            </button>
+                        </div>
+                    </div>
+                @endif
             </div>
         </div>
     @endif

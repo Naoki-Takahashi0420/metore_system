@@ -7,6 +7,7 @@ use App\Models\Store;
 use App\Models\Reservation;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\On;
 
 class ReservationTimelineWidget extends Widget
 {
@@ -22,6 +23,29 @@ class ReservationTimelineWidget extends Widget
     public $timelineData = [];
     public $categories = [];
     public $selectedReservation = null;
+    
+    // 新規予約作成用のプロパティ
+    public $showNewReservationModal = false;
+    public $reservationStep = 1; // 1: 顧客検索, 2: 新規顧客登録, 3: 予約詳細
+    public $customerSelectionMode = 'existing'; // 'existing' or 'new'
+    public $phoneSearch = '';
+    public $searchResults = [];
+    public $selectedCustomer = null;
+    public $newCustomer = [
+        'last_name' => '',
+        'first_name' => '',
+        'email' => '',
+        'phone' => ''
+    ];
+    public $newReservation = [
+        'date' => '',
+        'start_time' => '',
+        'duration' => 60,
+        'menu_id' => '',
+        'line_type' => 'main',
+        'line_number' => 1,
+        'notes' => '電話予約'
+    ];
     
     public function mount(): void
     {
@@ -55,6 +79,15 @@ class ReservationTimelineWidget extends Widget
         $this->dispatch('store-changed', storeId: $this->selectedStore, date: $this->selectedDate);
     }
     
+    #[On('calendar-date-clicked')]
+    public function updateFromCalendar($date): void
+    {
+        \Log::info('Calendar date clicked received:', ['date' => $date]);
+        
+        $this->selectedDate = $date;
+        $this->loadTimelineData();
+    }
+    
     public function loadTimelineData(): void
     {
         if (!$this->selectedStore || !$this->selectedDate) {
@@ -71,9 +104,27 @@ class ReservationTimelineWidget extends Widget
         
         $date = Carbon::parse($this->selectedDate);
         
-        // 店舗のライン設定を取得
-        $mainSeats = $store->main_lines_count ?? 3;
-        $subSeats = 1; // サブライン1で固定
+        // 店舗の予約管理モードを確認
+        $useStaffAssignment = $store->use_staff_assignment ?? false;
+        
+        // シフトベースモードの場合、設備制約を考慮
+        if ($useStaffAssignment) {
+            // シフトベースモード: 設備制約（機械台数）に基づく
+            $mainSeats = $store->shift_based_capacity ?? 1;
+            $subSeats = 1; // サブライン1で固定
+            
+            // シフトデータから実際の勤務スタッフ数を取得（参考情報として）
+            $shifts = \App\Models\Shift::where('store_id', $this->selectedStore)
+                ->whereDate('shift_date', $date)
+                ->where('status', 'scheduled')
+                ->count();
+            
+            // 注: 実際の予約可能枠は$mainSeats（設備制約）で決まる
+        } else {
+            // 営業時間ベースモード: 従来通りライン設定を使用
+            $mainSeats = $store->main_lines_count ?? 3;
+            $subSeats = 1; // サブライン1で固定
+        }
         
         // 店舗の営業時間を取得（選択された日付の曜日に基づく）
         $dayOfWeek = $date->format('l'); // Monday, Tuesday, etc.
@@ -91,26 +142,31 @@ class ReservationTimelineWidget extends Widget
         $businessHours = $store->business_hours ?? [];
         $todayHours = null;
         
-        // 該当曜日の営業時間を探す
-        foreach ($businessHours as $hours) {
-            if (isset($hours['day']) && $hours['day'] === $dayKey) {
-                $todayHours = $hours;
-                break;
-            }
-        }
-        
-        // 営業時間を設定（見つからない場合はデフォルト10:00-21:00）
+        // 営業時間を設定（デフォルト10:00-21:00）
         $startHour = 10;
         $endHour = 21;
         
-        if ($todayHours && !empty($todayHours['open_time']) && !empty($todayHours['close_time'])) {
-            $startHour = (int)substr($todayHours['open_time'], 0, 2);
-            $closeTime = $todayHours['close_time'];
-            $endHour = (int)substr($closeTime, 0, 2);
-            $endMinute = (int)substr($closeTime, 3, 2);
-            // 分がある場合は次の時間まで含める
-            if ($endMinute > 0) {
-                $endHour++;
+        // 新形式（曜日ごと）の営業時間チェック
+        if (is_array($businessHours)) {
+            foreach ($businessHours as $hours) {
+                if (isset($hours['day']) && $hours['day'] === $dayKey) {
+                    $todayHours = $hours;
+                    break;
+                }
+            }
+            
+            if ($todayHours && !empty($todayHours['open_time']) && !empty($todayHours['close_time'])) {
+                $startHour = (int)substr($todayHours['open_time'], 0, 2);
+                $closeTime = $todayHours['close_time'];
+                $endHour = (int)substr($closeTime, 0, 2);
+            }
+        } 
+        // 旧形式（単純なopen/close）の営業時間チェック
+        elseif (is_string($businessHours)) {
+            $hours = json_decode($businessHours, true);
+            if ($hours && isset($hours['open']) && isset($hours['close'])) {
+                $startHour = (int)substr($hours['open'], 0, 2);
+                $endHour = (int)substr($hours['close'], 0, 2);
             }
         }
         
@@ -135,10 +191,8 @@ class ReservationTimelineWidget extends Widget
         
         for ($hour = $startHour; $hour <= $endHour; $hour++) {
             for ($minute = 0; $minute < 60; $minute += 15) {
-                // 最終時刻まで15分刻みで追加（21時台も4つ作る）
-                if ($hour < $endHour) {
-                    $slots[] = sprintf('%02d:%02d', $hour, $minute);
-                }
+                // 21時までのすべてのスロットを表示
+                $slots[] = sprintf('%02d:%02d', $hour, $minute);
             }
         }
         
@@ -331,8 +385,9 @@ class ReservationTimelineWidget extends Widget
     {
         $reservation = Reservation::find($reservationId);
         if ($reservation) {
-            // 過去の予約は移動不可
-            if ($reservation->reservation_date->isPast()) {
+            // 過去の予約は移動不可（日付と時刻を合わせて判定）
+            $reservationDateTime = \Carbon\Carbon::parse($reservation->reservation_date->format('Y-m-d') . ' ' . $reservation->start_time);
+            if ($reservationDateTime->isPast()) {
                 $this->dispatch('notify', [
                     'type' => 'error',
                     'message' => '過去の予約の席移動はできません'
@@ -371,8 +426,9 @@ class ReservationTimelineWidget extends Widget
     {
         $reservation = Reservation::find($reservationId);
         if ($reservation) {
-            // 過去の予約は移動不可
-            if ($reservation->reservation_date->isPast()) {
+            // 過去の予約は移動不可（日付と時刻を合わせて判定）
+            $reservationDateTime = \Carbon\Carbon::parse($reservation->reservation_date->format('Y-m-d') . ' ' . $reservation->start_time);
+            if ($reservationDateTime->isPast()) {
                 $this->dispatch('notify', [
                     'type' => 'error',
                     'message' => '過去の予約の席移動はできません'
@@ -433,6 +489,252 @@ class ReservationTimelineWidget extends Widget
         $temp->seat_number = $seatNumber;
         
         return Reservation::checkAvailability($temp);
+    }
+    
+    // 新規予約作成関連のメソッド
+    public function openNewReservationModal(): void
+    {
+        $this->showNewReservationModal = true;
+        $this->reservationStep = 1;
+        $this->phoneSearch = '';
+        $this->searchResults = [];
+        $this->selectedCustomer = null;
+        $this->newCustomer = [
+            'last_name' => '',
+            'first_name' => '',
+            'last_name_kana' => '',
+            'first_name_kana' => '',
+            'email' => '',
+            'phone' => ''
+        ];
+        $this->newReservation = [
+            'date' => $this->selectedDate,
+            'start_time' => '',
+            'duration' => 60,
+            'menu_id' => '',
+            'line_type' => 'main',
+            'line_number' => 1,
+            'notes' => '電話予約'
+        ];
+    }
+    
+    public function openNewReservationFromSlot($seatKey, $timeSlot): void
+    {
+        \Log::info('Slot clicked:', ['seat' => $seatKey, 'time' => $timeSlot]);
+        
+        // 席タイプとライン番号を解析
+        if (strpos($seatKey, 'sub_') === 0) {
+            $lineType = 'sub';
+            $lineNumber = intval(substr($seatKey, 4));
+        } else {
+            $lineType = 'main';
+            $lineNumber = intval(substr($seatKey, 5));
+        }
+        
+        $this->showNewReservationModal = true;
+        $this->reservationStep = 1;
+        $this->phoneSearch = '';
+        $this->searchResults = [];
+        $this->selectedCustomer = null;
+        $this->newCustomer = [
+            'last_name' => '',
+            'first_name' => '',
+            'last_name_kana' => '',
+            'first_name_kana' => '',
+            'email' => '',
+            'phone' => ''
+        ];
+        $this->newReservation = [
+            'date' => $this->selectedDate,
+            'start_time' => $timeSlot,
+            'duration' => 60,
+            'menu_id' => '',
+            'line_type' => $lineType,
+            'line_number' => $lineNumber,
+            'notes' => '電話予約'
+        ];
+    }
+    
+    public function closeNewReservationModal(): void
+    {
+        $this->showNewReservationModal = false;
+    }
+    
+    public function updatedPhoneSearch(): void
+    {
+        if (strlen($this->phoneSearch) >= 2) {
+            // 電話番号、名前、カナで顧客を検索（選択中の店舗に来店履歴がある顧客のみ）
+            $search = $this->phoneSearch;
+            $storeId = $this->selectedStore;
+            
+            $this->searchResults = \App\Models\Customer::where(function($query) use ($search) {
+                    $query->where('phone', 'LIKE', '%' . $search . '%')
+                          ->orWhere('last_name', 'LIKE', '%' . $search . '%')
+                          ->orWhere('first_name', 'LIKE', '%' . $search . '%')
+                          ->orWhere('last_name_kana', 'LIKE', '%' . $search . '%')
+                          ->orWhere('first_name_kana', 'LIKE', '%' . $search . '%');
+                })
+                ->whereHas('reservations', function($query) use ($storeId) {
+                    // この店舗での予約履歴がある顧客のみ
+                    $query->where('store_id', $storeId);
+                })
+                ->withCount(['reservations' => function($query) use ($storeId) {
+                    // この店舗での予約回数をカウント
+                    $query->where('store_id', $storeId);
+                }])
+                ->with(['reservations' => function($query) use ($storeId) {
+                    // この店舗での最新予約を取得
+                    $query->where('store_id', $storeId)
+                          ->latest('reservation_date')
+                          ->first();
+                }])
+                ->limit(10)
+                ->get()
+                ->map(function($customer) {
+                    $lastReservation = $customer->reservations->first();
+                    $customer->last_visit_date = $lastReservation ? $lastReservation->reservation_date : null;
+                    return $customer;
+                });
+        } else {
+            $this->searchResults = [];
+        }
+    }
+    
+    public function selectCustomer($customerId): void
+    {
+        $this->selectedCustomer = \App\Models\Customer::find($customerId);
+        $this->reservationStep = 3; // 予約詳細入力へ
+    }
+    
+    public function startNewCustomerRegistration(): void
+    {
+        $this->newCustomer['phone'] = $this->phoneSearch;
+        $this->reservationStep = 2; // 新規顧客登録へ
+    }
+    
+    public function createNewCustomer(): void
+    {
+        // バリデーション
+        if (empty($this->newCustomer['last_name']) || empty($this->newCustomer['first_name'])) {
+            $this->dispatch('notify', [
+                'type' => 'error',
+                'message' => '姓名は必須です'
+            ]);
+            return;
+        }
+        
+        if (empty($this->newCustomer['phone'])) {
+            $this->dispatch('notify', [
+                'type' => 'error',
+                'message' => '電話番号は必須です'
+            ]);
+            return;
+        }
+        
+        // 電話番号の重複チェック
+        $existingCustomer = \App\Models\Customer::where('phone', $this->newCustomer['phone'])->first();
+        if ($existingCustomer) {
+            // 既存顧客だった場合は、情報を更新して次へ進む
+            $this->selectedCustomer = $existingCustomer;
+            $this->reservationStep = 3;
+            
+            $this->dispatch('notify', [
+                'type' => 'info',
+                'message' => '既存のお客様でした（' . $existingCustomer->last_name . ' ' . $existingCustomer->first_name . '様）。予約詳細を入力してください。'
+            ]);
+            return;
+        }
+        
+        // 新規顧客を作成
+        $customer = \App\Models\Customer::create([
+            'last_name' => $this->newCustomer['last_name'],
+            'first_name' => $this->newCustomer['first_name'],
+            'last_name_kana' => '',  // カナは空で設定
+            'first_name_kana' => '', // カナは空で設定
+            'email' => $this->newCustomer['email'],
+            'phone' => $this->newCustomer['phone'],
+        ]);
+        
+        $this->selectedCustomer = $customer;
+        $this->reservationStep = 3; // 予約詳細入力へ
+        
+        $this->dispatch('notify', [
+            'type' => 'success',
+            'message' => '新規顧客を登録しました'
+        ]);
+    }
+    
+    public function createReservation(): void
+    {
+        // バリデーション
+        if (!$this->selectedCustomer || empty($this->newReservation['menu_id'])) {
+            $this->dispatch('notify', [
+                'type' => 'error',
+                'message' => '必須項目を入力してください'
+            ]);
+            return;
+        }
+        
+        // 過去の日時チェック（現在時刻から30分前まで許可）
+        $reservationDateTime = \Carbon\Carbon::parse($this->newReservation['date'] . ' ' . $this->newReservation['start_time']);
+        $minimumTime = \Carbon\Carbon::now()->subMinutes(30);
+        if ($reservationDateTime->lt($minimumTime)) {
+            $this->dispatch('notify', [
+                'type' => 'error',
+                'message' => '過去の時間には予約できません'
+            ]);
+            return;
+        }
+        
+        // メニュー情報を取得
+        $menu = \App\Models\Menu::find($this->newReservation['menu_id']);
+        if (!$menu) {
+            $this->dispatch('notify', [
+                'type' => 'error',
+                'message' => 'メニューが見つかりません'
+            ]);
+            return;
+        }
+        
+        // 終了時刻を計算
+        $startTime = \Carbon\Carbon::parse($this->newReservation['date'] . ' ' . $this->newReservation['start_time']);
+        $endTime = $startTime->copy()->addMinutes($menu->duration_minutes ?? $this->newReservation['duration']);
+        
+        // 予約番号を生成
+        $reservationNumber = 'R' . date('Ymd') . str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
+        
+        // 予約を作成
+        $reservation = Reservation::create([
+            'reservation_number' => $reservationNumber,
+            'store_id' => $this->selectedStore,
+            'customer_id' => $this->selectedCustomer->id,
+            'menu_id' => $this->newReservation['menu_id'],
+            'reservation_date' => $this->newReservation['date'],
+            'start_time' => $this->newReservation['start_time'],
+            'end_time' => $endTime->format('H:i'),
+            'guest_count' => 1,
+            'status' => 'booked',
+            'source' => 'phone',
+            'line_type' => $this->newReservation['line_type'],
+            'line_number' => $this->newReservation['line_type'] === 'main' ? $this->newReservation['line_number'] : null,
+            'notes' => $this->newReservation['notes'],
+            'total_amount' => $menu->price ?? 0,
+            'deposit_amount' => 0,
+            'payment_method' => 'cash',
+            'payment_status' => 'unpaid',
+        ]);
+        
+        // モーダルを閉じる
+        $this->closeNewReservationModal();
+        
+        // タイムラインを更新
+        $this->loadTimelineData();
+        
+        // 成功通知
+        $this->dispatch('notify', [
+            'type' => 'success',
+            'message' => '予約を作成しました（予約番号: ' . $reservationNumber . '）'
+        ]);
     }
     
 }

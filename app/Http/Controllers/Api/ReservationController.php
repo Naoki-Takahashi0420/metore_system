@@ -232,6 +232,99 @@ class ReservationController extends Controller
     }
 
     /**
+     * 予約日時変更
+     */
+    public function changeReservationDate(Request $request, $id)
+    {
+        $customer = $request->user();
+        
+        $reservation = Reservation::where('customer_id', $customer->id)
+            ->where('id', $id)
+            ->with(['store', 'menu'])
+            ->first();
+
+        if (!$reservation) {
+            return response()->json([
+                'message' => '予約が見つかりません'
+            ], 404);
+        }
+
+        // 変更可能かチェック
+        if (in_array($reservation->status, ['cancelled', 'completed', 'no_show'])) {
+            return response()->json([
+                'message' => 'この予約は変更できません'
+            ], 400);
+        }
+
+        // バリデーション
+        $validated = $request->validate([
+            'new_date' => 'required|date|after_or_equal:today',
+            'new_time' => 'required'
+        ]);
+
+        // 24時間前チェック（元の予約時間）
+        $dateStr = is_string($reservation->reservation_date) ? 
+            $reservation->reservation_date : 
+            $reservation->reservation_date->format('Y-m-d');
+        
+        $timeStr = is_string($reservation->start_time) ? 
+            $reservation->start_time : 
+            $reservation->start_time->format('H:i:s');
+            
+        if (strpos($dateStr, ' ') !== false) {
+            $dateStr = explode(' ', $dateStr)[0];
+        }
+        
+        if (strpos($timeStr, ' ') !== false) {
+            $parts = explode(' ', $timeStr);
+            $timeStr = end($parts);
+        }
+        
+        $reservationDateTime = \Carbon\Carbon::parse($dateStr . ' ' . $timeStr);
+        $now = \Carbon\Carbon::now();
+        $hoursUntilReservation = $now->diffInHours($reservationDateTime, false);
+        
+        if ($hoursUntilReservation < 24) {
+            return response()->json([
+                'success' => false,
+                'message' => '予約の24時間前を過ぎています。お電話でお問い合わせください',
+                'require_phone_contact' => true,
+                'store_phone' => $reservation->store->phone,
+                'store_name' => $reservation->store->name
+            ], 400);
+        }
+
+        // 新しい終了時間を計算
+        $newStartTime = \Carbon\Carbon::parse($validated['new_date'] . ' ' . $validated['new_time']);
+        $duration = $reservation->menu->duration_minutes ?? 60;
+        $newEndTime = $newStartTime->copy()->addMinutes($duration);
+
+        // 変更を保存
+        $oldDate = $reservation->reservation_date;
+        $oldTime = $reservation->start_time;
+        
+        $reservation->update([
+            'reservation_date' => $validated['new_date'],
+            'start_time' => $validated['new_time'],
+            'end_time' => $newEndTime->format('H:i:s')
+        ]);
+
+        // 変更通知を送信
+        event(new ReservationChanged($reservation, [
+            'old_date' => $oldDate,
+            'old_time' => $oldTime,
+            'new_date' => $validated['new_date'],
+            'new_time' => $validated['new_time']
+        ]));
+
+        return response()->json([
+            'success' => true,
+            'message' => '予約日時を変更しました',
+            'data' => $reservation
+        ]);
+    }
+
+    /**
      * 予約変更
      */
     public function updateReservation(Request $request, $id)

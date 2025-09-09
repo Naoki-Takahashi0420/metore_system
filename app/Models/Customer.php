@@ -158,7 +158,22 @@ class Customer extends Model
     {
         return $this->hasOne(CustomerSubscription::class)
             ->where('status', 'active')
-            ->where('start_date', '<=', now())
+            ->where(function ($query) {
+                // start_dateが空の場合はservice_start_dateかbilling_start_dateを使う
+                $query->where(function ($q) {
+                    $q->whereNotNull('start_date')
+                      ->where('start_date', '<=', now());
+                })->orWhere(function ($q) {
+                    $q->whereNull('start_date')
+                      ->whereNotNull('service_start_date')
+                      ->where('service_start_date', '<=', now());
+                })->orWhere(function ($q) {
+                    $q->whereNull('start_date')
+                      ->whereNull('service_start_date')
+                      ->whereNotNull('billing_start_date')
+                      ->where('billing_start_date', '<=', now());
+                });
+            })
             ->where(function ($query) {
                 $query->whereNull('end_date')
                     ->orWhere('end_date', '>=', now());

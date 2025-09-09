@@ -14,6 +14,8 @@ use Saade\FilamentFullCalendar\Actions;
 use Illuminate\Database\Eloquent\Model;
 use Livewire\Component;
 use Filament\Forms\Components\Select;
+use Livewire\Attributes\On;
+use Illuminate\Support\Facades\Auth;
 
 class ReservationCalendarWidget extends FullCalendarWidget
 {
@@ -24,8 +26,6 @@ class ReservationCalendarWidget extends FullCalendarWidget
     protected static ?string $heading = '予約カレンダー';
     
     public ?int $selectedStoreId = null;
-    
-    protected $listeners = ['storeChanged' => 'updateStoreId'];
     
     public function mount(): void
     {
@@ -44,11 +44,12 @@ class ReservationCalendarWidget extends FullCalendarWidget
         }
     }
     
-    public function updateStoreId($storeId): void
+    #[On('store-changed')]
+    public function updateStoreId($storeId, $date = null): void
     {
         $this->selectedStoreId = $storeId;
-        // カレンダーを再描画
-        $this->refreshEvents();
+        // FullCalendarのイベントを再取得
+        $this->refreshRecords();
     }
     
     
@@ -226,7 +227,6 @@ class ReservationCalendarWidget extends FullCalendarWidget
                             }
                             
                             $existingRecord = MedicalRecord::where('reservation_id', $reservation->id)
-                                ->where('record_date', $reservation->reservation_date)
                                 ->first();
                             return $existingRecord ? 'カルテ編集' : 'カルテ記入';
                         })
@@ -235,56 +235,197 @@ class ReservationCalendarWidget extends FullCalendarWidget
                         ->form([
                             Forms\Components\Hidden::make('reservation_id'),
                             Forms\Components\Hidden::make('customer_id'),
-                            Forms\Components\DatePicker::make('record_date')
-                                ->label('記録日')
-                                ->required()
-                                ->default(function (array $arguments) {
-                                    $reservation = Reservation::find($arguments['event']['id'] ?? null);
-                                    return $reservation?->reservation_date;
-                                }),
-                            Forms\Components\Textarea::make('chief_complaint')
-                                ->label('主訴')
-                                ->rows(2)
-                                ->placeholder('患者様の主な訴えを記入してください'),
-                            Forms\Components\Textarea::make('symptoms')
-                                ->label('症状')
-                                ->rows(3)
-                                ->placeholder('詳細な症状を記入してください'),
-                            Forms\Components\Textarea::make('diagnosis')
-                                ->label('診断')
-                                ->rows(2)
-                                ->placeholder('診断結果を記入してください'),
-                            Forms\Components\Textarea::make('treatment')
-                                ->label('施術内容')
-                                ->rows(3)
-                                ->placeholder('実施した施術内容を記入してください'),
-                            Forms\Components\Textarea::make('prescription')
-                                ->label('処方・指導')
-                                ->rows(2)
-                                ->placeholder('処方や生活指導を記入してください'),
-                            Forms\Components\DatePicker::make('next_visit_date')
-                                ->label('次回来院予定日'),
-                            Forms\Components\Textarea::make('notes')
-                                ->label('備考')
-                                ->rows(2)
-                                ->placeholder('その他特記事項があれば記入してください'),
+                            
+                            Forms\Components\Tabs::make('Tabs')
+                                ->tabs([
+                                    // 基本情報タブ
+                                    Forms\Components\Tabs\Tab::make('基本情報')
+                                        ->schema([
+                                            Forms\Components\Grid::make(2)
+                                                ->schema([
+                                                    Forms\Components\TextInput::make('handled_by')
+                                                        ->label('対応者')
+                                                        ->default(Auth::user()->name)
+                                                        ->required(),
+                                                    
+                                                    Forms\Components\DatePicker::make('treatment_date')
+                                                        ->label('施術日')
+                                                        ->default(function (array $arguments) {
+                                                            $reservation = Reservation::find($arguments['event']['id'] ?? null);
+                                                            return $reservation?->reservation_date ?? now();
+                                                        })
+                                                        ->required(),
+                                                ]),
+                                        ]),
+                                    
+                                    // 顧客管理情報タブ
+                                    Forms\Components\Tabs\Tab::make('顧客管理情報')
+                                        ->schema([
+                                            Forms\Components\Grid::make(2)
+                                                ->schema([
+                                                    Forms\Components\Select::make('payment_method')
+                                                        ->label('支払い方法')
+                                                        ->options([
+                                                            'cash' => '現金',
+                                                            'credit' => 'クレジットカード',
+                                                            'paypay' => 'PayPay',
+                                                            'bank_transfer' => '銀行振込',
+                                                            'subscription' => 'サブスク',
+                                                        ]),
+                                                    
+                                                    Forms\Components\Select::make('reservation_source')
+                                                        ->label('来店経路')
+                                                        ->options([
+                                                            'hp' => 'ホームページ',
+                                                            'phone' => '電話',
+                                                            'line' => 'LINE',
+                                                            'instagram' => 'Instagram',
+                                                            'referral' => '紹介',
+                                                            'walk_in' => '飛び込み',
+                                                        ]),
+                                                    
+                                                    Forms\Components\Textarea::make('visit_purpose')
+                                                        ->label('来店目的')
+                                                        ->rows(2),
+                                                    
+                                                    Forms\Components\Textarea::make('workplace_address')
+                                                        ->label('職場・住所')
+                                                        ->rows(2),
+                                                ]),
+                                            
+                                            Forms\Components\Grid::make(3)
+                                                ->schema([
+                                                    Forms\Components\Toggle::make('genetic_possibility')
+                                                        ->label('遺伝の可能性'),
+                                                    
+                                                    Forms\Components\Toggle::make('has_astigmatism')
+                                                        ->label('乱視'),
+                                                    
+                                                    Forms\Components\Textarea::make('eye_diseases')
+                                                        ->label('目の病気')
+                                                        ->placeholder('レーシック、白内障など')
+                                                        ->rows(2)
+                                                        ->columnSpan(3),
+                                                ]),
+                                            
+                                            Forms\Components\Textarea::make('device_usage')
+                                                ->label('スマホ・PC使用頻度')
+                                                ->placeholder('1日何時間程度、仕事で使用など')
+                                                ->rows(2),
+                                        ]),
+                                    
+                                    // 視力記録タブ（簡易版）
+                                    Forms\Components\Tabs\Tab::make('視力記録')
+                                        ->schema([
+                                            Forms\Components\Grid::make(2)
+                                                ->schema([
+                                                    Forms\Components\TextInput::make('intensity')
+                                                        ->label('強度')
+                                                        ->numeric()
+                                                        ->minValue(1)
+                                                        ->maxValue(50)
+                                                        ->placeholder('1-50')
+                                                        ->helperText('1（弱）〜 50（強）'),
+                                                    
+                                                    Forms\Components\TextInput::make('duration')
+                                                        ->label('時間（分）')
+                                                        ->numeric()
+                                                        ->default(60)
+                                                        ->suffix('分'),
+                                                ]),
+                                            
+                                            // 施術前視力（裸眼）
+                                            Forms\Components\Section::make('施術前視力 - 裸眼')
+                                                ->schema([
+                                                    Forms\Components\Grid::make(2)
+                                                        ->schema([
+                                                            Forms\Components\TextInput::make('before_naked_left')
+                                                                ->label('左眼')
+                                                                ->placeholder('0.5'),
+                                                            
+                                                            Forms\Components\TextInput::make('before_naked_right')
+                                                                ->label('右眼')
+                                                                ->placeholder('0.5'),
+                                                        ]),
+                                                ])
+                                                ->collapsible(),
+                                            
+                                            // 施術前視力（矯正）
+                                            Forms\Components\Section::make('施術前視力 - 矯正')
+                                                ->schema([
+                                                    Forms\Components\Grid::make(2)
+                                                        ->schema([
+                                                            Forms\Components\TextInput::make('before_corrected_left')
+                                                                ->label('左眼')
+                                                                ->placeholder('1.0'),
+                                                            
+                                                            Forms\Components\TextInput::make('before_corrected_right')
+                                                                ->label('右眼')
+                                                                ->placeholder('1.0'),
+                                                        ]),
+                                                ])
+                                                ->collapsible()
+                                                ->collapsed(),
+                                            
+                                            // 施術後視力（裸眼）
+                                            Forms\Components\Section::make('施術後視力 - 裸眼')
+                                                ->schema([
+                                                    Forms\Components\Grid::make(2)
+                                                        ->schema([
+                                                            Forms\Components\TextInput::make('after_naked_left')
+                                                                ->label('左眼')
+                                                                ->placeholder('0.8'),
+                                                            
+                                                            Forms\Components\TextInput::make('after_naked_right')
+                                                                ->label('右眼')
+                                                                ->placeholder('0.8'),
+                                                        ]),
+                                                ])
+                                                ->collapsible(),
+                                            
+                                            // 施術後視力（矯正）
+                                            Forms\Components\Section::make('施術後視力 - 矯正')
+                                                ->schema([
+                                                    Forms\Components\Grid::make(2)
+                                                        ->schema([
+                                                            Forms\Components\TextInput::make('after_corrected_left')
+                                                                ->label('左眼')
+                                                                ->placeholder('1.2'),
+                                                            
+                                                            Forms\Components\TextInput::make('after_corrected_right')
+                                                                ->label('右眼')
+                                                                ->placeholder('1.2'),
+                                                        ]),
+                                                ])
+                                                ->collapsible()
+                                                ->collapsed(),
+                                        ]),
+                                ]),
                         ])
                         ->fillForm(function (array $arguments) {
                             $reservation = Reservation::with(['customer'])->find($arguments['event']['id'] ?? null);
                             if (!$reservation) return [];
                             
                             $existingRecord = MedicalRecord::where('reservation_id', $reservation->id)
-                                ->where('record_date', $reservation->reservation_date)
                                 ->first();
                             
                             if ($existingRecord) {
-                                return $existingRecord->toArray();
+                                // 既存のカルテデータを整形
+                                $data = $existingRecord->toArray();
+                                
+                                // vision_recordsがある場合は最新の記録から値を取得
+                                if (!empty($data['vision_records']) && is_array($data['vision_records'])) {
+                                    $latestRecord = end($data['vision_records']);
+                                    $data = array_merge($data, $latestRecord);
+                                }
+                                
+                                return $data;
                             }
                             
                             return [
                                 'reservation_id' => $reservation->id,
                                 'customer_id' => $reservation->customer_id,
-                                'record_date' => $reservation->reservation_date,
+                                'treatment_date' => $reservation->reservation_date,
                             ];
                         })
                         ->action(function (array $data, array $arguments) {
@@ -299,19 +440,60 @@ class ReservationCalendarWidget extends FullCalendarWidget
                             }
                             
                             $existingRecord = MedicalRecord::where('reservation_id', $reservation->id)
-                                ->where('record_date', $reservation->reservation_date)
                                 ->first();
                             
+                            // vision_recordsを構築
+                            $visionRecord = [];
+                            if (isset($data['intensity']) || isset($data['duration'])) {
+                                $visionRecord = [
+                                    'session' => 1,
+                                    'date' => $data['treatment_date'] ?? now(),
+                                    'intensity' => $data['intensity'] ?? null,
+                                    'duration' => $data['duration'] ?? null,
+                                    'before_naked_left' => $data['before_naked_left'] ?? null,
+                                    'before_naked_right' => $data['before_naked_right'] ?? null,
+                                    'before_corrected_left' => $data['before_corrected_left'] ?? null,
+                                    'before_corrected_right' => $data['before_corrected_right'] ?? null,
+                                    'after_naked_left' => $data['after_naked_left'] ?? null,
+                                    'after_naked_right' => $data['after_naked_right'] ?? null,
+                                    'after_corrected_left' => $data['after_corrected_left'] ?? null,
+                                    'after_corrected_right' => $data['after_corrected_right'] ?? null,
+                                ];
+                            }
+                            
+                            // 視力関連のフィールドを削除してvision_recordsに移動
+                            $medicalData = array_filter($data, function($key) {
+                                return !in_array($key, [
+                                    'intensity', 'duration',
+                                    'before_naked_left', 'before_naked_right',
+                                    'before_corrected_left', 'before_corrected_right',
+                                    'after_naked_left', 'after_naked_right',
+                                    'after_corrected_left', 'after_corrected_right'
+                                ]);
+                            }, ARRAY_FILTER_USE_KEY);
+                            
+                            if (!empty($visionRecord)) {
+                                $medicalData['vision_records'] = [$visionRecord];
+                            }
+                            
                             if ($existingRecord) {
-                                $existingRecord->update($data);
+                                // 既存のvision_recordsがある場合はマージ
+                                if (!empty($visionRecord) && !empty($existingRecord->vision_records)) {
+                                    $existingRecords = is_string($existingRecord->vision_records) 
+                                        ? json_decode($existingRecord->vision_records, true) 
+                                        : $existingRecord->vision_records;
+                                    $medicalData['vision_records'] = array_merge($existingRecords, [$visionRecord]);
+                                }
+                                
+                                $existingRecord->update($medicalData);
                                 Notification::make()
                                     ->title('カルテを更新しました')
                                     ->success()
                                     ->send();
                             } else {
-                                $data['staff_id'] = auth()->id();
-                                $data['created_by'] = auth()->id();
-                                MedicalRecord::create($data);
+                                $medicalData['staff_id'] = auth()->id();
+                                $medicalData['created_by'] = auth()->id();
+                                MedicalRecord::create($medicalData);
                                 Notification::make()
                                     ->title('カルテを記入しました')
                                     ->success()
@@ -331,7 +513,6 @@ class ReservationCalendarWidget extends FullCalendarWidget
                             }
                             
                             $existingRecord = MedicalRecord::where('reservation_id', $reservation->id)
-                                ->where('record_date', $reservation->reservation_date)
                                 ->first();
                             
                             $customerName = $reservation->customer->last_name . ' ' . $reservation->customer->first_name . '様';
