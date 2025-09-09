@@ -88,6 +88,37 @@ class ReservationTimelineWidget extends Widget
         $this->loadTimelineData();
     }
     
+    protected function getBaseQuery()
+    {
+        $query = Reservation::query();
+        $user = auth()->user();
+        
+        if (!$user) {
+            return $query->whereRaw('1 = 0');
+        }
+        
+        // スーパーアドミンは全予約を表示
+        if ($user->hasRole('super_admin')) {
+            return $query;
+        }
+        
+        // オーナーは管理可能店舗の予約のみ表示
+        if ($user->hasRole('owner')) {
+            $manageableStoreIds = $user->manageableStores()->pluck('stores.id');
+            return $query->whereIn('store_id', $manageableStoreIds);
+        }
+        
+        // 店長・スタッフは所属店舗の予約のみ表示
+        if ($user->hasRole(['manager', 'staff'])) {
+            if ($user->store_id) {
+                return $query->where('store_id', $user->store_id);
+            }
+            return $query->whereRaw('1 = 0');
+        }
+        
+        return $query->whereRaw('1 = 0');
+    }
+    
     public function loadTimelineData(): void
     {
         if (!$this->selectedStore || !$this->selectedDate) {
@@ -174,7 +205,8 @@ class ReservationTimelineWidget extends Widget
         $timeline = [];
         
         // 予約データを取得（スタッフ情報も含む）
-        $reservations = Reservation::with(['customer', 'menu', 'staff'])
+        $reservations = $this->getBaseQuery()
+            ->with(['customer', 'menu', 'staff'])
             ->where('store_id', $this->selectedStore)
             ->whereDate('reservation_date', $date)
             ->whereNotIn('status', ['cancelled', 'canceled'])

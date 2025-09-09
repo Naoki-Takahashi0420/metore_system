@@ -691,4 +691,107 @@ class ReservationResource extends Resource
             'edit' => Pages\EditReservation::route('/{record}/edit'),
         ];
     }
+    
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user = auth()->user();
+        
+        if (!$user) {
+            return $query->whereRaw('1 = 0');
+        }
+        
+        // スーパーアドミンは全予約を表示
+        if ($user->hasRole('super_admin')) {
+            return $query;
+        }
+        
+        // オーナーは管理可能店舗の予約のみ表示
+        if ($user->hasRole('owner')) {
+            $manageableStoreIds = $user->manageableStores()->pluck('stores.id');
+            return $query->whereIn('store_id', $manageableStoreIds);
+        }
+        
+        // 店長・スタッフは所属店舗の予約のみ表示
+        if ($user->hasRole(['manager', 'staff'])) {
+            if ($user->store_id) {
+                return $query->where('store_id', $user->store_id);
+            }
+            return $query->whereRaw('1 = 0');
+        }
+        
+        return $query->whereRaw('1 = 0');
+    }
+    
+    public static function canViewAny(): bool
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return false;
+        }
+        // 全ロールで予約一覧の閲覧可能
+        return $user->hasRole(['super_admin', 'owner', 'manager', 'staff']);
+    }
+    
+    public static function canView($record): bool
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return false;
+        }
+        
+        // スーパーアドミンは全予約を閲覧可能
+        if ($user->hasRole('super_admin')) {
+            return true;
+        }
+        
+        // オーナーは管理可能店舗の予約のみ閲覧可能
+        if ($user->hasRole('owner')) {
+            $manageableStoreIds = $user->manageableStores()->pluck('stores.id');
+            return in_array($record->store_id, $manageableStoreIds->toArray());
+        }
+        
+        // 店長・スタッフは所属店舗の予約のみ閲覧可能
+        if ($user->hasRole(['manager', 'staff'])) {
+            return $record->store_id === $user->store_id;
+        }
+        
+        return false;
+    }
+    
+    public static function canCreate(): bool
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return false;
+        }
+        // 全ロールで予約作成可能
+        return $user->hasRole(['super_admin', 'owner', 'manager', 'staff']);
+    }
+    
+    public static function canEdit($record): bool
+    {
+        // 予約編集は予約閲覧権限と同じロジック
+        return static::canView($record);
+    }
+    
+    public static function canDelete($record): bool
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return false;
+        }
+        
+        // スーパーアドミンとオーナーのみ削除可能
+        if ($user->hasRole('super_admin')) {
+            return true;
+        }
+        
+        if ($user->hasRole('owner')) {
+            $manageableStoreIds = $user->manageableStores()->pluck('stores.id');
+            return in_array($record->store_id, $manageableStoreIds->toArray());
+        }
+        
+        return false;
+    }
 }

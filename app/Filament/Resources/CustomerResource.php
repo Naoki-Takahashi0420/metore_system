@@ -433,29 +433,30 @@ class CustomerResource extends Resource
     
     public static function canView($record): bool
     {
-        // 暫定対応: 全顧客を表示可能にする（インポート対策）
-        return true;
-        
-        // 以下は将来の実装用（コメントアウト）
-        /*
-        try {
-            $reservationCount = \DB::table('reservations')
-                ->where('customer_id', $record->id)
-                ->count();
-            
-            if ($reservationCount === 0) {
-                return true; // インポート顧客は表示
-            }
-            
-            $user = auth()->user();
-            if (!$user) return false;
-            
-            // 権限チェックロジック...
-            
-        } catch (\Exception $e) {
-            return true; // エラー時も表示（暫定対応）
+        $user = auth()->user();
+        if (!$user) {
+            return false;
         }
-        */
+        
+        // スーパーアドミンは全顧客を閲覧可能
+        if ($user->hasRole('super_admin')) {
+            return true;
+        }
+        
+        // その他のロールは予約がある店舗に基づいて判断
+        $storeIds = [];
+        if ($user->hasRole('owner')) {
+            $storeIds = $user->manageableStores()->pluck('stores.id')->toArray();
+        } elseif ($user->hasRole(['manager', 'staff']) && $user->store_id) {
+            $storeIds = [$user->store_id];
+        }
+        
+        if (empty($storeIds)) {
+            return false;
+        }
+        
+        // 該当店舗で予約がある顧客のみ閲覧可能
+        return $record->reservations()->whereIn('store_id', $storeIds)->exists();
     }
     
     public static function canCreate(): bool
@@ -506,5 +507,40 @@ class CustomerResource extends Resource
         }
         
         return false;
+    }
+    
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user = auth()->user();
+        
+        if (!$user) {
+            return $query->whereRaw('1 = 0');
+        }
+        
+        // スーパーアドミンは全顧客を表示
+        if ($user->hasRole('super_admin')) {
+            return $query;
+        }
+        
+        // オーナーは管理可能店舗に関連する顧客のみ表示
+        if ($user->hasRole('owner')) {
+            $manageableStoreIds = $user->manageableStores()->pluck('stores.id');
+            return $query->whereHas('reservations', function ($q) use ($manageableStoreIds) {
+                $q->whereIn('store_id', $manageableStoreIds);
+            });
+        }
+        
+        // 店長・スタッフは所属店舗に関連する顧客のみ表示
+        if ($user->hasRole(['manager', 'staff'])) {
+            if ($user->store_id) {
+                return $query->whereHas('reservations', function ($q) use ($user) {
+                    $q->where('store_id', $user->store_id);
+                });
+            }
+            return $query->whereRaw('1 = 0');
+        }
+        
+        return $query->whereRaw('1 = 0');
     }
 }

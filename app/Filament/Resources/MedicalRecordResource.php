@@ -439,6 +439,21 @@ class MedicalRecordResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('store')
+                    ->label('店舗')
+                    ->options(\App\Models\Store::where('is_active', true)->pluck('name', 'id'))
+                    ->query(function ($query, $data) {
+                        if ($data['value']) {
+                            return $query->whereHas('customer', function ($q) use ($data) {
+                                $q->whereHas('reservations', function ($r) use ($data) {
+                                    $r->where('store_id', $data['value']);
+                                });
+                            });
+                        }
+                        return $query;
+                    })
+                    ->searchable(),
+                    
                 Tables\Filters\SelectFilter::make('customer_id')
                     ->label('顧客')
                     ->options(Customer::all()->mapWithKeys(function ($customer) {

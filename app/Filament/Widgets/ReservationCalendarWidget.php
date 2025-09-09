@@ -52,13 +52,44 @@ class ReservationCalendarWidget extends FullCalendarWidget
         $this->refreshRecords();
     }
     
+    protected function getBaseQuery()
+    {
+        $query = Reservation::query();
+        $user = auth()->user();
+        
+        if (!$user) {
+            return $query->whereRaw('1 = 0');
+        }
+        
+        // スーパーアドミンは全予約を表示
+        if ($user->hasRole('super_admin')) {
+            return $query;
+        }
+        
+        // オーナーは管理可能店舗の予約のみ表示
+        if ($user->hasRole('owner')) {
+            $manageableStoreIds = $user->manageableStores()->pluck('stores.id');
+            return $query->whereIn('store_id', $manageableStoreIds);
+        }
+        
+        // 店長・スタッフは所属店舗の予約のみ表示
+        if ($user->hasRole(['manager', 'staff'])) {
+            if ($user->store_id) {
+                return $query->where('store_id', $user->store_id);
+            }
+            return $query->whereRaw('1 = 0');
+        }
+        
+        return $query->whereRaw('1 = 0');
+    }
     
     public function fetchEvents(array $info): array
     {
         $start = Carbon::parse($info['start']);
         $end = Carbon::parse($info['end']);
         
-        $query = Reservation::with(['customer', 'store', 'menu'])
+        $query = $this->getBaseQuery()
+            ->with(['customer', 'store', 'menu'])
             ->whereBetween('reservation_date', [$start, $end]);
         
         // 店舗フィルタリング

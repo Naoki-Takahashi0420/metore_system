@@ -35,8 +35,26 @@ class ShiftCalendarWidget extends Widget
     
     public function mount(): void
     {
-        $this->stores = Store::where('is_active', true)->get();
-        $this->selectedStore = $this->stores->first()?->id;
+        $user = auth()->user();
+        
+        // ユーザーの権限に基づいて店舗リストを取得
+        if ($user->hasRole('super_admin')) {
+            $this->stores = Store::where('is_active', true)->get();
+            $this->selectedStore = $this->stores->first()?->id;
+        } elseif ($user->hasRole('owner')) {
+            $this->stores = $user->manageableStores()->where('is_active', true)->get();
+            $this->selectedStore = $this->stores->first()?->id;
+        } else {
+            // 店長・スタッフは所属店舗のみ
+            if ($user->store_id) {
+                $this->stores = Store::where('id', $user->store_id)->where('is_active', true)->get();
+                $this->selectedStore = $user->store_id;
+            } else {
+                $this->stores = collect();
+                $this->selectedStore = null;
+            }
+        }
+        
         $this->currentMonth = now()->month;
         $this->currentYear = now()->year;
         $this->loadCalendarData();

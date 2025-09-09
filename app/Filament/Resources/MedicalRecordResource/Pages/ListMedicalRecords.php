@@ -42,39 +42,8 @@ class ListMedicalRecords extends ListRecords
         ];
     }
     
-    public function getHeader(): ?\Illuminate\Contracts\View\View
-    {
-        $user = auth()->user();
-        $storeOptions = collect();
-        
-        try {
-            // スーパーアドミンは全店舗表示
-            if ($user && $user->hasRole('super_admin')) {
-                $storeOptions = Store::where('is_active', true)->whereNotNull('name')->pluck('name', 'id');
-            }
-            // オーナーは管理可能店舗のみ
-            elseif ($user && $user->hasRole('owner')) {
-                $storeOptions = $user->manageableStores()->whereNotNull('name')->pluck('name', 'id');
-            }
-            // その他は所属店舗のみ
-            elseif ($user && $user->store) {
-                $storeOptions = collect([$user->store_id => $user->store->name]);
-            }
-            
-            // 店舗選択が必要な場合のみヘッダーを表示
-            if ($storeOptions->count() > 1) {
-                return view('filament.resources.medical-record-resource.pages.list-medical-records-header', [
-                    'storeOptions' => $storeOptions->prepend('全店舗', '') ?? collect(),
-                    'selectedStore' => $this->storeFilter ?? ''
-                ]);
-            }
-        } catch (\Exception $e) {
-            // エラーが発生した場合はヘッダーを表示しない
-            \Log::error('MedicalRecordResource header error: ' . $e->getMessage());
-        }
-        
-        return null;
-    }
+    // カスタムヘッダーを削除して、標準のFilamentヘッダーを使用
+    // これにより新規作成ボタンが常に表示される
     
     public function getTableQuery(): ?\Illuminate\Database\Eloquent\Builder
     {
