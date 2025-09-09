@@ -94,9 +94,12 @@ trait HasShiftPermissions
         // manager/staffは所属店舗のみ
         $storeIds = [$this->store_id];
         
-        if ($this->role === 'manager') {
-            $managedStoreIds = $this->managedStores()->pluck('stores.id')->toArray();
-            $storeIds = array_merge($storeIds, $managedStoreIds);
+        if ($this->role === 'manager' || $this->role === 'owner') {
+            // manageableStoresメソッドを使用（managedStoresではない）
+            if (method_exists($this, 'manageableStores')) {
+                $managedStoreIds = $this->manageableStores()->pluck('stores.id')->toArray();
+                $storeIds = array_merge($storeIds, $managedStoreIds);
+            }
         }
         
         return Store::whereIn('id', array_filter($storeIds))

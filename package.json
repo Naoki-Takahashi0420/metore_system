@@ -20,6 +20,7 @@
         "@playwright/test": "^1.55.0",
         "alpinejs": "^3.14.9",
         "playwright": "^1.55.0",
+        "puppeteer": "^24.19.0",
         "sortablejs": "^1.15.6"
     }
 }
