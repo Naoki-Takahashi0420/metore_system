@@ -161,7 +161,9 @@ class UserResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('store_id')
                     ->label('店舗')
-                    ->options(\App\Models\Store::whereNotNull('name')->where('name', '!=', '')->get()->pluck('name', 'id')->filter()),
+                    ->options(\App\Models\Store::where('is_active', true)->pluck('name', 'id'))
+                    ->searchable()
+                    ->preload(),
                 Tables\Filters\SelectFilter::make('roles')
                     ->label('ロール')
                     ->relationship('roles', 'display_name')
@@ -215,8 +217,9 @@ class UserResource extends Resource
     
     public static function canCreate(): bool
     {
-        $user = auth()->user();
-        if (!$user || !$user->roles()->exists()) {
+        // Filamentのauth guardを使用
+        $user = \Filament\Facades\Filament::auth()->user();
+        if (!$user) {
             return false;
         }
         

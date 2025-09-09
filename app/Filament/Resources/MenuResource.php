@@ -96,9 +96,9 @@ class MenuResource extends Resource
                             ->reactive()
                             ->afterStateUpdated(function ($state, Forms\Set $set) {
                                 if ($state) {
-                                    // サブスクメニューの場合、priceとduration_minutesにデフォルト値を設定
+                                    // サブスクメニューの場合、priceを0に設定
                                     $set('price', 0);
-                                    $set('duration_minutes', 60);
+                                    // duration_minutesはデフォルト値のまま維持（60分）
                                 }
                             })
                             ->helperText('ONにすると月額プランとして、OFFにすると通常メニューとして提供されます'),
@@ -126,6 +126,26 @@ class MenuResource extends Resource
                             ->numeric()
                             ->suffix('回')
                             ->helperText('空欄の場合は無制限'),
+                        Forms\Components\Select::make('duration_minutes')
+                            ->label('所要時間')
+                            ->options(function (Forms\Get $get) {
+                                // 15分刻みの選択肢を提供
+                                return [
+                                    15 => '15分',
+                                    30 => '30分',
+                                    45 => '45分',
+                                    60 => '60分（1時間）',
+                                    75 => '75分（1時間15分）',
+                                    90 => '90分（1時間30分）',
+                                    105 => '105分（1時間45分）',
+                                    120 => '120分（2時間）',
+                                ];
+                            })
+                            ->reactive()
+                            ->required(fn (Forms\Get $get) => $get('is_subscription'))
+                            ->default(60)
+                            ->dehydrated()
+                            ->helperText('施術にかかる時間'),
                     ])
                     ->columns(2),
 

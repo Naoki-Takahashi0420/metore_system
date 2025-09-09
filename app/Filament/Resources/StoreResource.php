@@ -59,6 +59,21 @@ class StoreResource extends Resource
                                             ->label('説明')
                                             ->rows(3)
                                             ->maxLength(500),
+                                        Forms\Components\FileUpload::make('image_path')
+                                            ->label('店舗画像')
+                                            ->image()
+                                            ->imageEditor()
+                                            ->imageEditorAspectRatios([
+                                                '16:9',
+                                                '4:3',
+                                                '1:1',
+                                            ])
+                                            ->directory('stores')
+                                            ->disk('public')
+                                            ->visibility('public')
+                                            ->acceptedFileTypes(['image/jpeg', 'image/jpg', 'image/png', 'image/webp'])
+                                            ->maxSize(5120) // 5MB
+                                            ->columnSpanFull(),
                                     ])
                                     ->columns(2),
 

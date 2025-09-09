@@ -19,7 +19,7 @@ class ListUsers extends ListRecords
     {
         parent::mount();
         
-        $user = auth()->user();
+        $user = \Filament\Facades\Filament::auth()->user();
         if ($user && !$user->hasRole('super_admin') && !$this->storeFilter) {
             $this->storeFilter = $user->store_id;
         }
@@ -28,24 +28,14 @@ class ListUsers extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            Actions\CreateAction::make()
+                ->label('新規作成'),
         ];
     }
     
-    public function getHeader(): ?\Illuminate\Contracts\View\View
+    protected function getTableFiltersLayout(): ?string
     {
-        $user = auth()->user();
-        
-        if ($user && $user->hasRole('super_admin')) {
-            $storeOptions = Store::where('is_active', true)->pluck('name', 'id');
-            
-            return view('filament.resources.user-resource.pages.list-users-header', [
-                'storeOptions' => $storeOptions->prepend('全店舗', ''),
-                'selectedStore' => $this->storeFilter ?? ''
-            ]);
-        }
-        
-        return null;
+        return \Filament\Tables\Enums\FiltersLayout::AboveContent;
     }
     
     public function getTableQuery(): ?\Illuminate\Database\Eloquent\Builder

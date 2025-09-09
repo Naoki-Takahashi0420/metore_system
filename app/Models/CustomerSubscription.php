@@ -96,6 +96,22 @@ class CustomerSubscription extends Model
     }
 
     /**
+     * メニュー
+     */
+    public function menu(): BelongsTo
+    {
+        return $this->belongsTo(Menu::class);
+    }
+
+    /**
+     * サブスクリプションプラン
+     */
+    public function plan(): BelongsTo
+    {
+        return $this->belongsTo(SubscriptionPlan::class, 'plan_id');
+    }
+
+    /**
      * スコープ: アクティブなサブスクリプション
      */
     public function scopeActive($query)
