@@ -25,9 +25,7 @@ class CustomerSubscriptionResource extends Resource
     
     protected static ?string $pluralModelLabel = 'サブスク契約';
     
-    protected static ?int $navigationSort = 5;
-    
-    protected static ?string $navigationGroup = '顧客管理';
+    protected static ?int $navigationSort = 8;
     
     protected static ?string $slug = 'subscriptions';
 
@@ -118,7 +116,8 @@ class CustomerSubscriptionResource extends Resource
                         Forms\Components\DatePicker::make('end_date')
                             ->label('契約終了日')
                             ->displayFormat('Y年m月d日')
-                            ->helperText('契約終了予定日（解約処理は別途必要）'),
+                            ->disabled()
+                            ->helperText('サービス開始日＋メニューの契約期間で自動計算'),
                         
                         Forms\Components\DatePicker::make('next_billing_date')
                             ->label('次回請求日')
@@ -243,47 +242,58 @@ class CustomerSubscriptionResource extends Resource
                     ->label(fn ($record) => $record->payment_failed ? '決済復旧' : '決済失敗')
                     ->icon(fn ($record) => $record->payment_failed ? 'heroicon-o-check-circle' : 'heroicon-o-exclamation-triangle')
                     ->color(fn ($record) => $record->payment_failed ? 'success' : 'danger')
-                    ->form([
-                        Forms\Components\Select::make('payment_failed_reason')
-                            ->label('失敗理由')
-                            ->options(\App\Models\CustomerSubscription::getPaymentFailedReasonOptions())
-                            ->required()
-                            ->visible(fn ($record) => !$record->payment_failed),
-                        Forms\Components\Textarea::make('payment_failed_notes')
-                            ->label('メモ')
-                            ->placeholder('決済状況の詳細や対応内容を記録')
-                            ->rows(3),
-                    ])
-                    ->action(function ($record, array $data) {
+                    ->requiresConfirmation()
+                    ->modalHeading(fn ($record) => $record->payment_failed ? '決済を復旧しますか？' : '決済失敗に設定しますか？')
+                    ->modalDescription(fn ($record) => $record->payment_failed 
+                        ? '決済が正常に処理されたことを確認してから復旧してください。'
+                        : 'カード期限切れや残高不足などで決済が失敗した場合に設定します。')
+                    ->modalSubmitActionLabel(fn ($record) => $record->payment_failed ? '復旧する' : '失敗に設定')
+                    ->action(function ($record) {
                         if ($record->payment_failed) {
                             // 決済復旧
                             $record->update([
                                 'payment_failed' => false,
                                 'payment_failed_at' => null,
                                 'payment_failed_reason' => null,
-                                'payment_failed_notes' => $data['payment_failed_notes'] ?? null,
                             ]);
+                            
+                            \Filament\Notifications\Notification::make()
+                                ->title('決済復旧完了')
+                                ->body('決済が正常状態に戻りました。')
+                                ->success()
+                                ->send();
                         } else {
-                            // 決済失敗に設定
+                            // 決済失敗に設定（理由はデフォルト値を使用）
                             $record->update([
                                 'payment_failed' => true,
                                 'payment_failed_at' => now(),
-                                'payment_failed_reason' => $data['payment_failed_reason'],
-                                'payment_failed_notes' => $data['payment_failed_notes'] ?? null,
+                                'payment_failed_reason' => 'card_declined',
                             ]);
+                            
+                            \Filament\Notifications\Notification::make()
+                                ->title('決済失敗設定完了')
+                                ->body('決済失敗として記録しました。')
+                                ->warning()
+                                ->send();
                         }
                     }),
                     
                 Tables\Actions\Action::make('pause')
-                    ->label('休止')
+                    ->label('6ヶ月休止')
                     ->icon('heroicon-o-pause')
                     ->color('warning')
                     ->visible(fn ($record) => !$record->is_paused)
                     ->requiresConfirmation()
-                    ->modalHeading('サブスク休止の確認')
+                    ->modalHeading('サブスク休止（6ヶ月間）')
                     ->modalDescription(fn ($record) => 
-                        "6ヶ月間休止します。{$record->customer->last_name} {$record->customer->first_name}様の将来の予約は自動キャンセルされます。"
+                        "【休止とは】\n" .
+                        "・お客様の都合により6ヶ月間サービスを一時停止\n" .
+                        "・休止期間中は料金が発生しません\n" .
+                        "・6ヶ月後に自動的に再開されます\n" .
+                        "・将来の予約は自動キャンセルされます\n\n" .
+                        "{$record->customer->last_name} {$record->customer->first_name}様を休止しますか？"
                     )
+                    ->modalSubmitActionLabel('6ヶ月休止する')
                     ->action(function ($record) {
                         $record->pause(auth()->id(), '管理画面から手動休止');
                         

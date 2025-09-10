@@ -83,6 +83,10 @@ class CustomerSubscription extends Model
                     if (!$subscription->plan_type) {
                         $subscription->plan_type = 'MENU_' . $menu->id;
                     }
+                    // メニューから契約期間を取得
+                    if (!$subscription->contract_months && $menu->contract_months) {
+                        $subscription->contract_months = $menu->contract_months;
+                    }
                 }
             }
             
@@ -92,6 +96,43 @@ class CustomerSubscription extends Model
             }
             if (!$subscription->plan_name) {
                 $subscription->plan_name = 'カスタムプラン';
+            }
+            
+            // 契約終了日の自動計算（サービス開始日 + 契約期間）
+            if ($subscription->service_start_date && !$subscription->end_date) {
+                // 契約期間の優先順位：
+                // 1. メニューに設定された契約期間（最優先）
+                // 2. サブスクリプション自体のcontract_months
+                // 3. 最終手段として12ヶ月
+                $contractMonths = null;
+                
+                // 1. メニューから契約期間を取得
+                if ($subscription->menu_id) {
+                    $menu = $menu ?? \App\Models\Menu::find($subscription->menu_id);
+                    $contractMonths = $menu ? $menu->contract_months : null;
+                }
+                
+                // 2. メニューになければサブスクリプション自体の設定を使用
+                $contractMonths = $contractMonths ?? $subscription->contract_months;
+                
+                // 3. 最終的なデフォルト
+                $contractMonths = $contractMonths ?? 12;
+                
+                $subscription->end_date = Carbon::parse($subscription->service_start_date)
+                    ->addMonths($contractMonths)
+                    ->format('Y-m-d');
+            }
+        });
+        
+        static::updating(function ($subscription) {
+            // サービス開始日または契約期間が変更された場合、契約終了日を再計算
+            if ($subscription->isDirty(['service_start_date', 'contract_months'])) {
+                if ($subscription->service_start_date) {
+                    $contractMonths = $subscription->contract_months ?? 12;
+                    $subscription->end_date = Carbon::parse($subscription->service_start_date)
+                        ->addMonths($contractMonths)
+                        ->format('Y-m-d');
+                }
             }
         });
     }

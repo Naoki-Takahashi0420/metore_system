@@ -37,7 +37,7 @@ class Menu extends Model
         'tags',
         'is_subscription',
         'subscription_monthly_price',
-        'default_contract_months',
+        'contract_months',
         'max_monthly_usage',
     ];
 
@@ -60,7 +60,7 @@ class Menu extends Model
         'tags' => 'array',
         'is_subscription' => 'boolean',
         'subscription_monthly_price' => 'integer',
-        'default_contract_months' => 'integer',
+        'contract_months' => 'integer',
         'max_monthly_usage' => 'integer',
     ];
     

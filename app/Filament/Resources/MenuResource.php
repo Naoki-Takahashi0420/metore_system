@@ -114,13 +114,13 @@ class MenuResource extends Resource
                             ->prefix('¥')
                             ->required(fn (Forms\Get $get) => $get('is_subscription'))
                             ->helperText('毎月のサブスクリプション料金'),
-                        Forms\Components\TextInput::make('default_contract_months')
+                        Forms\Components\TextInput::make('contract_months')
                             ->label('契約期間')
                             ->numeric()
                             ->suffix('ヶ月')
-                            ->default(1)
+                            ->default(12)
                             ->required(fn (Forms\Get $get) => $get('is_subscription'))
-                            ->helperText('最低契約期間'),
+                            ->helperText('このメニューの契約期間'),
                         Forms\Components\TextInput::make('max_monthly_usage')
                             ->label('月間利用回数上限')
                             ->numeric()

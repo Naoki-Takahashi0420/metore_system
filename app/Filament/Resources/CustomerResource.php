@@ -23,8 +23,8 @@ class CustomerResource extends Resource
     protected static ?string $modelLabel = '顧客';
 
     protected static ?string $pluralModelLabel = '顧客';
-
-    protected static ?int $navigationSort = 4;
+    
+    protected static ?int $navigationSort = 7;
 
     public static function form(Form $form): Form
     {
@@ -249,11 +249,11 @@ class CustomerResource extends Resource
                                 ->openUrlInNewTab(),
                         ]),
                         
-                        // 新規追加用のRepeater（非表示にしておく）
+                        // 新規サブスク契約追加
                         Forms\Components\Repeater::make('new_subscriptions')
                             ->relationship('subscriptions')
                             ->label('新規サブスク契約追加')
-                            ->visible(false)
+                            ->visible(true)
                             ->schema([
                                 Forms\Components\Select::make('store_id')
                                     ->label('店舗')
@@ -289,7 +289,7 @@ class CustomerResource extends Resource
                                                 $set('plan_type', 'MENU_' . $menu->id);
                                                 $set('monthly_price', $menu->subscription_monthly_price);
                                                 $set('monthly_limit', $menu->max_monthly_usage);
-                                                $set('contract_months', $menu->default_contract_months ?? 3);
+                                                $set('contract_months', $menu->contract_months ?? 12);
                                             }
                                         }
                                     }),
@@ -300,33 +300,31 @@ class CustomerResource extends Resource
                                 Forms\Components\DatePicker::make('billing_start_date')
                                     ->label('課金開始日')
                                     ->required()
-                                    ->default(now())
-                                    ->reactive()
-                                    ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
-                                        if ($state && $get('contract_months')) {
-                                            $endDate = \Carbon\Carbon::parse($state)
-                                                ->addMonths($get('contract_months'))
-                                                ->subDay();
-                                            $set('end_date', $endDate->format('Y-m-d'));
-                                        }
-                                    }),
+                                    ->default(now()),
                                 Forms\Components\DatePicker::make('service_start_date')
                                     ->label('施術開始日')
                                     ->required()
                                     ->default(now())
-                                    ->helperText('サブスク限定メニューが利用可能になる日'),
+                                    ->reactive()
+                                    ->helperText('サブスク限定メニューが利用可能になる日')
+                                    ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
+                                        if ($state && $get('contract_months')) {
+                                            $endDate = \Carbon\Carbon::parse($state)
+                                                ->addMonths($get('contract_months'));
+                                            $set('end_date', $endDate->format('Y-m-d'));
+                                        }
+                                    }),
                                 Forms\Components\TextInput::make('contract_months')
                                     ->label('契約期間')
                                     ->numeric()
                                     ->suffix('ヶ月')
-                                    ->default(3)
+                                    ->default(12)
                                     ->required()
                                     ->reactive()
                                     ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
-                                        if ($state && $get('billing_start_date')) {
-                                            $endDate = \Carbon\Carbon::parse($get('billing_start_date'))
-                                                ->addMonths($state)
-                                                ->subDay();
+                                        if ($state && $get('service_start_date')) {
+                                            $endDate = \Carbon\Carbon::parse($get('service_start_date'))
+                                                ->addMonths($state);
                                             $set('end_date', $endDate->format('Y-m-d'));
                                         }
                                     }),
@@ -334,7 +332,7 @@ class CustomerResource extends Resource
                                     ->label('契約終了日')
                                     ->disabled()
                                     ->dehydrated()
-                                    ->helperText('課金開始日と契約期間から自動計算'),
+                                    ->helperText('サービス開始日と契約期間から自動計算'),
                                 Forms\Components\TextInput::make('monthly_price')
                                     ->label('月額料金')
                                     ->numeric()

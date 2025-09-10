@@ -697,13 +697,17 @@ function goToSubscriptionBooking() {
     if (customerData && activeSubscription) {
         const customer = JSON.parse(customerData);
         
+        console.log('Active Subscription Data:', activeSubscription);
+        
         // セッションストレージに必要な情報を保存
         sessionStorage.setItem('existing_customer_id', customer.id);
         sessionStorage.setItem('from_mypage', 'true');
         sessionStorage.setItem('is_subscription_booking', 'true');
-        sessionStorage.setItem('selected_store_id', activeSubscription.store?.id);
-        sessionStorage.setItem('selected_store_name', activeSubscription.store?.name);
-        sessionStorage.setItem('selected_menu_id', activeSubscription.plan?.menu_id);
+        // store_idとstore_nameを正しく取得
+        sessionStorage.setItem('selected_store_id', activeSubscription.store_id || activeSubscription.store?.id);
+        sessionStorage.setItem('selected_store_name', activeSubscription.store_name || activeSubscription.store?.name);
+        // menu_idを正しく取得
+        sessionStorage.setItem('selected_menu_id', activeSubscription.menu_id || activeSubscription.plan?.menu_id);
         sessionStorage.setItem('subscription_data', JSON.stringify(activeSubscription));
         
         // 直接カレンダーページへ遷移（店舗とメニューは自動選択済み）
