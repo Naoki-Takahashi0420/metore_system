@@ -25,7 +25,7 @@ class CustomerSubscriptionResource extends Resource
     
     protected static ?string $pluralModelLabel = 'サブスク契約';
     
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 5;
     
     protected static ?string $navigationGroup = '顧客管理';
     
