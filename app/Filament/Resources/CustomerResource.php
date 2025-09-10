@@ -154,9 +154,59 @@ class CustomerResource extends Resource
                     
                 Forms\Components\Section::make('サブスク契約')
                     ->schema([
-                        Forms\Components\Repeater::make('subscriptions')
-                            ->relationship('subscriptions')
+                        Forms\Components\Placeholder::make('subscription_info')
                             ->label('契約中のサブスク')
+                            ->content(function ($record) {
+                                if (!$record || !$record->subscriptions->count()) {
+                                    return 'サブスク契約なし';
+                                }
+                                
+                                $html = '<div class="space-y-3">';
+                                foreach ($record->subscriptions as $sub) {
+                                    $status = $sub->payment_failed ? '🔴 決済失敗' : 
+                                             ($sub->is_paused ? '⏸️ 休止中' : '🟢 正常');
+                                    
+                                    $storeName = $sub->store ? $sub->store->name : '店舗未設定';
+                                    
+                                    $html .= '<div class="bg-white border rounded-lg p-3">';
+                                    $html .= '<div class="flex justify-between items-start">';
+                                    $html .= '<div>';
+                                    $html .= '<p class="font-semibold">' . $sub->plan_name . '</p>';
+                                    $html .= '<p class="text-sm text-gray-600">店舗: ' . $storeName . '</p>';
+                                    $html .= '<p class="text-sm text-gray-600">月額: ¥' . number_format($sub->monthly_price) . '</p>';
+                                    $html .= '<p class="text-sm text-gray-600">利用制限: ' . ($sub->monthly_limit ? $sub->monthly_limit . '回/月' : '無制限') . '</p>';
+                                    $html .= '<p class="text-sm text-gray-600">今月利用: ' . $sub->current_month_visits . '回</p>';
+                                    if ($sub->end_date) {
+                                        $html .= '<p class="text-sm text-gray-600">契約終了: ' . $sub->end_date->format('Y年m月d日') . '</p>';
+                                    }
+                                    $html .= '</div>';
+                                    $html .= '<div class="text-right">';
+                                    $html .= '<span class="text-sm">' . $status . '</span>';
+                                    $html .= '</div>';
+                                    $html .= '</div>';
+                                    $html .= '</div>';
+                                }
+                                $html .= '</div>';
+                                
+                                return new \Illuminate\Support\HtmlString($html);
+                            })
+                            ->columnSpanFull(),
+                        
+                        Forms\Components\Actions::make([
+                            Forms\Components\Actions\Action::make('manage_subscription')
+                                ->label('サブスク管理画面へ')
+                                ->icon('heroicon-o-arrow-top-right-on-square')
+                                ->url(fn ($record) => $record && $record->subscriptions->count() 
+                                    ? route('filament.admin.resources.subscriptions.edit', $record->subscriptions->first())
+                                    : route('filament.admin.resources.subscriptions.index'))
+                                ->openUrlInNewTab(),
+                        ]),
+                        
+                        // 新規追加用のRepeater（非表示にしておく）
+                        Forms\Components\Repeater::make('new_subscriptions')
+                            ->relationship('subscriptions')
+                            ->label('新規サブスク契約追加')
+                            ->visible(false)
                             ->schema([
                                 Forms\Components\Select::make('store_id')
                                     ->label('店舗')
