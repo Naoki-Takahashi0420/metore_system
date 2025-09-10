@@ -163,27 +163,74 @@ class CustomerResource extends Resource
                                 
                                 $html = '<div class="space-y-3">';
                                 foreach ($record->subscriptions as $sub) {
-                                    $status = $sub->payment_failed ? '🔴 決済失敗' : 
-                                             ($sub->is_paused ? '⏸️ 休止中' : '🟢 正常');
+                                    $statusClass = 'text-gray-600';
+                                    $statusText = '正常';
+                                    
+                                    if ($sub->payment_failed) {
+                                        $statusClass = 'text-red-600 font-bold';
+                                        $statusText = '決済失敗';
+                                    } elseif ($sub->is_paused) {
+                                        $statusClass = 'text-yellow-600 font-bold';
+                                        $statusText = '休止中';
+                                    } elseif ($sub->isEndingSoon()) {
+                                        $statusClass = 'text-orange-600';
+                                        $statusText = '終了間近';
+                                    }
                                     
                                     $storeName = $sub->store ? $sub->store->name : '店舗未設定';
                                     
-                                    $html .= '<div class="bg-white border rounded-lg p-3">';
-                                    $html .= '<div class="flex justify-between items-start">';
+                                    $html .= '<div class="bg-gray-50 border rounded-lg p-4">';
+                                    $html .= '<div class="grid grid-cols-2 gap-4">';
+                                    
+                                    // 左側：基本情報
                                     $html .= '<div>';
-                                    $html .= '<p class="font-semibold">' . $sub->plan_name . '</p>';
+                                    $html .= '<p class="font-semibold text-lg mb-2">' . $sub->plan_name . '</p>';
                                     $html .= '<p class="text-sm text-gray-600">店舗: ' . $storeName . '</p>';
                                     $html .= '<p class="text-sm text-gray-600">月額: ¥' . number_format($sub->monthly_price) . '</p>';
                                     $html .= '<p class="text-sm text-gray-600">利用制限: ' . ($sub->monthly_limit ? $sub->monthly_limit . '回/月' : '無制限') . '</p>';
                                     $html .= '<p class="text-sm text-gray-600">今月利用: ' . $sub->current_month_visits . '回</p>';
+                                    $html .= '</div>';
+                                    
+                                    // 右側：ステータスと日付
+                                    $html .= '<div class="text-right">';
+                                    $html .= '<p class="' . $statusClass . ' text-lg mb-2">' . $statusText . '</p>';
+                                    
+                                    if ($sub->billing_start_date) {
+                                        $html .= '<p class="text-sm text-gray-600">開始日: ' . $sub->billing_start_date->format('Y年m月d日') . '</p>';
+                                    }
                                     if ($sub->end_date) {
-                                        $html .= '<p class="text-sm text-gray-600">契約終了: ' . $sub->end_date->format('Y年m月d日') . '</p>';
+                                        $html .= '<p class="text-sm text-gray-600">終了日: ' . $sub->end_date->format('Y年m月d日') . '</p>';
+                                    }
+                                    
+                                    // ステータス詳細
+                                    if ($sub->payment_failed) {
+                                        $html .= '<p class="text-sm text-red-600 mt-2">理由: ' . ($sub->payment_failed_reason_display ?? '不明') . '</p>';
+                                        if ($sub->payment_failed_at) {
+                                            $html .= '<p class="text-sm text-red-600">発生日: ' . $sub->payment_failed_at->format('Y年m月d日') . '</p>';
+                                        }
+                                    }
+                                    if ($sub->is_paused) {
+                                        $html .= '<p class="text-sm text-yellow-600 mt-2">休止期間: ' . $sub->pause_end_date->format('Y年m月d日') . 'まで</p>';
                                     }
                                     $html .= '</div>';
-                                    $html .= '<div class="text-right">';
-                                    $html .= '<span class="text-sm">' . $status . '</span>';
                                     $html .= '</div>';
-                                    $html .= '</div>';
+                                    
+                                    // メモ欄（サブスクのメモと決済失敗メモを統合表示）
+                                    $notes = [];
+                                    if ($sub->notes) {
+                                        $notes[] = $sub->notes;
+                                    }
+                                    if ($sub->payment_failed_notes) {
+                                        $notes[] = '【決済関連】' . $sub->payment_failed_notes;
+                                    }
+                                    
+                                    if (!empty($notes)) {
+                                        $html .= '<div class="mt-3 pt-3 border-t">';
+                                        $html .= '<p class="text-sm font-semibold text-gray-700">サブスクメモ:</p>';
+                                        $html .= '<p class="text-sm text-gray-600 mt-1">' . nl2br(implode("\n", $notes)) . '</p>';
+                                        $html .= '</div>';
+                                    }
+                                    
                                     $html .= '</div>';
                                 }
                                 $html .= '</div>';

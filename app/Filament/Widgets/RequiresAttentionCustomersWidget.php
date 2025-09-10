@@ -25,21 +25,21 @@ class RequiresAttentionCustomersWidget extends BaseWidget
                     ->label('種類')
                     ->getStateUsing(function ($record) {
                         if ($record->payment_failed) {
-                            return '🔴 決済失敗';
+                            return '決済失敗';
                         }
                         if ($record->is_paused) {
-                            return '⏸️ 休止中';
+                            return '休止中';
                         }
                         if ($record->isEndingSoon()) {
-                            return '⚠️ 終了間近';
+                            return '終了間近';
                         }
-                        return '❓ その他';
+                        return 'その他';
                     })
                     ->colors([
-                        'danger' => '🔴 決済失敗',
-                        'warning' => '⏸️ 休止中',
-                        'info' => '⚠️ 終了間近',
-                        'gray' => '❓ その他',
+                        'danger' => '決済失敗',
+                        'warning' => '休止中',
+                        'info' => '終了間近',
+                        'gray' => 'その他',
                     ]),
                     
                 Tables\Columns\TextColumn::make('customer.last_name')

@@ -35,40 +35,121 @@ class CustomerSubscriptionResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Select::make('customer_id')
-                    ->relationship('customer', 'id')
-                    ->required(),
-                Forms\Components\Select::make('store_id')
-                    ->relationship('store', 'name'),
-                Forms\Components\TextInput::make('plan_type')
-                    ->required(),
-                Forms\Components\TextInput::make('plan_name')
-                    ->required(),
-                Forms\Components\TextInput::make('monthly_limit')
-                    ->numeric(),
-                Forms\Components\TextInput::make('monthly_price')
-                    ->required()
-                    ->numeric(),
-                Forms\Components\DatePicker::make('start_date')
-                    ->required(),
-                Forms\Components\DatePicker::make('end_date'),
-                Forms\Components\DatePicker::make('next_billing_date'),
-                Forms\Components\TextInput::make('payment_method')
-                    ->required(),
-                Forms\Components\TextInput::make('payment_reference'),
-                Forms\Components\TextInput::make('current_month_visits')
-                    ->required()
-                    ->numeric()
-                    ->default(0),
-                Forms\Components\DatePicker::make('last_visit_date'),
-                Forms\Components\TextInput::make('reset_day')
-                    ->required()
-                    ->numeric()
-                    ->default(1),
-                Forms\Components\TextInput::make('status')
-                    ->required(),
-                Forms\Components\Textarea::make('notes')
-                    ->columnSpanFull(),
+                Forms\Components\Section::make('基本情報')
+                    ->schema([
+                        Forms\Components\Select::make('customer_id')
+                            ->label('顧客')
+                            ->relationship('customer', 'id', function ($query) {
+                                return $query->orderBy('last_name');
+                            })
+                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->last_name . ' ' . $record->first_name)
+                            ->searchable(['last_name', 'first_name', 'phone'])
+                            ->required(),
+                        
+                        Forms\Components\Select::make('store_id')
+                            ->label('店舗')
+                            ->relationship('store', 'name')
+                            ->required(),
+                        
+                        Forms\Components\TextInput::make('plan_name')
+                            ->label('プラン名')
+                            ->required(),
+                        
+                        Forms\Components\Select::make('status')
+                            ->label('ステータス')
+                            ->options([
+                                'active' => '有効',
+                                'inactive' => '無効',
+                                'cancelled' => 'キャンセル済み',
+                            ])
+                            ->required(),
+                    ])
+                    ->columns(2),
+                
+                Forms\Components\Section::make('料金・利用制限')
+                    ->schema([
+                        Forms\Components\TextInput::make('monthly_price')
+                            ->label('月額料金')
+                            ->numeric()
+                            ->prefix('¥')
+                            ->disabled()
+                            ->helperText('プランで決定される料金（変更不可）'),
+                        
+                        Forms\Components\TextInput::make('monthly_limit')
+                            ->label('月間利用上限')
+                            ->numeric()
+                            ->suffix('回')
+                            ->disabled()
+                            ->helperText('プランで決定される上限（変更不可）'),
+                        
+                        Forms\Components\TextInput::make('current_month_visits')
+                            ->label('今月の利用回数')
+                            ->numeric()
+                            ->suffix('回')
+                            ->disabled()
+                            ->helperText('システムが自動管理'),
+                        
+                        Forms\Components\TextInput::make('reset_day')
+                            ->label('リセット日')
+                            ->numeric()
+                            ->suffix('日')
+                            ->default(1)
+                            ->disabled()
+                            ->helperText('毎月1日に自動リセット'),
+                    ])
+                    ->columns(2),
+                
+                Forms\Components\Section::make('契約期間')
+                    ->schema([
+                        Forms\Components\DatePicker::make('billing_start_date')
+                            ->label('課金開始日')
+                            ->displayFormat('Y年m月d日'),
+                        
+                        Forms\Components\DatePicker::make('service_start_date')
+                            ->label('サービス開始日')
+                            ->displayFormat('Y年m月d日'),
+                        
+                        Forms\Components\DatePicker::make('end_date')
+                            ->label('契約終了日')
+                            ->displayFormat('Y年m月d日')
+                            ->helperText('空欄の場合は無期限'),
+                        
+                        Forms\Components\DatePicker::make('next_billing_date')
+                            ->label('次回請求日')
+                            ->displayFormat('Y年m月d日'),
+                        
+                        Forms\Components\DatePicker::make('last_visit_date')
+                            ->label('最終利用日')
+                            ->displayFormat('Y年m月d日')
+                            ->disabled(),
+                    ])
+                    ->columns(2),
+                
+                Forms\Components\Section::make('決済情報')
+                    ->schema([
+                        Forms\Components\Select::make('payment_method')
+                            ->label('決済方法')
+                            ->options([
+                                'robopay' => 'ロボットペイメント',
+                                'credit' => 'クレジットカード',
+                                'bank' => '銀行振込',
+                                'cash' => '現金',
+                            ])
+                            ->required(),
+                        
+                        Forms\Components\TextInput::make('payment_reference')
+                            ->label('決済参照番号')
+                            ->helperText('外部決済サービスの参照番号'),
+                    ])
+                    ->columns(2),
+                
+                Forms\Components\Section::make('メモ')
+                    ->schema([
+                        Forms\Components\Textarea::make('notes')
+                            ->label('管理メモ')
+                            ->rows(3)
+                            ->columnSpanFull(),
+                    ]),
             ]);
     }
 
@@ -87,21 +168,21 @@ class CustomerSubscriptionResource extends Resource
                     ->label('ステータス')
                     ->getStateUsing(function ($record) {
                         if ($record->payment_failed) {
-                            return '🔴 決済失敗';
+                            return '決済失敗';
                         }
                         if ($record->is_paused) {
-                            return '⏸️ 休止中';
+                            return '休止中';
                         }
                         if ($record->isEndingSoon()) {
-                            return '⚠️ 終了間近';
+                            return '終了間近';
                         }
-                        return '🟢 正常';
+                        return '正常';
                     })
                     ->colors([
-                        'danger' => '🔴 決済失敗',
-                        'warning' => '⏸️ 休止中',
-                        'info' => '⚠️ 終了間近',
-                        'success' => '🟢 正常',
+                        'danger' => '決済失敗',
+                        'warning' => '休止中',
+                        'info' => '終了間近',
+                        'success' => '正常',
                     ]),
                     
                 Tables\Columns\TextColumn::make('plan_name')
