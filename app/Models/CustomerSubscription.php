@@ -34,6 +34,16 @@ class CustomerSubscription extends Model
         'reset_day',
         'status',
         'notes',
+        // 決済失敗管理
+        'payment_failed',
+        'payment_failed_at',
+        'payment_failed_reason',
+        'payment_failed_notes',
+        // 休止管理
+        'is_paused',
+        'pause_start_date',
+        'pause_end_date',
+        'paused_by',
     ];
 
     protected $casts = [
@@ -49,6 +59,13 @@ class CustomerSubscription extends Model
         'last_visit_date' => 'date',
         'current_month_visits' => 'integer',
         'reset_day' => 'integer',
+        // 決済失敗管理
+        'payment_failed' => 'boolean',
+        'payment_failed_at' => 'datetime',
+        // 休止管理
+        'is_paused' => 'boolean',
+        'pause_start_date' => 'date',
+        'pause_end_date' => 'date',
     ];
 
     protected static function boot()
@@ -208,5 +225,147 @@ class CustomerSubscription extends Model
         ];
 
         return $methods[$this->payment_method] ?? $this->payment_method;
+    }
+
+    /**
+     * 休止を実行したユーザー
+     */
+    public function pausedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'paused_by');
+    }
+
+    /**
+     * 休止履歴
+     */
+    public function pauseHistories()
+    {
+        return $this->hasMany(SubscriptionPauseHistory::class);
+    }
+
+    /**
+     * 決済失敗の理由選択肢
+     */
+    public static function getPaymentFailedReasonOptions(): array
+    {
+        return [
+            'card_expired' => 'カード期限切れ',
+            'limit_exceeded' => '限度額超過',
+            'insufficient' => '残高不足',
+            'card_error' => 'カードエラー',
+            'other' => 'その他',
+        ];
+    }
+
+    /**
+     * 決済失敗理由の表示名
+     */
+    public function getPaymentFailedReasonDisplayAttribute(): ?string
+    {
+        if (!$this->payment_failed_reason) {
+            return null;
+        }
+
+        $reasons = static::getPaymentFailedReasonOptions();
+        return $reasons[$this->payment_failed_reason] ?? $this->payment_failed_reason;
+    }
+
+    /**
+     * 休止実行（6ヶ月間）
+     */
+    public function pause(int $pausedBy, ?string $notes = null): void
+    {
+        $startDate = now()->startOfDay();
+        $endDate = $startDate->copy()->addMonths(6);
+
+        // 既存の予約をキャンセル
+        $cancelledCount = $this->cancelFutureReservations();
+
+        // 休止状態に設定
+        $this->update([
+            'is_paused' => true,
+            'pause_start_date' => $startDate,
+            'pause_end_date' => $endDate,
+            'paused_by' => $pausedBy,
+        ]);
+
+        // 履歴を記録
+        $this->pauseHistories()->create([
+            'pause_start_date' => $startDate,
+            'pause_end_date' => $endDate,
+            'paused_by' => $pausedBy,
+            'paused_at' => now(),
+            'cancelled_reservations_count' => $cancelledCount,
+            'notes' => $notes,
+        ]);
+    }
+
+    /**
+     * 休止解除
+     */
+    public function resume(string $resumeType = 'manual'): void
+    {
+        $this->update([
+            'is_paused' => false,
+            'pause_start_date' => null,
+            'pause_end_date' => null,
+            'paused_by' => null,
+        ]);
+
+        // 最新の履歴を更新
+        $latestHistory = $this->pauseHistories()
+            ->whereNull('resumed_at')
+            ->latest('paused_at')
+            ->first();
+
+        if ($latestHistory) {
+            $latestHistory->update([
+                'resumed_at' => now(),
+                'resume_type' => $resumeType,
+            ]);
+        }
+    }
+
+    /**
+     * 将来の予約をキャンセル
+     */
+    private function cancelFutureReservations(): int
+    {
+        $count = 0;
+        
+        // 今日以降の予約を取得
+        $reservations = \App\Models\Reservation::where('customer_id', $this->customer_id)
+            ->whereDate('reservation_date', '>=', now())
+            ->whereIn('status', ['booked', 'confirmed'])
+            ->get();
+
+        foreach ($reservations as $reservation) {
+            $reservation->update([
+                'status' => 'cancelled',
+                'cancel_reason' => 'サブスク休止のため自動キャンセル',
+                'cancelled_at' => now(),
+            ]);
+            $count++;
+        }
+
+        return $count;
+    }
+
+    /**
+     * 契約終了が迫っているか（30日以内）
+     */
+    public function isEndingSoon(): bool
+    {
+        return $this->end_date && 
+               $this->end_date->diffInDays(now()) <= 30 &&
+               $this->end_date->isAfter(now());
+    }
+
+    /**
+     * 要対応かどうか
+     */
+    public function needsAttention(): bool
+    {
+        return $this->payment_failed || $this->isEndingSoon();
     }
 }
