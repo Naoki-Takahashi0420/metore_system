@@ -43,17 +43,19 @@ class CustomerSubscriptionResource extends Resource
                                 return $query->orderBy('last_name');
                             })
                             ->getOptionLabelFromRecordUsing(fn ($record) => $record->last_name . ' ' . $record->first_name)
-                            ->searchable(['last_name', 'first_name', 'phone'])
-                            ->required(),
+                            ->disabled()
+                            ->helperText('顧客の変更はできません'),
                         
                         Forms\Components\Select::make('store_id')
                             ->label('店舗')
                             ->relationship('store', 'name')
-                            ->required(),
+                            ->disabled()
+                            ->helperText('店舗の変更はできません'),
                         
                         Forms\Components\TextInput::make('plan_name')
                             ->label('プラン名')
-                            ->required(),
+                            ->disabled()
+                            ->helperText('プランの変更は新規契約で行ってください'),
                         
                         Forms\Components\Select::make('status')
                             ->label('ステータス')
@@ -62,7 +64,7 @@ class CustomerSubscriptionResource extends Resource
                                 'inactive' => '無効',
                                 'cancelled' => 'キャンセル済み',
                             ])
-                            ->required(),
+                            ->helperText('解約処理時のみ変更可能'),
                     ])
                     ->columns(2),
                 
@@ -103,25 +105,32 @@ class CustomerSubscriptionResource extends Resource
                     ->schema([
                         Forms\Components\DatePicker::make('billing_start_date')
                             ->label('課金開始日')
-                            ->displayFormat('Y年m月d日'),
+                            ->displayFormat('Y年m月d日')
+                            ->disabled()
+                            ->helperText('契約時に決定（変更不可）'),
                         
                         Forms\Components\DatePicker::make('service_start_date')
                             ->label('サービス開始日')
-                            ->displayFormat('Y年m月d日'),
+                            ->displayFormat('Y年m月d日')
+                            ->disabled()
+                            ->helperText('契約時に決定（変更不可）'),
                         
                         Forms\Components\DatePicker::make('end_date')
                             ->label('契約終了日')
                             ->displayFormat('Y年m月d日')
-                            ->helperText('空欄の場合は無期限'),
+                            ->helperText('契約終了予定日（解約処理は別途必要）'),
                         
                         Forms\Components\DatePicker::make('next_billing_date')
                             ->label('次回請求日')
-                            ->displayFormat('Y年m月d日'),
+                            ->displayFormat('Y年m月d日')
+                            ->disabled()
+                            ->helperText('システムが自動計算'),
                         
                         Forms\Components\DatePicker::make('last_visit_date')
                             ->label('最終利用日')
                             ->displayFormat('Y年m月d日')
-                            ->disabled(),
+                            ->disabled()
+                            ->helperText('システムが自動記録'),
                     ])
                     ->columns(2),
                 
