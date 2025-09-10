@@ -537,8 +537,8 @@
         </div>
     @endif
     
-    <!-- 新規予約作成モーダル（無効化） -->
-    {{-- @if($showNewReservationModal)
+    <!-- 新規予約作成モーダル -->
+    @if($showNewReservationModal)
         <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" wire:click="closeNewReservationModal">
             <div class="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" wire:click.stop>
                 <div class="flex justify-between items-center mb-4">
@@ -805,5 +805,5 @@
                 @endif
             </div>
         </div>
-    @endif --}}
+    @endif
 </x-filament-widgets::widget>
