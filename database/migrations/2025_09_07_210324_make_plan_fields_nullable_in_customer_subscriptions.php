@@ -31,7 +31,7 @@ return new class extends Migration
                 contract_months integer default 1,
                 end_date date,
                 next_billing_date date,
-                payment_method varchar default "robopay",
+                payment_method varchar,
                 payment_reference varchar,
                 current_month_visits integer default 0,
                 last_visit_date date,
