@@ -152,13 +152,6 @@ class CustomerSubscriptionResource extends Resource
                     ])
                     ->columns(2),
                 
-                Forms\Components\Section::make('メモ')
-                    ->schema([
-                        Forms\Components\Textarea::make('notes')
-                            ->label('管理メモ')
-                            ->rows(3)
-                            ->columnSpanFull(),
-                    ]),
             ]);
     }
 

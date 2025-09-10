@@ -266,23 +266,6 @@
                         ▶
                     </button>
                 </div>
-                
-                <!-- 新規予約ボタン -->
-                <button 
-                    wire:click="openNewReservationModal"
-                    type="button"
-                    class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition">
-                    <x-heroicon-o-plus-circle class="w-5 h-5" />
-                    <span>新規予約</span>
-                </button>
-                
-                <!-- デバッグ用 -->
-                <button 
-                    wire:click="$set('showNewReservationModal', true)"
-                    type="button"
-                    class="px-3 py-1 bg-blue-500 text-white text-xs rounded">
-                    テスト
-                </button>
             </div>
         </div>
         
@@ -554,8 +537,8 @@
         </div>
     @endif
     
-    <!-- 新規予約作成モーダル -->
-    @if($showNewReservationModal)
+    <!-- 新規予約作成モーダル（無効化） -->
+    {{-- @if($showNewReservationModal)
         <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" wire:click="closeNewReservationModal">
             <div class="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" wire:click.stop>
                 <div class="flex justify-between items-center mb-4">
@@ -822,5 +805,5 @@
                 @endif
             </div>
         </div>
-    @endif
+    @endif --}}
 </x-filament-widgets::widget>
