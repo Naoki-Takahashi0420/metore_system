@@ -1,0 +1,704 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - navigation [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e9]:
+            - generic [ref=e10]: グローバル検索
+            - generic [ref=e11]:
+              - img [ref=e13]
+              - searchbox "グローバル検索" [ref=e16]
+          - button "ユーザーメニュー" [ref=e19] [cursor=pointer]:
+            - img "Administratorのアバター" [ref=e20] [cursor=pointer]
+      - main [ref=e21]:
+        - generic [ref=e22]:
+          - generic [ref=e23]:
+            - heading "ダッシュボード" [level=1] [ref=e26]
+            - generic [ref=e29]:
+              - generic [ref=e33]:
+                - generic [ref=e34]:
+                  - text: 💡
+                  - strong [ref=e35]: "席の移動方法:"
+                  - text: 予約ブロックをクリックすると詳細画面が開き、通常席⇔サブ枠の移動ができます
+                - generic [ref=e36]:
+                  - generic [ref=e37]:
+                    - generic [ref=e38]: 店舗：
+                    - combobox [ref=e39]:
+                      - option "銀座本店" [selected]
+                      - option "新宿店"
+                      - option "横浜店"
+                      - option "目のトレーニング名古屋駅前店"
+                      - option "渋谷店"
+                      - option "新宿店"
+                      - option "池袋店"
+                      - option "品川店"
+                      - option "上野店"
+                      - option "横浜店"
+                      - option "川崎店"
+                      - option "千葉店"
+                      - option "大宮店"
+                      - option "立川店"
+                      - option "テスト店舗 (LINE連携)"
+                      - option "テスト店舗 (LINE連携)"
+                  - generic [ref=e40]:
+                    - img [ref=e41]
+                    - generic [ref=e43]: 営業時間ベース
+                    - generic [ref=e44]: （2席）
+                  - generic [ref=e45]:
+                    - generic [ref=e46]:
+                      - button "◀" [ref=e47] [cursor=pointer]
+                      - generic [ref=e48]: 2025年9月10日 (水)
+                      - button "▶" [ref=e49] [cursor=pointer]
+                    - button "新規予約" [ref=e50] [cursor=pointer]:
+                      - img [ref=e51] [cursor=pointer]
+                      - generic [ref=e53] [cursor=pointer]: 新規予約
+                    - button "テスト" [ref=e54] [cursor=pointer]
+                - table [ref=e56]:
+                  - rowgroup [ref=e57]:
+                    - row "席数 10:00 11:00 12:00 13:00 14:00 15:00 16:00 17:00 18:00 19:00 20:00 21:00" [ref=e58]:
+                      - cell "席数" [ref=e59]
+                      - cell "10:00" [ref=e60]
+                      - cell "11:00" [ref=e61]
+                      - cell "12:00" [ref=e62]
+                      - cell "13:00" [ref=e63]
+                      - cell "14:00" [ref=e64]
+                      - cell "15:00" [ref=e65]
+                      - cell "16:00" [ref=e66]
+                      - cell "17:00" [ref=e67]
+                      - cell "18:00" [ref=e68]
+                      - cell "19:00" [ref=e69]
+                      - cell "20:00" [ref=e70]
+                      - cell "21:00" [ref=e71]
+                  - rowgroup [ref=e72]:
+                    - row "席1 テスト 太郎 スタンダードコース NEW E2Eテスト 花子 スタンダードコース" [ref=e73]:
+                      - cell "席1" [ref=e74] [cursor=pointer]
+                      - cell "テスト 太郎 スタンダードコース NEW E2Eテスト 花子 スタンダードコース" [ref=e75] [cursor=pointer]:
+                        - generic [ref=e76] [cursor=pointer]:
+                          - generic [ref=e77] [cursor=pointer]: テスト 太郎
+                          - generic [ref=e78] [cursor=pointer]: スタンダードコース
+                        - generic [ref=e79] [cursor=pointer]:
+                          - generic [ref=e80] [cursor=pointer]:
+                            - generic [ref=e81] [cursor=pointer]: NEW
+                            - text: E2Eテスト 花子
+                          - generic [ref=e82] [cursor=pointer]: スタンダードコース
+                      - cell [ref=e83] [cursor=pointer]
+                      - cell [ref=e84] [cursor=pointer]
+                      - cell [ref=e85] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e86] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e87] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e88] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e89] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e90] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e91] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e92] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e93] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e94] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e95] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e96] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e97] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e98] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e99] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e100] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e101] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e102] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e103] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e104] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e105] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e106] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e107] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e108] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e109] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e110] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e111] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e112] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e113] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e114] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e115] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e116] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e117] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e118] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e119] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e120] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e121] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e122] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e123] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e124] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e125] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e126] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e127] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e128] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e129] [cursor=pointer]
+                    - row "席2" [ref=e130]:
+                      - cell "席2" [ref=e131] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e132] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e133] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e134] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e135] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e136] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e137] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e138] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e139] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e140] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e141] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e142] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e143] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e144] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e145] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e146] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e147] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e148] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e149] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e150] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e151] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e152] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e153] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e154] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e155] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e156] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e157] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e158] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e159] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e160] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e161] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e162] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e163] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e164] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e165] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e166] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e167] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e168] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e169] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e170] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e171] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e172] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e173] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e174] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e175] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e176] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e177] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e178] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e179] [cursor=pointer]
+                    - row "サブ" [ref=e180]:
+                      - cell "サブ" [ref=e181] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e182] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e183] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e184] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e185] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e186] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e187] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e188] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e189] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e190] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e191] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e192] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e193] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e194] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e195] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e196] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e197] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e198] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e199] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e200] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e201] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e202] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e203] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e204] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e205] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e206] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e207] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e208] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e209] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e210] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e211] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e212] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e213] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e214] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e215] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e216] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e217] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e218] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e219] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e220] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e221] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e222] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e223] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e224] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e225] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e226] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e227] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e228] [cursor=pointer]
+                      - cell "クリックして予約を作成" [ref=e229] [cursor=pointer]
+                - generic [ref=e230]:
+                  - generic [ref=e233]: ケアコース
+                  - generic [ref=e236]: 水素コース
+                  - generic [ref=e239]: トレーニングコース
+              - generic [ref=e240]:
+                - generic [ref=e243]:
+                  - button "作成" [ref=e246] [cursor=pointer]:
+                    - generic [ref=e247] [cursor=pointer]: 作成
+                  - generic [ref=e248]:
+                    - generic [ref=e249]:
+                      - generic [ref=e250]:
+                        - generic [ref=e251]:
+                          - button "" [ref=e252] [cursor=pointer]:
+                            - generic [ref=e253] [cursor=pointer]: 
+                          - button "" [ref=e254] [cursor=pointer]:
+                            - generic [ref=e255] [cursor=pointer]: 
+                        - button "今日" [disabled] [ref=e256]
+                      - heading "2025年9月" [level=2] [ref=e258]
+                      - generic [ref=e260]:
+                        - button "月" [pressed] [ref=e261] [cursor=pointer]
+                        - button "週" [ref=e262] [cursor=pointer]
+                        - button "日" [ref=e263] [cursor=pointer]
+                    - grid [ref=e266]:
+                      - rowgroup [ref=e267]:
+                        - row "日曜日 月曜日 火曜日 水曜日 木曜日 金曜日 土曜日" [ref=e271]:
+                          - columnheader "日曜日" [ref=e272]:
+                            - generic "日曜日" [ref=e274]: 日
+                          - columnheader "月曜日" [ref=e275]:
+                            - generic "月曜日" [ref=e277]: 月
+                          - columnheader "火曜日" [ref=e278]:
+                            - generic "火曜日" [ref=e280]: 火
+                          - columnheader "水曜日" [ref=e281]:
+                            - generic "水曜日" [ref=e283]: 水
+                          - columnheader "木曜日" [ref=e284]:
+                            - generic "木曜日" [ref=e286]: 木
+                          - columnheader "金曜日" [ref=e287]:
+                            - generic "金曜日" [ref=e289]: 金
+                          - columnheader "土曜日" [ref=e290]:
+                            - generic "土曜日" [ref=e292]: 土
+                      - rowgroup [ref=e293]:
+                        - generic [ref=e296]:
+                          - row "2025年8月31日 2025年9月1日 2025年9月2日 2025年9月3日 2025年9月4日 2025年9月5日 2025年9月6日" [ref=e298]:
+                            - gridcell "2025年8月31日" [ref=e299]:
+                              - generic [ref=e300]:
+                                - generic "2025年8月31日" [ref=e302] [cursor=pointer]: 31日
+                                - generic [ref=e305]:
+                                  - generic [ref=e307]: 16時
+                                  - generic [ref=e308]: テスト 顧客様 スタンダードコース
+                            - gridcell "2025年9月1日" [ref=e309]:
+                              - generic [ref=e310]:
+                                - generic "2025年9月1日" [ref=e312] [cursor=pointer]: 1日
+                                - generic [ref=e315]:
+                                  - generic [ref=e317]: 14時
+                                  - generic [ref=e318]: テスト 顧客1様 ケアコースコース90分
+                            - gridcell "2025年9月2日" [ref=e319]:
+                              - generic [ref=e320]:
+                                - generic "2025年9月2日" [ref=e322] [cursor=pointer]: 2日
+                                - generic [ref=e323]:
+                                  - generic [ref=e325]:
+                                    - generic [ref=e327]: 10時
+                                    - generic [ref=e328]: テスト 顧客様 水素ケアプレミアム
+                                  - generic [ref=e330]:
+                                    - generic [ref=e332]: 14時
+                                    - generic [ref=e333]: テスト 顧客2様 水素ケアベーシック
+                                  - generic [ref=e335]:
+                                    - generic [ref=e337]: 14時
+                                    - generic [ref=e338]: テスト 顧客様 スタンダードコース
+                                  - generic [ref=e340]:
+                                    - generic [ref=e342]: 14時
+                                    - generic [ref=e343]: テスト 顧客様 メニュー未設定
+                            - gridcell "2025年9月3日" [ref=e344]:
+                              - generic [ref=e345]:
+                                - generic "2025年9月3日" [ref=e347] [cursor=pointer]: 3日
+                                - generic [ref=e350]:
+                                  - generic [ref=e352]: 14時
+                                  - generic [ref=e353]: テスト 顧客3様 ケアコースコース90分
+                            - gridcell "2025年9月4日" [ref=e354]:
+                              - generic "2025年9月4日" [ref=e357] [cursor=pointer]: 4日
+                            - gridcell "2025年9月5日" [ref=e359]:
+                              - generic "2025年9月5日" [ref=e362] [cursor=pointer]: 5日
+                            - gridcell "2025年9月6日" [ref=e364]:
+                              - generic "2025年9月6日" [ref=e367] [cursor=pointer]: 6日
+                          - row "2025年9月7日 2025年9月8日 2025年9月9日 2025年9月10日 2025年9月11日 2025年9月12日 2025年9月13日" [ref=e369]:
+                            - gridcell "2025年9月7日" [ref=e370]:
+                              - generic "2025年9月7日" [ref=e373] [cursor=pointer]: 7日
+                            - gridcell "2025年9月8日" [ref=e375]:
+                              - generic [ref=e376]:
+                                - generic "2025年9月8日" [ref=e378] [cursor=pointer]: 8日
+                                - generic [ref=e379]:
+                                  - generic [ref=e381]:
+                                    - generic [ref=e383]: 15:30
+                                    - generic [ref=e384]: 高橋 直希様 水素ケアベーシック
+                                  - generic [ref=e386]:
+                                    - generic [ref=e388]: 20:30
+                                    - generic [ref=e389]: 高橋 直希様 トレーニングコースコース60分
+                            - gridcell "2025年9月9日" [ref=e390]:
+                              - generic [ref=e391]:
+                                - generic "2025年9月9日" [ref=e393] [cursor=pointer]: 9日
+                                - generic [ref=e394]:
+                                  - generic [ref=e396]:
+                                    - generic [ref=e398]: 14時
+                                    - generic [ref=e399]: テスト 太郎様 スタンダードコース
+                                  - generic [ref=e401]:
+                                    - generic [ref=e403]: 14時
+                                    - generic [ref=e404]: テスト 太郎様 スタンダードコース
+                                  - generic [ref=e406]:
+                                    - generic [ref=e408]: 14時
+                                    - generic [ref=e409]: テスト 太郎様 スタンダードコース
+                                  - generic [ref=e411]:
+                                    - generic [ref=e413]: 15時
+                                    - generic [ref=e414]: テスト 太郎様 スタンダードコース
+                                  - generic [ref=e416]:
+                                    - generic [ref=e418]: 15時
+                                    - generic [ref=e419]: 高橋 直希様 水素コースコース60分
+                                  - generic [ref=e421]:
+                                    - generic [ref=e423]: 19:30
+                                    - generic [ref=e424]: 高橋 直希様 水素コースコース60分
+                            - gridcell "2025年9月10日" [ref=e425]:
+                              - generic [ref=e426]:
+                                - generic "2025年9月10日" [ref=e428] [cursor=pointer]: 10日
+                                - generic [ref=e429]:
+                                  - generic [ref=e431]:
+                                    - generic [ref=e433]: 10時
+                                    - generic [ref=e434]: E2Eテスト 花子様 スタンダードコース
+                                  - generic [ref=e436]:
+                                    - generic [ref=e438]: 10時
+                                    - generic [ref=e439]: テスト 太郎様 スタンダードコース
+                                  - generic [ref=e441]:
+                                    - generic [ref=e443]: 14時
+                                    - generic [ref=e444]: 高橋 直希様 オプション
+                            - gridcell "2025年9月11日" [ref=e445]:
+                              - generic "2025年9月11日" [ref=e448] [cursor=pointer]: 11日
+                            - gridcell "2025年9月12日" [ref=e450]:
+                              - generic "2025年9月12日" [ref=e453] [cursor=pointer]: 12日
+                            - gridcell "2025年9月13日" [ref=e455]:
+                              - generic [ref=e456]:
+                                - generic "2025年9月13日" [ref=e458] [cursor=pointer]: 13日
+                                - generic [ref=e459]:
+                                  - generic [ref=e461]:
+                                    - generic [ref=e463]: 15:30
+                                    - generic [ref=e464]: 🔴 高橋 直希様 水素ケアプレミアム
+                                  - generic [ref=e466]:
+                                    - generic [ref=e468]: 19時
+                                    - generic [ref=e469]: 🔴 高橋 直希様 水素ケアプレミアム
+                          - row "2025年9月14日 2025年9月15日 2025年9月16日 2025年9月17日 2025年9月18日 2025年9月19日 2025年9月20日" [ref=e470]:
+                            - gridcell "2025年9月14日" [ref=e471]:
+                              - generic "2025年9月14日" [ref=e474] [cursor=pointer]: 14日
+                            - gridcell "2025年9月15日" [ref=e476]:
+                              - generic "2025年9月15日" [ref=e479] [cursor=pointer]: 15日
+                            - gridcell "2025年9月16日" [ref=e481]:
+                              - generic "2025年9月16日" [ref=e484] [cursor=pointer]: 16日
+                            - gridcell "2025年9月17日" [ref=e486]:
+                              - generic "2025年9月17日" [ref=e489] [cursor=pointer]: 17日
+                            - gridcell "2025年9月18日" [ref=e491]:
+                              - generic "2025年9月18日" [ref=e494] [cursor=pointer]: 18日
+                            - gridcell "2025年9月19日" [ref=e496]:
+                              - generic "2025年9月19日" [ref=e499] [cursor=pointer]: 19日
+                            - gridcell "2025年9月20日" [ref=e501]:
+                              - generic "2025年9月20日" [ref=e504] [cursor=pointer]: 20日
+                          - row "2025年9月21日 2025年9月22日 2025年9月23日 2025年9月24日 2025年9月25日 2025年9月26日 2025年9月27日" [ref=e506]:
+                            - gridcell "2025年9月21日" [ref=e507]:
+                              - generic "2025年9月21日" [ref=e510] [cursor=pointer]: 21日
+                            - gridcell "2025年9月22日" [ref=e512]:
+                              - generic "2025年9月22日" [ref=e515] [cursor=pointer]: 22日
+                            - gridcell "2025年9月23日" [ref=e517]:
+                              - generic "2025年9月23日" [ref=e520] [cursor=pointer]: 23日
+                            - gridcell "2025年9月24日" [ref=e522]:
+                              - generic "2025年9月24日" [ref=e525] [cursor=pointer]: 24日
+                            - gridcell "2025年9月25日" [ref=e527]:
+                              - generic "2025年9月25日" [ref=e530] [cursor=pointer]: 25日
+                            - gridcell "2025年9月26日" [ref=e532]:
+                              - generic "2025年9月26日" [ref=e535] [cursor=pointer]: 26日
+                            - gridcell "2025年9月27日" [ref=e537]:
+                              - generic "2025年9月27日" [ref=e540] [cursor=pointer]: 27日
+                          - row "2025年9月28日 2025年9月29日 2025年9月30日 2025年10月1日 2025年10月2日 2025年10月3日 2025年10月4日" [ref=e542]:
+                            - gridcell "2025年9月28日" [ref=e543]:
+                              - generic "2025年9月28日" [ref=e546] [cursor=pointer]: 28日
+                            - gridcell "2025年9月29日" [ref=e548]:
+                              - generic "2025年9月29日" [ref=e551] [cursor=pointer]: 29日
+                            - gridcell "2025年9月30日" [ref=e553]:
+                              - generic "2025年9月30日" [ref=e556] [cursor=pointer]: 30日
+                            - gridcell "2025年10月1日" [ref=e558]:
+                              - generic "2025年10月1日" [ref=e561] [cursor=pointer]: 1日
+                            - gridcell "2025年10月2日" [ref=e563]:
+                              - generic "2025年10月2日" [ref=e566] [cursor=pointer]: 2日
+                            - gridcell "2025年10月3日" [ref=e568]:
+                              - generic "2025年10月3日" [ref=e571] [cursor=pointer]: 3日
+                            - gridcell "2025年10月4日" [ref=e573]:
+                              - generic "2025年10月4日" [ref=e576] [cursor=pointer]: 4日
+                          - row "2025年10月5日 2025年10月6日 2025年10月7日 2025年10月8日 2025年10月9日 2025年10月10日 2025年10月11日" [ref=e578]:
+                            - gridcell "2025年10月5日" [ref=e579]:
+                              - generic "2025年10月5日" [ref=e582] [cursor=pointer]: 5日
+                            - gridcell "2025年10月6日" [ref=e584]:
+                              - generic "2025年10月6日" [ref=e587] [cursor=pointer]: 6日
+                            - gridcell "2025年10月7日" [ref=e589]:
+                              - generic "2025年10月7日" [ref=e592] [cursor=pointer]: 7日
+                            - gridcell "2025年10月8日" [ref=e594]:
+                              - generic "2025年10月8日" [ref=e597] [cursor=pointer]: 8日
+                            - gridcell "2025年10月9日" [ref=e599]:
+                              - generic "2025年10月9日" [ref=e602] [cursor=pointer]: 9日
+                            - gridcell "2025年10月10日" [ref=e604]:
+                              - generic "2025年10月10日" [ref=e607] [cursor=pointer]: 10日
+                            - gridcell "2025年10月11日" [ref=e609]:
+                              - generic "2025年10月11日" [ref=e612] [cursor=pointer]: 11日
+                - generic:
+                  - dialog
+                - generic:
+                  - dialog
+              - generic [ref=e615]:
+                - generic [ref=e617]:
+                  - generic [ref=e619]: 有効な契約数
+                  - generic [ref=e620]: "9"
+                  - generic [ref=e621]:
+                    - generic [ref=e622]: アクティブなサブスク契約
+                    - img [ref=e623]
+                - generic [ref=e628]:
+                  - generic [ref=e630]: 期限切れ間近
+                  - generic [ref=e631]: "8"
+                  - generic [ref=e632]:
+                    - generic [ref=e633]: 30日以内に期限切れ
+                    - img [ref=e634]
+                - generic [ref=e637]:
+                  - generic [ref=e639]: 月間収益
+                  - generic [ref=e640]: ¥194,800
+                  - generic [ref=e641]:
+                    - generic [ref=e642]: サブスク月額合計
+                    - img [ref=e643]
+              - generic [ref=e646]:
+                - generic [ref=e647]:
+                  - generic [ref=e648]:
+                    - heading "今日の予約 (2件) - 2025年9月10日" [level=3] [ref=e651]
+                    - generic [ref=e654]:
+                      - generic [ref=e655]: 検索
+                      - generic [ref=e656]:
+                        - img [ref=e658]
+                        - searchbox "検索" [ref=e661]
+                  - table [ref=e663]:
+                    - rowgroup [ref=e664]:
+                      - row "時間 店舗 顧客名 電話番号 メニュー 担当 状態 Actions" [ref=e665]:
+                        - cell "時間" [ref=e666]:
+                          - button "時間" [ref=e667] [cursor=pointer]:
+                            - generic [ref=e668] [cursor=pointer]: 時間
+                            - img [ref=e669] [cursor=pointer]
+                        - cell "店舗" [ref=e671]:
+                          - generic [ref=e673]: 店舗
+                        - cell "顧客名" [ref=e674]:
+                          - generic [ref=e676]: 顧客名
+                        - cell "電話番号" [ref=e677]:
+                          - generic [ref=e679]: 電話番号
+                        - cell "メニュー" [ref=e680]:
+                          - generic [ref=e682]: メニュー
+                        - cell "担当" [ref=e683]:
+                          - generic [ref=e685]: 担当
+                        - cell "状態" [ref=e686]:
+                          - generic [ref=e688]: 状態
+                        - cell "Actions" [ref=e689]
+                    - rowgroup [ref=e690]:
+                      - row "10:00-11:00 銀座本店 テスト 太郎 090-8600-7891 スタンダードコース 未定 confirmed 編集" [ref=e691]:
+                        - cell "10:00-11:00" [ref=e692]:
+                          - generic [ref=e699]: 10:00-11:00
+                        - cell "銀座本店" [ref=e700]:
+                          - generic [ref=e707]: 銀座本店
+                        - cell "テスト 太郎" [ref=e708]:
+                          - generic [ref=e715]: テスト 太郎
+                        - cell "090-8600-7891" [ref=e716]:
+                          - generic [ref=e723]: 090-8600-7891
+                        - cell "スタンダードコース" [ref=e724]:
+                          - generic [ref=e731]: スタンダードコース
+                        - cell "未定" [ref=e732]:
+                          - generic [ref=e736]: 未定
+                        - cell "confirmed" [ref=e737]:
+                          - generic [ref=e745]: confirmed
+                        - cell "編集" [ref=e746]:
+                          - button "編集" [ref=e749] [cursor=pointer]:
+                            - img [ref=e750] [cursor=pointer]
+                            - generic [ref=e753] [cursor=pointer]: 編集
+                      - row "10:00-11:00 銀座本店 E2Eテスト 花子 090-3810-3006 スタンダードコース 未定 完了 編集" [ref=e754]:
+                        - cell "10:00-11:00" [ref=e755]:
+                          - generic [ref=e762]: 10:00-11:00
+                        - cell "銀座本店" [ref=e763]:
+                          - generic [ref=e770]: 銀座本店
+                        - cell "E2Eテスト 花子" [ref=e771]:
+                          - generic [ref=e778]: E2Eテスト 花子
+                        - cell "090-3810-3006" [ref=e779]:
+                          - generic [ref=e786]: 090-3810-3006
+                        - cell "スタンダードコース" [ref=e787]:
+                          - generic [ref=e794]: スタンダードコース
+                        - cell "未定" [ref=e795]:
+                          - generic [ref=e799]: 未定
+                        - cell "完了" [ref=e800]:
+                          - generic [ref=e808]: 完了
+                        - cell "編集" [ref=e809]:
+                          - button "編集" [ref=e812] [cursor=pointer]:
+                            - img [ref=e813] [cursor=pointer]
+                            - generic [ref=e816] [cursor=pointer]: 編集
+                - generic:
+                  - dialog
+                - generic:
+                  - dialog
+                - generic:
+                  - dialog
+                - generic:
+                  - dialog
+                - generic:
+                  - dialog
+          - generic:
+            - dialog
+          - generic:
+            - dialog
+          - generic:
+            - dialog
+    - complementary [ref=e821]:
+      - generic [ref=e823]:
+        - link "目のトレーニング 管理画面ロゴ" [ref=e825] [cursor=pointer]:
+          - /url: http://127.0.0.1:8000/admin
+          - img "目のトレーニング 管理画面ロゴ" [ref=e826] [cursor=pointer]
+        - button "サイドバーを折り畳む" [ref=e827] [cursor=pointer]:
+          - generic [ref=e828] [cursor=pointer]: サイドバーを折り畳む
+          - img [ref=e829] [cursor=pointer]
+      - navigation [ref=e831]:
+        - list [ref=e832]:
+          - listitem [ref=e833]:
+            - list [ref=e834]:
+              - listitem [ref=e835]:
+                - link "ダッシュボード" [ref=e836] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin
+                  - img [ref=e837] [cursor=pointer]
+                  - generic [ref=e839] [cursor=pointer]: ダッシュボード
+              - listitem [ref=e840]:
+                - link "店舗管理" [ref=e841] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/stores
+                  - img [ref=e842] [cursor=pointer]
+                  - generic [ref=e844] [cursor=pointer]: 店舗管理
+              - listitem [ref=e845]:
+                - link "顧客管理" [ref=e846] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/customers
+                  - img [ref=e847] [cursor=pointer]
+                  - generic [ref=e849] [cursor=pointer]: 顧客管理
+              - listitem [ref=e850]:
+                - link "予約ブロック設定" [ref=e851] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/blocked-time-periods
+                  - img [ref=e852] [cursor=pointer]
+                  - generic [ref=e854] [cursor=pointer]: 予約ブロック設定
+              - listitem [ref=e855]:
+                - link "ユーザー管理" [ref=e856] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/users
+                  - img [ref=e857] [cursor=pointer]
+                  - generic [ref=e859] [cursor=pointer]: ユーザー管理
+              - listitem [ref=e860]:
+                - link "カルテ管理" [ref=e861] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/medical-records
+                  - img [ref=e862] [cursor=pointer]
+                  - generic [ref=e864] [cursor=pointer]: カルテ管理
+          - listitem [ref=e865]:
+            - generic [ref=e866] [cursor=pointer]:
+              - generic [ref=e867] [cursor=pointer]: LINE管理
+              - button "LINE管理" [expanded] [ref=e868] [cursor=pointer]:
+                - generic [ref=e869] [cursor=pointer]: LINE管理
+                - img [ref=e870] [cursor=pointer]
+            - list [ref=e872]:
+              - listitem [ref=e873]:
+                - link "LINE設定（シンプル版）" [ref=e874] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/simple-l-i-n-e
+                  - img [ref=e875] [cursor=pointer]
+                  - generic [ref=e877] [cursor=pointer]: LINE設定（シンプル版）
+          - listitem [ref=e878]:
+            - generic [ref=e879] [cursor=pointer]:
+              - generic [ref=e880] [cursor=pointer]: メニュー管理
+              - button "メニュー管理" [expanded] [ref=e881] [cursor=pointer]:
+                - generic [ref=e882] [cursor=pointer]: メニュー管理
+                - img [ref=e883] [cursor=pointer]
+            - list [ref=e885]:
+              - listitem [ref=e886]:
+                - link "メニュー統合管理" [ref=e887] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/menu-manager
+                  - img [ref=e888] [cursor=pointer]
+                  - generic [ref=e890] [cursor=pointer]: メニュー統合管理
+              - listitem [ref=e891]:
+                - link "メニューカテゴリー" [ref=e892] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/menu-categories
+                  - img [ref=e893] [cursor=pointer]
+                  - generic [ref=e895] [cursor=pointer]: メニューカテゴリー
+              - listitem [ref=e896]:
+                - link "メニュー管理" [ref=e897] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/menus
+                  - img [ref=e898] [cursor=pointer]
+                  - generic [ref=e900] [cursor=pointer]: メニュー管理
+              - listitem [ref=e901]:
+                - link "サブスク会員" [ref=e902] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/subscriptions
+                  - img [ref=e903] [cursor=pointer]
+                  - generic [ref=e905] [cursor=pointer]: サブスク会員
+          - listitem [ref=e906]:
+            - generic [ref=e907] [cursor=pointer]:
+              - generic [ref=e908] [cursor=pointer]: スタッフ管理
+              - button "スタッフ管理" [expanded] [ref=e909] [cursor=pointer]:
+                - generic [ref=e910] [cursor=pointer]: スタッフ管理
+                - img [ref=e911] [cursor=pointer]
+            - list [ref=e913]:
+              - listitem [ref=e914]:
+                - link "シフト管理" [ref=e915] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/simple-shift-management
+                  - img [ref=e916] [cursor=pointer]
+                  - generic [ref=e918] [cursor=pointer]: シフト管理
+              - listitem [ref=e919]:
+                - link "シフト設定" [ref=e920] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/shift-settings
+                  - img [ref=e921] [cursor=pointer]
+                  - generic [ref=e924] [cursor=pointer]: シフト設定
+              - listitem [ref=e925]:
+                - link "勤怠レポート" [ref=e926] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/attendance-report
+                  - img [ref=e927] [cursor=pointer]
+                  - generic [ref=e929] [cursor=pointer]: 勤怠レポート
+          - listitem [ref=e930]:
+            - generic [ref=e931] [cursor=pointer]:
+              - generic [ref=e932] [cursor=pointer]: 売上・会計
+              - button "売上・会計" [expanded] [ref=e933] [cursor=pointer]:
+                - generic [ref=e934] [cursor=pointer]: 売上・会計
+                - img [ref=e935] [cursor=pointer]
+            - list [ref=e937]:
+              - listitem [ref=e938]:
+                - link "売上管理 0" [ref=e939] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/sales
+                  - img [ref=e940] [cursor=pointer]
+                  - generic [ref=e942] [cursor=pointer]: 売上管理
+                  - generic [ref=e946] [cursor=pointer]: "0"
+          - listitem [ref=e947]:
+            - generic [ref=e948] [cursor=pointer]:
+              - generic [ref=e949] [cursor=pointer]: 予約管理
+              - button "予約管理" [expanded] [ref=e950] [cursor=pointer]:
+                - generic [ref=e951] [cursor=pointer]: 予約管理
+                - img [ref=e952] [cursor=pointer]
+            - list [ref=e954]:
+              - listitem [ref=e955]:
+                - link "予約カレンダー" [ref=e956] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/reservation-calendars
+                  - img [ref=e957] [cursor=pointer]
+                  - generic [ref=e959] [cursor=pointer]: 予約カレンダー
+              - listitem [ref=e960]:
+                - link "予約管理" [ref=e961] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/reservations
+                  - img [ref=e962] [cursor=pointer]
+                  - generic [ref=e964] [cursor=pointer]: 予約管理
+          - listitem [ref=e965]:
+            - generic [ref=e966] [cursor=pointer]:
+              - generic [ref=e967] [cursor=pointer]: 顧客管理
+              - button "顧客管理" [expanded] [ref=e968] [cursor=pointer]:
+                - generic [ref=e969] [cursor=pointer]: 顧客管理
+                - img [ref=e970] [cursor=pointer]
+            - list [ref=e972]:
+              - listitem [ref=e973]:
+                - link "サブスク契約管理" [ref=e974] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/customer-subscriptions
+                  - img [ref=e975] [cursor=pointer]
+                  - generic [ref=e977] [cursor=pointer]: サブスク契約管理
+          - listitem [ref=e978]:
+            - generic [ref=e979] [cursor=pointer]:
+              - generic [ref=e980] [cursor=pointer]: システム設定
+              - button "システム設定" [expanded] [ref=e981] [cursor=pointer]:
+                - generic [ref=e982] [cursor=pointer]: システム設定
+                - img [ref=e983] [cursor=pointer]
+            - list [ref=e985]:
+              - listitem [ref=e986]:
+                - link "LINE設定" [ref=e987] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/line-settings
+                  - img [ref=e988] [cursor=pointer]
+                  - generic [ref=e990] [cursor=pointer]: LINE設定
+  - generic:
+    - status
+```

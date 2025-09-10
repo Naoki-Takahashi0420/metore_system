@@ -28,6 +28,8 @@ class CustomerSubscriptionResource extends Resource
     protected static ?int $navigationSort = 4;
     
     protected static ?string $navigationGroup = '顧客管理';
+    
+    protected static ?string $slug = 'subscriptions';
 
     public static function form(Form $form): Form
     {
@@ -125,7 +127,8 @@ class CustomerSubscriptionResource extends Resource
                 Tables\Columns\TextColumn::make('end_date')
                     ->label('契約終了日')
                     ->date()
-                    ->sortable(),
+                    ->sortable()
+                    ->placeholder('未設定'),
                     
                 Tables\Columns\TextColumn::make('payment_method')
                     ->label('決済方法')
