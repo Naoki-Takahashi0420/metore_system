@@ -296,13 +296,13 @@ class PublicReservationController extends Controller
         $selectedOptions = Session::get('reservation_options', collect());
         $selectedStoreId = Session::get('selected_store_id');
         
-        // メニューが選択されていない場合はメニュー選択ページへリダイレクト
-        if (!$selectedMenu) {
+        // サブスク予約以外で、メニューが選択されていない場合はメニュー選択ページへリダイレクト
+        if (!$selectedMenu && !Session::get('is_subscription_booking')) {
             return redirect()->route('reservation.menu');
         }
         
-        // 店舗が選択されていない場合は店舗選択ページへリダイレクト
-        if (!$selectedStoreId) {
+        // サブスク予約以外で、店舗が選択されていない場合は店舗選択ページへリダイレクト
+        if (!$selectedStoreId && !Session::get('is_subscription_booking')) {
             return redirect('/stores');
         }
         
@@ -721,8 +721,8 @@ class PublicReservationController extends Controller
         
         \Log::info('サブスク予約準備完了、カレンダーへリダイレクト');
         
-        // カレンダーページへリダイレクト
-        return redirect()->route('reservation.index');
+        // サブスク予約では店舗・メニューが確定しているので、直接カレンダーページへ
+        return redirect('/reservation/calendar');
     }
     
     public function store(Request $request)

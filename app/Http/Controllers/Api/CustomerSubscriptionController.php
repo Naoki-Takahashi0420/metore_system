@@ -72,6 +72,49 @@ class CustomerSubscriptionController extends Controller
     }
     
     /**
+     * サブスク予約用のセッション設定
+     */
+    public function setupSession(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'customer_id' => 'required|exists:customers,id',
+                'subscription_id' => 'required|exists:customer_subscriptions,id',
+                'store_id' => 'required|exists:stores,id',
+                'menu_id' => 'required|exists:menus,id'
+            ]);
+            
+            // メニュー情報を取得
+            $menu = \App\Models\Menu::find($validated['menu_id']);
+            if (!$menu) {
+                return response()->json(['success' => false, 'message' => 'メニューが見つかりません'], 404);
+            }
+            
+            // セッションに必要な情報を設定
+            session([
+                'selected_store_id' => $validated['store_id'],
+                'reservation_menu' => $menu,
+                'is_subscription_booking' => true,
+                'subscription_id' => $validated['subscription_id'],
+                'customer_id' => $validated['customer_id'],
+                'from_mypage' => true
+            ]);
+            
+            \Log::info('サブスク予約セッション設定完了', [
+                'customer_id' => $validated['customer_id'],
+                'store_id' => $validated['store_id'],
+                'menu_id' => $validated['menu_id']
+            ]);
+            
+            return response()->json(['success' => true]);
+            
+        } catch (\Exception $e) {
+            \Log::error('サブスク予約セッション設定エラー', ['error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'message' => 'セッション設定に失敗しました'], 500);
+        }
+    }
+    
+    /**
      * 顧客のサブスクリプション情報を取得（トークンベース）
      */
     public function getSubscriptions(Request $request)

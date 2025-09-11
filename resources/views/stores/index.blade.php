@@ -90,33 +90,8 @@
 </div>
 
 <script>
-// サブスク予約かどうかをチェック
-const isSubscriptionBooking = sessionStorage.getItem('is_subscription_booking') === 'true';
-const subscriptionStoreId = sessionStorage.getItem('selected_store_id');
-const subscriptionStoreName = sessionStorage.getItem('selected_store_name');
 
 document.addEventListener('DOMContentLoaded', function() {
-    // サブスク予約の場合、警告メッセージを表示
-    if (isSubscriptionBooking && subscriptionStoreId) {
-        const headerSection = document.querySelector('.max-w-7xl.mx-auto.px-4.sm\\:px-6.lg\\:px-8.py-8');
-        if (headerSection) {
-            const warningHtml = `
-                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 max-w-2xl mx-auto">
-                    <div class="flex items-start">
-                        <svg class="w-6 h-6 text-yellow-600 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                        <div>
-                            <p class="font-semibold text-yellow-800">サブスク契約店舗: ${subscriptionStoreName}</p>
-                            <p class="text-sm text-yellow-700 mt-1">サブスク予約は契約店舗でのみご利用いただけます。他店舗を選択した場合、通常料金となります。</p>
-                        </div>
-                    </div>
-                </div>
-            `;
-            headerSection.insertAdjacentHTML('afterend', warningHtml);
-        }
-    }
-    
     loadStores();
 });
 
@@ -144,18 +119,11 @@ async function loadStores() {
         }
         
         container.innerHTML = stores.map(store => {
-            const isSubscriptionStore = isSubscriptionBooking && String(store.id) === String(subscriptionStoreId);
-            
             return `
-            <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow ${isSubscriptionStore ? 'ring-2 ring-green-500' : ''}">
-                ${isSubscriptionStore ? `
-                    <div class="bg-green-500 text-white text-center py-2 px-4">
-                        <span class="text-sm font-semibold">サブスク契約店舗</span>
-                    </div>
-                ` : ''}
+            <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
                 ${store.image_path ? `
                     <div class="bg-gray-200 overflow-hidden" style="aspect-ratio: 16/9;">
-                        <img src="/storage/${store.image_path}" alt="${store.name}" class="w-full h-full object-cover">
+                        <img src="/storage/${store.image_path}" alt="${store.name}" class="w-full h-full object-contain bg-white">
                     </div>
                 ` : `
                     <div class="bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center" style="aspect-ratio: 16/9;">
@@ -211,9 +179,9 @@ async function loadStores() {
                     
                     <button 
                         onclick="selectStore(${store.id}, '${store.name}')" 
-                        class="${isSubscriptionStore ? 'w-full bg-green-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-green-700 transition-colors' : 'w-full bg-primary-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-primary-700 transition-colors'}"
+                        class="w-full bg-primary-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-primary-700 transition-colors"
                     >
-                        ${isSubscriptionStore ? 'サブスク予約で選択' : 'この店舗を選択'}
+                        この店舗を選択
                     </button>
                 </div>
             </div>
@@ -276,9 +244,18 @@ function getOpeningHours(openingHours) {
         // 営業時間を文字列に変換する関数
         const formatHours = (hours) => {
             if (!hours) return '休業日';
-            if (typeof hours === 'string') return hours;
+            if (typeof hours === 'string') {
+                // 秒部分を削除（HH:MM:SS -> HH:MM）
+                return hours.replace(/:\d{2}$/, '').replace(/(\d{2}:\d{2}):\d{2}/g, '$1');
+            }
             if (typeof hours === 'object' && hours.open && hours.close) {
-                return `${hours.open}-${hours.close}`;
+                const formatTime = (time) => {
+                    if (typeof time === 'string') {
+                        return time.replace(/:\d{2}$/, '');
+                    }
+                    return time;
+                };
+                return `${formatTime(hours.open)}-${formatTime(hours.close)}`;
             }
             return '休業日';
         };
@@ -325,21 +302,6 @@ function getOpeningHours(openingHours) {
 }
 
 function selectStore(storeId, storeName) {
-    // サブスク予約で別店舗を選択しようとした場合の警告
-    if (isSubscriptionBooking && String(storeId) !== String(subscriptionStoreId)) {
-        const confirmMessage = `⚠️ 注意\n\n` +
-            `サブスク契約は「${subscriptionStoreName}」でのみ有効です。\n` +
-            `「${storeName}」で予約する場合、通常料金での予約となります。\n\n` +
-            `続けますか？`;
-        
-        if (!confirm(confirmMessage)) {
-            return; // キャンセルされた場合は何もしない
-        }
-        
-        // 通常予約として処理するため、サブスク情報をクリア
-        sessionStorage.removeItem('is_subscription_booking');
-        sessionStorage.removeItem('subscription_data');
-    }
     
     // Store selection via form POST to maintain PHP session
     const form = document.createElement('form');

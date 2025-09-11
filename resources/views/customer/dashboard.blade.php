@@ -833,47 +833,36 @@ function goToSubscriptionBooking() {
         sessionStorage.setItem('selected_menu_id', menuId);
         sessionStorage.setItem('subscription_data', JSON.stringify(activeSubscription));
         
-        // サブスク予約用のフォームを作成してPOST
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '/reservation/subscription-prepare';
+        // サブスク予約用のセッション設定APIを呼んでからカレンダーへ
+        console.log('サブスク予約のセッション設定開始');
         
-        // CSRFトークン
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-        console.log('CSRF Token:', csrfToken);
-        
-        if (!csrfToken) {
-            alert('CSRFトークンが見つかりません。ページを再読み込みしてください。');
-            return;
-        }
-        
-        const csrfInput = document.createElement('input');
-        csrfInput.type = 'hidden';
-        csrfInput.name = '_token';
-        csrfInput.value = csrfToken;
-        form.appendChild(csrfInput);
-        
-        // サブスク情報
-        const fields = {
-            'customer_id': customer.id,
-            'subscription_id': activeSubscription.id,
-            'store_id': storeId,
-            'menu_id': menuId,
-            'store_name': storeName,
-            'plan_name': planName
-        };
-        
-        for (const [name, value] of Object.entries(fields)) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = name;
-            input.value = value || '';  // nullやundefinedの場合は空文字にする
-            form.appendChild(input);
-        }
-        
-        console.log('フォーム送信準備完了');
-        document.body.appendChild(form);
-        form.submit();
+        fetch('/api/subscription/setup-session', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({
+                customer_id: customer.id,
+                subscription_id: activeSubscription.id,
+                store_id: storeId,
+                menu_id: menuId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('セッション設定完了、カレンダーへ遷移');
+                // サブスク予約用のパラメータを付与
+                window.location.href = '/reservation/calendar?type=subscription';
+            } else {
+                throw new Error(data.message || 'セッション設定に失敗');
+            }
+        })
+        .catch(error => {
+            console.error('エラー:', error);
+            alert('サブスク予約の準備に失敗しました。再度お試しください。');
+        });
     } else {
         alert('サブスクリプション情報が見つかりません');
     }

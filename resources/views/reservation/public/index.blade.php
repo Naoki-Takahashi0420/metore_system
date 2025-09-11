@@ -158,7 +158,7 @@
         </div>
 
         <!-- 凡例（サブスク予約時のみ表示） -->
-        @if(Session::has('is_subscription_booking'))
+        @if(request()->query('type') === 'subscription')
         <div class="bg-white rounded-lg shadow-sm p-4 mb-4">
             <h3 class="text-sm font-semibold text-gray-900 mb-3">カレンダー凡例</h3>
             <div class="flex flex-wrap gap-4 text-sm">
@@ -188,7 +188,12 @@
 
         <!-- 週間ナビゲーション -->
         <div class="flex justify-between items-center mb-6">
-            <a href="?week={{ $weekOffset - 1 }}" 
+            @php
+                $queryParams = request()->except('week');
+                $prevWeekParams = http_build_query(array_merge($queryParams, ['week' => $weekOffset - 1]));
+                $nextWeekParams = http_build_query(array_merge($queryParams, ['week' => $weekOffset + 1]));
+            @endphp
+            <a href="?{{ $prevWeekParams }}" 
                class="px-2 sm:px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300 text-xs sm:text-sm {{ $weekOffset <= 0 ? 'invisible' : '' }}">
                 <span class="hidden sm:inline">← 前の一週間</span>
                 <span class="sm:hidden">← 前週</span>
@@ -198,7 +203,7 @@
                 {{ $dates[0]['date']->format('Y年n月') }}
             </h2>
             
-            <a href="?week={{ $weekOffset + 1 }}" 
+            <a href="?{{ $nextWeekParams }}" 
                class="px-2 sm:px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300 text-xs sm:text-sm {{ $weekOffset >= ($maxWeeks - 1) ? 'invisible' : '' }}">
                 <span class="hidden sm:inline">次の一週間 →</span>
                 <span class="sm:hidden">次週 →</span>
@@ -397,17 +402,22 @@
         // ページ読み込み時に既存顧客情報をチェック
         document.addEventListener('DOMContentLoaded', async function() {
             checkExistingCustomer();
-            await fetchExistingReservations();
-            updateCalendarWithReservations();
+            
+            // URLパラメータからサブスク予約かどうかを判定
+            const urlParams = new URLSearchParams(window.location.search);
+            const isSubscriptionBooking = urlParams.get('type') === 'subscription';
+            
+            if (isSubscriptionBooking) {
+                await fetchExistingReservations();
+                updateCalendarWithReservations();
+            }
         });
         
         // 既存予約を取得する関数
         async function fetchExistingReservations() {
             try {
                 const token = localStorage.getItem('customer_token');
-                const isSubscriptionBooking = sessionStorage.getItem('is_subscription_booking');
-                
-                if (!token || !isSubscriptionBooking) return;
+                if (!token) return;
                 
                 console.log('既存予約を取得中...');
                 const response = await fetch('/api/customer/reservations', {
@@ -429,14 +439,20 @@
         
         // カレンダーに既存予約を表示する関数
         function updateCalendarWithReservations() {
-            const isSubscriptionBooking = sessionStorage.getItem('is_subscription_booking');
-            if (!isSubscriptionBooking || existingReservations.length === 0) return;
+            if (existingReservations.length === 0) return;
+            
+            console.log('既存予約の表示更新開始', existingReservations);
+            
+            // URLパラメータからサブスク予約かどうかを判定
+            const urlParams = new URLSearchParams(window.location.search);
+            const isSubscriptionBooking = urlParams.get('type') === 'subscription';
             
             // 現在のメニューIDを取得
             const currentMenuId = @json($selectedMenu->id);
             
             // 5日間隔制限のために既存予約の日付を取得
             const reservationDates = getExistingReservationDates();
+            console.log('予約日リスト:', reservationDates);
             
             // カレンダーの各セルをチェック（予約可能なボタンのみ）
             document.querySelectorAll('button[data-date][data-time].time-slot').forEach(button => {
@@ -448,6 +464,10 @@
                 
                 // 5日間隔制限チェック
                 const isWithinFiveDays = isDateWithinFiveDaysOfReservation(dateStr, reservationDates);
+                
+                if (isWithinFiveDays) {
+                    console.log(`${dateStr} は5日以内: true, サブスク予約: ${isSubscriptionBooking}`);
+                }
                 
                 if (existingReservation) {
                     const isSameMenu = existingReservation.menu_id && 
@@ -472,8 +492,8 @@
                         reservedDiv.title = `他の予約あり: ${existingReservation.menu?.name || 'メニュー'}`;
                         td.appendChild(reservedDiv);
                     }
-                } else if (isWithinFiveDays) {
-                    // 既存予約から5日以内で予約不可
+                } else if (isWithinFiveDays && isSubscriptionBooking) {
+                    // サブスク予約で既存予約から5日以内で予約不可
                     const td = button.parentElement;
                     td.innerHTML = ''; // 既存のボタンを削除
                     
@@ -493,8 +513,8 @@
                     return false;
                 }
                 
-                // 日付を比較
-                const reservationDate = reservation.reservation_date.split('T')[0];
+                // 日付を比較 - 'T'区切りと' '区切りの両方に対応
+                const reservationDate = reservation.reservation_date.split(/[T ]/)[0];
                 if (reservationDate !== dateStr) {
                     return false;
                 }
@@ -509,7 +529,12 @@
         function getExistingReservationDates() {
             return existingReservations
                 .filter(reservation => !['cancelled', 'canceled'].includes(reservation.status))
-                .map(reservation => reservation.reservation_date.split('T')[0]);
+                .map(reservation => {
+                    // 'Y-m-d H:i:s' または 'Y-m-dTH:i:s' 形式から日付部分のみ抽出
+                    const dateStr = reservation.reservation_date.split(/[T ]/)[0];
+                    console.log('予約日付抽出:', reservation.reservation_date, '->', dateStr);
+                    return dateStr;
+                });
         }
         
         // 指定した日付が既存予約から5日以内かチェックする関数

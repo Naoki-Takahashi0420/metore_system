@@ -156,7 +156,7 @@
                         <div class="mb-4">
                             @if($menu->image_path)
                                 <img src="{{ Storage::url($menu->image_path) }}" alt="{{ $menu->name }}" 
-                                    class="w-full md:w-96 h-auto aspect-video object-cover rounded-lg">
+                                    class="w-full md:w-96 h-auto aspect-video object-contain bg-white rounded-lg">
                             @else
                                 <div class="w-full md:w-96 aspect-video bg-gray-200 rounded-lg"></div>
                             @endif
@@ -222,7 +222,7 @@
                             <div class="mb-4">
                                 @if($menu->image_path)
                                     <img src="{{ Storage::url($menu->image_path) }}" alt="{{ $menu->name }}" 
-                                        class="w-full md:w-96 h-auto aspect-video object-cover rounded-lg">
+                                        class="w-full md:w-96 h-auto aspect-video object-contain bg-white rounded-lg">
                                 @else
                                     <div class="w-full md:w-96 aspect-video bg-gray-200 rounded-lg"></div>
                                 @endif
@@ -302,9 +302,8 @@
 </div>
 
 {{-- アップセルモーダル --}}
-<div id="upsellModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50">
-    <div class="flex items-center justify-center min-h-screen p-4">
-        <div class="bg-white w-full max-w-lg rounded-lg shadow-lg">
+<div id="upsellModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-lg rounded-lg shadow-lg relative">
             {{-- ヘッダー --}}
             <div class="border-b p-5">
                 <h3 class="text-lg font-bold">追加オプション</h3>
@@ -312,7 +311,7 @@
             </div>
             
             {{-- オプションリスト --}}
-            <div id="optionMenus" class="p-5 space-y-3 max-h-96 overflow-y-auto">
+            <div id="optionMenus" class="p-5 max-h-96 overflow-y-auto">
                 <!-- オプションメニューがここに動的に挿入されます -->
             </div>
             
@@ -366,25 +365,86 @@
         container.innerHTML = '';
         selectedOptions = [];
         
+        // オプションが1つの場合は横並び、複数の場合はグリッド表示
+        const isMultiple = upsellMenus.length > 1;
+        if (isMultiple) {
+            container.className = 'p-5 grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto';
+        } else {
+            container.className = 'p-5 space-y-3 max-h-96 overflow-y-auto';
+        }
+        
         upsellMenus.forEach(menu => {
             const div = document.createElement('div');
-            div.className = 'border rounded-lg p-3 hover:bg-gray-50';
-            div.innerHTML = `
-                <label class="flex items-center cursor-pointer">
-                    ${menu.image_path ? `<img src="/storage/${menu.image_path}" alt="${menu.name}" class="w-16 h-16 object-cover rounded mr-3">` : ''}
-                    <input type="checkbox" value="${menu.id}" onchange="toggleOption(${menu.id})" class="mr-3 w-4 h-4">
-                    <div class="flex-1">
-                        <div class="font-medium">${menu.name}</div>
-                        ${menu.upsell_description ? `<div class="text-sm text-gray-600">${menu.upsell_description}</div>` : ''}
+            div.className = isMultiple ? 
+                'border rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer bg-white flex flex-col' : 
+                'border rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer bg-white';
+            div.onclick = () => {
+                const checkbox = div.querySelector('input[type="checkbox"]');
+                checkbox.checked = !checkbox.checked;
+                toggleOption(menu.id);
+            };
+            
+            // 複数の場合は縦レイアウト、1つの場合は横レイアウト
+            if (isMultiple) {
+                div.innerHTML = `
+                    <div class="flex flex-col h-full">
+                        ${menu.image_path ? `
+                            <div class="w-full mb-3">
+                                <img src="/storage/${menu.image_path}" alt="${menu.name}" class="w-full aspect-video object-cover rounded">
+                            </div>
+                        ` : `
+                            <div class="w-full bg-gray-200 rounded aspect-video flex items-center justify-center mb-3">
+                                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                            </div>
+                        `}
+                        <div class="flex-1 flex flex-col">
+                            <div class="font-medium text-base mb-1">${menu.name}</div>
+                            ${menu.upsell_description ? `<div class="text-sm text-gray-600 line-clamp-2 mb-2">${menu.upsell_description}</div>` : menu.description ? `<div class="text-sm text-gray-600 line-clamp-2 mb-2">${menu.description}</div>` : ''}
+                            <div class="mt-auto">
+                                <div class="text-lg font-bold text-gray-900 mb-2">¥${Math.floor(menu.price).toLocaleString()}</div>
+                                <label class="flex items-center justify-center cursor-pointer bg-gray-100 hover:bg-gray-200 rounded py-2" onclick="event.stopPropagation()">
+                                    <input type="checkbox" value="${menu.id}" onchange="toggleOption(${menu.id})" class="w-4 h-4 text-blue-600 rounded">
+                                    <span class="ml-2 text-sm font-medium text-gray-700">追加する</span>
+                                </label>
+                            </div>
+                        </div>
                     </div>
-                    <div class="text-lg font-bold">¥${menu.price.toLocaleString()}</div>
-                </label>
-            `;
+                `;
+            } else {
+                div.innerHTML = `
+                    <div class="flex gap-4">
+                        ${menu.image_path ? `
+                            <div class="w-32 flex-shrink-0">
+                                <img src="/storage/${menu.image_path}" alt="${menu.name}" class="w-full aspect-video object-cover rounded">
+                            </div>
+                        ` : `
+                            <div class="w-32 flex-shrink-0 bg-gray-200 rounded aspect-video flex items-center justify-center">
+                                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                            </div>
+                        `}
+                        <div class="flex-1 min-w-0">
+                            <div class="font-medium text-base mb-1">${menu.name}</div>
+                            ${menu.upsell_description ? `<div class="text-sm text-gray-600 line-clamp-2 mb-2">${menu.upsell_description}</div>` : menu.description ? `<div class="text-sm text-gray-600 line-clamp-2 mb-2">${menu.description}</div>` : ''}
+                            <div class="flex items-center justify-between mt-auto">
+                                <div class="text-lg font-bold text-gray-900">¥${Math.floor(menu.price).toLocaleString()}</div>
+                                <label class="flex items-center cursor-pointer" onclick="event.stopPropagation()">
+                                    <input type="checkbox" value="${menu.id}" onchange="toggleOption(${menu.id})" class="w-4 h-4 text-blue-600 rounded">
+                                    <span class="ml-2 text-sm text-gray-700">追加</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
             container.appendChild(div);
         });
         
         document.getElementById('upsellModal').classList.remove('hidden');
-        document.getElementById('upsellModal').classList.add('flex');
     }
 
     function toggleOption(optionId) {
@@ -398,13 +458,11 @@
 
     function skipOptions() {
         document.getElementById('upsellModal').classList.add('hidden');
-        document.getElementById('upsellModal').classList.remove('flex');
         proceedWithSelection();
     }
 
     function confirmWithOptions() {
         document.getElementById('upsellModal').classList.add('hidden');
-        document.getElementById('upsellModal').classList.remove('flex');
         proceedWithSelection();
     }
 
