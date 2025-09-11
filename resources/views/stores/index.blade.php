@@ -122,8 +122,8 @@ async function loadStores() {
             return `
             <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
                 ${store.image_path ? `
-                    <div class="bg-gray-200 overflow-hidden" style="aspect-ratio: 16/9;">
-                        <img src="/storage/${store.image_path}" alt="${store.name}" class="w-full h-full object-contain bg-white">
+                    <div class="relative overflow-hidden" style="padding-bottom: 56.25%;">
+                        <img src="/storage/${store.image_path}" alt="${store.name}" class="absolute inset-0 w-full h-full object-cover">
                     </div>
                 ` : `
                     <div class="bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center" style="aspect-ratio: 16/9;">

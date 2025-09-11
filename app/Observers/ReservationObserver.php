@@ -21,7 +21,52 @@ class ReservationObserver
      */
     public function updated(Reservation $reservation): void
     {
-        //
+        // ステータスが変更された場合、顧客のカウントを更新
+        if ($reservation->isDirty('status')) {
+            $oldStatus = $reservation->getOriginal('status');
+            $newStatus = $reservation->status;
+            $customer = $reservation->customer;
+            
+            if (!$customer) {
+                return;
+            }
+            
+            // キャンセルに変更された場合
+            if ($oldStatus !== 'cancelled' && $newStatus === 'cancelled') {
+                $customer->increment('cancellation_count');
+                $customer->update(['last_cancelled_at' => now()]);
+            }
+            // キャンセルから他のステータスに戻された場合
+            elseif ($oldStatus === 'cancelled' && $newStatus !== 'cancelled') {
+                $customer->decrement('cancellation_count');
+            }
+            
+            // 来店なしに変更された場合
+            if ($oldStatus !== 'no_show' && $newStatus === 'no_show') {
+                $customer->increment('no_show_count');
+            }
+            // 来店なしから他のステータスに戻された場合
+            elseif ($oldStatus === 'no_show' && $newStatus !== 'no_show') {
+                $customer->decrement('no_show_count');
+            }
+        }
+        
+        // 予約日時が変更された場合（ステータスがキャンセル以外）
+        if ($reservation->status !== 'cancelled' && 
+            ($reservation->isDirty('reservation_date') || $reservation->isDirty('start_time'))) {
+            $oldDate = $reservation->getOriginal('reservation_date');
+            $oldTime = $reservation->getOriginal('start_time');
+            $newDate = $reservation->reservation_date;
+            $newTime = $reservation->start_time;
+            
+            // 実際に日時が変更されているかチェック
+            if ($oldDate !== $newDate || $oldTime !== $newTime) {
+                $customer = $reservation->customer;
+                if ($customer) {
+                    $customer->increment('change_count');
+                }
+            }
+        }
     }
 
     /**

@@ -226,6 +226,34 @@ function displayMedicalRecords(records) {
                         </div>
                     </div>
                 ` : ''}
+                
+                ${record.visible_images && record.visible_images.length > 0 ? `
+                    <div class="mt-4">
+                        <h4 class="text-sm font-medium text-gray-900 mb-2">添付画像</h4>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            ${record.visible_images.map(image => `
+                                <div class="relative group cursor-pointer" onclick="openImageModal('${image.url}', '${escapeHtml(image.title || '')}', '${escapeHtml(image.description || '')}')">
+                                    <img src="${image.url}" 
+                                         alt="${escapeHtml(image.title || '画像')}" 
+                                         class="w-full h-32 object-cover rounded-lg">
+                                    <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity rounded-lg flex items-center justify-center">
+                                        <svg class="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                                        </svg>
+                                    </div>
+                                    ${image.image_type_text ? `
+                                        <span class="absolute top-2 left-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
+                                            ${image.image_type_text}
+                                        </span>
+                                    ` : ''}
+                                    ${image.title ? `
+                                        <p class="text-xs text-gray-600 mt-1 truncate">${escapeHtml(image.title)}</p>
+                                    ` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
             </div>
             
             ${record.vision_records && record.vision_records.length > 0 ? record.vision_records.map((vision, index) => {
@@ -363,6 +391,62 @@ function formatDate(dateString) {
         weekday: 'short'
     });
 }
+
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+function openImageModal(imageUrl, title, description) {
+    // モーダル要素を作成
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-75';
+    modal.onclick = function(e) {
+        if (e.target === modal) {
+            closeImageModal();
+        }
+    };
+    
+    modal.innerHTML = `
+        <div class="relative max-w-4xl max-h-full">
+            <button onclick="closeImageModal()" class="absolute -top-10 right-0 text-white hover:text-gray-300">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+            <img src="${imageUrl}" alt="${title}" class="max-w-full max-h-[80vh] object-contain">
+            ${title || description ? `
+                <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white p-4">
+                    ${title ? `<h3 class="text-lg font-semibold mb-1">${title}</h3>` : ''}
+                    ${description ? `<p class="text-sm">${description}</p>` : ''}
+                </div>
+            ` : ''}
+        </div>
+    `;
+    
+    modal.id = 'image-modal';
+    document.body.appendChild(modal);
+}
+
+function closeImageModal() {
+    const modal = document.getElementById('image-modal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// ESCキーでモーダルを閉じる
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeImageModal();
+    }
+});
 </script>
 
 {{-- モバイル用固定ナビゲーションバー --}}

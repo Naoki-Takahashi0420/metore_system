@@ -93,6 +93,24 @@ class MedicalRecord extends Model
     }
 
     /**
+     * リレーション: 添付画像
+     */
+    public function attachedImages()
+    {
+        return $this->hasMany(MedicalRecordImage::class)->orderBy('display_order', 'asc');
+    }
+
+    /**
+     * リレーション: 顧客に表示可能な画像
+     */
+    public function visibleImages()
+    {
+        return $this->hasMany(MedicalRecordImage::class)
+            ->where('is_visible_to_customer', true)
+            ->orderBy('display_order', 'asc');
+    }
+
+    /**
      * スコープ: 日付範囲
      */
     public function scopeBetweenDates($query, $startDate, $endDate)

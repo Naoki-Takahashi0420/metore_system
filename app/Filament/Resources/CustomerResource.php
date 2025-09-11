@@ -381,8 +381,50 @@ class CustomerResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('last_name')
                     ->label('顧客名')
-                    ->formatStateUsing(fn ($record) => $record->last_name . ' ' . $record->first_name)
-                    ->searchable(['last_name', 'first_name']),
+                    ->formatStateUsing(function ($record) {
+                        $name = $record->last_name . ' ' . $record->first_name;
+                        if ($record->isHighRisk()) {
+                            $riskLevel = $record->getRiskLevel();
+                            $icon = match($riskLevel) {
+                                'high' => '⚠️',
+                                'medium' => '⚡',
+                                default => ''
+                            };
+                            $details = [];
+                            if ($record->cancellation_count > 0) {
+                                $details[] = "キャンセル{$record->cancellation_count}回";
+                            }
+                            if ($record->no_show_count > 0) {
+                                $details[] = "来店なし{$record->no_show_count}回";
+                            }
+                            if ($record->change_count >= 3) {
+                                $details[] = "変更{$record->change_count}回";
+                            }
+                            $detailText = implode('/', $details);
+                            return "{$icon} {$name} ({$detailText})";
+                        }
+                        return $name;
+                    })
+                    ->searchable(['last_name', 'first_name'])
+                    ->tooltip(function ($record) {
+                        if (!$record->isHighRisk()) {
+                            return null;
+                        }
+                        $details = [];
+                        if ($record->cancellation_count > 0) {
+                            $details[] = "キャンセル回数: {$record->cancellation_count}回";
+                        }
+                        if ($record->no_show_count > 0) {
+                            $details[] = "来店なし回数: {$record->no_show_count}回";
+                        }
+                        if ($record->change_count > 0) {
+                            $details[] = "予約変更回数: {$record->change_count}回";
+                        }
+                        if ($record->last_cancelled_at) {
+                            $details[] = "最終キャンセル: " . $record->last_cancelled_at->format('Y/m/d');
+                        }
+                        return implode("\n", $details);
+                    }),
                 Tables\Columns\TextColumn::make('phone')
                     ->label('電話番号')
                     ->searchable(),
@@ -407,6 +449,32 @@ class CustomerResource extends Resource
                     ->label('予約数')
                     ->counts('reservations')
                     ->sortable(),
+                Tables\Columns\BadgeColumn::make('risk_status')
+                    ->label('ステータス')
+                    ->getStateUsing(function ($record) {
+                        if (!$record->isHighRisk()) {
+                            return '通常';
+                        }
+                        return match($record->getRiskLevel()) {
+                            'high' => '要注意(高)',
+                            'medium' => '要注意',
+                            default => '通常'
+                        };
+                    })
+                    ->color(function ($state) {
+                        return match($state) {
+                            '要注意(高)' => 'danger',
+                            '要注意' => 'warning',
+                            default => 'success'
+                        };
+                    })
+                    ->icon(function ($state) {
+                        return match($state) {
+                            '要注意(高)' => 'heroicon-o-exclamation-triangle',
+                            '要注意' => 'heroicon-o-exclamation-circle',
+                            default => null
+                        };
+                    }),
                 Tables\Columns\IconColumn::make('has_subscription')
                     ->label('サブスク')
                     ->getStateUsing(fn ($record) => $record->hasActiveSubscription())
@@ -437,6 +505,43 @@ class CustomerResource extends Resource
             ->filters([
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('有効状態'),
+                Tables\Filters\Filter::make('high_risk')
+                    ->label('要注意顧客')
+                    ->query(fn ($query) => $query->where(function ($q) {
+                        $q->where('cancellation_count', '>=', 1)
+                          ->orWhere('no_show_count', '>=', 1)
+                          ->orWhere('change_count', '>=', 3);
+                    })),
+                Tables\Filters\SelectFilter::make('risk_level')
+                    ->label('リスクレベル')
+                    ->options([
+                        'high' => '高リスク（キャンセル3回以上/来店なし2回以上）',
+                        'medium' => '中リスク（キャンセル1回以上/変更3回以上）',
+                        'low' => '通常',
+                    ])
+                    ->query(function ($query, array $data) {
+                        $value = $data['value'] ?? null;
+                        if (!$value) return $query;
+                        
+                        return match($value) {
+                            'high' => $query->where(function ($q) {
+                                $q->where('cancellation_count', '>=', 3)
+                                  ->orWhere('no_show_count', '>=', 2);
+                            }),
+                            'medium' => $query->where(function ($q) {
+                                $q->where(function ($q2) {
+                                    $q2->where('cancellation_count', '>=', 1)
+                                       ->where('cancellation_count', '<', 3);
+                                })->orWhere(function ($q2) {
+                                    $q2->where('no_show_count', '=', 1);
+                                })->orWhere('change_count', '>=', 3);
+                            }),
+                            'low' => $query->where('cancellation_count', 0)
+                                          ->where('no_show_count', 0)
+                                          ->where('change_count', '<', 3),
+                            default => $query
+                        };
+                    }),
                 Tables\Filters\Filter::make('has_subscription')
                     ->label('サブスク契約中')
                     ->query(fn ($query) => $query->whereHas('subscriptions', function ($q) {

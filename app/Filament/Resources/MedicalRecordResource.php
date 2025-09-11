@@ -380,6 +380,82 @@ class MedicalRecordResource extends Resource
                                     ->label('その他メモ')
                                     ->rows(3),
                             ]),
+                        
+                        // 画像タブ
+                        Forms\Components\Tabs\Tab::make('画像')
+                            ->schema([
+                                Forms\Components\Repeater::make('attachedImages')
+                                    ->label('添付画像')
+                                    ->relationship()
+                                    ->schema([
+                                        Forms\Components\FileUpload::make('file_path')
+                                            ->label('画像ファイル')
+                                            ->image()
+                                            ->imageResizeMode('cover')
+                                            ->imageCropAspectRatio(null)
+                                            ->imageResizeTargetWidth('1920')
+                                            ->imageResizeTargetHeight('1080')
+                                            ->maxSize(10240) // 10MB
+                                            ->disk('public')
+                                            ->directory('medical-records')
+                                            ->visibility('public')
+                                            ->required()
+                                            ->columnSpan(2),
+                                        
+                                        Forms\Components\Grid::make(2)
+                                            ->schema([
+                                                Forms\Components\TextInput::make('title')
+                                                    ->label('タイトル')
+                                                    ->placeholder('画像のタイトル'),
+                                                
+                                                Forms\Components\Select::make('image_type')
+                                                    ->label('画像タイプ')
+                                                    ->options([
+                                                        'before' => '施術前',
+                                                        'after' => '施術後',
+                                                        'progress' => '経過',
+                                                        'reference' => '参考',
+                                                        'other' => 'その他',
+                                                    ])
+                                                    ->default('other'),
+                                            ])
+                                            ->columnSpan(2),
+                                        
+                                        Forms\Components\Textarea::make('description')
+                                            ->label('説明')
+                                            ->placeholder('画像の説明を入力')
+                                            ->rows(2)
+                                            ->columnSpan(2),
+                                        
+                                        Forms\Components\Grid::make(3)
+                                            ->schema([
+                                                Forms\Components\TextInput::make('display_order')
+                                                    ->label('表示順')
+                                                    ->numeric()
+                                                    ->default(0)
+                                                    ->minValue(0),
+                                                
+                                                Forms\Components\Toggle::make('is_visible_to_customer')
+                                                    ->label('顧客に表示')
+                                                    ->default(true)
+                                                    ->helperText('ONにすると顧客側でも表示されます'),
+                                                
+                                                Forms\Components\Placeholder::make('file_info')
+                                                    ->label('ファイル情報')
+                                                    ->content(function ($record) {
+                                                        if (!$record) return '新規画像';
+                                                        return $record->formatted_file_size ?? '-';
+                                                    }),
+                                            ])
+                                            ->columnSpan(2),
+                                    ])
+                                    ->columns(2)
+                                    ->collapsible()
+                                    ->defaultItems(0)
+                                    ->addActionLabel('画像を追加')
+                                    ->reorderable('display_order')
+                                    ->grid(1),
+                            ]),
                     ])
                     ->columnSpanFull(),
             ]);

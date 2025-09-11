@@ -224,6 +224,10 @@ class ReservationController extends Controller
             'cancelled_at' => now()
         ]);
 
+        // 顧客のキャンセル回数を更新
+        $customer->increment('cancellation_count');
+        $customer->update(['last_cancelled_at' => now()]);
+
         // キャンセル通知を送信
         event(new ReservationCancelled($reservation));
 
@@ -312,6 +316,9 @@ class ReservationController extends Controller
             'end_time' => $newEndTime->format('H:i:s')
         ]);
 
+        // 顧客の変更回数を更新
+        $customer->increment('change_count');
+        
         // 変更通知を送信
         event(new ReservationChanged($reservation, [
             'old_date' => $oldDate,
@@ -398,6 +405,9 @@ class ReservationController extends Controller
         }
 
         $reservation->save();
+        
+        // 顧客の変更回数を更新
+        $customer->increment('change_count');
         
         // 予約変更通知を送信
         event(new ReservationChanged($oldReservation, $reservation));

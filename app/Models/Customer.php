@@ -33,6 +33,10 @@ class Customer extends Model
         'medical_notes',
         'notes',
         'is_blocked',
+        'cancellation_count',
+        'no_show_count',
+        'change_count',
+        'last_cancelled_at',
         'sms_notifications_enabled',
         'notification_preferences',
         'last_visit_at',
@@ -48,6 +52,10 @@ class Customer extends Model
         'preferences' => 'array',
         'medical_notes' => 'array',
         'is_blocked' => 'boolean',
+        'cancellation_count' => 'integer',
+        'no_show_count' => 'integer',
+        'change_count' => 'integer',
+        'last_cancelled_at' => 'datetime',
         'sms_notifications_enabled' => 'boolean',
         'notification_preferences' => 'array',
         'last_visit_at' => 'datetime',
@@ -187,6 +195,30 @@ class Customer extends Model
     public function hasActiveSubscription(): bool
     {
         return $this->activeSubscription()->exists();
+    }
+
+    /**
+     * 要注意顧客かどうかチェック
+     */
+    public function isHighRisk(): bool
+    {
+        return $this->cancellation_count >= 1 || 
+               $this->no_show_count >= 1 || 
+               $this->change_count >= 3;
+    }
+
+    /**
+     * 要注意レベルを取得
+     */
+    public function getRiskLevel(): string
+    {
+        if ($this->cancellation_count >= 3 || $this->no_show_count >= 2) {
+            return 'high';
+        }
+        if ($this->cancellation_count >= 1 || $this->no_show_count >= 1 || $this->change_count >= 3) {
+            return 'medium';
+        }
+        return 'low';
     }
 
     /**

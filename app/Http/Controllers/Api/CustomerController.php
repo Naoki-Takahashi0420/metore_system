@@ -56,7 +56,12 @@ class CustomerController extends Controller
         $customer = $request->user();
         
         $medicalRecords = $customer->medicalRecords()
-            ->with(['reservation.store', 'reservation.menu', 'createdBy'])
+            ->with([
+                'reservation.store', 
+                'reservation.menu', 
+                'createdBy',
+                'visibleImages' // 顧客に表示可能な画像のみ取得
+            ])
             ->orderBy('record_date', 'desc')
             ->get();
 
