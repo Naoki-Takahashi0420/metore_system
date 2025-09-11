@@ -116,12 +116,15 @@ class ReservationController extends Controller
             ->orderBy('start_time', 'desc')
             ->get()
             ->map(function ($reservation) {
-                // 日付フィールドを明示的にフォーマット
-                $reservation->reservation_date = $reservation->reservation_date instanceof \Carbon\Carbon 
-                    ? $reservation->reservation_date->format('Y-m-d')
-                    : $reservation->reservation_date;
-                    
-                return $reservation;
+                // タイムゾーンの問題を避けるため、日付を文字列として返す
+                $reservationArray = $reservation->toArray();
+                
+                // 日付を安全な形式に変換（タイムゾーン変換を避ける）
+                if ($reservation->reservation_date instanceof \Carbon\Carbon) {
+                    $reservationArray['reservation_date'] = $reservation->reservation_date->format('Y-m-d H:i:s');
+                }
+                
+                return (object) $reservationArray;
             });
 
         return response()->json([

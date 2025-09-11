@@ -285,6 +285,12 @@ class PublicReservationController extends Controller
 
     public function index(Request $request)
     {
+        // 通常予約の場合、サブスク関連のセッション情報をクリア
+        if (!Session::get('is_subscription_booking')) {
+            Session::forget(['customer_id', 'subscription_id', 'from_mypage']);
+            \Log::info('通常予約のため、サブスク関連セッション情報をクリア');
+        }
+        
         // セッションから情報を取得
         $selectedMenu = Session::get('reservation_menu');
         $selectedOptions = Session::get('reservation_options', collect());
@@ -658,6 +664,67 @@ class PublicReservationController extends Controller
         return $days[$dayOfWeek];
     }
     
+    /**
+     * サブスク予約の準備（セッションに店舗とメニューを設定してカレンダーへ）
+     */
+    public function prepareSubscriptionReservation(Request $request)
+    {
+        \Log::info('サブスク予約準備開始', $request->all());
+        
+        try {
+            $validated = $request->validate([
+                'customer_id' => 'required|exists:customers,id',
+                'subscription_id' => 'required|exists:customer_subscriptions,id',
+                'store_id' => 'required|exists:stores,id',
+                'menu_id' => 'required|exists:menus,id',
+                'store_name' => 'required|string',
+                'plan_name' => 'required|string'
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('バリデーションエラー', ['errors' => $e->errors()]);
+            return redirect('/customer/dashboard')->with('error', 'サブスク予約の準備に失敗しました。入力データを確認してください。');
+        }
+        
+        // サブスク契約の確認
+        $subscription = CustomerSubscription::where('id', $validated['subscription_id'])
+            ->where('customer_id', $validated['customer_id'])
+            ->where('status', 'active')
+            ->where('payment_failed', false)
+            ->where('is_paused', false)
+            ->first();
+            
+        if (!$subscription) {
+            \Log::error('サブスクリプションが見つかりません', ['subscription_id' => $validated['subscription_id']]);
+            return redirect('/customer/dashboard')->with('error', 'アクティブなサブスクリプションが見つかりません。');
+        }
+        
+        // 利用回数チェック
+        if ($subscription->hasReachedLimit()) {
+            \Log::info('利用上限に達しています', ['subscription_id' => $subscription->id]);
+            return redirect('/customer/dashboard')->with('error', '今月の利用上限に達しています。');
+        }
+        
+        // メニュー情報を取得
+        $menu = Menu::find($validated['menu_id']);
+        if (!$menu) {
+            \Log::error('メニューが見つかりません', ['menu_id' => $validated['menu_id']]);
+            return redirect('/customer/dashboard')->with('error', 'メニュー情報が見つかりません。');
+        }
+        
+        // セッションに必要な情報を保存
+        Session::put('selected_store_id', $validated['store_id']);
+        Session::put('reservation_menu', $menu);
+        Session::put('is_subscription_booking', true);
+        Session::put('subscription_id', $subscription->id);
+        Session::put('customer_id', $validated['customer_id']);
+        Session::put('from_mypage', true);
+        
+        \Log::info('サブスク予約準備完了、カレンダーへリダイレクト');
+        
+        // カレンダーページへリダイレクト
+        return redirect()->route('reservation.index');
+    }
+    
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -671,6 +738,26 @@ class PublicReservationController extends Controller
             'email' => 'nullable|email|max:255',
             'notes' => 'nullable|string|max:500',
         ]);
+        
+        // サブスク予約の場合のみ、5日間隔制限をチェック
+        if (Session::has('is_subscription_booking') && Session::get('is_subscription_booking') === true) {
+            $customerId = Session::get('customer_id');
+            \Log::info('サブスク予約での5日間隔チェック開始', [
+                'customer_id' => $customerId,
+                'target_date' => $validated['date'],
+                'is_subscription_booking' => Session::get('is_subscription_booking')
+            ]);
+            
+            if ($customerId) {
+                $this->validateFiveDayInterval($customerId, $validated['date']);
+            } else {
+                \Log::warning('サブスク予約なのにcustomer_idがセッションに設定されていません');
+            }
+        } else {
+            \Log::info('通常予約のため5日間隔制限をスキップ', [
+                'is_subscription_booking' => Session::get('is_subscription_booking')
+            ]);
+        }
         
         // 日程変更の場合の処理
         if (Session::has('change_reservation_id')) {
@@ -931,5 +1018,57 @@ class PublicReservationController extends Controller
         }
             
         return view('reservation.public.complete', compact('reservation', 'lineToken', 'lineQrCodeUrl'));
+    }
+    
+    /**
+     * 5日間隔制限をバリデーション
+     */
+    private function validateFiveDayInterval($customerId, $targetDate)
+    {
+        \Log::info('5日間隔バリデーション実行', [
+            'customer_id' => $customerId,
+            'target_date' => $targetDate
+        ]);
+        
+        // 顧客の既存予約を取得（キャンセル済みを除く）
+        $existingReservations = Reservation::where('customer_id', $customerId)
+            ->whereNotIn('status', ['cancelled', 'canceled'])
+            ->get();
+            
+        \Log::info('既存予約確認', [
+            'customer_id' => $customerId,
+            'existing_reservations_count' => $existingReservations->count(),
+            'reservations' => $existingReservations->pluck('reservation_date', 'id')->toArray()
+        ]);
+            
+        $targetDateTime = Carbon::parse($targetDate);
+        
+        foreach ($existingReservations as $reservation) {
+            $reservationDate = Carbon::parse($reservation->reservation_date);
+            $daysDiff = abs($targetDateTime->diffInDays($reservationDate));
+            
+            \Log::info('予約日間隔チェック', [
+                'reservation_id' => $reservation->id,
+                'reservation_date' => $reservationDate->format('Y-m-d'),
+                'target_date' => $targetDateTime->format('Y-m-d'),
+                'days_diff' => $daysDiff
+            ]);
+            
+            // 同じ日は除外、1-5日以内をチェック
+            if ($daysDiff > 0 && $daysDiff <= 5) {
+                \Log::warning('5日間隔制限違反', [
+                    'customer_id' => $customerId,
+                    'conflicting_reservation_date' => $reservationDate->format('Y-m-d'),
+                    'target_date' => $targetDateTime->format('Y-m-d'),
+                    'days_diff' => $daysDiff
+                ]);
+                
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'date' => '前回の予約から5日以内のため、この日は予約できません。最後の予約日: ' . $reservationDate->format('Y年m月d日')
+                ]);
+            }
+        }
+        
+        \Log::info('5日間隔制限チェック完了（問題なし）');
     }
 }

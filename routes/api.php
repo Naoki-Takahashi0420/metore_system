@@ -41,6 +41,9 @@ Route::get('availability/days', [AvailabilityController::class, 'getAvailableDay
 // 顧客チェック（認証不要）
 Route::post('customer/check-phone', [CustomerCheckController::class, 'checkPhone']);
 
+// 顧客向けサブスクリプション情報（トークンベース認証）
+Route::get('customer/subscriptions-token', [\App\Http\Controllers\Api\CustomerSubscriptionController::class, 'getSubscriptions']);
+
 // 予約作成（認証不要）
 // Public reservation functionality moved to web routes
 

@@ -19,6 +19,12 @@ class TodayReservationsWidget extends BaseWidget
     
     protected $listeners = ['store-changed' => 'updateStore'];
     
+    public function mount(): void
+    {
+        // URLパラメータから店舗フィルターを取得
+        $this->storeFilter = request()->get('storeFilter');
+    }
+    
     public function updateStore($storeId): void
     {
         $this->storeFilter = $storeId;

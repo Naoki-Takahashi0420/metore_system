@@ -78,6 +78,26 @@
         </div>
 
         <!-- 選択中のメニュー表示 -->
+        @if(Session::has('is_subscription_booking'))
+        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-blue-600 mb-1 font-medium">サブスクリプション予約</p>
+                    <p class="text-lg font-semibold text-gray-800">{{ $selectedMenu->name }}</p>
+                    @php
+                        $subscription = \App\Models\CustomerSubscription::where('customer_id', Session::get('customer_id'))
+                            ->where('status', 'active')
+                            ->first();
+                        $monthlyPrice = $subscription ? $subscription->monthly_price : 0;
+                    @endphp
+                    <p class="text-sm text-gray-600">{{ $selectedMenu->duration }}分 / <span class="text-blue-600 font-medium">{{ number_format($monthlyPrice) }}円/月</span></p>
+                </div>
+                <div class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-medium">
+                    サブスク
+                </div>
+            </div>
+        </div>
+        @else
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
             <div class="flex items-center justify-between">
                 <div>
@@ -92,6 +112,7 @@
                 @endif
             </div>
         </div>
+        @endif
         
         <!-- 予約変更の場合の案内表示 -->
         @if(Session::has('is_reservation_change'))
@@ -136,35 +157,66 @@
             </div>
         </div>
 
+        <!-- 凡例（サブスク予約時のみ表示） -->
+        @if(Session::has('is_subscription_booking'))
+        <div class="bg-white rounded-lg shadow-sm p-4 mb-4">
+            <h3 class="text-sm font-semibold text-gray-900 mb-3">カレンダー凡例</h3>
+            <div class="flex flex-wrap gap-4 text-sm">
+                <div class="flex items-center">
+                    <div class="w-6 h-6 rounded-full bg-green-500 text-white font-bold flex items-center justify-center text-xs mr-2">○</div>
+                    <span class="text-gray-700">予約可能</span>
+                </div>
+                <div class="flex items-center">
+                    <div class="w-6 h-6 rounded-full bg-orange-500 text-white font-bold flex items-center justify-center text-xs mr-2 border-2 border-orange-600">予</div>
+                    <span class="text-gray-700">同じメニューで予約済み</span>
+                </div>
+                <div class="flex items-center">
+                    <div class="w-6 h-6 rounded-full bg-red-500 text-white font-bold flex items-center justify-center text-xs mr-2 border-2 border-red-600">×</div>
+                    <span class="text-gray-700">他メニューで予約済み</span>
+                </div>
+                <div class="flex items-center">
+                    <div class="w-6 h-6 rounded-full bg-gray-400 text-white font-bold flex items-center justify-center text-xs mr-2 border-2 border-gray-500">△</div>
+                    <span class="text-gray-700">前回予約から5日以内（予約不可）</span>
+                </div>
+                <div class="flex items-center">
+                    <span class="text-gray-400 text-lg mr-2">×</span>
+                    <span class="text-gray-700">予約不可（過去の時間）</span>
+                </div>
+            </div>
+        </div>
+        @endif
+
         <!-- 週間ナビゲーション -->
         <div class="flex justify-between items-center mb-6">
             <a href="?week={{ $weekOffset - 1 }}" 
-               class="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300 {{ $weekOffset <= 0 ? 'invisible' : '' }}">
-                ← 前の一週間
+               class="px-2 sm:px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300 text-xs sm:text-sm {{ $weekOffset <= 0 ? 'invisible' : '' }}">
+                <span class="hidden sm:inline">← 前の一週間</span>
+                <span class="sm:hidden">← 前週</span>
             </a>
             
-            <h2 class="text-2xl font-bold">
+            <h2 class="text-sm sm:text-2xl font-bold text-center">
                 {{ $dates[0]['date']->format('Y年n月') }}
             </h2>
             
             <a href="?week={{ $weekOffset + 1 }}" 
-               class="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300 {{ $weekOffset >= ($maxWeeks - 1) ? 'invisible' : '' }}">
-                次の一週間 →
+               class="px-2 sm:px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300 text-xs sm:text-sm {{ $weekOffset >= ($maxWeeks - 1) ? 'invisible' : '' }}">
+                <span class="hidden sm:inline">次の一週間 →</span>
+                <span class="sm:hidden">次週 →</span>
             </a>
         </div>
 
         <!-- 予約可能時間テーブル -->
-        <div class="bg-white rounded-lg shadow-sm overflow-hidden">
-            <table class="w-full availability-table">
+        <div class="bg-white rounded-lg shadow-sm overflow-x-auto">
+            <table class="w-full availability-table min-w-full">
                 <thead class="bg-gray-100">
                     <tr>
-                        <th class="py-3 px-2 text-sm font-medium text-gray-700 border-r"></th>
+                        <th class="py-2 px-1 sm:py-3 sm:px-2 text-xs sm:text-sm font-medium text-gray-700 border-r sticky left-0 bg-gray-100 z-10 min-w-16"></th>
                         @foreach($dates as $date)
-                            <th class="py-2 px-2 text-center {{ $date['is_today'] ? 'bg-blue-50' : '' }}">
+                            <th class="py-2 px-1 sm:px-2 text-center min-w-12 sm:min-w-16 {{ $date['is_today'] ? 'bg-blue-50' : '' }}">
                                 <div class="text-xs font-normal {{ $date['date']->dayOfWeek == 0 ? 'text-red-500' : ($date['date']->dayOfWeek == 6 ? 'text-blue-500' : 'text-gray-500') }}">
                                     {{ $date['day_jp'] }}
                                 </div>
-                                <div class="text-lg font-bold {{ $date['date']->dayOfWeek == 0 ? 'text-red-500' : ($date['date']->dayOfWeek == 6 ? 'text-blue-500' : 'text-gray-700') }}">
+                                <div class="text-sm sm:text-lg font-bold {{ $date['date']->dayOfWeek == 0 ? 'text-red-500' : ($date['date']->dayOfWeek == 6 ? 'text-blue-500' : 'text-gray-700') }}">
                                     {{ $date['formatted'] }}
                                 </div>
                             </th>
@@ -174,7 +226,7 @@
                 <tbody>
                     @foreach($timeSlots as $slot)
                         <tr class="border-t">
-                            <td class="py-3 px-2 text-sm font-medium text-gray-700 bg-gray-50 border-r">
+                            <td class="py-2 px-1 sm:py-3 sm:px-2 text-xs sm:text-sm font-medium text-gray-700 bg-gray-50 border-r sticky left-0 z-10">
                                 {{ $slot }}
                             </td>
                             @foreach($dates as $date)
@@ -202,12 +254,12 @@
                                         }
                                     }
                                 @endphp
-                                <td class="py-3 px-2 {{ $date['is_today'] ? 'bg-blue-50' : '' }} {{ $isOriginalReservation ? 'bg-yellow-100 ring-2 ring-yellow-400' : '' }}">
+                                <td class="py-2 px-1 sm:py-3 sm:px-2 text-center {{ $date['is_today'] ? 'bg-blue-50' : '' }} {{ $isOriginalReservation ? 'bg-yellow-100 ring-2 ring-yellow-400' : '' }}">
                                     @if($isOriginalReservation)
                                         <div class="relative">
                                             <span class="absolute -top-1 -right-1 bg-yellow-500 text-white text-xs px-1 rounded">現在</span>
                                             <button type="button" 
-                                                    class="time-slot w-8 h-8 rounded-full bg-yellow-500 text-white font-bold hover:bg-yellow-600"
+                                                    class="time-slot w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-yellow-500 text-white font-bold hover:bg-yellow-600 text-xs sm:text-base"
                                                     data-date="{{ $dateStr }}"
                                                     data-time="{{ $slot }}"
                                                     onclick="selectTimeSlot(this)">
@@ -216,14 +268,14 @@
                                         </div>
                                     @elseif($isAvailable)
                                         <button type="button" 
-                                                class="time-slot w-8 h-8 rounded-full bg-green-500 text-white font-bold hover:bg-green-600"
+                                                class="time-slot w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-green-500 text-white font-bold hover:bg-green-600 text-xs sm:text-base"
                                                 data-date="{{ $dateStr }}"
                                                 data-time="{{ $slot }}"
                                                 onclick="selectTimeSlot(this)">
                                             ○
                                         </button>
                                     @else
-                                        <span class="text-gray-400 text-xl">×</span>
+                                        <span class="text-gray-400 text-lg sm:text-xl">×</span>
                                     @endif
                                 </td>
                             @endforeach
@@ -340,10 +392,139 @@
     <script>
         let selectedSlot = null;
         
+        let existingReservations = []; // 既存予約を格納
+        
         // ページ読み込み時に既存顧客情報をチェック
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             checkExistingCustomer();
+            await fetchExistingReservations();
+            updateCalendarWithReservations();
         });
+        
+        // 既存予約を取得する関数
+        async function fetchExistingReservations() {
+            try {
+                const token = localStorage.getItem('customer_token');
+                const isSubscriptionBooking = sessionStorage.getItem('is_subscription_booking');
+                
+                if (!token || !isSubscriptionBooking) return;
+                
+                console.log('既存予約を取得中...');
+                const response = await fetch('/api/customer/reservations', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    existingReservations = data.data || [];
+                    console.log('既存予約:', existingReservations);
+                }
+            } catch (error) {
+                console.error('既存予約の取得に失敗:', error);
+            }
+        }
+        
+        // カレンダーに既存予約を表示する関数
+        function updateCalendarWithReservations() {
+            const isSubscriptionBooking = sessionStorage.getItem('is_subscription_booking');
+            if (!isSubscriptionBooking || existingReservations.length === 0) return;
+            
+            // 現在のメニューIDを取得
+            const currentMenuId = @json($selectedMenu->id);
+            
+            // 5日間隔制限のために既存予約の日付を取得
+            const reservationDates = getExistingReservationDates();
+            
+            // カレンダーの各セルをチェック（予約可能なボタンのみ）
+            document.querySelectorAll('button[data-date][data-time].time-slot').forEach(button => {
+                const dateStr = button.getAttribute('data-date');
+                const timeStr = button.getAttribute('data-time');
+                
+                // この日時に既存予約があるかチェック
+                const existingReservation = findExistingReservation(dateStr, timeStr);
+                
+                // 5日間隔制限チェック
+                const isWithinFiveDays = isDateWithinFiveDaysOfReservation(dateStr, reservationDates);
+                
+                if (existingReservation) {
+                    const isSameMenu = existingReservation.menu_id && 
+                                     existingReservation.menu_id.toString() === currentMenuId.toString();
+                    
+                    // ボタンを置き換え
+                    const td = button.parentElement;
+                    td.innerHTML = ''; // 既存のボタンを削除
+                    
+                    if (isSameMenu) {
+                        // 同じメニューの予約
+                        const reservedDiv = document.createElement('div');
+                        reservedDiv.className = 'w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-orange-500 text-white font-bold flex items-center justify-center border-2 border-orange-600 shadow-md text-xs sm:text-base mx-auto';
+                        reservedDiv.innerHTML = '予';
+                        reservedDiv.title = `既に予約済み: ${existingReservation.menu?.name || 'メニュー'}`;
+                        td.appendChild(reservedDiv);
+                    } else {
+                        // 違うメニューの予約
+                        const reservedDiv = document.createElement('div');
+                        reservedDiv.className = 'w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-red-500 text-white font-bold flex items-center justify-center border-2 border-red-600 shadow-md text-xs sm:text-base mx-auto';
+                        reservedDiv.innerHTML = '×';
+                        reservedDiv.title = `他の予約あり: ${existingReservation.menu?.name || 'メニュー'}`;
+                        td.appendChild(reservedDiv);
+                    }
+                } else if (isWithinFiveDays) {
+                    // 既存予約から5日以内で予約不可
+                    const td = button.parentElement;
+                    td.innerHTML = ''; // 既存のボタンを削除
+                    
+                    const blockedDiv = document.createElement('div');
+                    blockedDiv.className = 'w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gray-400 text-white font-bold flex items-center justify-center border-2 border-gray-500 shadow-md text-xs sm:text-base mx-auto';
+                    blockedDiv.innerHTML = '△';
+                    blockedDiv.title = '前回予約から5日以内のため予約できません';
+                    td.appendChild(blockedDiv);
+                }
+            });
+        }
+        
+        // 既存予約を検索する関数
+        function findExistingReservation(dateStr, timeStr) {
+            return existingReservations.find(reservation => {
+                if (['cancelled', 'canceled'].includes(reservation.status)) {
+                    return false;
+                }
+                
+                // 日付を比較
+                const reservationDate = reservation.reservation_date.split('T')[0];
+                if (reservationDate !== dateStr) {
+                    return false;
+                }
+                
+                // 時間を比較（HH:MM 形式に正規化）
+                const reservationTime = reservation.start_time.substring(0, 5);
+                return reservationTime === timeStr;
+            });
+        }
+        
+        // 既存予約の日付を取得する関数
+        function getExistingReservationDates() {
+            return existingReservations
+                .filter(reservation => !['cancelled', 'canceled'].includes(reservation.status))
+                .map(reservation => reservation.reservation_date.split('T')[0]);
+        }
+        
+        // 指定した日付が既存予約から5日以内かチェックする関数
+        function isDateWithinFiveDaysOfReservation(dateStr, reservationDates) {
+            const targetDate = new Date(dateStr);
+            
+            return reservationDates.some(reservationDateStr => {
+                const reservationDate = new Date(reservationDateStr);
+                const diffTime = Math.abs(targetDate - reservationDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                // 同じ日は除外、1-5日以内をチェック
+                return diffDays > 0 && diffDays <= 5;
+            });
+        }
         
         function checkExistingCustomer() {
             // セッションストレージから既存顧客情報を取得

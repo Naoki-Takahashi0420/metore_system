@@ -45,14 +45,14 @@
         </div>
 
         <!-- サブスクリプション会員用ボタン -->
-        <div id="subscription-section" class="hidden bg-gray-900 text-white rounded-xl shadow-sm mb-4 p-6">
+        <div id="subscription-section" class="hidden bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl shadow-sm mb-4 p-6">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h2 class="text-lg font-semibold mb-2">サブスクリプション会員</h2>
-                    <p class="text-gray-300 text-sm" id="subscription-details">プランの詳細</p>
+                    <h2 class="text-sm font-medium mb-2 text-blue-600">メニュー</h2>
+                    <div id="subscription-details" class="text-gray-800">プランの詳細</div>
                 </div>
-                <button id="subscription-booking-btn" class="bg-white text-gray-900 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
-                    サブスク予約を取る
+                <button id="subscription-booking-btn" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md">
+                    サブスクリプション予約
                 </button>
             </div>
         </div>
@@ -356,7 +356,10 @@ async function fetchStats() {
         
         // サブスクリプション情報の取得
         console.log('=== サブスクリプション取得開始 ===');
-        const subscriptionResponse = await fetch('/api/customer/subscriptions', {
+        console.log('Using token:', token);
+        console.log('Token length:', token ? token.length : 'undefined');
+        
+        const subscriptionResponse = await fetch('/api/customer/subscriptions-token', {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
@@ -364,23 +367,71 @@ async function fetchStats() {
         });
         
         console.log('Subscription API Response:', subscriptionResponse.status);
+        console.log('Subscription Response Headers:', Object.fromEntries(subscriptionResponse.headers));
         
         if (subscriptionResponse.ok) {
             const subscriptionData = await subscriptionResponse.json();
             console.log('Subscription data:', subscriptionData);
+            console.log('Subscription data.data:', subscriptionData.data);
+            console.log('Subscription data.data length:', subscriptionData.data ? subscriptionData.data.length : 'undefined');
+            
             const activeSubscription = subscriptionData.data?.find(s => s.status === 'active');
             console.log('Active subscription:', activeSubscription);
+            console.log('Found active subscription?', !!activeSubscription);
             
             if (activeSubscription) {
-                document.getElementById('subscription-section').classList.remove('hidden');
-                document.getElementById('subscription-details').textContent = 
-                    `${activeSubscription.plan?.name || 'プラン'} - 残り${activeSubscription.remaining_sessions || 0}回`;
+                console.log('サブスクセクション表示開始');
+                const subscriptionSection = document.getElementById('subscription-section');
+                console.log('subscription-section element:', subscriptionSection);
+                subscriptionSection.classList.remove('hidden');
+                console.log('hidden class removed');
+                
+                // メニュー名と料金を取得
+                const menuName = activeSubscription.menu?.name || activeSubscription.plan?.name || 'サブスクプラン';
+                const duration = activeSubscription.menu?.duration || 60;
+                const monthlyPrice = activeSubscription.monthly_price || 0;
+                
+                document.getElementById('subscription-details').innerHTML = `
+                    <div class="text-sm text-gray-600 mb-1">${menuName} (${duration}分)</div>
+                    <div class="flex items-baseline gap-3">
+                        <div class="text-gray-800">
+                            <span class="text-2xl font-bold text-blue-600">${activeSubscription.remaining_sessions || 0}</span>
+                            <span class="text-sm text-gray-600">/ ${activeSubscription.monthly_limit || 0}回</span>
+                        </div>
+                        <div class="text-sm text-blue-600 font-medium">
+                            ${Math.floor(monthlyPrice).toLocaleString()}円/月
+                        </div>
+                    </div>
+                `;
                 
                 // サブスク予約ボタンのイベント
                 window.activeSubscription = activeSubscription; // グローバルに保存
-                document.getElementById('subscription-booking-btn').onclick = function() {
-                    goToSubscriptionBooking();
-                };
+                const subscriptionBtn = document.getElementById('subscription-booking-btn');
+                console.log('サブスクボタン要素:', subscriptionBtn);
+                if (subscriptionBtn) {
+                    subscriptionBtn.onclick = function() {
+                        console.log('サブスク予約ボタンがクリックされました');
+                        goToSubscriptionBooking();
+                    };
+                } else {
+                    console.error('サブスク予約ボタンが見つかりません');
+                }
+            }
+        } else {
+            console.error('Subscription API failed:', subscriptionResponse.status);
+            console.error('Subscription Response Headers:', Object.fromEntries(subscriptionResponse.headers));
+            try {
+                const errorText = await subscriptionResponse.text();
+                console.error('Error response text:', errorText);
+                // JSONとしてパース可能か試す
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    console.error('Error response JSON:', errorJson);
+                } catch (e) {
+                    console.error('Error response is not JSON');
+                }
+            } catch (e) {
+                console.error('Failed to get error response text:', e);
             }
         }
         
@@ -557,19 +608,27 @@ function displayReservations() {
         const [hours, minutes] = reservation.start_time.split(':').map(Number);
         const reservationDate = new Date(year, month - 1, day, hours, minutes);
         const isPast = reservationDate <= now;
+        const isToday = dateStr === now.toISOString().split('T')[0];
+        const isTomorrow = dateStr === new Date(now.getTime() + 24*60*60*1000).toISOString().split('T')[0];
+        
+        // サブスク予約かどうかを判定
+        const isSubscription = reservation.is_subscription || reservation.subscription_id;
         
         return `
-        <div class="border border-gray-200 rounded-lg p-4 mb-4 ${isPast ? 'bg-gray-50' : 'bg-white'}">
+        <div class="border ${isPast ? 'border-gray-200' : isToday ? 'border-blue-400 border-2' : isTomorrow ? 'border-blue-300' : 'border-gray-200'} rounded-lg p-4 mb-4 ${isPast ? 'bg-gray-50' : isToday ? 'bg-blue-50' : 'bg-white'} relative">
+            ${isToday ? '<span class="absolute -top-2 left-4 bg-blue-500 text-white text-xs px-2 py-0.5 rounded">本日</span>' : ''}
+            ${isTomorrow ? '<span class="absolute -top-2 left-4 bg-blue-400 text-white text-xs px-2 py-0.5 rounded">明日</span>' : ''}
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div class="flex-1">
                     <div class="flex flex-wrap items-center gap-2 mb-2">
                         <span class="text-xs font-medium px-2 py-1 rounded-full ${getStatusColor(reservation.status)}">
                             ${getStatusText(reservation.status)}
                         </span>
+                        ${isSubscription ? '<span class="text-xs font-medium px-2 py-1 rounded-full bg-purple-100 text-purple-700">サブスク利用</span>' : ''}
                         <span class="text-xs text-gray-500">予約番号: ${reservation.reservation_number}</span>
                     </div>
                     
-                    <h3 class="font-semibold text-gray-900 mb-2">${reservation.menu?.name || 'メニュー情報なし'}</h3>
+                    <h3 class="font-semibold text-gray-900 mb-2 text-lg">${reservation.menu?.name || 'メニュー情報なし'}</h3>
                     
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-gray-600">
                         <div class="flex items-center">
@@ -592,8 +651,21 @@ function displayReservations() {
                         </div>
                     </div>
                     
-                    <div class="mt-2 text-lg font-semibold text-gray-900">
-                        ¥${Math.floor(reservation.total_amount || 0).toLocaleString()}
+                    <div class="mt-3 flex items-center gap-4">
+                        <div class="text-lg font-semibold ${isSubscription && reservation.total_amount == 0 ? 'text-purple-600' : 'text-gray-900'}">
+                            ${isSubscription && reservation.total_amount == 0 ? 
+                                '<span class="text-sm font-normal text-gray-600 line-through mr-1">通常料金</span>サブスク利用 ¥0' : 
+                                `¥${Math.floor(reservation.total_amount || 0).toLocaleString()}`
+                            }
+                        </div>
+                        ${reservation.staff?.name ? `
+                            <div class="flex items-center text-sm text-gray-600">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                                担当: ${reservation.staff.name}
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
                 
@@ -643,9 +715,13 @@ function getStatusText(status) {
 }
 
 function formatDate(dateString) {
-    // タイムスタンプから日付部分のみ抽出
-    const dateStr = dateString.split('T')[0];
-    const date = new Date(dateStr);
+    // 日付部分のみ抽出（'T'または' 'で分割）
+    const dateStr = dateString.split(/[T ]/)[0];
+    
+    // タイムゾーンの問題を避けるため、年月日を個別に抽出してローカル時間でDateオブジェクトを作成
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day); // monthは0ベースなので-1
+    
     return date.toLocaleDateString('ja-JP', { 
         year: 'numeric', 
         month: 'numeric', 
@@ -688,30 +764,116 @@ function goToReservation() {
     window.location.href = '/stores';
 }
 
+// 予約重複チェック関数
+function hasConflictingReservations() {
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0]; // YYYY-MM-DD形式
+    
+    // 今日以降の予約をチェック
+    const futureReservations = allReservations.filter(reservation => {
+        const reservationDate = reservation.reservation_date.split('T')[0];
+        return reservationDate >= todayStr && reservation.status !== 'cancelled';
+    });
+    
+    if (futureReservations.length > 0) {
+        // 予約がある場合の警告メッセージ
+        const reservationList = futureReservations.slice(0, 3).map(res => {
+            const date = new Date(res.reservation_date).toLocaleDateString('ja-JP');
+            const time = res.start_time.substring(0, 5); // HH:MM形式
+            return `${date} ${time}`;
+        }).join('\n');
+        
+        const message = `既に以下の予約があります：\n${reservationList}${futureReservations.length > 3 ? '\n...' : ''}\n\n新しい予約を追加しますか？`;
+        
+        return !confirm(message);
+    }
+    
+    return false; // 重複なし
+}
+
 // サブスク予約へ遷移
 function goToSubscriptionBooking() {
+    // 予約重複チェック
+    if (hasConflictingReservations()) {
+        return; // 重複がある場合は処理を停止
+    }
+    
     // 顧客データとサブスク情報を取得
     const customerData = localStorage.getItem('customer_data');
     const activeSubscription = window.activeSubscription;
     
+    console.log('=== サブスク予約開始 ===');
+    console.log('Customer Data:', customerData);
+    console.log('Active Subscription:', activeSubscription);
+    
     if (customerData && activeSubscription) {
         const customer = JSON.parse(customerData);
         
-        console.log('Active Subscription Data:', activeSubscription);
+        // store_idとstore_nameを正しく取得
+        const storeId = activeSubscription.store_id || activeSubscription.store?.id;
+        const storeName = activeSubscription.store_name || activeSubscription.store?.name || '店舗名不明';
+        const menuId = activeSubscription.menu_id || activeSubscription.plan?.menu_id;
+        const planName = activeSubscription.plan_name || activeSubscription.plan?.name || 'プラン名不明';
+        
+        console.log('送信データ:', {
+            customer_id: customer.id,
+            subscription_id: activeSubscription.id,
+            store_id: storeId,
+            menu_id: menuId,
+            store_name: storeName,
+            plan_name: planName
+        });
         
         // セッションストレージに必要な情報を保存
         sessionStorage.setItem('existing_customer_id', customer.id);
         sessionStorage.setItem('from_mypage', 'true');
         sessionStorage.setItem('is_subscription_booking', 'true');
-        // store_idとstore_nameを正しく取得
-        sessionStorage.setItem('selected_store_id', activeSubscription.store_id || activeSubscription.store?.id);
-        sessionStorage.setItem('selected_store_name', activeSubscription.store_name || activeSubscription.store?.name);
-        // menu_idを正しく取得
-        sessionStorage.setItem('selected_menu_id', activeSubscription.menu_id || activeSubscription.plan?.menu_id);
+        sessionStorage.setItem('selected_store_id', storeId);
+        sessionStorage.setItem('selected_store_name', storeName);
+        sessionStorage.setItem('selected_menu_id', menuId);
         sessionStorage.setItem('subscription_data', JSON.stringify(activeSubscription));
         
-        // 直接カレンダーページへ遷移（店舗とメニューは自動選択済み）
-        window.location.href = '/reservation/calendar';
+        // サブスク予約用のフォームを作成してPOST
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/reservation/subscription-prepare';
+        
+        // CSRFトークン
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        console.log('CSRF Token:', csrfToken);
+        
+        if (!csrfToken) {
+            alert('CSRFトークンが見つかりません。ページを再読み込みしてください。');
+            return;
+        }
+        
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = '_token';
+        csrfInput.value = csrfToken;
+        form.appendChild(csrfInput);
+        
+        // サブスク情報
+        const fields = {
+            'customer_id': customer.id,
+            'subscription_id': activeSubscription.id,
+            'store_id': storeId,
+            'menu_id': menuId,
+            'store_name': storeName,
+            'plan_name': planName
+        };
+        
+        for (const [name, value] of Object.entries(fields)) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = name;
+            input.value = value || '';  // nullやundefinedの場合は空文字にする
+            form.appendChild(input);
+        }
+        
+        console.log('フォーム送信準備完了');
+        document.body.appendChild(form);
+        form.submit();
     } else {
         alert('サブスクリプション情報が見つかりません');
     }
