@@ -587,6 +587,19 @@ class MedicalRecordResource extends Resource
                                             ->directory('medical-records')
                                             ->visibility('public')
                                             ->required()
+                                            ->afterStateUpdated(function ($state, $set, $get) {
+                                                if ($state) {
+                                                    // ファイル名を自動設定
+                                                    $fileName = pathinfo($state, PATHINFO_BASENAME);
+                                                    $set('file_name', $fileName);
+                                                    
+                                                    // タイトルが空の場合はファイル名から設定
+                                                    if (empty($get('title'))) {
+                                                        $nameWithoutExtension = pathinfo($fileName, PATHINFO_FILENAME);
+                                                        $set('title', $nameWithoutExtension);
+                                                    }
+                                                }
+                                            })
                                             ->columnSpan(2),
                                         
                                         Forms\Components\Grid::make(2)

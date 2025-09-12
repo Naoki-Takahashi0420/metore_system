@@ -29,6 +29,30 @@ class MedicalRecordImage extends Model
         'display_order' => 'integer',
     ];
 
+    protected static function boot()
+    {
+        parent::boot();
+        
+        static::creating(function ($image) {
+            // file_nameが設定されていない場合、file_pathから自動設定
+            if (empty($image->file_name) && !empty($image->file_path)) {
+                $image->file_name = pathinfo($image->file_path, PATHINFO_BASENAME);
+            }
+            
+            // titleが設定されていない場合、file_nameから設定
+            if (empty($image->title) && !empty($image->file_name)) {
+                $image->title = pathinfo($image->file_name, PATHINFO_FILENAME);
+            }
+        });
+        
+        static::updating(function ($image) {
+            // file_pathが変更された場合、file_nameを更新
+            if ($image->isDirty('file_path') && empty($image->file_name)) {
+                $image->file_name = pathinfo($image->file_path, PATHINFO_BASENAME);
+            }
+        });
+    }
+
     /**
      * 所属するカルテ
      */
