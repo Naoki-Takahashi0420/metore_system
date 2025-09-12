@@ -57,9 +57,9 @@
                     
                     <button type="submit" class="w-full text-left group hover:shadow-xl transition-all duration-300">
                         <div class="border-2 border-gray-200 rounded-lg overflow-hidden group-hover:border-blue-500 transition-all">
-                            {{-- カテゴリー画像 --}}
+                            {{-- カテゴリー画像（16:9アスペクト比固定） --}}
                             @if($category->image_path)
-                                <div class="relative h-32 md:h-48 bg-gray-100 overflow-hidden">
+                                <div class="relative aspect-[16/9] bg-gray-100 overflow-hidden">
                                     <img src="{{ Storage::url($category->image_path) }}" 
                                          alt="{{ $category->name }}" 
                                          class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
