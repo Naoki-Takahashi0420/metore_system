@@ -177,18 +177,15 @@ class AvailabilityController extends Controller
             
             $timeStr = $slotTime->format('H:i:s');
             
-            // この時間帯に勤務中のスタッフ数を計算
+            // この時間帯に勤務中のスタッフ数を計算（休憩時間は考慮しない）
             $availableStaffCount = $shifts->filter(function ($shift) use ($timeStr) {
-                // 休憩時間を考慮
-                if ($shift->break_start && $shift->break_end) {
-                    if ($timeStr >= $shift->break_start && $timeStr < $shift->break_end) {
-                        return false; // 休憩中
-                    }
-                }
+                // 勤務時間内かチェック（休憩時間でも予約OK）
                 return $timeStr >= $shift->start_time && $timeStr <= $shift->end_time;
             })->count();
             
-            return max($availableStaffCount, 0);
+            // min(設備台数, スタッフ数) で最終的な席数を決定
+            $equipmentCapacity = $store->shift_based_capacity ?? 1;
+            return min($equipmentCapacity, max($availableStaffCount, 0));
         }
         
         // 営業時間ベース（メインラインのみを公開）

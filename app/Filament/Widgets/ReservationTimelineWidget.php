@@ -151,17 +151,16 @@ class ReservationTimelineWidget extends Widget
         
         // シフトベースモードの場合、設備制約を考慮
         if ($useStaffAssignment) {
-            // シフトベースモード: 設備制約（機械台数）に基づく
-            $mainSeats = $store->shift_based_capacity ?? 1;
+            // シフトベースモード: 設備制約（機械台数）
+            $maxCapacity = $store->shift_based_capacity ?? 1;
             $subSeats = 1; // サブライン1で固定
             
-            // シフトデータから実際の勤務スタッフ数を取得（参考情報として）
+            // その日のシフトデータを取得
             $shifts = \App\Models\Shift::where('store_id', $this->selectedStore)
                 ->whereDate('shift_date', $date)
                 ->where('status', 'scheduled')
-                ->count();
-            
-            // 注: 実際の予約可能枠は$mainSeats（設備制約）で決まる
+                ->where('is_available_for_reservation', true)
+                ->get();
         } else {
             // 営業時間ベースモード: 従来通りライン設定を使用
             $mainSeats = $store->main_lines_count ?? 3;
@@ -240,12 +239,25 @@ class ReservationTimelineWidget extends Widget
         }
         
         // 座席データを初期化
-        for ($seat = 1; $seat <= $mainSeats; $seat++) {
-            $timeline['seat_' . $seat] = [
-                'label' => '席' . $seat,
-                'type' => 'main',
-                'reservations' => []
-            ];
+        if ($useStaffAssignment) {
+            // シフトベースモードの場合は動的に席数を決定
+            // 初期化時は最大席数で作成し、後でスタッフ数に応じて調整
+            for ($seat = 1; $seat <= $maxCapacity; $seat++) {
+                $timeline['seat_' . $seat] = [
+                    'label' => '席' . $seat,
+                    'type' => 'main',
+                    'reservations' => []
+                ];
+            }
+        } else {
+            // 営業時間ベースモードの場合は固定席数
+            for ($seat = 1; $seat <= $mainSeats; $seat++) {
+                $timeline['seat_' . $seat] = [
+                    'label' => '席' . $seat,
+                    'type' => 'main',
+                    'reservations' => []
+                ];
+            }
         }
         
         // サブ枠（固定1席）
@@ -255,6 +267,16 @@ class ReservationTimelineWidget extends Widget
             'reservations' => []
         ];
         
+        // シフトベースモードの場合、時間帯ごとの利用可能席数を計算
+        $shiftBasedAvailability = [];
+        if ($useStaffAssignment) {
+            foreach ($slots as $index => $timeSlot) {
+                $staffCount = $this->getAvailableStaffCount($shifts, $timeSlot);
+                $availableSeats = min($maxCapacity, $staffCount);
+                $shiftBasedAvailability[$index] = $availableSeats;
+            }
+        }
+
         // ブロック時間帯をタイムラインに配置
         $blockedSlots = [];
         foreach ($blockedPeriods as $blocked) {
@@ -374,7 +396,10 @@ class ReservationTimelineWidget extends Widget
             'timeline' => $timeline,
             'blockedSlots' => $blockedSlots,
             'conflictingReservations' => $conflictingReservations,
-            'blockedPeriods' => $blockedPeriods->toArray() // デバッグ用
+            'blockedPeriods' => $blockedPeriods->toArray(),
+            'useStaffAssignment' => $useStaffAssignment,
+            'shiftBasedAvailability' => $shiftBasedAvailability ?? [],
+            'maxCapacity' => $useStaffAssignment ? $maxCapacity : ($mainSeats ?? 3)
         ];
     }
     
@@ -535,6 +560,27 @@ class ReservationTimelineWidget extends Widget
         }
     }
     
+    /**
+     * 特定の時間帯にスタッフが勤務しているかチェック
+     */
+    private function getAvailableStaffCount($shifts, $targetTime): int
+    {
+        $staffCount = 0;
+        $targetTimeCarbon = \Carbon\Carbon::parse($targetTime);
+        
+        foreach ($shifts as $shift) {
+            $shiftStart = \Carbon\Carbon::parse($shift->start_time);
+            $shiftEnd = \Carbon\Carbon::parse($shift->end_time);
+            
+            // 勤務時間内かチェック（休憩時間は考慮しない）
+            if ($targetTimeCarbon->between($shiftStart, $shiftEnd)) {
+                $staffCount++;
+            }
+        }
+        
+        return $staffCount;
+    }
+
     public function canMoveToSub($reservationId): bool
     {
         $reservation = Reservation::find($reservationId);

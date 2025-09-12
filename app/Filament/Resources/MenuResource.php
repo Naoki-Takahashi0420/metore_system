@@ -243,7 +243,8 @@ class MenuResource extends Resource
                             ->default('all')
                             ->helperText('どの予約窓口でこのメニューを表示するか選択')
                             ->reactive()
-                            ->columnSpanFull(),
+                            ->columnSpanFull()
+                            ->dehydrated(), // 値が確実に保存されるように
                     ])
                     ->columns(1),
                     

@@ -611,18 +611,25 @@ class PublicReservationController extends Controller
                     continue;
                 }
                 
+                // 店舗の同時予約可能数を初期化
+                $maxConcurrent = $store->main_lines_count ?? 1;
+                
                 // シフトチェック：スタッフシフトベースの場合のみチェック
                 if ($store->use_staff_assignment) {
                     $dayShifts = $shifts->get($dateStr, collect());
-                    $hasAvailableStaff = $dayShifts->contains(function ($shift) use ($slotTime, $slotEnd) {
+                    $availableStaffCount = $dayShifts->filter(function ($shift) use ($slotTime, $slotEnd) {
                         $shiftStart = Carbon::parse($shift->shift_date->format('Y-m-d') . ' ' . $shift->start_time);
                         $shiftEnd = Carbon::parse($shift->shift_date->format('Y-m-d') . ' ' . $shift->end_time);
                         
-                        // スタッフのシフト時間内に予約が収まるかチェック
+                        // 予約時間がシフト時間に収まるかチェック（休憩時間は考慮しない）
                         return $slotTime->gte($shiftStart) && $slotEnd->lte($shiftEnd);
-                    });
+                    })->count();
                     
-                    if (!$hasAvailableStaff) {
+                    // min(設備台数, スタッフ数) でキャパシティを決定
+                    $equipmentCapacity = $store->shift_based_capacity ?? 1;
+                    $maxConcurrent = min($equipmentCapacity, $availableStaffCount);
+                    
+                    if ($maxConcurrent <= 0) {
                         $availability[$dateStr][$slot] = false;
                         continue;
                     }
@@ -643,10 +650,13 @@ class PublicReservationController extends Controller
                 })->count();
                 
                 // 店舗の同時予約可能数を確認
-                // 営業時間ベースの場合はmain_lines_count、シフトベースの場合はshift_based_capacityを使用
-                $maxConcurrent = $store->use_staff_assignment 
-                    ? ($store->shift_based_capacity ?? 1)
-                    : ($store->main_lines_count ?? 1);
+                if ($store->use_staff_assignment) {
+                    // シフトベースの場合は既に計算済みのslotCapacityを使用
+                    $maxConcurrent = $slotCapacity;
+                } else {
+                    // 営業時間ベースの場合はmain_lines_countを使用
+                    $maxConcurrent = $store->main_lines_count ?? 1;
+                }
                 $availability[$dateStr][$slot] = $overlappingCount < $maxConcurrent;
             }
         }

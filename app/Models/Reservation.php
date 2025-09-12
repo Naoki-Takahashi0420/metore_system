@@ -291,7 +291,16 @@ class Reservation extends Model
         
         // 席番号が未指定の場合は空いている席があるかチェック
         $store = Store::find($reservation->store_id);
-        $maxSeats = $store->main_seat_count ?? 3;
+        
+        // シフトベースモードの場合、スタッフ勤務時間をチェック
+        if ($store->use_staff_assignment && ($reservation->line_type === 'main' || !$reservation->is_sub)) {
+            $hasAvailableStaff = self::checkStaffAvailability($store, $reservation);
+            if (!$hasAvailableStaff) {
+                return false; // スタッフ不在のため予約不可
+            }
+        }
+        
+        $maxSeats = $store->main_lines_count ?? 3;
         
         for ($seatNum = 1; $seatNum <= $maxSeats; $seatNum++) {
             $seatTaken = $overlappingReservations
@@ -307,5 +316,37 @@ class Reservation extends Model
         }
         
         return false;
+    }
+    
+    /**
+     * シフトベースモードでスタッフが予約時間に勤務しているかチェック
+     */
+    private static function checkStaffAvailability($store, $reservation): bool
+    {
+        $startTime = Carbon::parse($reservation->start_time);
+        $endTime = Carbon::parse($reservation->end_time);
+        
+        // その日のシフトを取得
+        $shifts = \App\Models\Shift::where('store_id', $store->id)
+            ->whereDate('shift_date', $reservation->reservation_date)
+            ->where('status', 'scheduled')
+            ->where('is_available_for_reservation', true)
+            ->get();
+        
+        $availableStaffCount = 0;
+        
+        foreach ($shifts as $shift) {
+            $shiftStart = Carbon::parse($shift->start_time);
+            $shiftEnd = Carbon::parse($shift->end_time);
+            
+            // 予約時間がシフト時間に収まるかチェック（休憩時間は考慮しない）
+            if ($startTime->gte($shiftStart) && $endTime->lte($shiftEnd)) {
+                $availableStaffCount++;
+            }
+        }
+        
+        // min(設備台数, スタッフ数) > 0 かチェック
+        $equipmentCapacity = $store->shift_based_capacity ?? 1;
+        return min($equipmentCapacity, $availableStaffCount) > 0;
     }
 }

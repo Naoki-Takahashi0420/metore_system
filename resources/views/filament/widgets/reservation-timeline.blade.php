@@ -151,6 +151,22 @@
                 cursor: not-allowed !important;
             }
             
+            .no-staff-cell {
+                background: #ffecb3 !important;
+                cursor: not-allowed !important;
+                position: relative;
+            }
+            
+            .no-staff-cell::after {
+                content: '❌';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                font-size: 12px;
+                opacity: 0.7;
+            }
+            
             .conflicting-reservation {
                 border: 2px solid red !important;
                 background: #ffe5e5 !important;
@@ -328,14 +344,23 @@
                                         }
                                         $isBlocked = in_array($index, $timelineData['blockedSlots']);
                                         
+                                        // シフトベースモードでスタッフ不在チェック
+                                        $hasNoStaff = false;
+                                        if (isset($timelineData['useStaffAssignment']) && $timelineData['useStaffAssignment']) {
+                                            $availableSeats = $timelineData['shiftBasedAvailability'][$index] ?? 0;
+                                            if ($availableSeats == 0 && $seat['type'] === 'main') {
+                                                $hasNoStaff = true;
+                                            }
+                                        }
+                                        
                                         // 過去の時間帯かチェック（現在時刻から30分前まで許可）
                                         $slotDateTime = \Carbon\Carbon::parse($selectedDate . ' ' . $slot);
                                         $minimumTime = \Carbon\Carbon::now()->subMinutes(30);
                                         $isPast = $slotDateTime->lt($minimumTime);
                                         
-                                        $isClickable = !$hasReservation && !$isBlocked && !$isPast;
+                                        $isClickable = !$hasReservation && !$isBlocked && !$isPast && !$hasNoStaff;
                                     @endphp
-                                    <td class="time-cell {{ $isBlocked ? 'blocked-cell' : '' }} {{ $isClickable ? 'empty-slot' : '' }}"
+                                    <td class="time-cell {{ $isBlocked ? 'blocked-cell' : '' }} {{ $hasNoStaff ? 'no-staff-cell' : '' }} {{ $isClickable ? 'empty-slot' : '' }}"
                                         @if($isClickable)
                                             wire:click="openNewReservationFromSlot('{{ $key }}', '{{ $slot }}')"
                                             style="cursor: pointer; position: relative;"
