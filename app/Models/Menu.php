@@ -148,14 +148,11 @@ class Menu extends Model
     {
         // カルテからの予約の場合
         if ($isFromMedicalRecord) {
-            return $query->where(function ($q) {
-                $q->whereIn('customer_type_restriction', ['all', 'existing'])
-                  ->orWhere('medical_record_only', true);
-            });
+            // カルテからの場合は all と existing メニューを表示
+            return $query->whereIn('customer_type_restriction', ['all', 'existing']);
         }
         
-        // 通常予約の場合（カルテ専用メニューは除外）
-        $query->where('medical_record_only', false);
+        // 通常予約の場合 - medical_record_only機能は削除済み
         
         // 新規顧客の場合
         if ($isNewCustomer) {

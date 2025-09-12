@@ -89,8 +89,7 @@ class PublicReservationController extends Controller
         if ($isExistingCustomer) {
             $categoriesQuery->whereHas('menus', function($query) {
                 $query->where('is_available', true)
-                      ->where('customer_type_restriction', '!=', 'new_only')
-                      ->where('medical_record_only', false);
+                      ->where('customer_type_restriction', '!=', 'new_only');
             });
         }
         
@@ -174,11 +173,7 @@ class PublicReservationController extends Controller
             $menusQuery->whereIn('customer_type_restriction', ['all', 'existing']);
         }
         
-        // カルテからのみ予約可能なメニューのフィルタリング
-        // マイページからの場合もカルテからの予約として扱う（既存顧客のため）
-        if (!$isFromMedicalRecord && !$fromMypage) {
-            $menusQuery->where('medical_record_only', false);
-        }
+        // medical_record_only機能は削除済み - customer_type_restrictionで代替
         
         // SQLクエリをログに出力
         $sql = $menusQuery->toSql();
