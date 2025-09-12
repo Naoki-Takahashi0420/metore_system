@@ -79,17 +79,11 @@ class Menu extends Model
                 }
             }
             
-            // customer_type_restrictionの値を正規化
-            if ($menu->customer_type_restriction === 'new') {
-                $menu->customer_type_restriction = 'new_only';
-            }
+            // customer_type_restrictionの正規化は不要（フォーム側で統一済み）
         });
         
         static::updating(function ($menu) {
-            // customer_type_restrictionの値を正規化
-            if ($menu->customer_type_restriction === 'new') {
-                $menu->customer_type_restriction = 'new_only';
-            }
+            // customer_type_restrictionの正規化は不要（フォーム側で統一済み）
         });
     }
 

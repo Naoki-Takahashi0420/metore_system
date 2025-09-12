@@ -237,7 +237,7 @@ class MenuResource extends Resource
                             ->label('表示する予約窓口')
                             ->options([
                                 'all' => '全ての窓口（新規予約・カルテ両方）',
-                                'new' => '新規予約窓口のみ',
+                                'new_only' => '新規予約窓口のみ',
                                 'existing' => 'カルテからの予約のみ',
                             ])
                             ->default('all')
