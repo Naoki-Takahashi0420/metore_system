@@ -100,28 +100,36 @@ class CustomerAuthController extends Controller
             ], 401);
         }
         
-        // 顧客を取得または仮作成
+        // 顧客を取得
         $customer = Customer::where('phone', $request->phone)->first();
         
         if (!$customer) {
-            // 新規顧客の場合は仮トークンを返す
-            $tempToken = Str::random(60);
-            
-            // セッションに一時保存
-            session([
-                'temp_customer_' . $tempToken => [
-                    'phone' => $request->phone,
-                    'expires_at' => now()->addMinutes(30),
-                ],
-            ]);
-            
+            // 電話番号がDBに存在しない場合はアクセス拒否
             return response()->json([
-                'success' => true,
-                'data' => [
-                    'is_new_customer' => true,
-                    'temp_token' => $tempToken,
+                'success' => false,
+                'error' => [
+                    'code' => 'NO_RESERVATION_HISTORY',
+                    'message' => '予約履歴が見つかりません。初回のお客様は新規予約からお申し込みください。',
+                    'redirect_to_booking' => true,
                 ],
-            ]);
+            ], 404);
+        }
+        
+        // 予約履歴があるかチェック
+        $hasReservations = $customer->reservations()
+            ->whereIn('status', ['confirmed', 'completed', 'booked'])
+            ->exists();
+            
+        if (!$hasReservations) {
+            // 顧客データは存在するが予約履歴がない場合もアクセス拒否
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'NO_RESERVATION_HISTORY', 
+                    'message' => '予約履歴が見つかりません。初回のお客様は新規予約からお申し込みください。',
+                    'redirect_to_booking' => true,
+                ],
+            ], 403);
         }
         
         // 既存顧客の場合

@@ -63,9 +63,12 @@ aws ec2 describe-instances --profile xsyumeno
 ```
 
 ### 現在のAWSアカウント情報
-- **正しいアカウント**: 2730-2198-1629 (metore_system)
+- **正しいアカウント**: 273021981629 (metore_system)
 - **プロファイル名**: xsyumeno
 - **既存のEC2**: xsyumeno-ssh-enabled (i-061a146fcb1cc54ae) IP: 54.64.54.226
+- **IAMユーザー**: xsyumeno-admin
+- **アクセスキーID**: AKIAT7ELA2O6SBMIY5EP
+- **設定日**: 2025-09-12
 
 ### 操作前の確認事項
 1. 必ず現在のプロファイルを確認

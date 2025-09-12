@@ -22,3 +22,21 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# AWS認証情報 - 絶対にコミットしない
+.aws/
+aws-credentials.txt
+**/aws-config.sh
+**/aws-secrets.*
+**/*secret*key*
+**/*access*key*
+
+# 環境設定ファイル
+.env.local
+.env.*.local
+config/aws.php
+
+# 一時的な認証情報ファイル
+/tmp/*.sh
+credentials.json
+secrets.json

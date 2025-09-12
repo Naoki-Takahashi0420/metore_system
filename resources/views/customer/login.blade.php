@@ -61,11 +61,13 @@
             <span id="phone-display"></span> に送信された6桁の認証コードを入力してください。
         </p>
         
+        @if(config('app.env') === 'local' && request()->server('HTTP_HOST') === '127.0.0.1:8000')
         <div class="mb-2">
             <p class="text-xs text-gray-500 text-center">
                 開発環境: 認証コードは <span class="font-mono font-bold">123456</span> です
             </p>
         </div>
+        @endif
         
         <div class="flex space-x-2 mb-4">
             <input type="text" id="otp1" maxlength="1" class="w-12 h-12 text-center text-xl border border-gray-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
@@ -92,6 +94,32 @@
         <button id="close-modal" class="mt-4 w-full text-gray-500 text-sm hover:text-gray-700">
             キャンセル
         </button>
+    </div>
+</div>
+
+<!-- New Customer Modal -->
+<div id="new-customer-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+        <div class="text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 mb-4">
+                <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-4">初回のお客様へ</h3>
+            <p class="text-sm text-gray-600 mb-6">
+                予約履歴が見つかりません。<br>
+                初回のお客様は新規予約からお申し込みください。
+            </p>
+            <div class="flex flex-col space-y-3">
+                <button id="go-to-booking" class="w-full bg-primary-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-primary-700 transition-colors">
+                    新規予約に進む
+                </button>
+                <button id="close-new-customer-modal" class="w-full text-gray-500 text-sm hover:text-gray-700">
+                    閉じる
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -278,7 +306,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     window.location.href = '/customer/dashboard';
                 }
             } else {
-                otpError.classList.remove('hidden');
+                // Check for specific error codes
+                if (data.error && data.error.code === 'NO_RESERVATION_HISTORY') {
+                    hideOTPModal();
+                    showNewCustomerModal();
+                } else {
+                    otpError.classList.remove('hidden');
+                    otpError.textContent = data.error?.message || '認証に失敗しました';
+                }
             }
         } catch (error) {
             console.error('Error verifying OTP:', error);
@@ -329,6 +364,37 @@ document.addEventListener('DOMContentLoaded', function() {
         otpModal.classList.remove('hidden');
         otpModal.classList.add('flex');
         otpInputs[0].focus();
+    }
+    
+    function hideOTPModal() {
+        otpModal.classList.remove('flex');
+        otpModal.classList.add('hidden');
+        otpInputs.forEach(input => input.value = '');
+        otpError.classList.add('hidden');
+    }
+    
+    function showNewCustomerModal() {
+        const newCustomerModal = document.getElementById('new-customer-modal');
+        newCustomerModal.classList.remove('hidden');
+        newCustomerModal.classList.add('flex');
+    }
+    
+    // New customer modal event listeners
+    const goToBookingButton = document.getElementById('go-to-booking');
+    const closeNewCustomerModalButton = document.getElementById('close-new-customer-modal');
+    
+    if (goToBookingButton) {
+        goToBookingButton.addEventListener('click', function() {
+            window.location.href = '/reservation';
+        });
+    }
+    
+    if (closeNewCustomerModalButton) {
+        closeNewCustomerModalButton.addEventListener('click', function() {
+            const newCustomerModal = document.getElementById('new-customer-modal');
+            newCustomerModal.classList.remove('flex');
+            newCustomerModal.classList.add('hidden');
+        });
     }
 });
 </script>
