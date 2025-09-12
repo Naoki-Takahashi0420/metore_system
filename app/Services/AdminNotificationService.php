@@ -142,7 +142,7 @@ class AdminNotificationService
             $admins->push($testUser);
         }
         
-        return $admins->unique('email')->toArray();
+        return $admins->unique('email');
     }
     
     /**
