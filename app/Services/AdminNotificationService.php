@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\User;
 use App\Models\Store;
 use App\Services\Sms\SmsService;
+use App\Services\EmailService;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -14,10 +15,12 @@ use Carbon\Carbon;
 class AdminNotificationService
 {
     private $smsService;
+    private $emailService;
     
-    public function __construct(SmsService $smsService)
+    public function __construct(SmsService $smsService, EmailService $emailService)
     {
         $this->smsService = $smsService;
+        $this->emailService = $emailService;
     }
     
     /**
@@ -134,19 +137,19 @@ class AdminNotificationService
         }
         
         // スーパー管理者も含める（全店舗の重要イベントを受信）
-        $superAdmins = User::role('super_admin')->get();
-        $admins = $admins->merge($superAdmins);
+        try {
+            $superAdmins = User::role('super_admin')->get();
+            $admins = $admins->merge($superAdmins);
+        } catch (\Exception $e) {
+            // ロールシステムが利用できない場合は、全管理者を取得
+            $allAdmins = User::where('is_admin', true)->get();
+            $admins = $admins->merge($allAdmins);
+        }
         
-        // テスト用：開発環境では指定メールアドレスにも送信
-        if (app()->environment(['local', 'development'])) {
-            $testUser = new User();
-            $testUser->email = 'dasuna2305@gmail.com';
-            $testUser->name = 'Test Admin';
-            $testUser->notification_preferences = [
-                'email_enabled' => true,
-                'sms_enabled' => false
-            ];
-            $admins->push($testUser);
+        // 本番環境でも高橋直希には必ず通知を送る（オーナー用）
+        $owner = User::where('email', 'dasuna2305@gmail.com')->first();
+        if ($owner && !$admins->contains('id', $owner->id)) {
+            $admins->push($owner);
         }
         
         return $admins->unique('id')->values();
@@ -200,10 +203,36 @@ class AdminNotificationService
     {
         $subject = $this->getEmailSubject($type);
         
-        Mail::raw($message, function ($mail) use ($admin, $subject) {
-            $mail->to($admin->email)
-                 ->subject($subject);
-        });
+        // HTMLメール用のフォーマット
+        $htmlMessage = nl2br(htmlspecialchars($message));
+        $htmlBody = <<<HTML
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #059669; padding: 20px; text-align: center; color: white; }
+        .content { background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; }
+        .message { white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>目のトレーニング 管理者通知</h2>
+        </div>
+        <div class="content">
+            <div class="message">{$htmlMessage}</div>
+        </div>
+    </div>
+</body>
+</html>
+HTML;
+        
+        // EmailServiceを使用してメール送信
+        $this->emailService->sendEmail($admin->email, $subject, $htmlBody, $message);
     }
     
     /**
