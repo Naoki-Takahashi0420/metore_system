@@ -11,14 +11,14 @@ class SmsService
     
     public function __construct()
     {
-        // AWS認証情報を環境変数から直接取得
-        $awsKey = env('AWS_ACCESS_KEY_ID');
-        $awsSecret = env('AWS_SECRET_ACCESS_KEY');
+        // AWS認証情報をconfigから取得（本番環境対応）
+        $awsKey = config('services.sns.key');
+        $awsSecret = config('services.sns.secret');
         
         // AWS認証情報がある場合のみSNSクライアントを初期化
         if ($awsKey && $awsSecret) {
             $this->snsClient = new SnsClient([
-                'region' => env('AWS_DEFAULT_REGION', 'ap-northeast-1'),
+                'region' => config('services.sns.region', 'ap-northeast-1'),
                 'version' => 'latest',
                 'credentials' => [
                     'key' => $awsKey,
@@ -28,7 +28,7 @@ class SmsService
         } else {
             Log::warning('SmsService: AWS認証情報が見つかりません', [
                 'config_key' => config('services.sns.key'),
-                'env_key' => env('AWS_ACCESS_KEY_ID'),
+                'config_secret_exists' => !empty(config('services.sns.secret')),
             ]);
         }
     }
