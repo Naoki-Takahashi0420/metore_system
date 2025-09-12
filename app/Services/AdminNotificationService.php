@@ -116,7 +116,7 @@ class AdminNotificationService
     /**
      * 店舗管理者の取得
      */
-    private function getStoreAdmins(Store $store): array
+    private function getStoreAdmins(Store $store): \Illuminate\Support\Collection
     {
         $admins = collect();
         
@@ -142,7 +142,7 @@ class AdminNotificationService
             $admins->push($testUser);
         }
         
-        return $admins->unique('email');
+        return $admins->unique('email')->values();
     }
     
     /**
