@@ -512,7 +512,11 @@
                         @if(!$isPastReservation)
                         <div class="flex gap-2 flex-wrap">
                             @if($selectedReservation->is_sub)
-                                @for($i = 1; $i <= 3; $i++)
+                                @php
+                                    $store = \App\Models\Store::find($selectedStore);
+                                    $maxSeats = $store->main_lines_count ?? 1;
+                                @endphp
+                                @for($i = 1; $i <= $maxSeats; $i++)
                                     @if($this->canMoveToMain($selectedReservation->id, $i))
                                         <button 
                                             type="button"
@@ -537,7 +541,11 @@
                                     @endif
                                 @endfor
                             @else
-                                @if($this->canMoveToSub($selectedReservation->id))
+                                @php
+                                    $store = $store ?? \App\Models\Store::find($selectedStore);
+                                    $hasSubSeats = ($store->sub_lines_count ?? 0) > 0;
+                                @endphp
+                                @if($hasSubSeats && $this->canMoveToSub($selectedReservation->id))
                                     <button 
                                         type="button"
                                         wire:click="moveToSub({{ $selectedReservation->id }})"
