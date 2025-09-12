@@ -167,7 +167,6 @@ class AdminNotificationService
             $this->sendEmailNotification($admin, $message, $type);
         }
     }
-    }
     
     /**
      * SMS送信すべきかの判定
