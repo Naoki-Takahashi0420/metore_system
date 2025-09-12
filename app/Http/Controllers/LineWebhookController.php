@@ -24,10 +24,15 @@ class LineWebhookController extends Controller
             return response()->json(['status' => 'error'], 400);
         }
         
-        // 署名検証
-        if (!$this->verifySignature($request, $store->line_channel_secret)) {
-            Log::warning('LINE Webhook: 署名検証失敗', ['store_id' => $store->id]);
-            return response()->json(['status' => 'error'], 403);
+        // 署名検証（LINE検証リクエストの場合はスキップ）
+        $events = $request->input('events', []);
+        if (!empty($events) && !$this->verifySignature($request, $store->line_channel_secret)) {
+            Log::warning('LINE Webhook: 署名検証失敗', [
+                'store_id' => $store->id,
+                'signature' => $request->header('X-Line-Signature'),
+                'has_secret' => !empty($store->line_channel_secret)
+            ]);
+            return response()->json(['status' => 'error'], 401);
         }
         
         $events = $request->input('events', []);
