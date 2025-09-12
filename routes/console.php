@@ -25,4 +25,4 @@ Schedule::command('line:send-reminders')
 
 Schedule::command('line:send-followup')
     ->dailyAt('10:00') // 毎日午前10時に実行
-    ->description('LINE 30日・60日フォローアップ送信');
+    ->description('LINE 7日・15日フォローアップ送信');

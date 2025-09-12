@@ -12,7 +12,7 @@ use Carbon\Carbon;
 class SendLineFollowup extends Command
 {
     protected $signature = 'line:send-followup';
-    protected $description = '初回来店後30日・60日のフォローアップメッセージを送信';
+    protected $description = '初回来店後7日・15日のフォローアップメッセージを送信';
     
     public function handle()
     {
@@ -25,22 +25,22 @@ class SendLineFollowup extends Command
             
             $lineService = new SimpleLineService($store);
             
-            // 30日フォローアップ
-            $this->send30DayFollowup($store, $lineService);
+            // 7日フォローアップ
+            $this->send7DayFollowup($store, $lineService);
             
-            // 60日フォローアップ
-            $this->send60DayFollowup($store, $lineService);
+            // 15日フォローアップ
+            $this->send15DayFollowup($store, $lineService);
         }
         
         return Command::SUCCESS;
     }
     
-    private function send30DayFollowup(Store $store, SimpleLineService $lineService)
+    private function send7DayFollowup(Store $store, SimpleLineService $lineService)
     {
-        $this->info("  30日フォローアップ処理");
+        $this->info("  7日フォローアップ処理");
         
-        // 30日前に初回来店した顧客を取得
-        $targetDate = now()->subDays(30)->format('Y-m-d');
+        // 7日前に初回来店した顧客を取得
+        $targetDate = now()->subDays(7)->format('Y-m-d');
         
         $customers = Customer::whereHas('reservations', function($q) use ($store, $targetDate) {
                 $q->where('store_id', $store->id)
@@ -49,7 +49,7 @@ class SendLineFollowup extends Command
             })
             ->whereNotNull('line_user_id')
             ->whereDoesntHave('reservations', function($q) use ($store, $targetDate) {
-                // 30日以降に予約がない顧客のみ
+                // 7日以降に予約がない顧客のみ
                 $q->where('store_id', $store->id)
                   ->whereDate('reservation_date', '>', $targetDate);
             })
@@ -68,16 +68,16 @@ class SendLineFollowup extends Command
                 continue; // 初回来店でない場合はスキップ
             }
             
-            // 既に30日フォローアップを送信済みかチェック
-            $alreadySent = $customer->line_followup_30d_sent_at &&
-                Carbon::parse($customer->line_followup_30d_sent_at)->isToday();
+            // 既に7日フォローアップを送信済みかチェック
+            $alreadySent = $customer->line_followup_7d_sent_at &&
+                Carbon::parse($customer->line_followup_7d_sent_at)->isToday();
             
             if ($alreadySent) {
                 continue;
             }
             
-            if ($lineService->sendFollowup30Days($customer, $store)) {
-                $customer->update(['line_followup_30d_sent_at' => now()]);
+            if ($lineService->sendFollowup7Days($customer, $store)) {
+                $customer->update(['line_followup_7d_sent_at' => now()]);
                 $sent++;
                 $this->info("    送信成功: {$customer->full_name}");
             } else {
@@ -87,15 +87,15 @@ class SendLineFollowup extends Command
             usleep(200000); // 0.2秒待機
         }
         
-        $this->info("  30日フォローアップ: {$sent}件送信");
+        $this->info("  7日フォローアップ: {$sent}件送信");
     }
     
-    private function send60DayFollowup(Store $store, SimpleLineService $lineService)
+    private function send15DayFollowup(Store $store, SimpleLineService $lineService)
     {
-        $this->info("  60日フォローアップ処理");
+        $this->info("  15日フォローアップ処理");
         
-        // 60日前に初回来店した顧客を取得
-        $targetDate = now()->subDays(60)->format('Y-m-d');
+        // 15日前に初回来店した顧客を取得
+        $targetDate = now()->subDays(15)->format('Y-m-d');
         
         $customers = Customer::whereHas('reservations', function($q) use ($store, $targetDate) {
                 $q->where('store_id', $store->id)
@@ -104,7 +104,7 @@ class SendLineFollowup extends Command
             })
             ->whereNotNull('line_user_id')
             ->whereDoesntHave('reservations', function($q) use ($store, $targetDate) {
-                // 60日以降に予約がない顧客のみ
+                // 15日以降に予約がない顧客のみ
                 $q->where('store_id', $store->id)
                   ->whereDate('reservation_date', '>', $targetDate);
             })
@@ -123,16 +123,16 @@ class SendLineFollowup extends Command
                 continue; // 初回来店でない場合はスキップ
             }
             
-            // 既に60日フォローアップを送信済みかチェック
-            $alreadySent = $customer->line_followup_60d_sent_at &&
-                Carbon::parse($customer->line_followup_60d_sent_at)->isToday();
+            // 既に15日フォローアップを送信済みかチェック
+            $alreadySent = $customer->line_followup_15d_sent_at &&
+                Carbon::parse($customer->line_followup_15d_sent_at)->isToday();
             
             if ($alreadySent) {
                 continue;
             }
             
-            if ($lineService->sendFollowup60Days($customer, $store)) {
-                $customer->update(['line_followup_60d_sent_at' => now()]);
+            if ($lineService->sendFollowup15Days($customer, $store)) {
+                $customer->update(['line_followup_15d_sent_at' => now()]);
                 $sent++;
                 $this->info("    送信成功: {$customer->full_name}");
             } else {
@@ -142,6 +142,6 @@ class SendLineFollowup extends Command
             usleep(200000); // 0.2秒待機
         }
         
-        $this->info("  60日フォローアップ: {$sent}件送信");
+        $this->info("  15日フォローアップ: {$sent}件送信");
     }
 }

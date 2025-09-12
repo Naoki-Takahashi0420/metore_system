@@ -328,6 +328,13 @@ class StoreResource extends Resource
                                             ->label('Bot Basic ID')
                                             ->placeholder('@123abcde')
                                             ->helperText('LINE Developersコンソールで確認できるBot固有のID')
+                                            ->live()
+                                            ->afterStateUpdated(function ($state, $set) {
+                                                // 値を確実に保存
+                                                if (!empty($state)) {
+                                                    $set('line_bot_basic_id', $state);
+                                                }
+                                            })
                                             ->visible(fn ($get) => $get('line_enabled')),
                                         
                                         Forms\Components\Textarea::make('line_channel_access_token')
@@ -418,13 +425,23 @@ class StoreResource extends Resource
                                             ->rows(4)
                                             ->default("{{customer_name}}様\n\n明日のご予約のお知らせです。\n日時: {{reservation_date}} {{reservation_time}}\n\nお気をつけてお越しください。\n{{store_name}}"),
                                         
+                                        Forms\Components\Textarea::make('line_followup_message_7days')
+                                            ->label('7日後フォローアップ')
+                                            ->rows(4)
+                                            ->default("{{customer_name}}様\n\n前回のご来店から1週間が経ちました。\n目の調子はいかがでしょうか？\n\n次回のご予約はこちらから\n{{store_name}}"),
+                                        
+                                        Forms\Components\Textarea::make('line_followup_message_15days')
+                                            ->label('15日後フォローアップ')
+                                            ->rows(4)
+                                            ->default("{{customer_name}}様\n\n前回のご来店から2週間が経ちました。\n目の調子はいかがでしょうか？\n\n定期的なケアで効果を持続させませんか？\n{{store_name}}"),
+                                        
                                         Forms\Components\Textarea::make('line_followup_message_30days')
-                                            ->label('30日後フォローアップ')
+                                            ->label('30日後フォローアップ（従来）')
                                             ->rows(4)
                                             ->default("{{customer_name}}様\n\n前回のご来店から1ヶ月が経ちました。\n目の調子はいかがでしょうか？\n\n次回のご予約はこちらから\n{{store_name}}"),
                                         
                                         Forms\Components\Textarea::make('line_followup_message_60days')
-                                            ->label('60日後フォローアップ')
+                                            ->label('60日後フォローアップ（従来）')
                                             ->rows(4)
                                             ->default("{{customer_name}}様\n\nしばらくお会いできておりませんが、お元気でしょうか？\n特別クーポンをご用意しました。\n\nご予約お待ちしております。\n{{store_name}}"),
                                     ])

@@ -53,9 +53,9 @@ class SimpleLineService
     }
     
     /**
-     * 30日後フォローアップ送信
+     * 7日後フォローアップ送信
      */
-    public function sendFollowup30Days(Customer $customer, Store $store): bool
+    public function sendFollowup7Days(Customer $customer, Store $store): bool
     {
         if (!$store->line_enabled || !$store->line_send_followup) {
             return false;
@@ -66,15 +66,15 @@ class SimpleLineService
             'store_name' => $store->name,
         ];
         
-        $message = $this->applyVariables($store->line_followup_message_30days ?: $this->getDefaultFollowup30Message(), $variables);
+        $message = $this->applyVariables($store->line_followup_message_7days ?: $this->getDefaultFollowup7Message(), $variables);
         
         return $this->sendToStore($store, $customer->line_user_id, $message);
     }
     
     /**
-     * 60日後フォローアップ送信
+     * 15日後フォローアップ送信
      */
-    public function sendFollowup60Days(Customer $customer, Store $store): bool
+    public function sendFollowup15Days(Customer $customer, Store $store): bool
     {
         if (!$store->line_enabled || !$store->line_send_followup) {
             return false;
@@ -85,7 +85,7 @@ class SimpleLineService
             'store_name' => $store->name,
         ];
         
-        $message = $this->applyVariables($store->line_followup_message_60days ?: $this->getDefaultFollowup60Message(), $variables);
+        $message = $this->applyVariables($store->line_followup_message_15days ?: $this->getDefaultFollowup15Message(), $variables);
         
         return $this->sendToStore($store, $customer->line_user_id, $message);
     }
@@ -228,13 +228,13 @@ class SimpleLineService
         return "{{customer_name}}\n\n明日のご予約のお知らせです。\n日時: {{reservation_date}} {{reservation_time}}\n\nお気をつけてお越しください。\n{{store_name}}";
     }
     
-    private function getDefaultFollowup30Message(): string
+    private function getDefaultFollowup7Message(): string
     {
-        return "{{customer_name}}\n\n前回のご来店から1ヶ月が経ちました。\n目の調子はいかがでしょうか？\n\n次回のご予約はこちらから\n{{store_name}}";
+        return "{{customer_name}}\n\n前回のご来店から1週間が経ちました。\n目の調子はいかがでしょうか？\n\n次回のご予約はこちらから\n{{store_name}}";
     }
     
-    private function getDefaultFollowup60Message(): string
+    private function getDefaultFollowup15Message(): string
     {
-        return "{{customer_name}}\n\nしばらくお会いできておりませんが、お元気でしょうか？\n特別クーポンをご用意しました。\n\nご予約お待ちしております。\n{{store_name}}";
+        return "{{customer_name}}\n\n前回のご来店から2週間が経ちました。\n目の調子はいかがでしょうか？\n\n定期的なケアで効果を持続させませんか？\n{{store_name}}";
     }
 }
