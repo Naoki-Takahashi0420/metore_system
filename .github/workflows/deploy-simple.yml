@@ -34,11 +34,18 @@ jobs:
           echo "Database backed up"
         fi
         
-        # Deploy (preserve storage and database)
+        # Backup .env if exists
+        if [ -f "$APP_DIR/.env" ]; then
+          sudo cp $APP_DIR/.env /tmp/.env-backup
+          echo ".env backed up"
+        fi
+        
+        # Deploy (preserve storage, database, and .env)
         sudo find $APP_DIR -mindepth 1 \
           -not -path "$APP_DIR/storage*" \
           -not -path "$APP_DIR/database/database.sqlite" \
           -not -path "$APP_DIR/database" \
+          -not -path "$APP_DIR/.env" \
           -delete
         
         sudo cp -r /tmp/metore_system/* $APP_DIR/
@@ -49,8 +56,14 @@ jobs:
           echo "Database restored"
         fi
         
-        # .envファイルは手動管理（CI/CDで上書きしない）
-        # 既存の.envファイルを保持
+        # Restore .env if backed up (or create if not exists)
+        if [ -f "/tmp/.env-backup" ]; then
+          sudo cp /tmp/.env-backup $APP_DIR/.env
+          echo ".env restored"
+        elif [ ! -f "$APP_DIR/.env" ]; then
+          # Create .env only if it doesn't exist
+          echo "WARNING: .env file not found. Please create it manually."
+        fi
         
         # SQLiteデータベース設定（新規作成しない）
         cd $APP_DIR
