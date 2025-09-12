@@ -128,12 +128,16 @@ class StoreResource extends Resource
 
                         Forms\Components\Tabs\Tab::make('予約設定')
                             ->schema([
-                                Forms\Components\TextInput::make('reservation_slot_duration')
+                                Forms\Components\Select::make('reservation_slot_duration')
                                     ->label('予約枠の長さ（分）')
-                                    ->numeric()
+                                    ->options([
+                                        15 => '15分間隔',
+                                        30 => '30分間隔',
+                                        60 => '60分間隔',
+                                    ])
                                     ->default(30)
                                     ->required()
-                                    ->helperText('予約可能な時間間隔（例：30分ごと）'),
+                                    ->helperText('予約可能な時間間隔を選択してください'),
                                 Forms\Components\TextInput::make('max_advance_days')
                                     ->label('予約可能な最大日数')
                                     ->numeric()

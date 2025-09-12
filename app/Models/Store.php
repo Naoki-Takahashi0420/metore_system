@@ -174,5 +174,12 @@ class Store extends Model
                 $store->code = static::generateStoreCode();
             }
         });
+        
+        static::saving(function ($store) {
+            // 予約枠の長さを15分、30分、60分のいずれかに制限
+            if (!in_array($store->reservation_slot_duration, [15, 30, 60])) {
+                $store->reservation_slot_duration = 30; // デフォルト値
+            }
+        });
     }
 }
