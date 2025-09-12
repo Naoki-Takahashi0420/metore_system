@@ -254,7 +254,7 @@ class PublicReservationController extends Controller
     {
         $validated = $request->validate([
             'menu_id' => 'required|exists:menus,id',
-            'option_ids' => 'nullable|json'
+            'option_ids' => 'nullable|string'
         ]);
         
         // メニュー情報をセッションに保存
@@ -264,8 +264,9 @@ class PublicReservationController extends Controller
         // オプション情報をセッションに保存
         $selectedOptions = [];
         if (!empty($validated['option_ids'])) {
-            $optionIds = json_decode($validated['option_ids'], true);
-            if (is_array($optionIds) && !empty($optionIds)) {
+            // カンマ区切り文字列を配列に変換
+            $optionIds = array_filter(explode(',', $validated['option_ids']));
+            if (!empty($optionIds)) {
                 $selectedOptions = Menu::whereIn('id', $optionIds)
                     ->where('is_available', true)
                     ->where('show_in_upsell', true)
