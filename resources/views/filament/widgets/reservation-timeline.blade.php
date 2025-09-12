@@ -542,8 +542,16 @@
                                 @endfor
                             @else
                                 @php
-                                    $store = $store ?? \App\Models\Store::find($selectedStore);
-                                    $hasSubSeats = ($store->sub_lines_count ?? 0) > 0;
+                                    // 予約の店舗を使用（選択中の店舗ではなく）
+                                    $reservationStore = \App\Models\Store::find($selectedReservation->store_id);
+                                    $hasSubSeats = ($reservationStore->sub_lines_count ?? 0) > 0;
+                                    \Log::info('Blade check for sub move button:', [
+                                        'reservation_store_id' => $selectedReservation->store_id,
+                                        'store_id' => $reservationStore ? $reservationStore->id : null,
+                                        'sub_lines_count' => $reservationStore ? $reservationStore->sub_lines_count : null,
+                                        'hasSubSeats' => $hasSubSeats,
+                                        'reservation_id' => $selectedReservation->id
+                                    ]);
                                 @endphp
                                 @if($hasSubSeats && $this->canMoveToSub($selectedReservation->id))
                                     <button 
