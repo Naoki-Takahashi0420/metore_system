@@ -78,6 +78,18 @@ class Menu extends Model
                     $menu->duration_minutes = 60;
                 }
             }
+            
+            // customer_type_restrictionの値を正規化
+            if ($menu->customer_type_restriction === 'new') {
+                $menu->customer_type_restriction = 'new_only';
+            }
+        });
+        
+        static::updating(function ($menu) {
+            // customer_type_restrictionの値を正規化
+            if ($menu->customer_type_restriction === 'new') {
+                $menu->customer_type_restriction = 'new_only';
+            }
         });
     }
 
