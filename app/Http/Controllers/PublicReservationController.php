@@ -926,13 +926,22 @@ class PublicReservationController extends Controller
                 ]);
             }
             
-            // セッションをクリア
+            // セッションをクリア（店舗IDは残す）
             Session::forget(['reservation_menu', 'reservation_options']);
+            \Log::info('セッションクリア後', [
+                'selected_store_id' => Session::get('selected_store_id'),
+                'all_session' => Session::all()
+            ]);
             
             DB::commit();
             
             // 新規予約通知を送信
             event(new ReservationCreated($reservation));
+            
+            \Log::info('予約完了、リダイレクト処理', [
+                'reservation_number' => $reservation->reservation_number,
+                'route' => route('reservation.complete', $reservation->reservation_number)
+            ]);
             
             return redirect()->route('reservation.complete', $reservation->reservation_number);
             
@@ -990,6 +999,8 @@ class PublicReservationController extends Controller
     
     public function complete($reservationNumber)
     {
+        \Log::info('予約完了画面表示開始', ['reservation_number' => $reservationNumber]);
+        
         $reservation = Reservation::with(['store', 'customer', 'menu', 'optionMenus'])
             ->where('reservation_number', $reservationNumber)
             ->firstOrFail();
