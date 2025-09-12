@@ -229,14 +229,27 @@ class MenuCategoryResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
+        $user = auth()->user();
         $query = parent::getEloquentQuery();
 
-        // 店舗管理者は自店舗のみ表示
-        if (!auth()->user()->hasRole('super_admin') && auth()->user()->store_id) {
-            $query->where('store_id', auth()->user()->store_id);
+        // スーパーアドミンは全店舗のメニューカテゴリにアクセス可能
+        if ($user->hasRole('super_admin')) {
+            return $query;
         }
 
-        return $query;
+        // オーナーは紐づいた店舗のメニューカテゴリのみ表示
+        if ($user->hasRole('owner')) {
+            $storeIds = $user->ownedStores()->pluck('stores.id')->toArray();
+            return $query->whereIn('store_id', $storeIds);
+        }
+
+        // 店長・スタッフは自店舗のメニューカテゴリのみ表示
+        if ($user->hasRole(['manager', 'staff']) && $user->store_id) {
+            return $query->where('store_id', $user->store_id);
+        }
+
+        // 該当ロールがない場合は空の結果
+        return $query->whereRaw('1 = 0');
     }
 
     public static function getRelations(): array
@@ -257,21 +270,45 @@ class MenuCategoryResource extends Resource
 
     public static function canCreate(): bool
     {
-        return auth()->user()->hasAnyRole(['super_admin', 'store_manager']);
+        return auth()->user()->hasAnyRole(['super_admin', 'owner', 'manager']);
     }
 
     public static function canEdit(Model $record): bool
     {
-        if (auth()->user()->hasRole('super_admin')) {
+        $user = auth()->user();
+
+        if ($user->hasRole('super_admin')) {
             return true;
         }
 
-        return $record->store_id === auth()->user()->store_id;
+        // オーナーは自分が所有する店舗のメニューカテゴリを編集可能
+        if ($user->hasRole('owner')) {
+            $ownedStoreIds = $user->ownedStores()->pluck('stores.id')->toArray();
+            return in_array($record->store_id, $ownedStoreIds);
+        }
+
+        // 店長・スタッフは自店舗のメニューカテゴリのみ編集可能
+        return $record->store_id === $user->store_id;
     }
 
     public static function canDelete(Model $record): bool
     {
-        if (!auth()->user()->hasAnyRole(['super_admin', 'store_manager'])) {
+        $user = auth()->user();
+
+        if (!$user->hasAnyRole(['super_admin', 'owner', 'manager'])) {
+            return false;
+        }
+
+        // オーナーは自分が所有する店舗のメニューカテゴリのみ削除可能
+        if ($user->hasRole('owner')) {
+            $ownedStoreIds = $user->ownedStores()->pluck('stores.id')->toArray();
+            if (!in_array($record->store_id, $ownedStoreIds)) {
+                return false;
+            }
+        }
+
+        // 店長・スタッフは自店舗のメニューカテゴリのみ削除可能
+        if ($user->hasRole(['manager', 'staff']) && $record->store_id !== $user->store_id) {
             return false;
         }
 

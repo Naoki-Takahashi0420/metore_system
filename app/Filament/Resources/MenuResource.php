@@ -335,6 +335,31 @@ class MenuResource extends Resource
         ];
     }
 
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $user = auth()->user();
+        $query = parent::getEloquentQuery();
+
+        // スーパーアドミンは全店舗のメニューにアクセス可能
+        if ($user->hasRole('super_admin')) {
+            return $query;
+        }
+
+        // オーナーは紐づいた店舗のメニューのみ表示
+        if ($user->hasRole('owner')) {
+            $storeIds = $user->ownedStores()->pluck('stores.id')->toArray();
+            return $query->whereIn('store_id', $storeIds);
+        }
+
+        // 店長・スタッフは自店舗のメニューのみ表示
+        if ($user->hasRole(['manager', 'staff'])) {
+            return $query->where('store_id', $user->store_id);
+        }
+
+        // 該当ロールがない場合は空の結果
+        return $query->whereRaw('1 = 0');
+    }
+
     public static function getPages(): array
     {
         return [

@@ -41,10 +41,36 @@ class MedicalRecordResource extends Resource
                                     ->schema([
                                         Forms\Components\Select::make('customer_id')
                                             ->label('顧客')
-                                            ->options(Customer::all()->mapWithKeys(function ($customer) {
-                                                $name = ($customer->last_name ?? '') . ' ' . ($customer->first_name ?? '') . ' (' . ($customer->phone ?? '') . ')';
-                                                return [$customer->id => $name];
-                                            }))
+                                            ->options(function () {
+                                                $user = auth()->user();
+                                                
+                                                $query = Customer::query();
+                                                
+                                                // スーパーアドミンは全顧客にアクセス可能
+                                                if ($user->hasRole('super_admin')) {
+                                                    // 全顧客
+                                                } elseif ($user->hasRole('owner')) {
+                                                    // オーナーは管理店舗の予約がある顧客
+                                                    $storeIds = $user->manageableStores()->pluck('stores.id')->toArray();
+                                                    $query->whereHas('reservations', function ($q) use ($storeIds) {
+                                                        $q->whereIn('store_id', $storeIds);
+                                                    });
+                                                } else {
+                                                    // 店長・スタッフは自店舗の予約がある顧客のみ
+                                                    if ($user->store_id) {
+                                                        $query->whereHas('reservations', function ($q) use ($user) {
+                                                            $q->where('store_id', $user->store_id);
+                                                        });
+                                                    } else {
+                                                        return [];
+                                                    }
+                                                }
+                                                
+                                                return $query->get()->mapWithKeys(function ($customer) {
+                                                    $name = ($customer->last_name ?? '') . ' ' . ($customer->first_name ?? '') . ' (' . ($customer->phone ?? '') . ')';
+                                                    return [$customer->id => $name];
+                                                });
+                                            })
                                             ->searchable()
                                             ->required(),
                                         
@@ -490,14 +516,22 @@ class MedicalRecordResource extends Resource
                     ->getStateUsing(function (MedicalRecord $record) {
                         $latest = $record->getLatestVisionRecord();
                         if (!$latest) return '-';
-                        return sprintf(
-                            'L: %s→%s / R: %s→%s',
-                            $latest['before_left'] ?? '-',
-                            $latest['after_left'] ?? '-',
-                            $latest['before_right'] ?? '-',
-                            $latest['after_right'] ?? '-'
+                        
+                        // 裸眼視力の変化を表示
+                        $leftChange = sprintf(
+                            'L: %s→%s',
+                            $latest['before_naked_left'] ?? '-',
+                            $latest['after_naked_left'] ?? '-'
                         );
-                    }),
+                        $rightChange = sprintf(
+                            'R: %s→%s',
+                            $latest['before_naked_right'] ?? '-',
+                            $latest['after_naked_right'] ?? '-'
+                        );
+                        
+                        return $leftChange . ' / ' . $rightChange;
+                    })
+                    ->wrap(),
                 
                 Tables\Columns\IconColumn::make('has_next_notes')
                     ->label('引継')
@@ -557,6 +591,35 @@ class MedicalRecordResource extends Resource
                 ]),
             ])
             ->defaultSort('treatment_date', 'desc');
+    }
+
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $user = auth()->user();
+        $query = parent::getEloquentQuery();
+
+        // スーパーアドミンは全カルテにアクセス可能
+        if ($user->hasRole('super_admin')) {
+            return $query;
+        }
+
+        // オーナーは管理店舗に関連するカルテのみ表示
+        if ($user->hasRole('owner')) {
+            $storeIds = $user->manageableStores()->pluck('stores.id')->toArray();
+            return $query->whereHas('customer.reservations', function ($q) use ($storeIds) {
+                $q->whereIn('store_id', $storeIds);
+            });
+        }
+
+        // 店長・スタッフは自店舗に関連するカルテのみ表示
+        if ($user->hasRole(['manager', 'staff']) && $user->store_id) {
+            return $query->whereHas('customer.reservations', function ($q) use ($user) {
+                $q->where('store_id', $user->store_id);
+            });
+        }
+
+        // 該当ロールがない場合は空の結果
+        return $query->whereRaw('1 = 0');
     }
 
     public static function getPages(): array

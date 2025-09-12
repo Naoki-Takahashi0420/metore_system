@@ -379,6 +379,14 @@ class CustomerResource extends Resource
                 Tables\Columns\TextColumn::make('id')
                     ->label('ID')
                     ->sortable(),
+                Tables\Columns\IconColumn::make('has_subscription')
+                    ->label('サブスク')
+                    ->getStateUsing(fn ($record) => $record->hasActiveSubscription())
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-badge')
+                    ->falseIcon('heroicon-o-minus-circle')
+                    ->trueColor('success')
+                    ->falseColor('gray'),
                 Tables\Columns\TextColumn::make('last_name')
                     ->label('顧客名')
                     ->formatStateUsing(function ($record) {
@@ -449,6 +457,20 @@ class CustomerResource extends Resource
                     ->label('予約数')
                     ->counts('reservations')
                     ->sortable(),
+                Tables\Columns\TextColumn::make('stores_count')
+                    ->label('利用店舗数')
+                    ->getStateUsing(function ($record) {
+                        return $record->reservations()
+                            ->distinct('store_id')
+                            ->count('store_id');
+                    })
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('cancellation_count')
+                    ->label('キャンセル')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('change_count')
+                    ->label('変更回数')
+                    ->sortable(),
                 Tables\Columns\BadgeColumn::make('risk_status')
                     ->label('ステータス')
                     ->getStateUsing(function ($record) {
@@ -475,14 +497,6 @@ class CustomerResource extends Resource
                             default => null
                         };
                     }),
-                Tables\Columns\IconColumn::make('has_subscription')
-                    ->label('サブスク')
-                    ->getStateUsing(fn ($record) => $record->hasActiveSubscription())
-                    ->boolean()
-                    ->trueIcon('heroicon-o-check-badge')
-                    ->falseIcon('heroicon-o-minus-circle')
-                    ->trueColor('success')
-                    ->falseColor('gray'),
                 Tables\Columns\TextColumn::make('latest_store')
                     ->label('最新利用店舗')
                     ->getStateUsing(function ($record) {
@@ -582,8 +596,18 @@ class CustomerResource extends Resource
                     ]),
                 Tables\Filters\SelectFilter::make('store')
                     ->label('利用店舗')
-                    ->relationship('reservations', 'store_id')
-                    ->options(\App\Models\Store::where('is_active', true)->pluck('name', 'id'))
+                    ->options(function () {
+                        $user = auth()->user();
+                        
+                        if ($user->hasRole('super_admin')) {
+                            return \App\Models\Store::where('is_active', true)->pluck('name', 'id');
+                        } elseif ($user->hasRole('owner')) {
+                            return $user->manageableStores()->where('is_active', true)->pluck('name', 'stores.id');
+                        } else {
+                            // 店長・スタッフは自店舗のみ
+                            return $user->store ? collect([$user->store->id => $user->store->name]) : collect();
+                        }
+                    })
                     ->query(function ($query, array $data) {
                         if (!empty($data['value'])) {
                             $query->whereHas('reservations', function ($subQuery) use ($data) {

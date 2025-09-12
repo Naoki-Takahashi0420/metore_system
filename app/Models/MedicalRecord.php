@@ -147,17 +147,45 @@ class MedicalRecord extends Model
      */
     public function getPublicData()
     {
+        // 視力記録から最新のデータを取得
+        $latestVision = $this->getLatestVisionRecord();
+        
         return [
             'session_number' => $this->session_number,
             'treatment_date' => $this->treatment_date,
+            'examination_type' => $this->visit_purpose ?? '通常検査',
+            
+            // 視力データ（最新の記録から）
+            'unaided_vision_right' => $latestVision['before_naked_right'] ?? $this->unaided_vision_right ?? '-',
+            'unaided_vision_left' => $latestVision['before_naked_left'] ?? $this->unaided_vision_left ?? '-',
+            'unaided_vision_both' => $latestVision['before_naked_both'] ?? $this->unaided_vision_both ?? '-',
+            
+            'corrected_vision_right' => $latestVision['before_corrected_right'] ?? $this->corrected_vision_right ?? '-',
+            'corrected_vision_left' => $latestVision['before_corrected_left'] ?? $this->corrected_vision_left ?? '-',
+            'corrected_vision_both' => $latestVision['before_corrected_both'] ?? $this->corrected_vision_both ?? '-',
+            
+            'reading_vision_right' => $this->reading_vision_right ?? '-',
+            'reading_vision_left' => $this->reading_vision_left ?? '-',
+            'reading_vision_both' => $this->reading_vision_both ?? '-',
+            
+            // その他の情報
+            'eye_condition' => $this->eye_diseases ?? null,
+            'symptoms' => $this->symptoms ?? null,
+            'notes' => $this->notes ?? null,
+            
+            // 視力記録の履歴
             'vision_records' => collect($this->vision_records ?? [])->map(function ($record) {
                 return [
                     'session' => $record['session'] ?? null,
                     'date' => $record['date'] ?? null,
-                    'before_left' => $record['before_left'] ?? null,
-                    'before_right' => $record['before_right'] ?? null,
-                    'after_left' => $record['after_left'] ?? null,
-                    'after_right' => $record['after_right'] ?? null,
+                    'before_naked_left' => $record['before_naked_left'] ?? null,
+                    'before_naked_right' => $record['before_naked_right'] ?? null,
+                    'before_corrected_left' => $record['before_corrected_left'] ?? null,
+                    'before_corrected_right' => $record['before_corrected_right'] ?? null,
+                    'after_naked_left' => $record['after_naked_left'] ?? null,
+                    'after_naked_right' => $record['after_naked_right'] ?? null,
+                    'after_corrected_left' => $record['after_corrected_left'] ?? null,
+                    'after_corrected_right' => $record['after_corrected_right'] ?? null,
                     'intensity' => $record['intensity'] ?? null,
                     'duration' => $record['duration'] ?? null,
                     'public_memo' => $record['public_memo'] ?? null,

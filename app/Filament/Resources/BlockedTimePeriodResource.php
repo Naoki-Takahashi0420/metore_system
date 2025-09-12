@@ -26,9 +26,33 @@ class BlockedTimePeriodResource extends Resource
             ->schema([
                 Forms\Components\Select::make('store_id')
                     ->label('店舗')
-                    ->options(Store::pluck('name', 'id'))
+                    ->options(function () {
+                        $user = auth()->user();
+                        
+                        if ($user->hasRole('super_admin')) {
+                            return Store::where('is_active', true)->pluck('name', 'id');
+                        } elseif ($user->hasRole('owner')) {
+                            return $user->manageableStores()->where('is_active', true)->pluck('name', 'stores.id');
+                        } else {
+                            // 店長・スタッフは自店舗のみ
+                            return $user->store ? collect([$user->store->id => $user->store->name]) : collect();
+                        }
+                    })
                     ->required()
-                    ->searchable(),
+                    ->searchable()
+                    ->default(function () {
+                        $user = auth()->user();
+                        // スタッフ・店長は自店舗をデフォルト選択
+                        if ($user->hasRole(['staff', 'manager']) && $user->store_id) {
+                            return $user->store_id;
+                        }
+                        return null;
+                    })
+                    ->disabled(function () {
+                        $user = auth()->user();
+                        // スタッフ・店長は店舗選択を変更不可
+                        return $user->hasRole(['staff', 'manager']);
+                    }),
                     
                 Forms\Components\DatePicker::make('blocked_date')
                     ->label('ブロック日')
@@ -121,7 +145,18 @@ class BlockedTimePeriodResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('store_id')
                     ->label('店舗')
-                    ->options(Store::pluck('name', 'id')),
+                    ->options(function () {
+                        $user = auth()->user();
+                        
+                        if ($user->hasRole('super_admin')) {
+                            return Store::where('is_active', true)->pluck('name', 'id');
+                        } elseif ($user->hasRole('owner')) {
+                            return $user->manageableStores()->where('is_active', true)->pluck('name', 'stores.id');
+                        } else {
+                            // 店長・スタッフは自店舗のみ
+                            return $user->store ? collect([$user->store->id => $user->store->name]) : collect();
+                        }
+                    }),
             ])
             ->actions([
                 Tables\Actions\EditAction::make()
@@ -162,6 +197,31 @@ class BlockedTimePeriodResource extends Resource
                 ]),
             ])
             ->defaultSort('blocked_date', 'desc');
+    }
+
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $user = auth()->user();
+        $query = parent::getEloquentQuery();
+
+        // スーパーアドミンは全店舗のデータにアクセス可能
+        if ($user->hasRole('super_admin')) {
+            return $query;
+        }
+
+        // オーナーは紐づいた店舗のデータのみ表示
+        if ($user->hasRole('owner')) {
+            $storeIds = $user->manageableStores()->pluck('stores.id')->toArray();
+            return $query->whereIn('store_id', $storeIds);
+        }
+
+        // 店長・スタッフは自店舗のデータのみ表示
+        if ($user->hasRole(['manager', 'staff']) && $user->store_id) {
+            return $query->where('store_id', $user->store_id);
+        }
+
+        // 該当ロールがない場合は空の結果
+        return $query->whereRaw('1 = 0');
     }
 
     public static function getPages(): array

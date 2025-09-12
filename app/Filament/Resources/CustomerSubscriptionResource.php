@@ -236,6 +236,21 @@ class CustomerSubscriptionResource extends Resource
                         1 => '休止中のみ',
                         0 => '稼働中のみ',
                     ]),
+                    
+                Tables\Filters\SelectFilter::make('store_id')
+                    ->label('店舗')
+                    ->options(function () {
+                        $user = auth()->user();
+                        
+                        if ($user->hasRole('super_admin')) {
+                            return \App\Models\Store::where('is_active', true)->pluck('name', 'id');
+                        } elseif ($user->hasRole('owner')) {
+                            return $user->manageableStores()->where('is_active', true)->pluck('name', 'stores.id');
+                        } else {
+                            // 店長・スタッフは自店舗のみ
+                            return $user->store ? collect([$user->store->id => $user->store->name]) : collect();
+                        }
+                    }),
             ])
             ->actions([
                 Tables\Actions\Action::make('toggle_payment_failed')
@@ -334,6 +349,31 @@ class CustomerSubscriptionResource extends Resource
         return [
             //
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        $user = auth()->user();
+        $query = parent::getEloquentQuery();
+
+        // スーパーアドミンは全データにアクセス可能
+        if ($user->hasRole('super_admin')) {
+            return $query;
+        }
+
+        // オーナーは紐づいた店舗のサブスク契約のみ表示
+        if ($user->hasRole('owner')) {
+            $storeIds = $user->manageableStores()->pluck('stores.id')->toArray();
+            return $query->whereIn('store_id', $storeIds);
+        }
+
+        // 店長・スタッフは自店舗のサブスク契約のみ表示
+        if ($user->hasRole(['manager', 'staff'])) {
+            return $query->where('store_id', $user->store_id);
+        }
+
+        // 該当ロールがない場合は空の結果
+        return $query->whereRaw('1 = 0');
     }
 
     public static function getPages(): array

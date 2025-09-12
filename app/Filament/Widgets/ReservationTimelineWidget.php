@@ -49,7 +49,18 @@ class ReservationTimelineWidget extends Widget
     
     public function mount(): void
     {
-        $this->stores = Store::where('is_active', true)->get();
+        $user = auth()->user();
+        
+        // ユーザーの権限に応じて店舗を取得
+        if ($user->hasRole('super_admin')) {
+            $this->stores = Store::where('is_active', true)->get();
+        } elseif ($user->hasRole('owner')) {
+            $this->stores = $user->manageableStores()->where('is_active', true)->get();
+        } else {
+            // 店長・スタッフは所属店舗のみ
+            $this->stores = $user->store ? collect([$user->store]) : collect();
+        }
+        
         $this->selectedStore = $this->stores->first()?->id;
         $this->selectedDate = Carbon::today()->format('Y-m-d');
         $this->loadTimelineData();

@@ -146,8 +146,8 @@ class AttendanceReport extends Page
                 
                 // 休憩時間計算
                 if ($shift->break_start && $shift->break_end) {
-                    $breakStartStr = $shiftDate->format('Y-m-d') . ' ' . $shift->break_start . ':00';
-                    $breakEndStr = $shiftDate->format('Y-m-d') . ' ' . $shift->break_end . ':00';
+                    $breakStartStr = $shiftDate->format('Y-m-d') . ' ' . $shift->break_start;
+                    $breakEndStr = $shiftDate->format('Y-m-d') . ' ' . $shift->break_end;
                     
                     $breakStart = Carbon::parse($breakStartStr);
                     $breakEnd = Carbon::parse($breakEndStr);
