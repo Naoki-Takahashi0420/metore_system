@@ -452,7 +452,19 @@ class ReservationTimelineWidget extends Widget
             $temp->is_sub = true;
             $temp->seat_number = null;
             
-            if (!Reservation::checkAvailability($temp)) {
+            \Log::info('moveToSub: Checking availability', [
+                'reservation_id' => $reservation->id,
+                'date' => $reservation->reservation_date,
+                'start_time' => $reservation->start_time,
+                'end_time' => $reservation->end_time,
+                'is_sub' => $temp->is_sub,
+                'seat_number' => $temp->seat_number,
+            ]);
+            
+            $isAvailable = Reservation::checkAvailability($temp);
+            \Log::info('moveToSub: Availability result', ['available' => $isAvailable]);
+            
+            if (!$isAvailable) {
                 $this->dispatch('notify', [
                     'type' => 'error',
                     'message' => 'サブ枠は既に予約が入っています'
@@ -520,6 +532,10 @@ class ReservationTimelineWidget extends Widget
     {
         $reservation = Reservation::find($reservationId);
         if (!$reservation || $reservation->is_sub) {
+            \Log::info('canMoveToSub: false - reservation not found or already in sub', [
+                'id' => $reservationId,
+                'is_sub' => $reservation ? $reservation->is_sub : null
+            ]);
             return false;
         }
         
@@ -527,7 +543,13 @@ class ReservationTimelineWidget extends Widget
         $temp->is_sub = true;
         $temp->seat_number = null;
         
-        return Reservation::checkAvailability($temp);
+        $result = Reservation::checkAvailability($temp);
+        \Log::info('canMoveToSub result:', [
+            'reservation_id' => $reservationId,
+            'can_move' => $result
+        ]);
+        
+        return $result;
     }
     
     public function canMoveToMain($reservationId, $seatNumber): bool

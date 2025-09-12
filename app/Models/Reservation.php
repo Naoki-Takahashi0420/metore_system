@@ -255,16 +255,25 @@ class Reservation extends Model
         
         // サブラインの場合
         if ($reservation->line_type === 'sub' || $reservation->is_sub) {
-            // 同じサブライン番号での重複をチェック
-            $overlapping = $overlappingReservations
+            // 同じ時間帯でサブ枠の重複をチェック（時間の重複は既にチェック済み）
+            $overlappingQuery = $overlappingReservations
                 ->where(function($q) use ($reservation) {
-                    $q->where('line_type', 'sub')
-                      ->where('line_number', $reservation->line_number ?? 1);
-                })
-                ->orWhere(function($q) {
-                    $q->where('is_sub', true); // 互換性のため
-                })
-                ->exists();
+                    // サブ枠の予約のみをチェック
+                    $q->where('is_sub', true)
+                      ->orWhere(function($sub) use ($reservation) {
+                          $sub->where('line_type', 'sub')
+                              ->where('line_number', $reservation->line_number ?? 1);
+                      });
+                });
+            
+            \Log::info('checkAvailability for sub:', [
+                'reservation_id' => $reservation->id,
+                'query' => $overlappingQuery->toSql(),
+                'bindings' => $overlappingQuery->getBindings(),
+                'count' => $overlappingQuery->count()
+            ]);
+            
+            $overlapping = $overlappingQuery->exists();
                 
             return !$overlapping;
         }
