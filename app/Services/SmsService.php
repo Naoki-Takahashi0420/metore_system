@@ -61,7 +61,7 @@ class SmsService
                 'MessageAttributes' => [
                     'AWS.SNS.SMS.SenderID' => [
                         'DataType' => 'String',
-                        'StringValue' => config('services.sns.sender_id', 'Xsyumeno'),
+                        'StringValue' => config('services.sns.sender_id', 'METORE'),
                     ],
                     'AWS.SNS.SMS.SMSType' => [
                         'DataType' => 'String',

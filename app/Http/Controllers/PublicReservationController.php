@@ -69,7 +69,7 @@ class PublicReservationController extends Controller
         // 店舗が選択されていない場合は店舗選択へ
         $storeId = Session::get('selected_store_id');
         if (!$storeId) {
-            return redirect()->route('reservation.select-store');
+            return redirect()->route('stores');
         }
         
         $store = Store::find($storeId);

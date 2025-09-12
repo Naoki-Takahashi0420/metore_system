@@ -141,7 +141,11 @@ class CustomerAccessToken extends Model
         }
 
         // LINE友だち追加用のURL（token付き）
-        return "https://line.me/R/ti/p/@{$store->line_bot_basic_id}?token={$this->token}";
+        // line_bot_basic_idが既に@を含む場合はそのまま使用、含まない場合は@を追加
+        $lineId = str_starts_with($store->line_bot_basic_id, '@') 
+            ? $store->line_bot_basic_id 
+            : '@' . $store->line_bot_basic_id;
+        return "https://line.me/R/ti/p/{$lineId}?token={$this->token}";
     }
 
     /**
