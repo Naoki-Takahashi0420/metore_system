@@ -513,8 +513,9 @@
                         <div class="flex gap-2 flex-wrap">
                             @if($selectedReservation->is_sub)
                                 @php
-                                    $store = \App\Models\Store::find($selectedStore);
-                                    $maxSeats = $store->main_lines_count ?? 1;
+                                    // 予約の店舗を使用（選択中の店舗ではなく）
+                                    $reservationStore = \App\Models\Store::find($selectedReservation->store_id);
+                                    $maxSeats = $reservationStore->main_lines_count ?? 1;
                                 @endphp
                                 @for($i = 1; $i <= $maxSeats; $i++)
                                     @if($this->canMoveToMain($selectedReservation->id, $i))

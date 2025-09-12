@@ -336,10 +336,11 @@ class ReservationTimelineWidget extends Widget
                 'is_new_customer' => $isNewCustomer
             ];
             
-            if ($reservation->line_type === 'sub') {
+            if ($reservation->line_type === 'sub' || $reservation->is_sub) {
                 // サブ枠の予約を適切なサブラインに配置
                 $subSeatNumber = $reservation->line_number ?? 1; // デフォルトはサブ1
                 $subKey = 'sub_' . $subSeatNumber;
+                
                 if (isset($timeline[$subKey])) {
                     $timeline[$subKey]['reservations'][] = $reservationData;
                 } else {
@@ -349,8 +350,10 @@ class ReservationTimelineWidget extends Widget
                         $timeline[$firstSubKey]['reservations'][] = $reservationData;
                     }
                 }
-            } elseif ($reservation->line_type === 'main' && $reservation->line_number) {
-                $seatKey = 'seat_' . $reservation->line_number;
+            } elseif (($reservation->line_type === 'main' && $reservation->line_number) || ($reservation->seat_number && !$reservation->is_sub)) {
+                // メインラインの予約
+                $seatNumber = $reservation->seat_number ?: ($reservation->line_number ?: 1);
+                $seatKey = 'seat_' . $seatNumber;
                 if (isset($timeline[$seatKey])) {
                     $timeline[$seatKey]['reservations'][] = $reservationData;
                 }
@@ -476,6 +479,8 @@ class ReservationTimelineWidget extends Widget
             $reservation->timestamps = false;
             $reservation->is_sub = true;
             $reservation->seat_number = null;
+            $reservation->line_type = 'sub';
+            $reservation->line_number = 1; // デフォルトサブライン1
             $reservation->saveQuietly();
             
             $this->loadTimelineData();
@@ -517,6 +522,8 @@ class ReservationTimelineWidget extends Widget
             $reservation->timestamps = false;
             $reservation->is_sub = false;
             $reservation->seat_number = $seatNumber;
+            $reservation->line_type = 'main';
+            $reservation->line_number = $seatNumber; // メインラインの番号は席番号と同じ
             $reservation->saveQuietly();
             
             $this->loadTimelineData();
