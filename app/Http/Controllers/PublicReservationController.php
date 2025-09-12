@@ -926,11 +926,12 @@ class PublicReservationController extends Controller
                 ]);
             }
             
-            // セッションをクリア（店舗IDは残す）
-            Session::forget(['reservation_menu', 'reservation_options']);
-            \Log::info('セッションクリア後', [
+            // 予約関連のセッションをクリア（完了画面表示後にクリアする）
+            // ここではクリアしない - 完了画面表示後にクリアする
+            \Log::info('予約作成完了時のセッション', [
                 'selected_store_id' => Session::get('selected_store_id'),
-                'all_session' => Session::all()
+                'reservation_menu' => Session::has('reservation_menu'),
+                'reservation_options' => Session::has('reservation_options')
             ]);
             
             DB::commit();
@@ -1023,6 +1024,9 @@ class PublicReservationController extends Controller
             
             $lineQrCodeUrl = $lineToken->getLineAddFriendUrl();
         }
+        
+        // 完了画面表示時にセッションをクリア
+        Session::forget(['reservation_menu', 'reservation_options', 'selected_store_id']);
             
         return view('reservation.public.complete', compact('reservation', 'lineToken', 'lineQrCodeUrl'));
     }
