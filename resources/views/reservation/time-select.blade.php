@@ -46,8 +46,8 @@
         border: 1px solid #e5e7eb;
         border-radius: 8px;
         padding: 16px;
-        margin-bottom: 20px;
         position: relative;
+        height: fit-content;
     }
     
     @media (min-width: 768px) {
@@ -132,9 +132,10 @@
             </div>
         @endif
 
-    {{-- メニューリスト --}}
+    {{-- メニューリスト（PCでは2列、モバイルでは1列） --}}
     <div class="bg-white rounded-lg p-4">
         @php $menuIndex = 1; @endphp
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         @if(isset($sortedMenus))
             @foreach($sortedMenus as $menu)
                 <div class="menu-item-card">
@@ -156,14 +157,14 @@
                         <div class="mb-4">
                             @if($menu->image_path)
                                 <img src="{{ Storage::url($menu->image_path) }}" alt="{{ $menu->name }}" 
-                                    class="w-full md:w-96 h-auto aspect-video object-contain bg-white rounded-lg">
+                                    class="w-full h-auto aspect-video object-contain bg-white rounded-lg">
                             @else
-                                <div class="w-full md:w-96 aspect-video bg-gray-200 rounded-lg"></div>
+                                <div class="w-full aspect-video bg-gray-200 rounded-lg"></div>
                             @endif
                         </div>
                         
-                        {{-- コンテンツ部分（モバイルは縦並び、PCは横並び） --}}
-                        <div class="flex flex-col md:flex-row md:items-start gap-4">
+                        {{-- コンテンツ部分 --}}
+                        <div class="flex flex-col gap-4">
                             <div class="flex-1">
                                 {{-- タイトル --}}
                                 <h3 class="font-bold text-lg mb-2">【{{ $menu->name }}】</h3>
@@ -178,7 +179,7 @@
                                 </div>
                                 
                                 {{-- メニュー詳細情報 --}}
-                                <div class="text-xs text-gray-500 mb-3">
+                                <div class="text-xs text-gray-500 mb-4">
                                     <span class="text-blue-600">施術時間：</span>{{ $menu->duration_minutes }}分<br>
                                     <span class="text-blue-600">カテゴリー：</span>{{ $category->name }}<br>
                                     <span class="text-blue-600">店舗：</span>{{ $store->name }}
@@ -188,11 +189,11 @@
                                 </div>
                             </div>
                             
-                            {{-- 右側：価格とボタン（モバイルは下部に） --}}
-                            <div class="w-full md:w-auto md:text-right md:ml-4 md:min-w-[150px]">
-                                <div class="price-display mb-3 text-center md:text-right">¥{{ number_format($menu->price) }}</div>
+                            {{-- 価格とボタン --}}
+                            <div class="flex items-center justify-between">
+                                <div class="price-display">¥{{ number_format($menu->price) }}</div>
                                 <button type="button" onclick="selectMenu({{ $menu->id }}, '{{ $menu->name }}', {{ $menu->price }})" 
-                                    class="reserve-button w-full">
+                                    class="reserve-button">
                                     予約する
                                 </button>
                             </div>
@@ -222,14 +223,14 @@
                             <div class="mb-4">
                                 @if($menu->image_path)
                                     <img src="{{ Storage::url($menu->image_path) }}" alt="{{ $menu->name }}" 
-                                        class="w-full md:w-96 h-auto aspect-video object-contain bg-white rounded-lg">
+                                        class="w-full h-auto aspect-video object-contain bg-white rounded-lg">
                                 @else
-                                    <div class="w-full md:w-96 aspect-video bg-gray-200 rounded-lg"></div>
+                                    <div class="w-full aspect-video bg-gray-200 rounded-lg"></div>
                                 @endif
                             </div>
                             
-                            {{-- コンテンツ部分（モバイルは縦並び、PCは横並び） --}}
-                            <div class="flex flex-col md:flex-row md:items-start gap-4">
+                            {{-- コンテンツ部分 --}}
+                            <div class="flex flex-col gap-4">
                                 <div class="flex-1">
                                     {{-- タイトル --}}
                                     <h3 class="font-bold text-lg mb-2">【{{ $menu->name }}】</h3>
@@ -244,7 +245,7 @@
                                     </div>
                                     
                                     {{-- メニュー詳細情報 --}}
-                                    <div class="text-xs text-gray-500 mb-3">
+                                    <div class="text-xs text-gray-500 mb-4">
                                         <span class="text-blue-600">施術時間：</span>{{ $menu->duration_minutes }}分<br>
                                         <span class="text-blue-600">カテゴリー：</span>{{ $category->name }}<br>
                                         <span class="text-blue-600">店舗：</span>{{ $store->name }}
@@ -254,11 +255,11 @@
                                     </div>
                                 </div>
                                 
-                                {{-- 右側：価格とボタン（モバイルは下部に） --}}
-                                <div class="w-full md:w-auto md:text-right md:ml-4 md:min-w-[150px]">
-                                    <div class="price-display mb-3 text-center md:text-right">¥{{ number_format($menu->price) }}</div>
+                                {{-- 価格とボタン --}}
+                                <div class="flex items-center justify-between">
+                                    <div class="price-display">¥{{ number_format($menu->price) }}</div>
                                     <button type="button" onclick="selectMenu({{ $menu->id }}, '{{ $menu->name }}', {{ $menu->price }})" 
-                                        class="reserve-button w-full">
+                                        class="reserve-button">
                                         予約する
                                     </button>
                                 </div>
@@ -268,6 +269,7 @@
                 @endforeach
             @endforeach
         @endif
+        </div>
     </div>
 
         @if((isset($sortedMenus) && $sortedMenus->isEmpty()) || (!isset($sortedMenus) && $menusByDuration->isEmpty()))
