@@ -83,10 +83,26 @@
             @if($lineQrCodeUrl)
             <div class="bg-blue-50 border border-blue-200 rounded-md p-6 mb-6 text-center">
                 <h3 class="font-semibold text-blue-800 mb-3">📱 LINE友だち追加でもっと便利に！</h3>
-                <div class="mb-4">
-                    <div id="line-qr-code" class="inline-block border border-gray-200 p-2 bg-white rounded"></div>
+                
+                <!-- スマホ用友だち追加ボタン（モバイルデバイスでのみ表示） -->
+                <div class="mb-4 sm:hidden">
+                    <a href="{{ $lineQrCodeUrl }}" 
+                       class="inline-flex items-center gap-2 px-6 py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600">
+                        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM16.84 9.93L15.37 11.4L16.84 12.87C17.03 13.06 17.03 13.37 16.84 13.56L15.37 15.03L13.9 13.56L12.43 15.03L10.96 13.56C10.77 13.37 10.77 13.06 10.96 12.87L12.43 11.4L10.96 9.93C10.77 9.74 10.77 9.43 10.96 9.24L12.43 7.77L13.9 9.24L15.37 7.77L16.84 9.24C17.03 9.43 17.03 9.74 16.84 9.93Z"/>
+                        </svg>
+                        LINE友だち追加
+                    </a>
+                    <p class="text-xs text-gray-600 mt-2">タップして友だち追加画面へ</p>
                 </div>
-                <p class="text-sm text-blue-700 mb-3">QRコードを読み取って{{ $reservation->store->name }}のLINE公式アカウントを友だち追加すると：</p>
+                
+                <!-- PC用QRコード（デスクトップでのみ表示） -->
+                <div class="mb-4 hidden sm:block">
+                    <div id="line-qr-code" class="inline-block border border-gray-200 p-2 bg-white rounded"></div>
+                    <p class="text-xs text-gray-600 mt-2">スマートフォンでQRコードを読み取ってください</p>
+                </div>
+                
+                <p class="text-sm text-blue-700 mb-3">{{ $reservation->store->name }}のLINE公式アカウントを友だち追加すると：</p>
                 <ul class="text-sm text-blue-700 space-y-1 text-left max-w-md mx-auto">
                     <li>• 予約の変更・キャンセルがLINEで簡単に</li>
                     <li>• 来店前日にリマインダー通知</li>
