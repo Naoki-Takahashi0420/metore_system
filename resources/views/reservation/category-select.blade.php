@@ -47,7 +47,8 @@
         <h1 class="text-xl md:text-3xl font-bold text-center mb-2">コースをお選びください</h1>
         <p class="text-center text-gray-600 mb-6 md:mb-8 text-sm md:text-lg">{{ $store->name }}のメニューカテゴリー</p>
 
-        <div class="space-y-4">
+        {{-- PCでは2列、モバイルでは1列のグリッドレイアウト --}}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             @foreach($categories as $category)
                 <form action="{{ route('reservation.select-time') }}" method="POST" class="category-form">
                     @csrf
