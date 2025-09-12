@@ -15,6 +15,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'auth.basic' => \App\Http\Middleware\BasicAuth::class,
         ]);
+        
+        // Livewireファイルアップロード用のCSRF除外
+        $middleware->validateCsrfTokens(except: [
+            'livewire/upload-file',
+            'livewire/preview-file/*',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

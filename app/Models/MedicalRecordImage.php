@@ -47,11 +47,16 @@ class MedicalRecordImage extends Model
         
         static::updating(function ($image) {
             // file_pathが変更された場合、file_nameを更新
-            if ($image->isDirty('file_path') && empty($image->file_name)) {
+            if ($image->isDirty('file_path')) {
+                $image->file_name = pathinfo($image->file_path, PATHINFO_BASENAME);
+            }
+            // file_nameが空の場合も設定
+            if (empty($image->file_name) && !empty($image->file_path)) {
                 $image->file_name = pathinfo($image->file_path, PATHINFO_BASENAME);
             }
         });
     }
+
 
     /**
      * 所属するカルテ

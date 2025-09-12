@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\MedicalRecordResource\Pages;
+use App\Filament\Resources\MedicalRecordResource\RelationManagers;
 use App\Models\MedicalRecord;
 use App\Models\Customer;
 use App\Models\Reservation;
@@ -484,116 +485,7 @@ class MedicalRecordResource extends Resource
                                     ]),
                             ]),
                         */
-                        
-                        // 画像タブ
-                        Forms\Components\Tabs\Tab::make('画像')
-                            ->schema([
-                                Forms\Components\Repeater::make('attachedImages')
-                                    ->label('添付画像')
-                                    ->relationship()
-                                    ->schema([
-                                        // 既存画像表示用
-                                        Forms\Components\Placeholder::make('existing_image_display')
-                                            ->label('既存画像')
-                                            ->content(function ($record) {
-                                                if (!$record || !$record->exists || !$record->file_path) {
-                                                    return '';
-                                                }
-                                                
-                                                $imageUrl = \Storage::disk('public')->url($record->file_path);
-                                                $fileName = basename($record->file_path);
-                                                
-                                                return new \Illuminate\Support\HtmlString('
-                                                    <div class="border border-gray-300 rounded-lg p-4 bg-gray-50">
-                                                        <div class="flex items-center space-x-4">
-                                                            <div class="flex-shrink-0">
-                                                                <img src="' . $imageUrl . '" 
-                                                                     alt="既存画像" 
-                                                                     class="w-20 h-20 object-cover rounded-md border border-gray-200"
-                                                                     onclick="window.open(\'' . $imageUrl . '\', \'_blank\')"
-                                                                     style="cursor: pointer;">
-                                                            </div>
-                                                            <div class="flex-1">
-                                                                <p class="text-sm font-medium text-gray-900">現在の画像ファイル</p>
-                                                                <p class="text-sm text-gray-500">' . $fileName . '</p>
-                                                                <p class="text-xs text-blue-600 mt-1">クリックで拡大表示</p>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ');
-                                            })
-                                            ->visible(fn ($record) => $record && $record->exists && $record->file_path)
-                                            ->columnSpan(2),
-                                        
-                                        // ファイルアップロード用（新規・置き換え）
-                                        Forms\Components\FileUpload::make('file_path')
-                                            ->label(fn ($record) => ($record && $record->exists) ? '新しい画像ファイル（置き換える場合）' : '画像ファイル')
-                                            ->image()
-                                            ->directory('medical-records')
-                                            ->disk('public')
-                                            ->maxSize(15360)
-                                            ->required(fn ($record) => !$record || !$record->exists)
-                                            ->helperText(fn ($record) => ($record && $record->exists) ? '新しいファイルを選択すると既存の画像が置き換えられます' : null)
-                                            ->columnSpan(2),
-                                        
-                                        Forms\Components\Grid::make(2)
-                                            ->schema([
-                                                Forms\Components\TextInput::make('title')
-                                                    ->label('タイトル')
-                                                    ->placeholder('画像のタイトル'),
-                                                
-                                                Forms\Components\Select::make('image_type')
-                                                    ->label('画像タイプ')
-                                                    ->options([
-                                                        'before' => '施術前',
-                                                        'after' => '施術後',
-                                                        'progress' => '経過',
-                                                        'reference' => '参考',
-                                                        'other' => 'その他',
-                                                    ])
-                                                    ->default('other'),
-                                            ])
-                                            ->columnSpan(2),
-                                        
-                                        Forms\Components\Textarea::make('description')
-                                            ->label('説明')
-                                            ->placeholder('画像の説明を入力')
-                                            ->rows(2)
-                                            ->columnSpan(2),
-                                        
-                                        Forms\Components\Grid::make(3)
-                                            ->schema([
-                                                Forms\Components\TextInput::make('display_order')
-                                                    ->label('表示順')
-                                                    ->numeric()
-                                                    ->default(0)
-                                                    ->minValue(0),
-                                                
-                                                Forms\Components\Toggle::make('is_visible_to_customer')
-                                                    ->label('顧客に表示')
-                                                    ->default(true)
-                                                    ->helperText('ONにすると顧客側でも表示されます'),
-                                                
-                                                Forms\Components\Placeholder::make('file_info')
-                                                    ->label('ファイル情報')
-                                                    ->content(function ($record) {
-                                                        if (!$record || !$record->exists) return '新規画像';
-                                                        if ($record->file_path) {
-                                                            return '既存ファイル: ' . basename($record->file_path);
-                                                        }
-                                                        return $record->formatted_file_size ?? '-';
-                                                    }),
-                                            ])
-                                            ->columnSpan(2),
-                                    ])
-                                    ->columns(2)
-                                    ->collapsible()
-                                    ->defaultItems(0)
-                                    ->addActionLabel('画像を追加')
-                                    ->reorderable('display_order')
-                                    ->grid(1),
-                            ]),
-                    ])
+                    ]) // タブ終了
                     ->columnSpanFull(),
             ]);
     }
@@ -733,6 +625,13 @@ class MedicalRecordResource extends Resource
         return $query->whereRaw('1 = 0');
     }
 
+    public static function getRelations(): array
+    {
+        return [
+            RelationManagers\ImagesRelationManager::class,
+        ];
+    }
+    
     public static function getPages(): array
     {
         return [

@@ -306,6 +306,46 @@
         </div>
         @endif
         
+        @if($record->attachedImages && $record->attachedImages->where('is_visible_to_customer', true)->count() > 0)
+        <div class="info-section" style="margin-bottom: 30px; page-break-inside: avoid;">
+            <h2>添付画像</h2>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+                @foreach($record->attachedImages->where('is_visible_to_customer', true)->sortBy('display_order') as $image)
+                <div style="border: 1px solid #ddd; padding: 10px; border-radius: 5px;">
+                    @if($image->file_path && \Storage::disk('public')->exists($image->file_path))
+                    <img src="{{ \Storage::disk('public')->url($image->file_path) }}" 
+                         style="width: 100%; height: auto; max-height: 200px; object-fit: contain; margin-bottom: 5px;">
+                    @endif
+                    @if($image->title)
+                    <div style="font-weight: bold; font-size: 0.9em; margin-bottom: 3px;">{{ $image->title }}</div>
+                    @endif
+                    <div style="font-size: 0.85em; color: #666;">
+                        @switch($image->image_type)
+                            @case('before')
+                                施術前
+                                @break
+                            @case('after')
+                                施術後
+                                @break
+                            @case('progress')
+                                経過
+                                @break
+                            @case('reference')
+                                参考
+                                @break
+                            @default
+                                その他
+                        @endswitch
+                    </div>
+                    @if($image->description)
+                    <div style="font-size: 0.85em; color: #444; margin-top: 3px;">{{ $image->description }}</div>
+                    @endif
+                </div>
+                @endforeach
+            </div>
+        </div>
+        @endif
+        
         <div class="footer">
             <p>印刷日時: {{ now()->format('Y年m月d日 H:i') }}</p>
             <p>{{ config('app.name', 'Xsyumeno') }} - このカルテは診療記録として保管してください</p>
