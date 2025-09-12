@@ -121,9 +121,16 @@ class AdminNotificationService
         $admins = collect();
         
         // 店舗オーナーと管理者を取得
-        if ($store->managers()->exists()) {
-            $storeManagers = $store->managers()->get();
-            $admins = $admins->merge($storeManagers);
+        try {
+            if ($store->managers()->exists()) {
+                $storeManagers = $store->managers()->get();
+                $admins = $admins->merge($storeManagers);
+            }
+        } catch (\Exception $e) {
+            \Log::warning('店舗管理者の取得に失敗: ' . $e->getMessage());
+            // 代替として、store_idが一致するユーザーを取得
+            $storeUsers = User::where('store_id', $store->id)->get();
+            $admins = $admins->merge($storeUsers);
         }
         
         // スーパー管理者も含める（全店舗の重要イベントを受信）
@@ -142,13 +149,13 @@ class AdminNotificationService
             $admins->push($testUser);
         }
         
-        return $admins->unique('email')->values();
+        return $admins->unique('id')->values();
     }
     
     /**
      * 通知送信（SMS/メール）
      */
-    private function sendNotification($admin, string $message, string $type): void
+    private function sendNotification(User $admin, string $message, string $type): void
     {
         // SMS通知（電話番号がある場合）
         if ($admin->phone && $this->shouldSendSms($admin, $type)) {
