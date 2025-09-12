@@ -40,8 +40,8 @@ class AdminNotificationService
         \Log::info('Admin notification sent for new reservation', [
             'reservation_id' => $reservation->id,
             'store_id' => $store->id,
-            'admin_count' => count($admins),
-            'admins_notified' => collect($admins)->pluck('email')->toArray()
+            'admin_count' => $admins->count(),
+            'admins_notified' => $admins->pluck('email')->toArray()
         ]);
     }
     
@@ -148,7 +148,7 @@ class AdminNotificationService
     /**
      * 通知送信（SMS/メール）
      */
-    private function sendNotification(User $admin, string $message, string $type): void
+    private function sendNotification($admin, string $message, string $type): void
     {
         // SMS通知（電話番号がある場合）
         if ($admin->phone && $this->shouldSendSms($admin, $type)) {
@@ -159,6 +159,7 @@ class AdminNotificationService
         if ($admin->email && $this->shouldSendEmail($admin, $type)) {
             $this->sendEmailNotification($admin, $message, $type);
         }
+    }
     }
     
     /**
