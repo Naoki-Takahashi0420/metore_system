@@ -130,6 +130,15 @@ class Store extends Model
     }
 
     /**
+     * リレーション: 店舗管理者
+     */
+    public function managers()
+    {
+        return $this->belongsToMany(User::class, 'store_managers', 'store_id', 'user_id')
+                    ->withTimestamps();
+    }
+
+    /**
      * 店舗コードを自動生成
      */
     public static function generateStoreCode(): string
