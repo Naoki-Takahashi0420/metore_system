@@ -407,7 +407,8 @@ class MedicalRecordResource extends Resource
                                     ->rows(3),
                             ]),
                         
-                        // 予約履歴タブ
+                        // 予約履歴タブ（一時的にコメントアウト - 無限読み込み問題の原因調査のため）
+                        /*
                         Forms\Components\Tabs\Tab::make('予約履歴')
                             ->schema([
                                 Forms\Components\Section::make('顧客の予約履歴')
@@ -420,141 +421,56 @@ class MedicalRecordResource extends Resource
                                                 }
                                                 
                                                 $customer = $record->customer;
+                                                
+                                                // 最適化: 必要な列のみ選択し、10件に制限
                                                 $reservations = $customer->reservations()
-                                                    ->with(['store', 'menu', 'staff'])
+                                                    ->select([
+                                                        'id', 'reservation_date', 'start_time', 'end_time', 
+                                                        'status', 'total_amount', 'store_id', 'menu_id', 'staff_id'
+                                                    ])
+                                                    ->with([
+                                                        'store:id,name',
+                                                        'menu:id,name', 
+                                                        'staff:id,name'
+                                                    ])
                                                     ->orderBy('reservation_date', 'desc')
                                                     ->orderBy('start_time', 'desc')
+                                                    ->limit(10) // 10件に削減
                                                     ->get();
                                                 
                                                 if ($reservations->isEmpty()) {
                                                     return '予約履歴がありません。';
                                                 }
                                                 
-                                                $now = now();
-                                                $today = $reservations->filter(function ($r) use ($now) {
-                                                    return $r->reservation_date == $now->toDateString();
-                                                });
-                                                $past = $reservations->filter(function ($r) use ($now) {
-                                                    return $r->reservation_date < $now->toDateString();
-                                                });
-                                                $future = $reservations->filter(function ($r) use ($now) {
-                                                    return $r->reservation_date > $now->toDateString();
-                                                });
+                                                // 簡素化: 複雑な分類を削除し、シンプルなリスト表示
+                                                $html = '<div class="space-y-3">';
+                                                $html .= '<div class="text-sm text-gray-600 mb-3">最新10件の予約履歴</div>';
                                                 
-                                                $html = '<div class="space-y-6">';
-                                                
-                                                // サマリー情報
-                                                $html .= '<div class="bg-indigo-50 p-4 rounded-lg">';
-                                                $html .= '<h3 class="font-bold text-indigo-800 mb-2">予約サマリー</h3>';
-                                                $html .= '<div class="grid grid-cols-3 gap-4 text-center">';
-                                                $html .= '<div class="bg-white p-3 rounded">';
-                                                $html .= '<div class="text-2xl font-bold text-gray-800">' . $past->count() . '</div>';
-                                                $html .= '<div class="text-xs text-gray-600">過去の予約</div>';
-                                                $html .= '</div>';
-                                                $html .= '<div class="bg-white p-3 rounded">';
-                                                $html .= '<div class="text-2xl font-bold text-blue-600">' . $today->count() . '</div>';
-                                                $html .= '<div class="text-xs text-gray-600">今日の予約</div>';
-                                                $html .= '</div>';
-                                                $html .= '<div class="bg-white p-3 rounded">';
-                                                $html .= '<div class="text-2xl font-bold text-green-600">' . $future->count() . '</div>';
-                                                $html .= '<div class="text-xs text-gray-600">未来の予約</div>';
-                                                $html .= '</div>';
-                                                $html .= '</div>';
-                                                $html .= '</div>';
-                                                
-                                                // 今日の予約
-                                                if ($today->isNotEmpty()) {
-                                                    $html .= '<div class="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-400">';
-                                                    $html .= '<h3 class="font-bold text-yellow-800 mb-3">今日の予約 (' . $today->count() . '件)</h3>';
-                                                    $html .= '<div class="space-y-2">';
-                                                    foreach ($today as $reservation) {
-                                                        $statusBadge = match($reservation->status) {
-                                                            'confirmed' => '<span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">確定</span>',
-                                                            'booked' => '<span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">予約済</span>',
-                                                            'completed' => '<span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">完了</span>',
-                                                            'pending' => '<span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">保留</span>',
-                                                            'cancelled' => '<span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">キャンセル</span>',
-                                                            'canceled' => '<span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">キャンセル</span>',
-                                                            default => '<span class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">' . $reservation->status . '</span>'
-                                                        };
-                                                        $html .= '<div class="flex justify-between items-center p-3 bg-white rounded border border-yellow-200">';
-                                                        $html .= '<div>';
-                                                        $html .= '<div class="font-semibold text-lg">' . date('H:i', strtotime($reservation->start_time)) . ' - ' . date('H:i', strtotime($reservation->end_time)) . '</div>';
-                                                        $html .= '<div class="text-sm text-gray-600">' . ($reservation->menu->name ?? '') . ' at ' . ($reservation->store->name ?? '') . '</div>';
-                                                        if ($reservation->staff) {
-                                                            $html .= '<div class="text-xs text-gray-500">担当: ' . $reservation->staff->name . '</div>';
-                                                        }
-                                                        $html .= '</div>';
-                                                        $html .= '<div class="text-right">';
-                                                        $html .= $statusBadge;
-                                                        $html .= '<div class="text-sm font-bold mt-1">¥' . number_format($reservation->total_amount ?? 0) . '</div>';
-                                                        $html .= '</div>';
-                                                        $html .= '</div>';
+                                                foreach ($reservations as $reservation) {
+                                                    // ステータス表示（日本語ラベル保持）
+                                                    $statusBadge = match($reservation->status) {
+                                                        'confirmed' => '<span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">確定</span>',
+                                                        'booked' => '<span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">予約済</span>',
+                                                        'completed' => '<span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">完了</span>',
+                                                        'pending' => '<span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs">保留</span>',
+                                                        'cancelled' => '<span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">キャンセル</span>',
+                                                        'canceled' => '<span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">キャンセル</span>',
+                                                        'no_show' => '<span class="px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs">無断キャンセル</span>',
+                                                        default => '<span class="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs">' . $reservation->status . '</span>'
+                                                    };
+                                                    
+                                                    $html .= '<div class="flex justify-between items-center p-3 bg-white border rounded">';
+                                                    $html .= '<div class="flex-1">';
+                                                    $html .= '<div class="font-medium">' . $reservation->reservation_date->format('Y/m/d') . ' ' . date('H:i', strtotime($reservation->start_time)) . '</div>';
+                                                    $html .= '<div class="text-sm text-gray-600">' . ($reservation->menu->name ?? '-') . ' / ' . ($reservation->store->name ?? '-') . '</div>';
+                                                    if ($reservation->staff) {
+                                                        $html .= '<div class="text-xs text-gray-500">担当: ' . $reservation->staff->name . '</div>';
                                                     }
                                                     $html .= '</div>';
-                                                    $html .= '</div>';
-                                                }
-                                                
-                                                // 未来の予約
-                                                if ($future->isNotEmpty()) {
-                                                    $html .= '<div class="bg-blue-50 p-4 rounded-lg">';
-                                                    $html .= '<h3 class="font-bold text-blue-800 mb-3">未来の予約 (' . $future->count() . '件)</h3>';
-                                                    $html .= '<div class="space-y-2">';
-                                                    foreach ($future as $reservation) {
-                                                        $statusBadge = match($reservation->status) {
-                                                            'confirmed' => '<span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">確定</span>',
-                                                            'booked' => '<span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">予約済</span>',
-                                                            'pending' => '<span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">保留</span>',
-                                                            'cancelled' => '<span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">キャンセル</span>',
-                                                            'canceled' => '<span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">キャンセル</span>',
-                                                            default => '<span class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">' . $reservation->status . '</span>'
-                                                        };
-                                                        $html .= '<div class="flex justify-between items-center p-3 bg-white rounded border">';
-                                                        $html .= '<div>';
-                                                        $html .= '<div class="font-semibold">' . $reservation->reservation_date->format('Y/m/d') . ' ' . date('H:i', strtotime($reservation->start_time)) . '</div>';
-                                                        $html .= '<div class="text-sm text-gray-600">' . ($reservation->menu->name ?? '') . ' at ' . ($reservation->store->name ?? '') . '</div>';
-                                                        if ($reservation->staff) {
-                                                            $html .= '<div class="text-xs text-gray-500">担当: ' . $reservation->staff->name . '</div>';
-                                                        }
-                                                        $html .= '</div>';
-                                                        $html .= '<div class="text-right">';
-                                                        $html .= $statusBadge;
-                                                        $html .= '<div class="text-sm font-bold mt-1">¥' . number_format($reservation->total_amount ?? 0) . '</div>';
-                                                        $html .= '</div>';
-                                                        $html .= '</div>';
-                                                    }
-                                                    $html .= '</div>';
-                                                    $html .= '</div>';
-                                                }
-                                                
-                                                // 過去の予約
-                                                if ($past->isNotEmpty()) {
-                                                    $html .= '<div class="bg-gray-50 p-4 rounded-lg">';
-                                                    $html .= '<h3 class="font-bold text-gray-800 mb-3">過去の予約 (' . $past->count() . '件)</h3>';
-                                                    $html .= '<div class="space-y-2 max-h-96 overflow-y-auto">';
-                                                    foreach ($past as $reservation) {
-                                                        $statusBadge = match($reservation->status) {
-                                                            'completed' => '<span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">完了</span>',
-                                                            'confirmed' => '<span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">確定</span>',
-                                                            'booked' => '<span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">予約済</span>',
-                                                            'no_show' => '<span class="px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs">無断キャンセル</span>',
-                                                            'cancelled' => '<span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">キャンセル</span>',
-                                                            'canceled' => '<span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">キャンセル</span>',
-                                                            default => '<span class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">' . $reservation->status . '</span>'
-                                                        };
-                                                        $html .= '<div class="flex justify-between items-center p-3 bg-white rounded border">';
-                                                        $html .= '<div>';
-                                                        $html .= '<div class="font-semibold">' . $reservation->reservation_date->format('Y/m/d') . ' ' . date('H:i', strtotime($reservation->start_time)) . '</div>';
-                                                        $html .= '<div class="text-sm text-gray-600">' . ($reservation->menu->name ?? '') . ' at ' . ($reservation->store->name ?? '') . '</div>';
-                                                        if ($reservation->staff) {
-                                                            $html .= '<div class="text-xs text-gray-500">担当: ' . $reservation->staff->name . '</div>';
-                                                        }
-                                                        $html .= '</div>';
-                                                        $html .= '<div class="text-right">';
-                                                        $html .= $statusBadge;
-                                                        $html .= '<div class="text-sm font-bold mt-1">¥' . number_format($reservation->total_amount ?? 0) . '</div>';
-                                                        $html .= '</div>';
-                                                        $html .= '</div>';
+                                                    $html .= '<div class="text-right">';
+                                                    $html .= $statusBadge;
+                                                    if ($reservation->total_amount) {
+                                                        $html .= '<div class="text-sm mt-1">¥' . number_format($reservation->total_amount) . '</div>';
                                                     }
                                                     $html .= '</div>';
                                                     $html .= '</div>';
@@ -567,6 +483,7 @@ class MedicalRecordResource extends Resource
                                             ->columnSpanFull(),
                                     ]),
                             ]),
+                        */
                         
                         // 画像タブ
                         Forms\Components\Tabs\Tab::make('画像')
@@ -575,31 +492,48 @@ class MedicalRecordResource extends Resource
                                     ->label('添付画像')
                                     ->relationship()
                                     ->schema([
-                                        Forms\Components\FileUpload::make('file_path')
-                                            ->label('画像ファイル')
-                                            ->image()
-                                            ->imageResizeMode('cover')
-                                            ->imageCropAspectRatio(null)
-                                            ->imageResizeTargetWidth('1920')
-                                            ->imageResizeTargetHeight('1080')
-                                            ->maxSize(10240) // 10MB
-                                            ->disk('public')
-                                            ->directory('medical-records')
-                                            ->visibility('public')
-                                            ->required()
-                                            ->afterStateUpdated(function ($state, $set, $get) {
-                                                if ($state) {
-                                                    // ファイル名を自動設定
-                                                    $fileName = pathinfo($state, PATHINFO_BASENAME);
-                                                    $set('file_name', $fileName);
-                                                    
-                                                    // タイトルが空の場合はファイル名から設定
-                                                    if (empty($get('title'))) {
-                                                        $nameWithoutExtension = pathinfo($fileName, PATHINFO_FILENAME);
-                                                        $set('title', $nameWithoutExtension);
-                                                    }
+                                        // 既存画像表示用
+                                        Forms\Components\Placeholder::make('existing_image_display')
+                                            ->label('既存画像')
+                                            ->content(function ($record) {
+                                                if (!$record || !$record->exists || !$record->file_path) {
+                                                    return '';
                                                 }
+                                                
+                                                $imageUrl = \Storage::disk('public')->url($record->file_path);
+                                                $fileName = basename($record->file_path);
+                                                
+                                                return new \Illuminate\Support\HtmlString('
+                                                    <div class="border border-gray-300 rounded-lg p-4 bg-gray-50">
+                                                        <div class="flex items-center space-x-4">
+                                                            <div class="flex-shrink-0">
+                                                                <img src="' . $imageUrl . '" 
+                                                                     alt="既存画像" 
+                                                                     class="w-20 h-20 object-cover rounded-md border border-gray-200"
+                                                                     onclick="window.open(\'' . $imageUrl . '\', \'_blank\')"
+                                                                     style="cursor: pointer;">
+                                                            </div>
+                                                            <div class="flex-1">
+                                                                <p class="text-sm font-medium text-gray-900">現在の画像ファイル</p>
+                                                                <p class="text-sm text-gray-500">' . $fileName . '</p>
+                                                                <p class="text-xs text-blue-600 mt-1">クリックで拡大表示</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ');
                                             })
+                                            ->visible(fn ($record) => $record && $record->exists && $record->file_path)
+                                            ->columnSpan(2),
+                                        
+                                        // ファイルアップロード用（新規・置き換え）
+                                        Forms\Components\FileUpload::make('file_path')
+                                            ->label(fn ($record) => ($record && $record->exists) ? '新しい画像ファイル（置き換える場合）' : '画像ファイル')
+                                            ->image()
+                                            ->directory('medical-records')
+                                            ->disk('public')
+                                            ->maxSize(15360)
+                                            ->required(fn ($record) => !$record || !$record->exists)
+                                            ->helperText(fn ($record) => ($record && $record->exists) ? '新しいファイルを選択すると既存の画像が置き換えられます' : null)
                                             ->columnSpan(2),
                                         
                                         Forms\Components\Grid::make(2)
@@ -643,7 +577,10 @@ class MedicalRecordResource extends Resource
                                                 Forms\Components\Placeholder::make('file_info')
                                                     ->label('ファイル情報')
                                                     ->content(function ($record) {
-                                                        if (!$record) return '新規画像';
+                                                        if (!$record || !$record->exists) return '新規画像';
+                                                        if ($record->file_path) {
+                                                            return '既存ファイル: ' . basename($record->file_path);
+                                                        }
                                                         return $record->formatted_file_size ?? '-';
                                                     }),
                                             ])
