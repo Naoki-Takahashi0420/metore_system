@@ -379,13 +379,23 @@ class ReservationTimelineWidget extends Widget
     {
         // カテゴリーIDがnullの場合はデフォルトを返す
         if (!$categoryId) {
-            return 'care';
+            return 'default';
         }
         
-        // カテゴリーIDに基づいて色を動的に割り当て
-        $colors = ['care', 'hydrogen', 'training', 'special', 'premium', 'vip'];
-        $index = ($categoryId - 1) % count($colors);
-        return $colors[$index];
+        // 見やすく区別しやすい配色パターンを使用
+        // 同じ系統の色が連続しないように配置
+        $colorPatterns = [
+            'care',      // 青系
+            'hydrogen',  // 紫系
+            'training',  // オレンジ系
+            'special',   // 緑系
+            'premium',   // 赤系
+            'vip',       // 黄系
+        ];
+        
+        // カテゴリーIDを元に色を決定（循環使用）
+        $index = ($categoryId - 1) % count($colorPatterns);
+        return $colorPatterns[$index];
     }
     
     public function getCategories()

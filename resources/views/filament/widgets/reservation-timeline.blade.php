@@ -118,6 +118,26 @@
                 border-left: 3px solid #ff9800;
             }
             
+            .course-special {
+                background: #e8f5e9;
+                border-left: 3px solid #4caf50;
+            }
+            
+            .course-premium {
+                background: #ffebee;
+                border-left: 3px solid #f44336;
+            }
+            
+            .course-vip {
+                background: #fffde7;
+                border-left: 3px solid #ffc107;
+            }
+            
+            .course-default {
+                background: #f5f5f5;
+                border-left: 3px solid #9e9e9e;
+            }
+            
             .break-block {
                 background: #757575 !important;
                 color: white;
@@ -367,20 +387,27 @@
             @endif
         </div>
         
-        <!-- 凡例 -->
-        <div class="flex gap-6 mt-4 text-sm">
-            <div class="flex items-center gap-2">
-                <div class="w-5 h-5 rounded course-care border"></div>
-                <span>ケアコース</span>
-            </div>
-            <div class="flex items-center gap-2">
-                <div class="w-5 h-5 rounded course-hydrogen border"></div>
-                <span>水素コース</span>
-            </div>
-            <div class="flex items-center gap-2">
-                <div class="w-5 h-5 rounded course-training border"></div>
-                <span>トレーニングコース</span>
-            </div>
+        <!-- 凡例（動的生成） -->
+        <div class="flex flex-wrap gap-4 mt-4 text-sm">
+            @php
+                $categories = \App\Models\MenuCategory::where('is_active', true)
+                    ->orderBy('id')
+                    ->get();
+                $colorPatterns = ['care', 'hydrogen', 'training', 'special', 'premium', 'vip'];
+                $shownColors = [];
+            @endphp
+            @foreach($categories as $category)
+                @php
+                    $colorClass = $colorPatterns[($category->id - 1) % count($colorPatterns)];
+                @endphp
+                @if(!in_array($colorClass, $shownColors))
+                    @php $shownColors[] = $colorClass; @endphp
+                    <div class="flex items-center gap-2">
+                        <div class="w-5 h-5 rounded course-{{ $colorClass }} border"></div>
+                        <span>{{ $category->name }}</span>
+                    </div>
+                @endif
+            @endforeach
         </div>
     </x-filament::card>
     
