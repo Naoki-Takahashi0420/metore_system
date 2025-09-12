@@ -11,15 +11,24 @@ class SmsService
     
     public function __construct()
     {
+        // AWS認証情報を環境変数から直接取得
+        $awsKey = env('AWS_ACCESS_KEY_ID');
+        $awsSecret = env('AWS_SECRET_ACCESS_KEY');
+        
         // AWS認証情報がある場合のみSNSクライアントを初期化
-        if (config('services.sns.key') && config('services.sns.secret')) {
+        if ($awsKey && $awsSecret) {
             $this->snsClient = new SnsClient([
-                'region' => config('services.sns.region', 'ap-northeast-1'),
+                'region' => env('AWS_DEFAULT_REGION', 'ap-northeast-1'),
                 'version' => 'latest',
                 'credentials' => [
-                    'key' => config('services.sns.key'),
-                    'secret' => config('services.sns.secret'),
+                    'key' => $awsKey,
+                    'secret' => $awsSecret,
                 ],
+            ]);
+        } else {
+            Log::warning('SmsService: AWS認証情報が見つかりません', [
+                'config_key' => config('services.sns.key'),
+                'env_key' => env('AWS_ACCESS_KEY_ID'),
             ]);
         }
     }
@@ -87,15 +96,24 @@ class SmsService
      */
     public function sendOtp(string $phone, string $otp): bool
     {
-        // テスト環境またはAWS認証情報がない場合は実際にSMS送信せず成功扱い
-        if (config('app.env') === 'local' || config('app.env') === 'testing' || !$this->snsClient) {
-            Log::info('テスト環境またはAWS未設定のため、SMS送信をスキップ', [
+        // テスト環境の場合は実際にSMS送信せず成功扱い
+        if (config('app.env') === 'local' || config('app.env') === 'testing') {
+            Log::info('テスト環境のため、SMS送信をスキップ', [
                 'phone' => $phone,
                 'otp' => $otp,
                 'env' => config('app.env'),
-                'aws_configured' => $this->snsClient !== null,
             ]);
             return true;
+        }
+        
+        // AWS認証情報がない場合
+        if (!$this->snsClient) {
+            Log::error('AWS SNS認証情報が設定されていません', [
+                'phone' => $phone,
+                'key_exists' => config('services.sns.key') !== null,
+                'secret_exists' => config('services.sns.secret') !== null,
+            ]);
+            return false;
         }
         
         $message = sprintf(
