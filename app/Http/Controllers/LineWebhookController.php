@@ -157,7 +157,7 @@ class LineWebhookController extends Controller
         $messageType = $event['message']['type'] ?? '';
         $text = $event['message']['text'] ?? '';
         
-        if (!$lineUserId) {
+        if (!$lineUserId || $messageType !== 'text') {
             return;
         }
         
@@ -167,6 +167,16 @@ class LineWebhookController extends Controller
             'type' => $messageType,
             'text' => $text
         ]);
+        
+        // 電話番号らしき文字列を検出（ハイフンありなし両対応）
+        $phonePattern = '/^0[0-9]{9,10}$/';
+        $cleanPhone = preg_replace('/[^0-9]/', '', $text);
+        
+        if (preg_match($phonePattern, $cleanPhone)) {
+            // 電話番号で顧客を検索
+            $this->linkCustomerByPhone($lineUserId, $cleanPhone, $store);
+            return;
+        }
         
         // 自動応答などの処理を追加可能
     }
@@ -248,7 +258,9 @@ class LineWebhookController extends Controller
     {
         $lineService = new SimpleLineService();
         
-        $message = "いらっしゃいませ！\n{$store->name}のLINE公式アカウントにご登録いただき、ありがとうございます。\n\nこちらから予約の確認や変更、キャンセルが可能です。";
+        $message = "いらっしゃいませ！\n{$store->name}のLINE公式アカウントにご登録いただき、ありがとうございます。\n\n" .
+                   "🔔 予約のリマインダー通知を受け取るには、予約時の電話番号（ハイフンなし）を送信してください。\n" .
+                   "例: 09012345678";
         
         $lineService->sendMessage($store, $lineUserId, $message);
     }
@@ -275,5 +287,76 @@ class LineWebhookController extends Controller
         $message = "LINE連携が完了しました！\n{$customer->last_name} {$customer->first_name}様\n\n今後、予約の変更・キャンセル、リマインダー通知などをLINEでお受け取りいただけます。{$reservationInfo}";
         
         $lineService->sendMessage($store, $lineUserId, $message);
+    }
+    
+    /**
+     * 電話番号による顧客連携
+     */
+    private function linkCustomerByPhone(string $lineUserId, string $phone, Store $store): void
+    {
+        try {
+            // 電話番号で顧客を検索
+            $customer = Customer::where('phone', $phone)->first();
+            
+            if (!$customer) {
+                $lineService = new SimpleLineService();
+                $message = "申し訳ございません。この電話番号で予約が見つかりませんでした。\n" .
+                           "予約時の電話番号を再度ご確認ください。";
+                $lineService->sendMessage($store, $lineUserId, $message);
+                return;
+            }
+            
+            // 他の顧客が既に同じLINEユーザーIDを使用していないかチェック
+            $existingCustomer = Customer::where('line_user_id', $lineUserId)
+                ->where('id', '!=', $customer->id)
+                ->first();
+            
+            if ($existingCustomer) {
+                Log::warning('LINE連携: 既に他の顧客が同じLINEユーザーIDを使用', [
+                    'existing_customer_id' => $existingCustomer->id,
+                    'new_customer_id' => $customer->id,
+                    'line_user_id' => $lineUserId
+                ]);
+                
+                $lineService = new SimpleLineService();
+                $message = "このLINEアカウントは既に別の電話番号と連携されています。";
+                $lineService->sendMessage($store, $lineUserId, $message);
+                return;
+            }
+            
+            // 顧客にLINEユーザーIDを関連付け
+            $customer->line_user_id = $lineUserId;
+            $customer->line_notifications_enabled = true;
+            $customer->save();
+            
+            Log::info('LINE連携成功（電話番号）', [
+                'customer_id' => $customer->id,
+                'line_user_id' => $lineUserId,
+                'store_id' => $store->id
+            ]);
+            
+            // 連携完了メッセージを送信
+            $lineService = new SimpleLineService();
+            $message = "✅ LINE連携が完了しました！\n\n" .
+                       "{$customer->last_name} {$customer->first_name}様\n\n" .
+                       "今後、予約のリマインダー通知やお得な情報をLINEでお受け取りいただけます。\n\n" .
+                       "【設定完了】\n" .
+                       "・予約前日のリマインダー\n" .
+                       "・予約変更・キャンセルのお知らせ\n" .
+                       "・キャンペーン情報";
+            $lineService->sendMessage($store, $lineUserId, $message);
+            
+        } catch (\Exception $e) {
+            Log::error('LINE連携エラー（電話番号）', [
+                'phone' => $phone,
+                'line_user_id' => $lineUserId,
+                'store_id' => $store->id,
+                'error' => $e->getMessage()
+            ]);
+            
+            $lineService = new SimpleLineService();
+            $message = "連携処理中にエラーが発生しました。しばらく待ってから再度お試しください。";
+            $lineService->sendMessage($store, $lineUserId, $message);
+        }
     }
 }
