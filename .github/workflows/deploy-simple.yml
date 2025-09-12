@@ -73,9 +73,12 @@ jobs:
         BASIC_AUTH_PASSWORD=xsyumeno2025!
         ENV
         
-        # SQLiteデータベース作成
+        # SQLiteデータベース設定（新規作成しない）
         cd $APP_DIR
-        sudo touch database/database.sqlite
+        if [ ! -f "database/database.sqlite" ]; then
+          sudo touch database/database.sqlite
+          echo "Created new database file"
+        fi
         sudo chown www-data:www-data database/database.sqlite
         sudo chmod 664 database/database.sqlite
         
