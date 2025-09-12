@@ -169,7 +169,7 @@ class PublicReservationController extends Controller
         
         // 顧客タイプ制限の適用
         if ($isNewCustomer) {
-            $menusQuery->whereIn('customer_type_restriction', ['all', 'new']);
+            $menusQuery->whereIn('customer_type_restriction', ['all', 'new_only']);
         } else {
             $menusQuery->whereIn('customer_type_restriction', ['all', 'existing']);
         }
