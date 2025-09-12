@@ -49,29 +49,8 @@ jobs:
           echo "Database restored"
         fi
         
-        # .env (SQLiteを使用)
-        sudo tee $APP_DIR/.env > /dev/null << 'ENV'
-        APP_NAME=Xsyumeno
-        APP_ENV=production
-        APP_KEY=base64:FhDmJJEPuQPAz6t5HMt6qTVSYLs7pJg7xLDgBEcVHHg=
-        APP_DEBUG=true
-        APP_URL=https://reservation.meno-training.com
-        APP_LOCALE=ja
-        
-        DB_CONNECTION=sqlite
-        
-        LOG_CHANNEL=stack
-        CACHE_DRIVER=file
-        SESSION_DRIVER=file
-        SESSION_DOMAIN=null
-        SESSION_SECURE_COOKIE=false
-        QUEUE_CONNECTION=sync
-        
-        # Basic認証設定（本番環境で使用）
-        BASIC_AUTH_ENABLED=true
-        BASIC_AUTH_USERNAME=xsyumeno
-        BASIC_AUTH_PASSWORD=xsyumeno2025!
-        ENV
+        # .envファイルは手動管理（CI/CDで上書きしない）
+        # 既存の.envファイルを保持
         
         # SQLiteデータベース設定（新規作成しない）
         cd $APP_DIR
@@ -85,8 +64,8 @@ jobs:
         # Composer
         sudo COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader
         
-        # Laravel設定（migrateはSQLiteで実行）
-        sudo php artisan key:generate
+        # Laravel設定（.envファイルは既存のものを使用）
+        # sudo php artisan key:generate はコメントアウト（既存のキーを使用）
         sudo php artisan storage:link
         sudo php artisan optimize:clear
         sudo php artisan migrate --force
