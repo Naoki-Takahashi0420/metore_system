@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\AvailabilityController;
 use App\Http\Controllers\Api\CustomerCheckController;
 use App\Http\Controllers\Api\NotificationPreferenceController;
+use App\Http\Controllers\Api\LineLinkController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -75,6 +76,10 @@ Route::post('unsubscribe-sms', [NotificationPreferenceController::class, 'unsubs
 
 // LINE Webhook（店舗別）
 Route::post('line/webhook/{store_code}', [\App\Http\Controllers\LineWebhookController::class, 'handle']);
+
+// LINE連携API（認証不要・トークンベース）
+Route::post('line/link', [LineLinkController::class, 'link']);
+Route::get('line/status', [LineLinkController::class, 'status']);
 
 // 勤怠管理API（認証必須）
 Route::middleware('auth:sanctum')->prefix('time-tracking')->group(function () {

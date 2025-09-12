@@ -168,13 +168,20 @@ class LineWebhookController extends Controller
             'text' => $text
         ]);
         
-        // 電話番号らしき文字列を検出（ハイフンありなし両対応）
-        $phonePattern = '/^0[0-9]{9,10}$/';
-        $cleanPhone = preg_replace('/[^0-9]/', '', $text);
+        // 6桁の連携コードを検出
+        $codePattern = '/^[0-9]{6}$/';
+        $cleanText = preg_replace('/[^0-9]/', '', $text);
         
-        if (preg_match($phonePattern, $cleanPhone)) {
-            // 電話番号で顧客を検索
-            $this->linkCustomerByPhone($lineUserId, $cleanPhone, $store);
+        if (preg_match($codePattern, $cleanText)) {
+            // 連携コードで顧客を検索
+            $this->linkCustomerByCode($lineUserId, $cleanText, $store);
+            return;
+        }
+        
+        // 電話番号らしき文字列を検出（フォールバック）
+        $phonePattern = '/^0[0-9]{9,10}$/';
+        if (preg_match($phonePattern, $cleanText)) {
+            $this->linkCustomerByPhone($lineUserId, $cleanText, $store);
             return;
         }
         
@@ -252,15 +259,56 @@ class LineWebhookController extends Controller
     }
 
     /**
-     * ウェルカムメッセージ送信
+     * ウェルカムメッセージ送信（LIFF連携ボタン付き）
      */
     private function sendWelcomeMessage(string $lineUserId, Store $store): void
     {
         $lineService = new SimpleLineService();
         
-        $message = "いらっしゃいませ！\n{$store->name}のLINE公式アカウントにご登録いただき、ありがとうございます。\n\n" .
-                   "🔔 予約のリマインダー通知を受け取るには、予約時の電話番号（ハイフンなし）を送信してください。\n" .
-                   "例: 09012345678";
+        // 最近の未連携予約を確認（24時間以内）
+        $recentToken = CustomerAccessToken::where('store_id', $store->id)
+            ->where('purpose', 'line_linking')
+            ->where('created_at', '>=', now()->subHours(24))
+            ->whereHas('customer', function($q) {
+                $q->whereNull('line_user_id');
+            })
+            ->orderBy('created_at', 'desc')
+            ->first();
+        
+        if ($recentToken) {
+            // 最新の予約トークンがある場合はLIFFボタンメッセージを送信
+            $this->sendLinkingButtonMessage($lineUserId, $recentToken, $store);
+        } else {
+            // 通常のウェルカムメッセージ
+            $message = "いらっしゃいませ！\n{$store->name}のLINE公式アカウントにご登録いただき、ありがとうございます。\n\n" .
+                       "📋 予約がある場合は、予約完了メールに記載された6桁の連携コードを送信してください。";
+            
+            $lineService->sendMessage($store, $lineUserId, $message);
+        }
+    }
+
+    /**
+     * LIFF連携ボタンメッセージ送信
+     */
+    private function sendLinkingButtonMessage(string $lineUserId, CustomerAccessToken $token, Store $store): void
+    {
+        $lineService = new SimpleLineService();
+        
+        // LIFF URLを生成（トークン付き）
+        $liffUrl = route('line.link') . '?token=' . $token->token;
+        
+        $customer = $token->customer;
+        $linkingCode = $token->metadata['linking_code'] ?? '------';
+        
+        // テキストメッセージで連携案内を送信
+        $message = "🎉 いらっしゃいませ！\n{$store->name}のLINE公式アカウントにご登録いただき、ありがとうございます。\n\n" .
+                   "📋 アカウント連携のご案内\n" .
+                   "お客様: {$customer->full_name}\n" .
+                   "連携コード: {$linkingCode}\n\n" .
+                   "🔗 下記URLからLINEアカウントと顧客情報を連携できます：\n" .
+                   "{$liffUrl}\n\n" .
+                   "または、上記の6桁の連携コードをメッセージで送信してください。\n\n" .
+                   "連携すると、予約のリマインダーやお得な情報をLINEで受け取れます。";
         
         $lineService->sendMessage($store, $lineUserId, $message);
     }
@@ -349,6 +397,80 @@ class LineWebhookController extends Controller
         } catch (\Exception $e) {
             Log::error('LINE連携エラー（電話番号）', [
                 'phone' => $phone,
+                'line_user_id' => $lineUserId,
+                'store_id' => $store->id,
+                'error' => $e->getMessage()
+            ]);
+            
+            $lineService = new SimpleLineService();
+            $message = "連携処理中にエラーが発生しました。しばらく待ってから再度お試しください。";
+            $lineService->sendMessage($store, $lineUserId, $message);
+        }
+    }
+    
+    /**
+     * 連携コードによる顧客連携
+     */
+    private function linkCustomerByCode(string $lineUserId, string $code, Store $store): void
+    {
+        try {
+            // 連携コードでトークンを検索
+            $token = CustomerAccessToken::where('store_id', $store->id)
+                ->where('purpose', 'line_linking')
+                ->whereJsonContains('metadata->linking_code', $code)
+                ->where('created_at', '>=', now()->subHours(24)) // 24時間以内
+                ->first();
+            
+            if (!$token || !$token->customer) {
+                $lineService = new SimpleLineService();
+                $message = "連携コードが見つかりません。予約完了時に表示された6桁のコードをご確認ください。";
+                $lineService->sendMessage($store, $lineUserId, $message);
+                return;
+            }
+            
+            $customer = $token->customer;
+            
+            // 既に他の顧客が同じLINEユーザーIDを使用していないかチェック
+            $existingCustomer = Customer::where('line_user_id', $lineUserId)
+                ->where('id', '!=', $customer->id)
+                ->first();
+            
+            if ($existingCustomer) {
+                $lineService = new SimpleLineService();
+                $message = "このLINEアカウントは既に別のお客様と連携されています。";
+                $lineService->sendMessage($store, $lineUserId, $message);
+                return;
+            }
+            
+            // 顧客にLINEユーザーIDを関連付け
+            $customer->line_user_id = $lineUserId;
+            $customer->line_notifications_enabled = true;
+            $customer->save();
+            
+            // トークンを使用済みにする
+            $token->recordUsage();
+            
+            Log::info('LINE連携成功（連携コード）', [
+                'customer_id' => $customer->id,
+                'line_user_id' => $lineUserId,
+                'store_id' => $store->id
+            ]);
+            
+            // 連携完了メッセージを送信
+            $lineService = new SimpleLineService();
+            $reservationInfo = '';
+            if (isset($token->metadata['reservation_number'])) {
+                $reservationInfo = "\n\n予約番号: {$token->metadata['reservation_number']}";
+            }
+            
+            $message = "✅ LINE連携が完了しました！\n\n" .
+                       "{$customer->last_name} {$customer->first_name}様\n" .
+                       "今後、予約のリマインダー通知をLINEでお受け取りいただけます。{$reservationInfo}";
+            $lineService->sendMessage($store, $lineUserId, $message);
+            
+        } catch (\Exception $e) {
+            Log::error('LINE連携エラー（連携コード）', [
+                'code' => $code,
                 'line_user_id' => $lineUserId,
                 'store_id' => $store->id,
                 'error' => $e->getMessage()

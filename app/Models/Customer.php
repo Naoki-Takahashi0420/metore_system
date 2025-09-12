@@ -300,11 +300,17 @@ class Customer extends Model
             return $existingToken;
         }
 
-        // 新しいトークンを生成
+        // 6桁の連携コードを生成
+        $linkingCode = str_pad(random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
+        
+        // 新しいトークンを生成（連携コード付き）
         return CustomerAccessToken::generateFor($this, $store, array_merge([
             'purpose' => 'line_linking',
             'expires_at' => now()->addDays(30),
             'max_usage' => 1,
+            'metadata' => array_merge($options['metadata'] ?? [], [
+                'linking_code' => $linkingCode
+            ])
         ], $options));
     }
 }

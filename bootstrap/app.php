@@ -14,6 +14,12 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'auth.basic' => \App\Http\Middleware\BasicAuth::class,
+            'cors' => \App\Http\Middleware\CorsMiddleware::class,
+        ]);
+        
+        // LINE連携API用のCORS設定
+        $middleware->group('api', [
+            \App\Http\Middleware\CorsMiddleware::class,
         ]);
         
         // Livewireファイルアップロード用のCSRF除外

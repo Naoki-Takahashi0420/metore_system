@@ -39,6 +39,9 @@ class Reservation extends Model
         'is_sub',  // 互換性のため保持
         'seat_number',
         'reservation_time',
+        'confirmation_sent_at',
+        'confirmation_method',
+        'line_confirmation_sent_at',
     ];
 
     protected $casts = [
@@ -52,6 +55,8 @@ class Reservation extends Model
         'is_sub' => 'boolean',
         'seat_number' => 'integer',
         'line_number' => 'integer',
+        'confirmation_sent_at' => 'datetime',
+        'line_confirmation_sent_at' => 'datetime',
     ];
     
     /**

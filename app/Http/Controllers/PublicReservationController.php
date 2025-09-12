@@ -14,6 +14,7 @@ use App\Models\Shift;
 use App\Events\ReservationCreated;
 use App\Events\ReservationCancelled;
 use App\Events\ReservationChanged;
+use App\Jobs\SendReservationConfirmationWithFallback;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -948,6 +949,42 @@ class PublicReservationController extends Controller
             
             // 新規予約通知を送信
             event(new ReservationCreated($reservation));
+            
+            // LINE連携済みの場合は即時確認通知を試行
+            if ($customer->line_user_id) {
+                \Log::info('LINE連携済み顧客：即時確認通知を試行', [
+                    'reservation_id' => $reservation->id,
+                    'customer_id' => $customer->id,
+                    'line_user_id' => $customer->line_user_id
+                ]);
+                
+                // 即時LINE送信を試行
+                $confirmationService = app(\App\Services\ReservationConfirmationService::class);
+                if ($confirmationService->sendLineConfirmation($reservation)) {
+                    $confirmationService->markConfirmationSent($reservation, 'line');
+                    
+                    \Log::info('即時LINE確認通知送信成功', [
+                        'reservation_id' => $reservation->id,
+                        'customer_id' => $customer->id
+                    ]);
+                } else {
+                    \Log::warning('即時LINE確認通知送信失敗、フォールバック予約', [
+                        'reservation_id' => $reservation->id,
+                        'customer_id' => $customer->id
+                    ]);
+                }
+            }
+            
+            // 5分遅延フォールバック確認通知をスケジュール（二重送信防止チェック付き）
+            $delayMinutes = config('reservation.fallback_delay_minutes', 5);
+            SendReservationConfirmationWithFallback::dispatch($reservation)
+                ->delay(now()->addMinutes($delayMinutes));
+            
+            \Log::info('予約確認通知フォールバックジョブをスケジュール', [
+                'reservation_id' => $reservation->id,
+                'delay_minutes' => $delayMinutes,
+                'scheduled_at' => now()->addMinutes($delayMinutes)->toISOString()
+            ]);
             
             \Log::info('予約完了、リダイレクト処理', [
                 'reservation_number' => $reservation->reservation_number,

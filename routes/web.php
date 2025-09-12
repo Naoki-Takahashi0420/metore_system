@@ -171,6 +171,11 @@ Route::post('/admin/password-reset/update', [PasswordResetController::class, 're
 
 }); // Basic認証グループの終了
 
+// LINE連携ページ（Basic認証不要）
+Route::get('/line/link', function () {
+    return view('line.link');
+})->name('line.link');
+
 // テスト用ルート（開発環境のみ）
 if (app()->environment('local')) {
     require __DIR__.'/test.php';

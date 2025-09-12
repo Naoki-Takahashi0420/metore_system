@@ -84,6 +84,14 @@
             <div class="bg-blue-50 border border-blue-200 rounded-md p-6 mb-6 text-center">
                 <h3 class="font-semibold text-blue-800 mb-3">📱 LINE友だち追加でもっと便利に！</h3>
                 
+                @if(isset($linkingCode))
+                <div class="bg-white border-2 border-blue-300 rounded-lg p-4 mb-4">
+                    <p class="text-sm text-gray-600 mb-2">LINE連携コード（友だち追加後に使用）</p>
+                    <p class="text-3xl font-bold text-blue-600 tracking-wider">{{ $linkingCode }}</p>
+                    <p class="text-xs text-gray-500 mt-2">このコードは24時間有効です</p>
+                </div>
+                @endif
+                
                 <!-- スマホ用友だち追加ボタン（モバイルデバイスでのみ表示） -->
                 <div class="mb-4 sm:hidden">
                     <a href="{{ $lineQrCodeUrl }}" 
