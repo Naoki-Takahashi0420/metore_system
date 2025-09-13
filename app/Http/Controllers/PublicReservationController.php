@@ -1056,26 +1056,36 @@ class PublicReservationController extends Controller
         // LINE QRコード用トークンを生成
         $lineToken = null;
         $lineQrCodeUrl = null;
+        $customerToken = null;
         
-        // 顧客がまだLINE連携していない場合のみQRコードを表示
-        if (!$reservation->customer->isLinkedToLine() && $reservation->store->line_enabled) {
-            $lineToken = $reservation->customer->getOrCreateAccessToken($reservation->store, [
+        // LINE連携用トークンを生成（未連携の場合）
+        if (!$reservation->customer->line_user_id && $reservation->store->line_enabled) {
+            // LINE連携用アクセストークンを生成
+            $accessToken = \App\Models\CustomerAccessToken::create([
+                'customer_id' => $reservation->customer->id,
+                'store_id' => $reservation->store->id,
+                'token' => \Illuminate\Support\Str::random(32),
                 'purpose' => 'line_linking',
                 'expires_at' => now()->addDays(30),
-                'max_usage' => 1,
                 'metadata' => [
                     'reservation_id' => $reservation->id,
                     'reservation_number' => $reservation->reservation_number,
+                    'linking_code' => str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT)
                 ]
             ]);
             
-            $lineQrCodeUrl = $lineToken->getLineAddFriendUrl();
+            $customerToken = $accessToken->token;
+            
+            // QRコード用URL（友達追加用）
+            if ($reservation->store->line_add_friend_url) {
+                $lineQrCodeUrl = $reservation->store->line_add_friend_url;
+            }
         }
         
         // 完了画面表示時にセッションをクリア
         Session::forget(['reservation_menu', 'reservation_options', 'selected_store_id']);
             
-        return view('reservation.public.complete', compact('reservation', 'lineToken', 'lineQrCodeUrl'));
+        return view('reservation.public.complete', compact('reservation', 'lineToken', 'lineQrCodeUrl', 'customerToken'));
     }
     
     /**
