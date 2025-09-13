@@ -8,12 +8,12 @@ use Filament\Forms\Form;
 use Filament\Pages\Page;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Storage;
-use Livewire\WithFileUploads;
-use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
 
-class ImportCustomers extends Page
+class ImportCustomers extends Page implements HasForms
 {
-    use WithFileUploads;
+    use InteractsWithForms;
 
     protected static ?string $navigationIcon = 'heroicon-o-arrow-up-tray';
     protected static string $view = 'filament.pages.import-customers';
@@ -22,23 +22,20 @@ class ImportCustomers extends Page
     protected static ?string $navigationGroup = '顧客管理';
     protected static ?int $navigationSort = 100;
 
-    public $csvFile = null;
-    public ?int $store_id = null;
+    public ?array $data = [];
     public ?array $importResults = null;
-    public bool $isProcessing = false;
 
     public function mount(): void
     {
-        // デフォルト店舗を設定
-        $user = auth()->user();
-        if ($user->store_id) {
-            $this->store_id = $user->store_id;
-        }
+        $this->form->fill([
+            'store_id' => auth()->user()->store_id,
+        ]);
     }
 
     public function form(Form $form): Form
     {
         return $form
+            ->statePath('data')
             ->schema([
                 Forms\Components\Section::make('インポート設定')
                     ->description('CSVファイルをアップロードして顧客データをインポートします')
@@ -49,7 +46,7 @@ class ImportCustomers extends Page
                             ->required()
                             ->helperText('この店舗の顧客としてインポートされます'),
                         
-                        Forms\Components\FileUpload::make('csvFile')
+                        Forms\Components\FileUpload::make('csv_file')
                             ->label('CSVファイル')
                             ->acceptedFileTypes(['text/csv', 'application/csv', 'text/plain'])
                             ->maxSize(10240) // 10MB
@@ -71,22 +68,25 @@ class ImportCustomers extends Page
 
     public function import(): void
     {
-        $this->validate([
-            'csvFile' => 'required',
-            'store_id' => 'required|exists:stores,id',
-        ]);
-
-        $this->isProcessing = true;
-        $this->importResults = null;
+        $data = $this->form->getState();
+        
+        if (!isset($data['csv_file']) || !$data['csv_file']) {
+            Notification::make()
+                ->title('エラー')
+                ->body('CSVファイルを選択してください')
+                ->danger()
+                ->send();
+            return;
+        }
 
         try {
-            // アップロードされたファイルを保存
-            $path = $this->csvFile->store('imports', 'local');
-            $fullPath = Storage::disk('local')->path($path);
+            // アップロードされたファイルのパスを取得
+            $uploadedFile = collect($data['csv_file'])->first();
+            $fullPath = Storage::disk('public')->path($uploadedFile);
 
             // インポートサービスを実行
             $importService = new CustomerImportService();
-            $results = $importService->import($fullPath, $this->store_id);
+            $results = $importService->import($fullPath, $data['store_id']);
 
             // 結果を保存
             $this->importResults = $results;
@@ -101,9 +101,9 @@ class ImportCustomers extends Page
 
             // インポート履歴を記録
             \DB::table('customer_imports')->insert([
-                'store_id' => $this->store_id,
+                'store_id' => $data['store_id'],
                 'user_id' => auth()->id(),
-                'file_name' => $this->csvFile->getClientOriginalName(),
+                'file_name' => basename($uploadedFile),
                 'total_rows' => $results['success_count'] + $results['skip_count'] + $results['error_count'],
                 'success_count' => $results['success_count'],
                 'skip_count' => $results['skip_count'],
@@ -141,7 +141,7 @@ class ImportCustomers extends Page
             }
 
             // 一時ファイルを削除
-            Storage::disk('local')->delete($path);
+            Storage::disk('public')->delete($uploadedFile);
 
         } catch (\Exception $e) {
             Notification::make()
@@ -154,8 +154,6 @@ class ImportCustomers extends Page
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-        } finally {
-            $this->isProcessing = false;
         }
     }
 

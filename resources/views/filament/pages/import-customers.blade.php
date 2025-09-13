@@ -6,7 +6,7 @@
             <x-filament::button
                 type="submit"
                 wire:loading.attr="disabled"
-                :disabled="$isProcessing"
+                wire:target="import"
             >
                 <span wire:loading.remove wire:target="import">
                     インポート実行

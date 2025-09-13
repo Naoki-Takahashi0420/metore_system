@@ -811,7 +811,7 @@ class PublicReservationController extends Controller
                 'store_id' => $validated['store_id'] ?? null
             ]);
             
-            // サブスク会員でない場合のみ制限をチェック
+            // データベースに顧客情報がある場合は既存顧客として扱う（CSVインポート顧客も含む）
             if (!$hasActiveSubscription) {
                 // 最新の予約（完了済みも含む）を取得
                 $latestReservation = Reservation::where('customer_id', $existingCustomerByPhone->id)
