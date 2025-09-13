@@ -89,12 +89,8 @@ class ListCustomers extends ListRecords
         // スーパーアドミンは全顧客表示（店舗フィルターがある場合は適用）
         if ($user->hasRole('super_admin')) {
             if ($this->storeFilter) {
-                $query->where(function ($subQuery) {
-                    // 指定店舗の予約がある顧客、または予約履歴がない顧客
-                    $subQuery->whereHas('reservations', function ($reservationQuery) {
-                        $reservationQuery->where('store_id', $this->storeFilter);
-                    })->orWhereDoesntHave('reservations');
-                });
+                // 顧客の所属店舗でフィルター
+                $query->where('store_id', $this->storeFilter);
             }
             return $query;
         }
@@ -106,12 +102,8 @@ class ListCustomers extends ListRecords
             if ($this->storeFilter) {
                 // 特定店舗が選択されている場合
                 if (in_array($this->storeFilter, $manageableStoreIds->toArray())) {
-                    $query->where(function ($subQuery) {
-                        // 指定店舗の予約がある顧客、または予約履歴がない顧客
-                        $subQuery->whereHas('reservations', function ($reservationQuery) {
-                            $reservationQuery->where('store_id', $this->storeFilter);
-                        })->orWhereDoesntHave('reservations');
-                    });
+                    // 顧客の所属店舗でフィルター
+                    $query->where('store_id', $this->storeFilter);
                 } else {
                     // 管理権限がない店舗が選択されている場合は空を返す
                     return $query->whereRaw('1 = 0');
