@@ -88,33 +88,36 @@ class CustomerImportService
             }
             
             // 電話番号の取得（電話番号1が優先、なければ電話番号2）
-            $phoneNumber = !empty($data['電話番号1']) ? $data['電話番号1'] : (!empty($data['電話番号2']) ? $data['電話番号2'] : '');
+            $phoneNumber1 = trim($data['電話番号1'] ?? '');
+            $phoneNumber2 = trim($data['電話番号2'] ?? '');
             
-            // 電話番号の正規化（電話番号がある場合のみ）
-            $phone = '';
-            if (!empty($phoneNumber)) {
-                $phone = $this->normalizePhone($phoneNumber);
-                if (!$phone && !empty($phoneNumber)) {
-                    $this->addError($rowNumber, '電話番号の形式が不正: ' . $phoneNumber);
-                    $this->errorCount++;
-                    return;
-                }
+            // より厳密な空チェック
+            $phoneNumber = '';
+            if (!empty($phoneNumber1) && $phoneNumber1 !== '' && $phoneNumber1 !== '　' && $phoneNumber1 !== '-') {
+                $phoneNumber = $phoneNumber1;
+            } elseif (!empty($phoneNumber2) && $phoneNumber2 !== '' && $phoneNumber2 !== '　' && $phoneNumber2 !== '-') {
+                $phoneNumber = $phoneNumber2;
             }
             
-            // 既存顧客チェック（同一店舗内）- 電話番号またはメールアドレスで判定
-            $existingCustomer = null;
-            if (!empty($phone)) {
-                $existingCustomer = Customer::where('phone', $phone)
-                    ->where('store_id', $storeId)
-                    ->first();
+            // 電話番号がない場合はエラー（より厳密な判定）
+            if (empty($phoneNumber) || $phoneNumber === '' || $phoneNumber === '　' || $phoneNumber === '-' || strlen(trim($phoneNumber)) === 0) {
+                $this->addError($rowNumber, '電話番号が必須です（電話番号1または電話番号2のいずれかが必要）');
+                $this->errorCount++;
+                return;
             }
             
-            // 電話番号がない場合はメールアドレスでチェック
-            if (!$existingCustomer && !empty($data['メールアドレス'])) {
-                $existingCustomer = Customer::where('email', $data['メールアドレス'])
-                    ->where('store_id', $storeId)
-                    ->first();
+            // 電話番号の正規化
+            $phone = $this->normalizePhone($phoneNumber);
+            if (!$phone) {
+                $this->addError($rowNumber, '電話番号の形式が不正: ' . $phoneNumber);
+                $this->errorCount++;
+                return;
             }
+            
+            // 既存顧客チェック（同一店舗内）- 電話番号で判定
+            $existingCustomer = Customer::where('phone', $phone)
+                ->where('store_id', $storeId)
+                ->first();
             
             if ($existingCustomer) {
                 $this->addError($rowNumber, '既存顧客（同一店舗）のためスキップ');
@@ -124,6 +127,13 @@ class CustomerImportService
             
             // 顧客データを作成
             $customerData = $this->mapToCustomerData($data, $storeId);
+            
+            // 最終安全チェック：電話番号が確実に設定されているか
+            if (empty($customerData['phone']) || $customerData['phone'] === null || $customerData['phone'] === '') {
+                $this->addError($rowNumber, '最終チェック: 電話番号が設定されていません');
+                $this->errorCount++;
+                return;
+            }
             
             // 顧客を作成
             Customer::create($customerData);
@@ -167,7 +177,15 @@ class CustomerImportService
         $updatedAt = $this->parseDateTime($data['更新日時'] ?? '');
         
         // 電話番号を取得（優先順位: 電話番号1 > 電話番号2）
-        $phoneNumber = !empty($data['電話番号1']) ? $data['電話番号1'] : (!empty($data['電話番号2']) ? $data['電話番号2'] : '');
+        $phoneNumber1 = trim($data['電話番号1'] ?? '');
+        $phoneNumber2 = trim($data['電話番号2'] ?? '');
+        
+        $phoneNumber = '';
+        if (!empty($phoneNumber1) && $phoneNumber1 !== '' && $phoneNumber1 !== '　' && $phoneNumber1 !== '-') {
+            $phoneNumber = $phoneNumber1;
+        } elseif (!empty($phoneNumber2) && $phoneNumber2 !== '' && $phoneNumber2 !== '　' && $phoneNumber2 !== '-') {
+            $phoneNumber = $phoneNumber2;
+        }
         
         return [
             'customer_number' => $data['顧客番号'],
