@@ -178,12 +178,23 @@ class AdminNotificationService
     {
         $preferences = $admin->notification_preferences ?? [];
         
-        // 緊急通知は常に送信
+        // SMS通知が無効の場合
+        if (!($preferences['sms_enabled'] ?? false)) {
+            return false;
+        }
+        
+        // 通知タイプが指定されている場合はチェック
+        $notificationTypes = $preferences['notification_types'] ?? ['new_reservation', 'cancellation', 'change'];
+        if (!in_array($type, $notificationTypes)) {
+            return false;
+        }
+        
+        // 緊急通知（キャンセル・変更）は優先
         if (in_array($type, ['cancellation', 'change'])) {
             return true;
         }
         
-        return $preferences['sms_enabled'] ?? false;
+        return true;
     }
     
     /**
@@ -193,7 +204,18 @@ class AdminNotificationService
     {
         $preferences = $admin->notification_preferences ?? [];
         
-        return $preferences['email_enabled'] ?? true; // デフォルトでメール有効
+        // メール通知が無効の場合
+        if (!($preferences['email_enabled'] ?? true)) {
+            return false;
+        }
+        
+        // 通知タイプが指定されている場合はチェック
+        $notificationTypes = $preferences['notification_types'] ?? ['new_reservation', 'cancellation', 'change'];
+        if (!in_array($type, $notificationTypes)) {
+            return false;
+        }
+        
+        return true;
     }
     
     /**

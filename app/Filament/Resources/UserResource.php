@@ -115,6 +115,30 @@ class UserResource extends Resource
                             ->maxLength(500),
                     ])
                     ->columns(2),
+
+                Forms\Components\Section::make('通知設定')
+                    ->schema([
+                        Forms\Components\Toggle::make('notification_preferences.email_enabled')
+                            ->label('メール通知を受信')
+                            ->helperText('予約作成・変更・キャンセル時にメールで通知を受け取る')
+                            ->default(true)
+                            ->reactive(),
+                        Forms\Components\Toggle::make('notification_preferences.sms_enabled')
+                            ->label('SMS通知を受信')
+                            ->helperText('緊急時（キャンセル・変更）にSMSで通知を受け取る')
+                            ->default(false),
+                        Forms\Components\Select::make('notification_preferences.notification_types')
+                            ->label('通知を受け取る予約操作')
+                            ->multiple()
+                            ->options([
+                                'new_reservation' => '新規予約',
+                                'cancellation' => 'キャンセル',
+                                'change' => '予約変更',
+                            ])
+                            ->default(['new_reservation', 'cancellation', 'change'])
+                            ->helperText('どの操作の時に通知を受け取るかを選択'),
+                    ])
+                    ->columns(1),
             ]);
     }
 
@@ -152,6 +176,16 @@ class UserResource extends Resource
                 Tables\Columns\IconColumn::make('is_available')
                     ->label('予約受付')
                     ->boolean(),
+                Tables\Columns\IconColumn::make('notification_preferences.email_enabled')
+                    ->label('メール通知')
+                    ->boolean()
+                    ->getStateUsing(fn ($record) => $record->notification_preferences['email_enabled'] ?? true)
+                    ->toggleable(),
+                Tables\Columns\IconColumn::make('notification_preferences.sms_enabled')
+                    ->label('SMS通知')
+                    ->boolean()
+                    ->getStateUsing(fn ($record) => $record->notification_preferences['sms_enabled'] ?? false)
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('登録日')
                     ->dateTime()
