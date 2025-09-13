@@ -135,8 +135,34 @@
 
         // URLパラメータから予約番号を取得
         function getReservationNumber() {
+            // まずは通常のURLパラメータから取得を試行
             const urlParams = new URLSearchParams(window.location.search);
-            return urlParams.get('reservation');
+            let reservation = urlParams.get('reservation');
+            
+            if (reservation) {
+                return reservation;
+            }
+            
+            // LIFF環境の場合、liff.getContext()からクエリを取得
+            if (typeof liff !== 'undefined' && liffInitialized) {
+                try {
+                    const context = liff.getContext();
+                    if (context && context.liffId) {
+                        // LIFF URLからパラメータを抽出
+                        const referrer = document.referrer;
+                        if (referrer.includes('reservation=')) {
+                            const match = referrer.match(/reservation=([^&]+)/);
+                            if (match) {
+                                return match[1];
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.log('LIFF context error:', error);
+                }
+            }
+            
+            return null;
         }
 
         // 画面表示制御
@@ -290,12 +316,16 @@
 
         // 初期化処理
         window.addEventListener('DOMContentLoaded', function() {
+            console.log('Current URL:', window.location.href);
+            console.log('Search params:', window.location.search);
+            
             const reservationNumber = getReservationNumber();
+            console.log('Extracted reservation number:', reservationNumber);
             
             if (!reservationNumber) {
                 // テスト用：予約番号がない場合はダミーで処理
                 console.log('No reservation number - using test mode');
-                showError('テストモード：予約番号がありません。実際の予約完了ページからアクセスしてください。');
+                showError('テストモード：予約番号がありません。URL: ' + window.location.href);
                 return;
             }
             
