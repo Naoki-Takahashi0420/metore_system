@@ -176,25 +176,8 @@ class AdminNotificationService
      */
     private function shouldSendSms(User $admin, string $type): bool
     {
-        $preferences = $admin->notification_preferences ?? [];
-        
-        // SMS通知が無効の場合
-        if (!($preferences['sms_enabled'] ?? false)) {
-            return false;
-        }
-        
-        // 通知タイプが指定されている場合はチェック
-        $notificationTypes = $preferences['notification_types'] ?? ['new_reservation', 'cancellation', 'change'];
-        if (!in_array($type, $notificationTypes)) {
-            return false;
-        }
-        
-        // 緊急通知（キャンセル・変更）は優先
-        if (in_array($type, ['cancellation', 'change'])) {
-            return true;
-        }
-        
-        return true;
+        // SMSは現在使用していない
+        return false;
     }
     
     /**
@@ -204,18 +187,8 @@ class AdminNotificationService
     {
         $preferences = $admin->notification_preferences ?? [];
         
-        // メール通知が無効の場合
-        if (!($preferences['email_enabled'] ?? true)) {
-            return false;
-        }
-        
-        // 通知タイプが指定されている場合はチェック
-        $notificationTypes = $preferences['notification_types'] ?? ['new_reservation', 'cancellation', 'change'];
-        if (!in_array($type, $notificationTypes)) {
-            return false;
-        }
-        
-        return true;
+        // 予約通知が無効の場合は送信しない
+        return $preferences['email_enabled'] ?? true;
     }
     
     /**
