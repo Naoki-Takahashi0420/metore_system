@@ -20,6 +20,14 @@ class LineMessageService
     }
     
     /**
+     * 店舗ごとのトークンを設定
+     */
+    public function setChannelToken(string $token): void
+    {
+        $this->channelToken = $token;
+    }
+    
+    /**
      * ① 予約確認メッセージを送る
      */
     public function sendReservationConfirmation(Reservation $reservation)

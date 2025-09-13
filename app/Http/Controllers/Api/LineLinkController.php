@@ -512,6 +512,11 @@ class LineLinkController extends Controller
 
             $lineMessageService = app(\App\Services\LineMessageService::class);
             
+            // 店舗のLINEチャネルトークンを設定
+            if ($store->line_channel_access_token) {
+                $lineMessageService->setChannelToken($store->line_channel_access_token);
+            }
+            
             // 予約詳細メッセージを構築
             $reservationDate = \Carbon\Carbon::parse($reservation->reservation_date);
             $startTime = \Carbon\Carbon::parse($reservation->start_time);
