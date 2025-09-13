@@ -342,4 +342,340 @@ class LineLinkController extends Controller
             'user_agent' => request()->userAgent(),
         ]);
     }
+
+    /**
+     * 予約番号ベースのLINE連携処理
+     */
+    public function linkByReservation(Request $request): JsonResponse
+    {
+        try {
+            // レート制限チェック
+            $key = 'line-link-reservation:' . $request->ip();
+            if (RateLimiter::tooManyAttempts($key, 5)) {
+                $seconds = RateLimiter::availableIn($key);
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Too many attempts',
+                    'retry_after' => $seconds
+                ], 429);
+            }
+
+            // リクエスト検証
+            $validatedData = $request->validate([
+                'id_token' => 'required|string',
+                'reservation_number' => 'required|string',
+            ]);
+
+            RateLimiter::hit($key);
+
+            // 予約情報を取得
+            $reservation = \App\Models\Reservation::where('reservation_number', $validatedData['reservation_number'])
+                ->with(['customer', 'store'])
+                ->first();
+
+            if (!$reservation) {
+                $this->logAuditEvent('line_link_reservation_attempt', null, 'failed', [
+                    'error' => 'reservation_not_found',
+                    'reservation_number' => $validatedData['reservation_number'],
+                    'ip' => $request->ip()
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Reservation not found'
+                ], 404);
+            }
+
+            $customer = $reservation->customer;
+            $store = $reservation->store;
+
+            // 店舗のLINE連携が有効かチェック
+            if (!$store->line_enabled || !$store->line_liff_id) {
+                $this->logAuditEvent('line_link_reservation_attempt', $customer->id, 'failed', [
+                    'error' => 'line_not_enabled',
+                    'store_id' => $store->id,
+                    'ip' => $request->ip()
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'error' => 'LINE linking is not enabled for this store'
+                ], 400);
+            }
+
+            // IDトークンを検証
+            try {
+                $lineUserData = $this->tokenVerificationService->verifyIdToken($validatedData['id_token']);
+            } catch (Exception $e) {
+                // JWKs検証失敗時はAPI検証を試行
+                try {
+                    $lineUserData = $this->tokenVerificationService->verifyTokenWithAPI($validatedData['id_token']);
+                } catch (Exception $apiError) {
+                    $this->logAuditEvent('line_link_reservation_attempt', $customer->id, 'failed', [
+                        'error' => 'token_verification_failed',
+                        'message' => $apiError->getMessage(),
+                        'ip' => $request->ip()
+                    ]);
+
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'Invalid LINE token'
+                    ], 400);
+                }
+            }
+
+            // 既に別の顧客に連携されているかチェック
+            $existingCustomer = Customer::findByLineUserId($lineUserData['user_id']);
+            if ($existingCustomer && $existingCustomer->id !== $customer->id) {
+                $this->logAuditEvent('line_link_reservation_attempt', $customer->id, 'failed', [
+                    'error' => 'already_linked',
+                    'line_user_id' => $lineUserData['user_id'],
+                    'existing_customer_id' => $existingCustomer->id,
+                    'ip' => $request->ip()
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'error' => 'This LINE account is already linked to another customer'
+                ], 409);
+            }
+
+            // LINE連携実行
+            $customer->linkToLine($lineUserData['user_id'], [
+                'name' => $lineUserData['name'],
+                'picture' => $lineUserData['picture'],
+                'email' => $lineUserData['email'],
+            ]);
+
+            // 成功ログ
+            $this->logAuditEvent('line_link_reservation_success', $customer->id, 'success', [
+                'line_user_id' => $lineUserData['user_id'],
+                'line_name' => $lineUserData['name'],
+                'reservation_number' => $reservation->reservation_number,
+                'store_id' => $store->id,
+                'ip' => $request->ip()
+            ]);
+
+            // 予約詳細をLINEに送信
+            $this->sendReservationDetailsToLine($customer, $reservation, $store);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'LINE account linked successfully',
+                'customer' => [
+                    'id' => $customer->id,
+                    'name' => $customer->full_name,
+                    'line_linked' => true,
+                ],
+                'reservation' => [
+                    'number' => $reservation->reservation_number,
+                    'store_name' => $store->name
+                ]
+            ]);
+
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Validation failed',
+                'details' => $e->errors()
+            ], 422);
+
+        } catch (Exception $e) {
+            Log::error('LINE reservation link error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+
+            $this->logAuditEvent('line_link_reservation_attempt', null, 'error', [
+                'error' => 'system_error',
+                'message' => $e->getMessage(),
+                'ip' => $request->ip()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'An error occurred during linking'
+            ], 500);
+        }
+    }
+
+    /**
+     * 予約詳細をLINEに送信
+     */
+    private function sendReservationDetailsToLine(Customer $customer, \App\Models\Reservation $reservation, \App\Models\Store $store): void
+    {
+        try {
+            if (!$customer->line_user_id) {
+                return;
+            }
+
+            $lineMessageService = app(\App\Services\LineMessageService::class);
+            
+            // 予約詳細メッセージを構築
+            $reservationDate = \Carbon\Carbon::parse($reservation->reservation_date);
+            $startTime = \Carbon\Carbon::parse($reservation->start_time);
+            $endTime = \Carbon\Carbon::parse($reservation->end_time);
+            
+            $message = [
+                'type' => 'flex',
+                'altText' => '予約詳細',
+                'contents' => [
+                    'type' => 'bubble',
+                    'header' => [
+                        'type' => 'box',
+                        'layout' => 'vertical',
+                        'contents' => [
+                            [
+                                'type' => 'text',
+                                'text' => '🎉 LINE連携完了！',
+                                'weight' => 'bold',
+                                'size' => 'lg',
+                                'color' => '#ffffff'
+                            ],
+                            [
+                                'type' => 'text',
+                                'text' => 'ご予約詳細',
+                                'size' => 'sm',
+                                'color' => '#ffffff'
+                            ]
+                        ],
+                        'backgroundColor' => '#059669',
+                        'paddingAll' => 'lg'
+                    ],
+                    'body' => [
+                        'type' => 'box',
+                        'layout' => 'vertical',
+                        'contents' => [
+                            [
+                                'type' => 'box',
+                                'layout' => 'vertical',
+                                'contents' => [
+                                    [
+                                        'type' => 'text',
+                                        'text' => '予約番号',
+                                        'size' => 'sm',
+                                        'color' => '#888888'
+                                    ],
+                                    [
+                                        'type' => 'text',
+                                        'text' => $reservation->reservation_number,
+                                        'weight' => 'bold',
+                                        'size' => 'lg'
+                                    ]
+                                ],
+                                'margin' => 'md'
+                            ],
+                            [
+                                'type' => 'separator',
+                                'margin' => 'lg'
+                            ],
+                            [
+                                'type' => 'box',
+                                'layout' => 'vertical',
+                                'contents' => [
+                                    [
+                                        'type' => 'text',
+                                        'text' => '日時',
+                                        'size' => 'sm',
+                                        'color' => '#888888'
+                                    ],
+                                    [
+                                        'type' => 'text',
+                                        'text' => $reservationDate->format('Y年n月j日(D)'),
+                                        'weight' => 'bold'
+                                    ],
+                                    [
+                                        'type' => 'text',
+                                        'text' => $startTime->format('H:i') . ' - ' . $endTime->format('H:i'),
+                                        'weight' => 'bold'
+                                    ]
+                                ],
+                                'margin' => 'lg'
+                            ],
+                            [
+                                'type' => 'separator',
+                                'margin' => 'lg'
+                            ],
+                            [
+                                'type' => 'box',
+                                'layout' => 'vertical',
+                                'contents' => [
+                                    [
+                                        'type' => 'text',
+                                        'text' => 'メニュー',
+                                        'size' => 'sm',
+                                        'color' => '#888888'
+                                    ],
+                                    [
+                                        'type' => 'text',
+                                        'text' => $reservation->menu->name ?? '-',
+                                        'weight' => 'bold'
+                                    ]
+                                ],
+                                'margin' => 'lg'
+                            ],
+                            [
+                                'type' => 'separator',
+                                'margin' => 'lg'
+                            ],
+                            [
+                                'type' => 'box',
+                                'layout' => 'vertical',
+                                'contents' => [
+                                    [
+                                        'type' => 'text',
+                                        'text' => '店舗',
+                                        'size' => 'sm',
+                                        'color' => '#888888'
+                                    ],
+                                    [
+                                        'type' => 'text',
+                                        'text' => $store->name,
+                                        'weight' => 'bold'
+                                    ],
+                                    [
+                                        'type' => 'text',
+                                        'text' => $store->phone,
+                                        'size' => 'sm',
+                                        'color' => '#888888'
+                                    ]
+                                ],
+                                'margin' => 'lg'
+                            ]
+                        ]
+                    ],
+                    'footer' => [
+                        'type' => 'box',
+                        'layout' => 'vertical',
+                        'contents' => [
+                            [
+                                'type' => 'text',
+                                'text' => 'LINEでのご予約管理・リマインダー通知をお楽しみください！',
+                                'size' => 'sm',
+                                'color' => '#888888',
+                                'wrap' => true
+                            ]
+                        ],
+                        'margin' => 'lg'
+                    ]
+                ]
+            ];
+
+            $lineMessageService->sendMessage($customer->line_user_id, $message);
+
+            Log::info('Reservation details sent to LINE', [
+                'customer_id' => $customer->id,
+                'reservation_number' => $reservation->reservation_number,
+                'line_user_id' => $customer->line_user_id
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('Failed to send reservation details to LINE', [
+                'error' => $e->getMessage(),
+                'customer_id' => $customer->id,
+                'reservation_number' => $reservation->reservation_number ?? null
+            ]);
+        }
+    }
 }

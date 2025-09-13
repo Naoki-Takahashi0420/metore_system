@@ -418,4 +418,57 @@ class ReservationController extends Controller
             'data' => $reservation->load(['store', 'menu'])
         ]);
     }
+
+    /**
+     * 予約番号から店舗情報を取得（LIFF連携用）
+     */
+    public function getStoreInfoByReservationNumber($reservationNumber)
+    {
+        try {
+            $reservation = Reservation::where('reservation_number', $reservationNumber)
+                ->with(['store', 'customer', 'menu'])
+                ->first();
+
+            if (!$reservation) {
+                return response()->json([
+                    'success' => false,
+                    'error' => '予約が見つかりません'
+                ], 404);
+            }
+
+            $store = $reservation->store;
+            if (!$store->line_enabled || !$store->line_liff_id) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'LINE連携が有効でない店舗です'
+                ], 400);
+            }
+
+            return response()->json([
+                'success' => true,
+                'liff_id' => $store->line_liff_id,
+                'store_name' => $store->name,
+                'reservation' => [
+                    'number' => $reservation->reservation_number,
+                    'date' => $reservation->reservation_date,
+                    'start_time' => $reservation->start_time,
+                    'end_time' => $reservation->end_time,
+                    'menu_name' => $reservation->menu->name ?? null,
+                    'customer_name' => $reservation->customer->full_name,
+                    'total_amount' => $reservation->total_amount
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Store info retrieval error', [
+                'reservation_number' => $reservationNumber,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'エラーが発生しました'
+            ], 500);
+        }
+    }
 }

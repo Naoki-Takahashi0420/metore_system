@@ -72,6 +72,9 @@
                         <p class="text-sm text-gray-600 mb-4">
                             LINEアカウントと顧客情報を連携します
                         </p>
+                        <div id="reservation-info" class="bg-blue-50 rounded-lg p-4 mb-4">
+                            <p class="text-sm text-gray-600">予約情報を読み込み中...</p>
+                        </div>
                         <div id="user-info" class="bg-gray-50 rounded-lg p-4 mb-4">
                             <p class="text-sm text-gray-600">連携するLINEアカウント:</p>
                             <p id="line-display-name" class="font-medium text-gray-900"></p>
@@ -130,10 +133,10 @@
         let customerToken = '';
         let liffInitialized = false;
 
-        // URLパラメータからトークンを取得
-        function getCustomerToken() {
+        // URLパラメータから予約番号を取得
+        function getReservationNumber() {
             const urlParams = new URLSearchParams(window.location.search);
-            return urlParams.get('token');
+            return urlParams.get('reservation');
         }
 
         // 画面表示制御
@@ -154,15 +157,23 @@
         // LIFF初期化
         async function initializeLiff() {
             try {
-                // 店舗IDを取得
-                const urlParams = new URLSearchParams(window.location.search);
-                const storeId = urlParams.get('store_id');
+                // 予約番号から予約情報を取得
+                const reservationNumber = getReservationNumber();
+                if (!reservationNumber) {
+                    throw new Error('予約番号が指定されていません');
+                }
                 
-                // 店舗のLIFF IDを取得
-                const response = await fetch(`/api/stores/${storeId}/liff-id`);
+                console.log('Fetching reservation info for:', reservationNumber);
+                
+                // 予約情報を取得して店舗のLIFF IDを取得
+                const response = await fetch(`/api/reservation/${reservationNumber}/store-info`);
                 const data = await response.json();
-                const liffId = data.liff_id;
                 
+                if (!data.success) {
+                    throw new Error(data.error || '予約情報の取得に失敗しました');
+                }
+                
+                const liffId = data.liff_id;
                 if (!liffId) {
                     throw new Error('LIFF IDが設定されていません');
                 }
@@ -175,6 +186,13 @@
                 
                 liffInitialized = true;
                 console.log('LIFF initialized successfully');
+                
+                // 予約情報を画面に表示
+                document.getElementById('reservation-info').innerHTML = `
+                    <p class="text-sm text-gray-600">予約番号:</p>
+                    <p class="font-medium text-gray-900">${reservationNumber}</p>
+                    <p class="text-xs text-gray-500 mt-1">${data.store_name}</p>
+                `;
                 
                 // ログイン状態チェック
                 if (liff.isLoggedIn()) {
@@ -239,8 +257,10 @@
                 
                 console.log('ID token obtained, sending link request...');
                 
-                // API呼び出し
-                const response = await fetch('/api/line/link', {
+                const reservationNumber = getReservationNumber();
+                
+                // API呼び出し（予約番号ベース）
+                const response = await fetch('/api/line/link-reservation', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -249,7 +269,7 @@
                     },
                     body: JSON.stringify({
                         id_token: idToken,
-                        customer_token: customerToken
+                        reservation_number: reservationNumber
                     })
                 });
                 
@@ -270,14 +290,14 @@
 
         // 初期化処理
         window.addEventListener('DOMContentLoaded', function() {
-            customerToken = getCustomerToken();
+            const reservationNumber = getReservationNumber();
             
-            if (!customerToken) {
+            if (!reservationNumber) {
                 showError('無効なアクセスです。正しいURLからアクセスしてください。');
                 return;
             }
             
-            console.log('Customer token:', customerToken);
+            console.log('Reservation number:', reservationNumber);
             
             // イベントリスナー設定
             document.getElementById('login-btn').addEventListener('click', handleLogin);

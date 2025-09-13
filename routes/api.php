@@ -80,6 +80,10 @@ Route::post('line/webhook/{store_code}', [\App\Http\Controllers\LineWebhookContr
 // LINE連携API（認証不要・トークンベース）
 Route::post('line/link', [LineLinkController::class, 'link']);
 Route::get('line/status', [LineLinkController::class, 'status']);
+Route::post('line/link-reservation', [LineLinkController::class, 'linkByReservation']);
+
+// 予約番号から店舗情報取得（LIFF用）
+Route::get('reservation/{reservationNumber}/store-info', [ReservationController::class, 'getStoreInfoByReservationNumber']);
 
 // 店舗LIFF ID取得API
 Route::get('stores/{store}/liff-id', [\App\Http\Controllers\Api\StoreLiffController::class, 'getLiffId']);

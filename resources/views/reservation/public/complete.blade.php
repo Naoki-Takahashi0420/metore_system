@@ -79,44 +79,37 @@
                 </ul>
             </div>
 
-            <!-- LINE友だち追加 -->
-            @if($lineQrCodeUrl)
+            <!-- LINE連携 -->
+            @if($reservation->store->line_enabled && $reservation->store->line_liff_id)
             <div class="bg-blue-50 border border-blue-200 rounded-md p-6 mb-6 text-center">
-                <h3 class="font-semibold text-blue-800 mb-3">📱 LINE友だち追加でもっと便利に！</h3>
+                <h3 class="font-semibold text-blue-800 mb-3">📱 LINE連携でもっと便利に！</h3>
                 
-                @if(isset($linkingCode))
-                <div class="bg-white border-2 border-blue-300 rounded-lg p-4 mb-4">
-                    <p class="text-sm text-gray-600 mb-2">LINE連携コード（友だち追加後に使用）</p>
-                    <p class="text-3xl font-bold text-blue-600 tracking-wider">{{ $linkingCode }}</p>
-                    <p class="text-xs text-gray-500 mt-2">このコードは24時間有効です</p>
-                </div>
-                @endif
-                
-                <!-- スマホ用友だち追加ボタン（モバイルデバイスでのみ表示） -->
-                <div class="mb-4 sm:hidden">
-                    <a href="{{ $lineQrCodeUrl }}" 
-                       class="inline-flex items-center gap-2 px-6 py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600">
-                        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                <!-- 1タップ連携ボタン -->
+                <div class="mb-4">
+                    <a href="liff://{{ $reservation->store->line_liff_id }}?reservation={{ $reservation->reservation_number }}" 
+                       class="inline-flex items-center gap-2 px-8 py-4 bg-green-500 text-white font-bold text-lg rounded-lg hover:bg-green-600 shadow-lg">
+                        <svg class="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM16.84 9.93L15.37 11.4L16.84 12.87C17.03 13.06 17.03 13.37 16.84 13.56L15.37 15.03L13.9 13.56L12.43 15.03L10.96 13.56C10.77 13.37 10.77 13.06 10.96 12.87L12.43 11.4L10.96 9.93C10.77 9.74 10.77 9.43 10.96 9.24L12.43 7.77L13.9 9.24L15.37 7.77L16.84 9.24C17.03 9.43 17.03 9.74 16.84 9.93Z"/>
                         </svg>
-                        LINE友だち追加
+                        LINEと連携する
                     </a>
-                    <p class="text-xs text-gray-600 mt-2">タップして友だち追加画面へ</p>
+                    <p class="text-sm text-gray-600 mt-2">タップ1回で自動連携完了</p>
                 </div>
                 
-                <!-- PC用QRコード（デスクトップでのみ表示） -->
+                <!-- QRコード（PC用） -->
                 <div class="mb-4 hidden sm:block">
-                    <div id="line-qr-code" class="inline-block border border-gray-200 p-2 bg-white rounded"></div>
+                    <div id="line-liff-qr" class="inline-block border border-gray-200 p-2 bg-white rounded"></div>
                     <p class="text-xs text-gray-600 mt-2">スマートフォンでQRコードを読み取ってください</p>
                 </div>
                 
-                <p class="text-sm text-blue-700 mb-3">{{ $reservation->store->name }}のLINE公式アカウントを友だち追加すると：</p>
+                <p class="text-sm text-blue-700 mb-3">LINE連携すると以下のサービスをご利用いただけます：</p>
                 <ul class="text-sm text-blue-700 space-y-1 text-left max-w-md mx-auto">
-                    <li>• 予約の変更・キャンセルがLINEで簡単に</li>
-                    <li>• 来店前日にリマインダー通知</li>
-                    <li>• お得なキャンペーン情報をお届け</li>
+                    <li>• 予約の確認・変更・キャンセル</li>
+                    <li>• 来店前日のリマインダー通知</li>
+                    <li>• お得なキャンペーン情報</li>
+                    <li>• 予約詳細の自動送信</li>
                 </ul>
-                <p class="text-xs text-blue-600 mt-3">※30日以内に友だち追加してください</p>
+                <p class="text-xs text-blue-600 mt-3">※既にLINE友達の方もタップするだけで連携完了</p>
             </div>
             @endif
 
@@ -166,10 +159,11 @@
                 sessionStorage.setItem('temp_customer_data', JSON.stringify(reservationCustomer));
             }
             
-            @if($lineQrCodeUrl)
-            const qrElement = document.getElementById('line-qr-code');
+            @if($reservation->store->line_enabled && $reservation->store->line_liff_id)
+            const liffUrl = 'liff://{{ $reservation->store->line_liff_id }}?reservation={{ $reservation->reservation_number }}';
+            const qrElement = document.getElementById('line-liff-qr');
             if (qrElement) {
-                QRCode.toCanvas(qrElement, '{!! addslashes($lineQrCodeUrl) !!}', {
+                QRCode.toCanvas(qrElement, liffUrl, {
                     width: 200,
                     margin: 2,
                     color: {
