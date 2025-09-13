@@ -143,6 +143,21 @@
                 return reservation;
             }
             
+            // liff.stateパラメータから取得（LIFFが自動的に変換する場合）
+            const liffState = urlParams.get('liff.state');
+            if (liffState) {
+                // liff.stateをデコードして予約番号を抽出
+                const decodedState = decodeURIComponent(liffState);
+                console.log('Decoded liff.state:', decodedState);
+                
+                // ?reservation=XXXXX 形式から予約番号を抽出
+                const match = decodedState.match(/reservation=([^&]+)/);
+                if (match) {
+                    console.log('Found reservation in liff.state:', match[1]);
+                    return match[1];
+                }
+            }
+            
             // LIFF環境の場合、liff.getContext()からクエリを取得
             if (typeof liff !== 'undefined' && liffInitialized) {
                 try {
