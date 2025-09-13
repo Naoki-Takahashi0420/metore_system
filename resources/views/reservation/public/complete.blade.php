@@ -83,7 +83,7 @@
                 
                 <!-- 1タップ連携ボタン -->
                 <div class="mb-4">
-                    <a href="https://liff.line.me/{{ $reservation->store->line_liff_id }}?reservation={{ $reservation->reservation_number }}" 
+                    <a href="liff://{{ $reservation->store->line_liff_id }}?reservation={{ $reservation->reservation_number }}" 
                        class="inline-flex items-center gap-2 px-8 py-4 bg-green-500 text-white font-bold text-lg rounded-lg hover:bg-green-600 shadow-lg w-full justify-center">
                         <svg class="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM16.84 9.93L15.37 11.4L16.84 12.87C17.03 13.06 17.03 13.37 16.84 13.56L15.37 15.03L13.9 13.56L12.43 15.03L10.96 13.56C10.77 13.37 10.77 13.06 10.96 12.87L12.43 11.4L10.96 9.93C10.77 9.74 10.77 9.43 10.96 9.24L12.43 7.77L13.9 9.24L15.37 7.77L16.84 9.24C17.03 9.43 17.03 9.74 16.84 9.93Z"/>
