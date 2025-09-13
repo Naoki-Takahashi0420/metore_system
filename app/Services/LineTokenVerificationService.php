@@ -39,7 +39,8 @@ class LineTokenVerificationService
             $publicKey = $this->findPublicKey($jwks, $keyId);
 
             // トークンを検証してペイロードを取得
-            $payload = JWT::decode($idToken, new Key($publicKey, 'RS256'));
+            // findPublicKey now returns a Key object directly
+            $payload = JWT::decode($idToken, $publicKey);
             
             // ペイロードを検証
             $this->validateTokenPayload($payload);
@@ -136,6 +137,7 @@ class LineTokenVerificationService
     {
         foreach ($jwks['keys'] as $key) {
             if ($key['kid'] === $keyId) {
+                // JWK::parseKey returns a Key object that can be used directly with JWT::decode
                 return JWK::parseKey($key);
             }
         }
