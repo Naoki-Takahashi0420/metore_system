@@ -101,7 +101,7 @@ class LineMessageService
     /**
      * LINE APIでメッセージ送信
      */
-    private function sendMessage(string $lineUserId, string $text)
+    public function sendMessage(string $lineUserId, $message)
     {
         if (!$this->channelToken) {
             Log::warning('LINE Channel Token is not set');
@@ -109,17 +109,28 @@ class LineMessageService
         }
         
         try {
+            // メッセージの形式を判定
+            $messages = [];
+            if (is_string($message)) {
+                // テキストメッセージ
+                $messages[] = [
+                    'type' => 'text',
+                    'text' => $message
+                ];
+            } elseif (is_array($message)) {
+                // Flexメッセージまたは構造化メッセージ
+                $messages[] = $message;
+            } else {
+                Log::error('Invalid message format', ['message' => $message]);
+                return false;
+            }
+            
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->channelToken,
                 'Content-Type' => 'application/json',
             ])->post($this->apiUrl, [
                 'to' => $lineUserId,
-                'messages' => [
-                    [
-                        'type' => 'text',
-                        'text' => $text
-                    ]
-                ]
+                'messages' => $messages
             ]);
             
             if ($response->successful()) {
