@@ -135,22 +135,21 @@
 
         // URLパラメータから予約番号を取得
         function getReservationNumber() {
-            // まずは通常のURLパラメータから取得を試行
             const urlParams = new URLSearchParams(window.location.search);
-            let reservation = urlParams.get('reservation');
             
+            // 1. 通常のreservationパラメータ
+            let reservation = urlParams.get('reservation');
             if (reservation) {
+                console.log('Found reservation in URL:', reservation);
                 return reservation;
             }
             
-            // liff.stateパラメータから取得（LIFFが自動的に変換する場合）
+            // 2. liff.stateパラメータから取得
             const liffState = urlParams.get('liff.state');
             if (liffState) {
-                // liff.stateをデコードして予約番号を抽出
                 const decodedState = decodeURIComponent(liffState);
                 console.log('Decoded liff.state:', decodedState);
                 
-                // ?reservation=XXXXX 形式から予約番号を抽出
                 const match = decodedState.match(/reservation=([^&]+)/);
                 if (match) {
                     console.log('Found reservation in liff.state:', match[1]);
@@ -158,24 +157,37 @@
                 }
             }
             
-            // LIFF環境の場合、liff.getContext()からクエリを取得
-            if (typeof liff !== 'undefined' && liffInitialized) {
-                try {
-                    const context = liff.getContext();
-                    if (context && context.liffId) {
-                        // LIFF URLからパラメータを抽出
-                        const referrer = document.referrer;
-                        if (referrer.includes('reservation=')) {
-                            const match = referrer.match(/reservation=([^&]+)/);
-                            if (match) {
-                                return match[1];
-                            }
-                        }
-                    }
-                } catch (error) {
-                    console.log('LIFF context error:', error);
+            // 3. セッションストレージから取得（LIFF認証後のリダイレクト対策）
+            const sessionReservation = sessionStorage.getItem('reservation_number');
+            if (sessionReservation) {
+                console.log('Found reservation in sessionStorage:', sessionReservation);
+                return sessionReservation;
+            }
+            
+            // 4. 初回アクセス時に予約番号をセッションストレージに保存
+            const hash = window.location.hash;
+            if (hash && hash.includes('reservation=')) {
+                const match = hash.match(/reservation=([^&]+)/);
+                if (match) {
+                    sessionStorage.setItem('reservation_number', match[1]);
+                    console.log('Saved reservation to sessionStorage:', match[1]);
+                    return match[1];
                 }
             }
+            
+            // 5. document.referrerから取得（最後の手段）
+            if (document.referrer && document.referrer.includes('reservation=')) {
+                const match = document.referrer.match(/reservation=([^&]+)/);
+                if (match) {
+                    sessionStorage.setItem('reservation_number', match[1]);
+                    console.log('Found reservation in referrer:', match[1]);
+                    return match[1];
+                }
+            }
+            
+            console.log('No reservation number found in any location');
+            console.log('Current URL:', window.location.href);
+            console.log('Referrer:', document.referrer);
             
             return null;
         }
@@ -198,6 +210,14 @@
         // LIFF初期化
         async function initializeLiff() {
             try {
+                // 初回アクセス時に予約番号を保存
+                const urlParams = new URLSearchParams(window.location.search);
+                const reservation = urlParams.get('reservation');
+                if (reservation) {
+                    sessionStorage.setItem('reservation_number', reservation);
+                    console.log('Saved initial reservation:', reservation);
+                }
+                
                 // 予約番号から予約情報を取得
                 const reservationNumber = getReservationNumber();
                 if (!reservationNumber) {
