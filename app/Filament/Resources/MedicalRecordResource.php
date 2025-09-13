@@ -108,29 +108,11 @@ class MedicalRecordResource extends Resource
                                                 }
                                             }),
                                         
-                                        Forms\Components\Select::make('handled_by')
+                                        Forms\Components\TextInput::make('handled_by')
                                             ->label('対応者')
-                                            ->options(function ($get) {
-                                                // 予約から店舗情報を取得
-                                                $reservationId = $get('reservation_id');
-                                                if ($reservationId) {
-                                                    $reservation = Reservation::with(['store'])->find($reservationId);
-                                                    if ($reservation && $reservation->store_id) {
-                                                        // 店舗に紐づくスタッフを取得
-                                                        return \App\Models\User::where('store_id', $reservation->store_id)
-                                                            ->where('is_active', true)
-                                                            ->pluck('name', 'name');
-                                                    }
-                                                }
-                                                
-                                                // 予約が未選択の場合は全スタッフを表示
-                                                return \App\Models\User::where('is_active', true)
-                                                    ->pluck('name', 'name');
-                                            })
+                                            ->placeholder('対応者名を入力（任意）')
                                             ->default(Auth::user()->name)
-                                            ->searchable()
-                                            ->reactive()
-                                            ->required(),
+                                            ->helperText('ユーザー登録されていないスタッフ名も入力可能です'),
                                         
                                         Forms\Components\DatePicker::make('treatment_date')
                                             ->label('施術日')
