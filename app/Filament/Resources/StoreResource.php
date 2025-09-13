@@ -353,6 +353,12 @@ class StoreResource extends Resource
                                             ->helperText('Webhook署名検証用のシークレットキー')
                                             ->visible(fn ($get) => $get('line_enabled')),
                                         
+                                        Forms\Components\TextInput::make('line_liff_id')
+                                            ->label('LIFF ID')
+                                            ->placeholder('1234567890-AbCdEfGh')
+                                            ->helperText('LINE Front-end Framework ID（LINE Developersコンソールで作成）')
+                                            ->visible(fn ($get) => $get('line_enabled')),
+                                        
                                         Forms\Components\TextInput::make('line_add_friend_url')
                                             ->label('友だち追加URL')
                                             ->url()

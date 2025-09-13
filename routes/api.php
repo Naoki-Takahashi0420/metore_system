@@ -81,6 +81,9 @@ Route::post('line/webhook/{store_code}', [\App\Http\Controllers\LineWebhookContr
 Route::post('line/link', [LineLinkController::class, 'link']);
 Route::get('line/status', [LineLinkController::class, 'status']);
 
+// 店舗LIFF ID取得API
+Route::get('stores/{store}/liff-id', [\App\Http\Controllers\Api\StoreLiffController::class, 'getLiffId']);
+
 // 勤怠管理API（認証必須）
 Route::middleware('auth:sanctum')->prefix('time-tracking')->group(function () {
     Route::post('clock-in/{shift}', [\App\Http\Controllers\Api\TimeTrackingController::class, 'clockIn']);

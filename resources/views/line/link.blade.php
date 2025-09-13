@@ -154,7 +154,19 @@
         // LIFF初期化
         async function initializeLiff() {
             try {
-                const liffId = '{{ config("services.line.liff_id") }}';
+                // 店舗IDを取得
+                const urlParams = new URLSearchParams(window.location.search);
+                const storeId = urlParams.get('store_id');
+                
+                // 店舗のLIFF IDを取得
+                const response = await fetch(`/api/stores/${storeId}/liff-id`);
+                const data = await response.json();
+                const liffId = data.liff_id;
+                
+                if (!liffId) {
+                    throw new Error('LIFF IDが設定されていません');
+                }
+                
                 console.log('Initializing LIFF with ID:', liffId);
                 
                 await liff.init({

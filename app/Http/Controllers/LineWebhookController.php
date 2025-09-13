@@ -294,8 +294,8 @@ class LineWebhookController extends Controller
     {
         $lineService = new SimpleLineService();
         
-        // LIFF URLを生成（トークン付き）
-        $liffUrl = route('line.link') . '?token=' . $token->token;
+        // LIFF URLを生成（トークン付き、店舗IDも含める）
+        $liffUrl = route('line.link') . '?token=' . $token->token . '&store_id=' . $store->id;
         
         $customer = $token->customer;
         $linkingCode = $token->metadata['linking_code'] ?? '------';
