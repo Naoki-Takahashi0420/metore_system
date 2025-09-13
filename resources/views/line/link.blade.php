@@ -293,7 +293,9 @@
             const reservationNumber = getReservationNumber();
             
             if (!reservationNumber) {
-                showError('無効なアクセスです。正しいURLからアクセスしてください。');
+                // テスト用：予約番号がない場合はダミーで処理
+                console.log('No reservation number - using test mode');
+                showError('テストモード：予約番号がありません。実際の予約完了ページからアクセスしてください。');
                 return;
             }
             
