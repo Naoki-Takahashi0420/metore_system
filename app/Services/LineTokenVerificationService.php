@@ -168,8 +168,17 @@ class LineTokenVerificationService
         }
 
         // オーディエンスチェック
-        if (!isset($payload->aud) || $payload->aud !== config('services.line.channel_id')) {
-            throw new Exception('Invalid audience');
+        $expectedChannelId = config('services.line.channel_id');
+        if (!isset($payload->aud)) {
+            throw new Exception('Audience not found in token');
+        }
+        if ($payload->aud !== $expectedChannelId) {
+            Log::error('Audience mismatch', [
+                'expected' => $expectedChannelId,
+                'actual' => $payload->aud,
+                'payload' => json_encode($payload)
+            ]);
+            throw new Exception('Invalid audience - expected: ' . $expectedChannelId . ', got: ' . $payload->aud);
         }
 
         // ユーザーIDチェック
