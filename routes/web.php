@@ -58,6 +58,11 @@ Route::get('/reservation', function () {
     return redirect('/stores');
 });
 
+// 不足していたルート追加
+Route::get('/reservation/select-store', function () {
+    return redirect('/stores');
+})->name('reservation.select-store');
+
 // ○×形式のカレンダー表示（PublicReservationControllerのindexメソッド）
 Route::get('/reservation/calendar', [App\Http\Controllers\PublicReservationController::class, 'index'])->name('reservation.index');
 
