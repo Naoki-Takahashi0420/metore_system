@@ -51,6 +51,7 @@ class AdminPanelProvider extends PanelProvider
                 Dashboard::class,
                 \App\Filament\Pages\MenuManager::class,
                 \App\Filament\Pages\ShiftManagement::class,
+                \App\Filament\Pages\ImportCustomers::class,
             ])
             ->widgets([
                 \App\Filament\Widgets\ReservationTimelineWidget::class,
