@@ -950,8 +950,9 @@ class PublicReservationController extends Controller
             // 新規予約通知を送信
             event(new ReservationCreated($reservation));
             
-            // LINE連携済みの場合は即時確認通知を試行
+            // LINE連携チェックと通知送信
             if ($customer->line_user_id) {
+                // LINE連携済みの場合は即時確認通知を試行
                 \Log::info('LINE連携済み顧客：即時確認通知を試行', [
                     'reservation_id' => $reservation->id,
                     'customer_id' => $customer->id,
@@ -973,6 +974,36 @@ class PublicReservationController extends Controller
                         'customer_id' => $customer->id
                     ]);
                 }
+            } else if ($store->line_enabled && $store->line_liff_id) {
+                // LINE未連携だが、店舗のLINE設定が有効な場合は連携案内を送信
+                \Log::info('LINE未連携顧客：連携案内を送信予定', [
+                    'reservation_id' => $reservation->id,
+                    'customer_id' => $customer->id,
+                    'store_id' => $store->id
+                ]);
+                
+                // LINE連携用トークンを生成
+                $accessToken = \App\Models\CustomerAccessToken::create([
+                    'customer_id' => $customer->id,
+                    'store_id' => $store->id,
+                    'token' => \Illuminate\Support\Str::random(32),
+                    'purpose' => 'line_linking',
+                    'expires_at' => now()->addDays(7),
+                    'metadata' => [
+                        'reservation_id' => $reservation->id,
+                        'reservation_number' => $reservation->reservation_number,
+                        'linking_code' => str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT),
+                        'from_reservation' => true
+                    ]
+                ]);
+                
+                \Log::info('LINE連携トークン生成完了', [
+                    'token' => $accessToken->token,
+                    'linking_code' => $accessToken->metadata['linking_code']
+                ]);
+                
+                // 既存友達の可能性をチェック - LINE User IDが不明でも店舗のLINEから連携ボタンを送信試行
+                $this->tryLinkingForPotentialFriend($customer, $store, $accessToken);
             }
             
             // 5分遅延フォールバック確認通知をスケジュール（二重送信防止チェック付き）
@@ -1138,5 +1169,114 @@ class PublicReservationController extends Controller
         }
         
         \Log::info('5日間隔制限チェック完了（問題なし）');
+    }
+    
+    /**
+     * 既存友達の可能性をチェックして連携ボタンを送信
+     */
+    private function tryLinkingForPotentialFriend($customer, $store, $accessToken)
+    {
+        try {
+            \Log::info('既存友達チェック開始', [
+                'customer_id' => $customer->id,
+                'phone' => $customer->phone,
+                'store_id' => $store->id
+            ]);
+            
+            // LINE連携URLを生成
+            $linkingUrl = route('line.link') . '?token=' . $accessToken->token . '&store_id=' . $store->id;
+            
+            \Log::info('連携URL生成完了', [
+                'linking_url' => $linkingUrl,
+                'token' => $accessToken->token
+            ]);
+            
+            // 可能な LINE User ID のパターンを試す
+            $potentialLineUserIds = $this->generatePotentialLineUserIds($customer);
+            
+            if (empty($potentialLineUserIds)) {
+                \Log::info('潜在的LINE User ID見つからず', [
+                    'customer_id' => $customer->id
+                ]);
+                return false;
+            }
+            
+            $lineMessageService = app(\App\Services\LineMessageService::class);
+            
+            foreach ($potentialLineUserIds as $lineUserId) {
+                \Log::info('LINE User ID試行中', [
+                    'potential_line_user_id' => $lineUserId,
+                    'customer_id' => $customer->id
+                ]);
+                
+                // 送信を試行 - 成功した場合、その User ID を保存
+                if ($lineMessageService->sendLinkingButton($lineUserId, $linkingUrl, $store)) {
+                    // 成功した場合は LINE User ID を顧客に紐づけ
+                    $customer->update(['line_user_id' => $lineUserId]);
+                    
+                    \Log::info('既存友達発見・連携ボタン送信成功', [
+                        'customer_id' => $customer->id,
+                        'line_user_id' => $lineUserId
+                    ]);
+                    return true;
+                }
+                
+                // 失敗した場合は次を試行
+                \Log::info('LINE User ID送信失敗', [
+                    'potential_line_user_id' => $lineUserId
+                ]);
+            }
+            
+            \Log::info('既存友達見つからず', [
+                'customer_id' => $customer->id,
+                'tried_ids' => count($potentialLineUserIds)
+            ]);
+            
+            return false;
+            
+        } catch (\Exception $e) {
+            \Log::error('既存友達チェック中エラー', [
+                'customer_id' => $customer->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return false;
+        }
+    }
+    
+    /**
+     * 顧客の情報から潜在的なLINE User IDを生成
+     */
+    private function generatePotentialLineUserIds($customer)
+    {
+        $potentialIds = [];
+        
+        try {
+            // 1. 同じ電話番号で過去に連携されたアカウントを検索
+            $existingLinks = \Illuminate\Support\Facades\DB::table('customers')
+                ->where('phone', $customer->phone)
+                ->whereNotNull('line_user_id')
+                ->where('id', '!=', $customer->id)
+                ->pluck('line_user_id')
+                ->toArray();
+                
+            $potentialIds = array_merge($potentialIds, $existingLinks);
+            
+            \Log::info('潜在LINE User ID検索結果', [
+                'customer_id' => $customer->id,
+                'phone' => $customer->phone,
+                'found_existing_links' => count($existingLinks),
+                'total_potential_ids' => count($potentialIds)
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('潜在LINE User ID検索エラー', [
+                'customer_id' => $customer->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+        
+        // 重複を除去
+        return array_unique($potentialIds);
     }
 }

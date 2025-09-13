@@ -181,6 +181,20 @@ class LineMessageService
     }
     
     /**
+     * ⑤ LINE連携ボタンメッセージを送信
+     */
+    public function sendLinkingButton(string $lineUserId, string $linkingUrl, Store $store)
+    {
+        if (!$lineUserId) {
+            return false;
+        }
+        
+        $message = $this->buildLinkingMessage($linkingUrl, $store);
+        
+        return $this->sendMessage($lineUserId, $message);
+    }
+    
+    /**
      * フォローアップメッセージ作成
      */
     private function buildFollowUpMessage(Customer $customer, int $days): string
@@ -204,5 +218,20 @@ class LineMessageService
                    "🎁 特別割引20%OFFでご案内いたします。\n" .
                    "ご予約はこちら: [予約URL]";
         }
+    }
+    
+    /**
+     * LINE連携メッセージ作成
+     */
+    private function buildLinkingMessage(string $linkingUrl, Store $store): string
+    {
+        return "🔗 アカウント連携のご案内\n\n" .
+               "{$store->name}のLINEアカウントと連携することで、\n" .
+               "以下のサービスをご利用いただけます：\n\n" .
+               "✅ 予約の確認・変更・キャンセル\n" .
+               "✅ 来店前日のリマインダー通知\n" .
+               "✅ お得なキャンペーン情報\n\n" .
+               "👇 こちらのリンクから連携してください\n" .
+               $linkingUrl;
     }
 }
