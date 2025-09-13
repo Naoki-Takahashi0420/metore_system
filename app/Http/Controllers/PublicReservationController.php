@@ -215,7 +215,7 @@ class PublicReservationController extends Controller
         // 指定された店舗IDが有効かチェック
         $store = Store::where('id', $storeId)->where('is_active', true)->first();
         if (!$store) {
-            return redirect()->route('reservation.select-store')->with('error', '指定された店舗が見つかりません。');
+            return redirect('/stores')->with('error', '指定された店舗が見つかりません。');
         }
         
         // セッションに店舗IDを保存
