@@ -587,7 +587,7 @@ class LineLinkController extends Controller
                                     ],
                                     [
                                         'type' => 'text',
-                                        'text' => $reservationDate->format('Y年n月j日(D)'),
+                                        'text' => $reservationDate->locale('ja')->isoFormat('YYYY年M月D日(ddd)'),
                                         'weight' => 'bold'
                                     ],
                                     [
