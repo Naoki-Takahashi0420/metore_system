@@ -104,7 +104,7 @@
                         LINEアカウントの連携が完了しました。<br>
                         予約の確認やリマインダーをLINEで受け取れます。
                     </p>
-                    <button onclick="liff.closeWindow()" class="w-full bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-4 rounded-lg transition-colors">
+                    <button id="close-btn" class="w-full bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-4 rounded-lg transition-colors">
                         閉じる
                     </button>
                 </div>
@@ -369,6 +369,23 @@
             // イベントリスナー設定
             document.getElementById('login-btn').addEventListener('click', handleLogin);
             document.getElementById('link-btn').addEventListener('click', handleLink);
+            
+            // 閉じるボタンのイベントリスナー
+            document.getElementById('close-btn')?.addEventListener('click', function() {
+                if (liffInitialized && liff.isInClient()) {
+                    // LINEアプリ内の場合
+                    liff.closeWindow();
+                } else {
+                    // ブラウザの場合
+                    if (window.history.length > 1) {
+                        window.history.back();
+                    } else {
+                        window.close();
+                        // window.close()が効かない場合の代替
+                        window.location.href = '/';
+                    }
+                }
+            });
             
             // LIFF初期化
             initializeLiff();
