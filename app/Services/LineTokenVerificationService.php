@@ -132,7 +132,7 @@ class LineTokenVerificationService
     /**
      * 公開鍵を検索
      */
-    private function findPublicKey(array $jwks, string $keyId): string
+    private function findPublicKey(array $jwks, string $keyId): Key
     {
         foreach ($jwks['keys'] as $key) {
             if ($key['kid'] === $keyId) {
