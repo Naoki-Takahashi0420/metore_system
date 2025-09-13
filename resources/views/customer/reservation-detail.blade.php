@@ -224,6 +224,13 @@ function displayReservationDetail(reservation) {
         document.getElementById('staff-name').textContent = reservation.staff.name;
     }
     
+    // キャンセルボタンの表示制御
+    if (canCancel(reservation)) {
+        const cancelBtn = document.getElementById('cancel-btn');
+        cancelBtn.style.display = 'inline-block';
+        cancelBtn.onclick = () => cancelReservation(reservation.id);
+    }
+    
     // Menu details
     if (reservation.menu) {
         const menuContent = document.getElementById('menu-details-content');

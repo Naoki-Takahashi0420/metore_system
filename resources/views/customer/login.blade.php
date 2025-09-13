@@ -235,22 +235,33 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        // ペースト対応
+        // ペースト対応（どのフィールドでもペースト可能）
         input.addEventListener('paste', function(e) {
             e.preventDefault();
             const pastedData = e.clipboardData.getData('text');
-            const digits = pastedData.replace(/\D/g, '').slice(0, 6);
+            const digits = pastedData.replace(/\D/g, '');
             
-            // 各フィールドに1文字ずつ設定
-            digits.split('').forEach((digit, i) => {
-                if (otpInputs[i]) {
-                    otpInputs[i].value = digit;
-                }
-            });
-            
-            // 最後に入力されたフィールドの次、または最後のフィールドにフォーカス
-            const nextIndex = Math.min(digits.length, otpInputs.length - 1);
-            otpInputs[nextIndex].focus();
+            if (digits.length === 6) {
+                // 6桁の場合は全フィールドに設定
+                digits.split('').forEach((digit, i) => {
+                    if (otpInputs[i]) {
+                        otpInputs[i].value = digit;
+                    }
+                });
+                // 最後のフィールドにフォーカス
+                otpInputs[5].focus();
+            } else if (digits.length > 0) {
+                // 6桁以外の場合は現在の位置から順番に設定
+                let currentIndex = index;
+                digits.slice(0, 6 - index).split('').forEach((digit, i) => {
+                    if (otpInputs[currentIndex + i]) {
+                        otpInputs[currentIndex + i].value = digit;
+                    }
+                });
+                // 適切な位置にフォーカス
+                const nextIndex = Math.min(index + digits.length, otpInputs.length - 1);
+                otpInputs[nextIndex].focus();
+            }
         });
         
         // フォーカス時の処理
