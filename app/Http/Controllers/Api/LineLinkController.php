@@ -457,7 +457,16 @@ class LineLinkController extends Controller
             ]);
 
             // 予約詳細をLINEに送信
-            $this->sendReservationDetailsToLine($customer, $reservation, $store);
+            $lineMessageSent = $this->sendReservationDetailsToLine($customer, $reservation, $store);
+            
+            // LINE送信成功時は確認通知送信済みフラグを設定
+            if ($lineMessageSent) {
+                $reservation->update(['confirmation_sent' => true]);
+                \Log::info('LINE連携時の予約詳細送信成功、確認通知フラグ設定', [
+                    'reservation_id' => $reservation->id,
+                    'customer_id' => $customer->id
+                ]);
+            }
 
             return response()->json([
                 'success' => true,
@@ -503,11 +512,11 @@ class LineLinkController extends Controller
     /**
      * 予約詳細をLINEに送信
      */
-    private function sendReservationDetailsToLine(Customer $customer, \App\Models\Reservation $reservation, \App\Models\Store $store): void
+    private function sendReservationDetailsToLine(Customer $customer, \App\Models\Reservation $reservation, \App\Models\Store $store): bool
     {
         try {
             if (!$customer->line_user_id) {
-                return;
+                return false;
             }
 
             $lineMessageService = app(\App\Services\LineMessageService::class);
@@ -667,13 +676,22 @@ class LineLinkController extends Controller
                 ]
             ];
 
-            $lineMessageService->sendMessage($customer->line_user_id, $message);
+            $result = $lineMessageService->sendMessage($customer->line_user_id, $message);
 
-            Log::info('Reservation details sent to LINE', [
-                'customer_id' => $customer->id,
-                'reservation_number' => $reservation->reservation_number,
-                'line_user_id' => $customer->line_user_id
-            ]);
+            if ($result) {
+                Log::info('Reservation details sent to LINE', [
+                    'customer_id' => $customer->id,
+                    'reservation_number' => $reservation->reservation_number,
+                    'line_user_id' => $customer->line_user_id
+                ]);
+                return true;
+            } else {
+                Log::warning('Failed to send reservation details to LINE', [
+                    'customer_id' => $customer->id,
+                    'reservation_number' => $reservation->reservation_number
+                ]);
+                return false;
+            }
 
         } catch (Exception $e) {
             Log::error('Failed to send reservation details to LINE', [
@@ -681,6 +699,7 @@ class LineLinkController extends Controller
                 'customer_id' => $customer->id,
                 'reservation_number' => $reservation->reservation_number ?? null
             ]);
+            return false;
         }
     }
 }
