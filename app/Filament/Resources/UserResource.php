@@ -105,7 +105,8 @@ class UserResource extends Resource
                                 'inactive' => '無効',
                             ])
                             ->default('active')
-                            ->required(),
+                            ->required()
+                            ->helperText('⚠️ 無効にするとログインできなくなり、通知も送信されません。退職や長期休暇時に使用してください（ユーザー削除は推奨しません）'),
                         Forms\Components\Toggle::make('is_available')
                             ->label('予約受付可能')
                             ->helperText('スタッフとして予約を受け付けるかどうか'),

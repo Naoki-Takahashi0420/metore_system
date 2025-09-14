@@ -66,8 +66,8 @@ class User extends Authenticatable implements FilamentUser
      */
     public function canAccessPanel(Panel $panel): bool
     {
-        // デバッグ用：常にtrue
-        return true;
+        // 無効なユーザーはログイン不可
+        return $this->is_active;
     }
 
     /**

@@ -160,11 +160,16 @@ class AdminNotificationService
      */
     private function sendNotification(User $admin, string $message, string $type): void
     {
+        // 無効なユーザーには通知を送信しない
+        if (!$admin->is_active) {
+            return;
+        }
+
         // SMS通知（電話番号がある場合）
         if ($admin->phone && $this->shouldSendSms($admin, $type)) {
             $this->smsService->sendSms($admin->phone, $message);
         }
-        
+
         // メール通知（メールアドレスがある場合）
         if ($admin->email && $this->shouldSendEmail($admin, $type)) {
             $this->sendEmailNotification($admin, $message, $type);
