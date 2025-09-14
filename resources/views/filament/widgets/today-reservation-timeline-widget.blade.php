@@ -493,31 +493,59 @@
 
         // 予約キャンセル
         window.cancelReservation = function(reservationId) {
-            if (confirm('この予約をキャンセルしてよろしいですか？\n\nこの操作は取り消せません。')) {
-                fetch(`/admin/api/reservations/${reservationId}/cancel`, {
+            // キャンセル理由入力用のプロンプト
+            const reason = prompt('キャンセル理由を入力してください（必須）\n\n例：顧客からの電話連絡、体調不良など');
+
+            if (reason === null) {
+                // キャンセルボタンが押された場合
+                return;
+            }
+
+            if (!reason || reason.trim() === '') {
+                alert('キャンセル理由を入力してください');
+                return;
+            }
+
+            if (confirm(`以下の理由でキャンセルしてよろしいですか？\n\n理由：${reason}\n\nこの操作は取り消せません。`)) {
+                // CSRFトークンを取得（Filament/Laravelから）
+                const token = document.querySelector('meta[name="csrf-token"]')?.content ||
+                             document.querySelector('[name="_token"]')?.value || '';
+
+                fetch(`/api/admin/reservations/${reservationId}/cancel`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                    }
+                        'X-CSRF-TOKEN': token,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        cancel_reason: reason
+                    })
                 })
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error('キャンセル処理に失敗しました');
+                        // APIエラーの場合、Filamentの編集画面へ誘導
+                        throw new Error('APIエラー');
                     }
                     return response.json();
                 })
                 .then(data => {
-                    alert('予約をキャンセルしました');
-                    window.closeReservationModal();
-                    // ページをリロードして最新の状態を表示
-                    window.location.reload();
+                    if (data.success) {
+                        alert('予約をキャンセルしました');
+                        window.closeReservationModal();
+                        // ページをリロードして最新の状態を表示
+                        window.location.reload();
+                    } else {
+                        throw new Error(data.message || 'キャンセル処理に失敗しました');
+                    }
                 })
                 .catch(error => {
                     console.error('Cancel error:', error);
-                    alert('キャンセル処理中にエラーが発生しました。\n\n予約編集画面からキャンセルしてください。');
-                    const editUrl = `/admin/reservations/${reservationId}/edit`;
-                    window.open(editUrl, '_blank');
+                    // エラー時は編集画面へ誘導
+                    if (confirm('キャンセル処理中にエラーが発生しました。\n\n予約編集画面でキャンセルしますか？')) {
+                        const editUrl = `/admin/reservations/${reservationId}/edit`;
+                        window.location.href = editUrl;
+                    }
                 });
             }
         }

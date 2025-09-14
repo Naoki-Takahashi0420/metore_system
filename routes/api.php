@@ -103,4 +103,8 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
     Route::apiResource('menus', MenuController::class)->except(['index', 'show']);
     Route::apiResource('customers', CustomerController::class);
     Route::apiResource('reservations', ReservationController::class);
+
+    // 予約管理の追加アクション
+    Route::post('reservations/{id}/cancel', [ReservationController::class, 'adminCancelReservation']);
+    Route::post('reservations/{id}/complete', [ReservationController::class, 'adminCompleteReservation']);
 });

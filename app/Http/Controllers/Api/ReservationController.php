@@ -51,6 +51,91 @@ class ReservationController extends Controller
     }
 
     /**
+     * 管理者向け予約キャンセル
+     */
+    public function adminCancelReservation(Request $request, $id)
+    {
+        $reservation = Reservation::find($id);
+
+        if (!$reservation) {
+            return response()->json([
+                'success' => false,
+                'message' => '予約が見つかりません'
+            ], 404);
+        }
+
+        // キャンセル可能かチェック
+        if (in_array($reservation->status, ['cancelled', 'completed', 'no_show'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'この予約はキャンセルできません'
+            ], 400);
+        }
+
+        // キャンセル実行
+        $reservation->update([
+            'status' => 'cancelled',
+            'cancel_reason' => $request->input('cancel_reason', '管理者によるキャンセル'),
+            'cancelled_at' => now()
+        ]);
+
+        // 顧客のキャンセル回数を更新
+        if ($reservation->customer) {
+            $reservation->customer->increment('cancellation_count');
+            $reservation->customer->update(['last_cancelled_at' => now()]);
+        }
+
+        // キャンセル通知を送信
+        event(new ReservationCancelled($reservation));
+
+        return response()->json([
+            'success' => true,
+            'message' => '予約をキャンセルしました',
+            'data' => $reservation
+        ]);
+    }
+
+    /**
+     * 管理者向け予約完了
+     */
+    public function adminCompleteReservation(Request $request, $id)
+    {
+        $reservation = Reservation::find($id);
+
+        if (!$reservation) {
+            return response()->json([
+                'success' => false,
+                'message' => '予約が見つかりません'
+            ], 404);
+        }
+
+        if ($reservation->status !== 'booked') {
+            return response()->json([
+                'success' => false,
+                'message' => 'この予約は完了にできません'
+            ], 400);
+        }
+
+        // 完了処理
+        $reservation->update(['status' => 'completed']);
+
+        // サブスクリプション利用回数を更新
+        $customer = $reservation->customer;
+        if ($customer) {
+            $subscription = $customer->activeSubscription;
+            if ($subscription) {
+                $subscription->recordVisit();
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => '予約を完了しました',
+            'data' => $reservation
+        ]);
+    }
+
+    /**
      * 予約作成（顧客用）
      */
     public function createReservation(Request $request)
