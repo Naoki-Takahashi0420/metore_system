@@ -107,4 +107,8 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
     // 予約管理の追加アクション
     Route::post('reservations/{id}/cancel', [ReservationController::class, 'adminCancelReservation']);
     Route::post('reservations/{id}/complete', [ReservationController::class, 'adminCompleteReservation']);
+    Route::post('reservations/{id}/no-show', [ReservationController::class, 'adminNoShowReservation']);
+    Route::post('reservations/{id}/restore', [ReservationController::class, 'adminRestoreReservation']);
+    Route::post('reservations/{id}/move-to-sub', [ReservationController::class, 'adminMoveToSubLine']);
+    Route::post('reservations/{id}/move-to-main', [ReservationController::class, 'adminMoveToMainLine']);
 });

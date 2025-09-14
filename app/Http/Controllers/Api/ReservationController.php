@@ -136,6 +136,126 @@ class ReservationController extends Controller
     }
 
     /**
+     * 管理者向け来店なし設定
+     */
+    public function adminNoShowReservation(Request $request, $id)
+    {
+        $reservation = Reservation::find($id);
+
+        if (!$reservation) {
+            return response()->json([
+                'success' => false,
+                'message' => '予約が見つかりません'
+            ], 404);
+        }
+
+        if ($reservation->status !== 'booked') {
+            return response()->json([
+                'success' => false,
+                'message' => 'この予約は来店なしにできません'
+            ], 400);
+        }
+
+        $reservation->update(['status' => 'no_show']);
+
+        return response()->json([
+            'success' => true,
+            'message' => '予約を来店なしにしました',
+            'data' => $reservation
+        ]);
+    }
+
+    /**
+     * 管理者向け予約復元
+     */
+    public function adminRestoreReservation(Request $request, $id)
+    {
+        $reservation = Reservation::find($id);
+
+        if (!$reservation) {
+            return response()->json([
+                'success' => false,
+                'message' => '予約が見つかりません'
+            ], 404);
+        }
+
+        if (!in_array($reservation->status, ['cancelled', 'no_show'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'この予約は復元できません'
+            ], 400);
+        }
+
+        $reservation->update(['status' => 'booked']);
+
+        return response()->json([
+            'success' => true,
+            'message' => '予約を復元しました',
+            'data' => $reservation
+        ]);
+    }
+
+    /**
+     * 管理者向けサブラインへ移動
+     */
+    public function adminMoveToSubLine(Request $request, $id)
+    {
+        $reservation = Reservation::find($id);
+
+        if (!$reservation) {
+            return response()->json([
+                'success' => false,
+                'message' => '予約が見つかりません'
+            ], 404);
+        }
+
+        if ($reservation->line_type !== 'main' || $reservation->status !== 'booked') {
+            return response()->json([
+                'success' => false,
+                'message' => 'この予約はサブラインに移動できません'
+            ], 400);
+        }
+
+        $reservation->moveToSubLine();
+
+        return response()->json([
+            'success' => true,
+            'message' => '予約をサブラインに移動しました',
+            'data' => $reservation
+        ]);
+    }
+
+    /**
+     * 管理者向けメインラインへ移動
+     */
+    public function adminMoveToMainLine(Request $request, $id)
+    {
+        $reservation = Reservation::find($id);
+
+        if (!$reservation) {
+            return response()->json([
+                'success' => false,
+                'message' => '予約が見つかりません'
+            ], 404);
+        }
+
+        if ($reservation->line_type !== 'sub' || $reservation->status !== 'booked') {
+            return response()->json([
+                'success' => false,
+                'message' => 'この予約はメインラインに戻せません'
+            ], 400);
+        }
+
+        $reservation->moveToMainLine();
+
+        return response()->json([
+            'success' => true,
+            'message' => '予約をメインラインに戻しました',
+            'data' => $reservation
+        ]);
+    }
+
+    /**
      * 予約作成（顧客用）
      */
     public function createReservation(Request $request)

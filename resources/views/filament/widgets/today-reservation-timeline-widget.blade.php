@@ -201,6 +201,8 @@
                                                      data-amount="{{ number_format($reservation->total_amount) }}"
                                                      data-notes="{{ $reservation->notes ?? '' }}"
                                                      data-phone="{{ $reservation->customer->phone ?? '-' }}"
+                                                     data-status="{{ $reservation->status }}"
+                                                     data-line-type="{{ $reservation->line_type ?? 'main' }}"
                                                      title="{{ $reservation->customer->last_name }}{{ $reservation->customer->first_name }}様 ({{ $reservation->is_new_customer ? '新規' : '既存' }}) - クリックで詳細">
                                                     {{ $reservation->is_new_customer ? '★新' : '●既' }}
                                                     @if($colspan > 1)
@@ -386,6 +388,8 @@
                 const amount = element.dataset.amount || '0';
                 const notes = element.dataset.notes || '';
                 const phone = element.dataset.phone || '-';
+                const status = element.dataset.status || 'booked';
+                const lineType = element.dataset.lineType || 'main';
 
                 // モーダルのHTMLを構築
                 content.innerHTML = `
@@ -445,14 +449,51 @@
                             </button>
                         </div>
 
+                        ${status === 'booked' ? `
                         <div style="display: flex; gap: 10px; margin-top: 10px;">
-                            <button onclick="changeReservationTime('${reservationId}')" style="flex: 1; padding: 10px; background: #f59e0b; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
-                                🕐 時間変更
+                            <button onclick="completeReservation('${reservationId}')" style="flex: 1; padding: 10px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                                ✅ 完了
+                            </button>
+                            <button onclick="noShowReservation('${reservationId}')" style="flex: 1; padding: 10px; background: #f59e0b; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                                ⚠️ 来店なし
                             </button>
                             <button onclick="cancelReservation('${reservationId}')" style="flex: 1; padding: 10px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
                                 ❌ キャンセル
                             </button>
                         </div>
+                        ` : ''}
+
+                        ${(status === 'cancelled' || status === 'no_show') ? `
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            <button onclick="restoreReservation('${reservationId}')" style="flex: 1; padding: 10px; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                                ↩️ 予約を復元
+                            </button>
+                        </div>
+                        ` : ''}
+
+                        ${status === 'booked' && lineType === 'main' ? `
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            <button onclick="moveToSubLine('${reservationId}')" style="flex: 1; padding: 10px; background: #f59e0b; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                                ➡️ サブラインへ移動
+                            </button>
+                        </div>
+                        ` : ''}
+
+                        ${status === 'booked' && lineType === 'sub' ? `
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            <button onclick="moveToMainLine('${reservationId}')" style="flex: 1; padding: 10px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                                ⬅️ メインラインへ戻す
+                            </button>
+                        </div>
+                        ` : ''}
+
+                        ${status === 'completed' ? `
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            <button onclick="createMedicalRecord('${reservationId}', '${customerId}')" style="flex: 1; padding: 10px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                                📝 カルテ作成
+                            </button>
+                        </div>
+                        ` : ''}
                     </div>
                 `;
                 modal.style.display = 'block';
@@ -483,12 +524,168 @@
             window.closeReservationModal();
         }
 
-        // 時間変更
-        window.changeReservationTime = function(reservationId) {
-            if (confirm('予約時間を変更しますか？')) {
-                const editUrl = `/admin/reservations/${reservationId}/edit`;
-                window.location.href = editUrl;
+        // 予約完了
+        window.completeReservation = function(reservationId) {
+            if (confirm('この予約を完了（来店済み）にマークしますか？')) {
+                const token = document.querySelector('meta[name="csrf-token"]')?.content ||
+                             document.querySelector('[name="_token"]')?.value || '';
+
+                fetch(`/api/admin/reservations/${reservationId}/complete`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token,
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('予約を完了しました。\n\n続いてカルテを作成してください。');
+                        window.closeReservationModal();
+                        // カルテ作成画面へ遷移
+                        const customerId = data.data.customer_id;
+                        const url = `/admin/medical-records/create?customer_id=${customerId}&reservation_id=${reservationId}`;
+                        window.location.href = url;
+                    } else {
+                        throw new Error(data.message || '完了処理に失敗しました');
+                    }
+                })
+                .catch(error => {
+                    console.error('Complete error:', error);
+                    alert('完了処理中にエラーが発生しました');
+                });
             }
+        }
+
+        // 来店なし
+        window.noShowReservation = function(reservationId) {
+            if (confirm('この予約を来店なし（ノーショー）にマークしますか？')) {
+                const token = document.querySelector('meta[name="csrf-token"]')?.content ||
+                             document.querySelector('[name="_token"]')?.value || '';
+
+                fetch(`/api/admin/reservations/${reservationId}/no-show`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token,
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('予約を来店なしにしました');
+                        window.closeReservationModal();
+                        window.location.reload();
+                    } else {
+                        throw new Error(data.message || '処理に失敗しました');
+                    }
+                })
+                .catch(error => {
+                    console.error('No-show error:', error);
+                    alert('処理中にエラーが発生しました');
+                });
+            }
+        }
+
+        // 予約復元
+        window.restoreReservation = function(reservationId) {
+            if (confirm('この予約を予約済みステータスに戻しますか？')) {
+                const token = document.querySelector('meta[name="csrf-token"]')?.content ||
+                             document.querySelector('[name="_token"]')?.value || '';
+
+                fetch(`/api/admin/reservations/${reservationId}/restore`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token,
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('予約を復元しました');
+                        window.closeReservationModal();
+                        window.location.reload();
+                    } else {
+                        throw new Error(data.message || '復元処理に失敗しました');
+                    }
+                })
+                .catch(error => {
+                    console.error('Restore error:', error);
+                    alert('復元処理中にエラーが発生しました');
+                });
+            }
+        }
+
+        // サブラインへ移動
+        window.moveToSubLine = function(reservationId) {
+            if (confirm('この予約をサブラインに移動しますか？\n\nメインラインの枠が空きます。')) {
+                const token = document.querySelector('meta[name="csrf-token"]')?.content ||
+                             document.querySelector('[name="_token"]')?.value || '';
+
+                fetch(`/api/admin/reservations/${reservationId}/move-to-sub`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token,
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('予約をサブラインに移動しました');
+                        window.closeReservationModal();
+                        window.location.reload();
+                    } else {
+                        throw new Error(data.message || '移動処理に失敗しました');
+                    }
+                })
+                .catch(error => {
+                    console.error('Move to sub error:', error);
+                    alert('移動処理中にエラーが発生しました');
+                });
+            }
+        }
+
+        // メインラインへ戻す
+        window.moveToMainLine = function(reservationId) {
+            if (confirm('この予約をメインラインに戻しますか？')) {
+                const token = document.querySelector('meta[name="csrf-token"]')?.content ||
+                             document.querySelector('[name="_token"]')?.value || '';
+
+                fetch(`/api/admin/reservations/${reservationId}/move-to-main`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token,
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('予約をメインラインに戻しました');
+                        window.closeReservationModal();
+                        window.location.reload();
+                    } else {
+                        throw new Error(data.message || '移動処理に失敗しました');
+                    }
+                })
+                .catch(error => {
+                    console.error('Move to main error:', error);
+                    alert('移動処理中にエラーが発生しました');
+                });
+            }
+        }
+
+        // カルテ作成
+        window.createMedicalRecord = function(reservationId, customerId) {
+            const url = `/admin/medical-records/create?customer_id=${customerId}&reservation_id=${reservationId}`;
+            window.location.href = url;
         }
 
         // 予約キャンセル
