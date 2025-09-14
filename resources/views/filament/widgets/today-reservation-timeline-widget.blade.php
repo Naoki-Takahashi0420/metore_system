@@ -360,25 +360,103 @@
         // グローバル関数として確実に定義
         window.openReservationModalFromData = function(element) {
             console.log('openReservationModalFromData called', element);
-            
+
             try {
                 const modal = document.getElementById('reservationModal');
                 const content = document.getElementById('modalContent');
-                
+
                 console.log('Modal element:', modal);
                 console.log('Content element:', content);
-                
+
                 if (!modal || !content) {
                     console.error('Modal elements not found');
                     return;
                 }
-                
+
+                // データを取得
+                const reservationId = element.dataset.reservationId;
+                const customerId = element.dataset.customerId;
                 const customerName = element.dataset.customerName || 'Unknown';
                 const customerType = element.dataset.customerType || '不明';
-                
-                content.innerHTML = '<h3>📋 予約詳細</h3><p>顧客: ' + customerName + '</p><button onclick="closeReservationModal()">閉じる</button>';
+                const reservationNumber = element.dataset.reservationNumber || '-';
+                const date = element.dataset.date || '-';
+                const time = element.dataset.time || '-';
+                const store = element.dataset.store || '-';
+                const menu = element.dataset.menu || '-';
+                const amount = element.dataset.amount || '0';
+                const notes = element.dataset.notes || '';
+                const phone = element.dataset.phone || '-';
+
+                // モーダルのHTMLを構築
+                content.innerHTML = `
+                    <div style="position: relative;">
+                        <button onclick="closeReservationModal()" style="position: absolute; top: -10px; right: -10px; background: #ef4444; color: white; border: none; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: 18px;">×</button>
+
+                        <h3 style="font-size: 20px; font-weight: bold; margin-bottom: 20px; color: #1f2937;">📋 予約詳細</h3>
+
+                        <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                                <span style="display: inline-block; padding: 2px 8px; background: ${customerType === '新規' ? '#22c55e' : '#3b82f6'}; color: white; border-radius: 4px; font-size: 12px; font-weight: bold; margin-right: 10px;">
+                                    ${customerType}
+                                </span>
+                                <strong style="font-size: 18px; color: #1f2937;">${customerName}様</strong>
+                            </div>
+                            <div style="color: #6b7280; font-size: 14px;">
+                                <div>📞 電話: ${phone}</div>
+                                <div>🏪 店舗: ${store}</div>
+                            </div>
+                        </div>
+
+                        <div style="space-y: 12px;">
+                            <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 8px; margin-bottom: 8px;">
+                                <div style="color: #6b7280; font-size: 12px;">予約番号</div>
+                                <div style="font-weight: bold; color: #1f2937;">${reservationNumber}</div>
+                            </div>
+
+                            <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 8px; margin-bottom: 8px;">
+                                <div style="color: #6b7280; font-size: 12px;">日時</div>
+                                <div style="font-weight: bold; color: #1f2937;">📅 ${date} ⏰ ${time}</div>
+                            </div>
+
+                            <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 8px; margin-bottom: 8px;">
+                                <div style="color: #6b7280; font-size: 12px;">メニュー</div>
+                                <div style="font-weight: bold; color: #1f2937;">${menu}</div>
+                            </div>
+
+                            <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 8px; margin-bottom: 8px;">
+                                <div style="color: #6b7280; font-size: 12px;">金額</div>
+                                <div style="font-weight: bold; color: #1f2937; font-size: 18px;">¥${amount}</div>
+                            </div>
+
+                            ${notes ? `
+                            <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 8px; margin-bottom: 8px;">
+                                <div style="color: #6b7280; font-size: 12px;">備考</div>
+                                <div style="color: #1f2937; background: #fef3c7; padding: 8px; border-radius: 4px; margin-top: 4px;">${notes}</div>
+                            </div>
+                            ` : ''}
+                        </div>
+
+                        <div style="display: flex; gap: 10px; margin-top: 20px;">
+                            <button onclick="openCustomerChart('${customerId}', '${customerName}')" style="flex: 1; padding: 10px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                                👤 カルテを開く
+                            </button>
+                            <button onclick="editReservation('${reservationId}')" style="flex: 1; padding: 10px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                                ✏️ 予約を編集
+                            </button>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            <button onclick="changeReservationTime('${reservationId}')" style="flex: 1; padding: 10px; background: #f59e0b; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                                🕐 時間変更
+                            </button>
+                            <button onclick="cancelReservation('${reservationId}')" style="flex: 1; padding: 10px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                                ❌ キャンセル
+                            </button>
+                        </div>
+                    </div>
+                `;
                 modal.style.display = 'block';
-                
+
                 console.log('Modal displayed');
             } catch (error) {
                 console.error('Error in openReservationModalFromData:', error);
@@ -404,7 +482,46 @@
             window.open(editUrl, '_blank');
             window.closeReservationModal();
         }
-        
+
+        // 時間変更
+        window.changeReservationTime = function(reservationId) {
+            if (confirm('予約時間を変更しますか？')) {
+                const editUrl = `/admin/reservations/${reservationId}/edit`;
+                window.location.href = editUrl;
+            }
+        }
+
+        // 予約キャンセル
+        window.cancelReservation = function(reservationId) {
+            if (confirm('この予約をキャンセルしてよろしいですか？\n\nこの操作は取り消せません。')) {
+                fetch(`/admin/api/reservations/${reservationId}/cancel`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('キャンセル処理に失敗しました');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    alert('予約をキャンセルしました');
+                    window.closeReservationModal();
+                    // ページをリロードして最新の状態を表示
+                    window.location.reload();
+                })
+                .catch(error => {
+                    console.error('Cancel error:', error);
+                    alert('キャンセル処理中にエラーが発生しました。\n\n予約編集画面からキャンセルしてください。');
+                    const editUrl = `/admin/reservations/${reservationId}/edit`;
+                    window.open(editUrl, '_blank');
+                });
+            }
+        }
+
         // モーダル外クリックで閉じる
         window.onclick = function(event) {
             const modal = document.getElementById('reservationModal');
