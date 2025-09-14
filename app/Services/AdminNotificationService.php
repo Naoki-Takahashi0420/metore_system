@@ -121,38 +121,41 @@ class AdminNotificationService
      */
     private function getStoreAdmins(Store $store): \Illuminate\Support\Collection
     {
-        $admins = collect();
-        
+        $adminIds = collect();
+
         // 店舗オーナーと管理者を取得
         try {
             if ($store->managers()->exists()) {
-                $storeManagers = $store->managers()->get();
-                $admins = $admins->merge($storeManagers);
+                $storeManagerIds = $store->managers()->pluck('users.id');
+                $adminIds = $adminIds->merge($storeManagerIds);
             }
         } catch (\Exception $e) {
             \Log::warning('店舗管理者の取得に失敗: ' . $e->getMessage());
             // 代替として、store_idが一致するユーザーを取得
-            $storeUsers = User::where('store_id', $store->id)->get();
-            $admins = $admins->merge($storeUsers);
+            $storeUserIds = User::where('store_id', $store->id)->pluck('id');
+            $adminIds = $adminIds->merge($storeUserIds);
         }
-        
+
         // スーパー管理者も含める（全店舗の重要イベントを受信）
         try {
-            $superAdmins = User::role('super_admin')->get();
-            $admins = $admins->merge($superAdmins);
+            $superAdminIds = User::role('super_admin')->pluck('id');
+            $adminIds = $adminIds->merge($superAdminIds);
         } catch (\Exception $e) {
             // ロールシステムが利用できない場合は、全管理者を取得
-            $allAdmins = User::where('is_admin', true)->get();
-            $admins = $admins->merge($allAdmins);
+            $allAdminIds = User::where('is_admin', true)->pluck('id');
+            $adminIds = $adminIds->merge($allAdminIds);
         }
-        
+
         // 本番環境でも高橋直希には必ず通知を送る（オーナー用）
         $owner = User::where('email', 'dasuna2305@gmail.com')->first();
-        if ($owner && !$admins->contains('id', $owner->id)) {
-            $admins->push($owner);
+        if ($owner) {
+            $adminIds->push($owner->id);
         }
-        
-        return $admins->unique('id')->values();
+
+        // 重複を除去してからユーザーオブジェクトを取得
+        $uniqueAdminIds = $adminIds->unique()->filter();
+
+        return User::whereIn('id', $uniqueAdminIds)->get();
     }
     
     /**
