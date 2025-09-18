@@ -204,15 +204,27 @@
             <div class="item-row">
                 <span class="item-name">{{ $item['name'] }}</span>
                 <span class="item-qty">×{{ $item['quantity'] }}</span>
-                <span class="item-price">¥{{ number_format($item['price'] * $item['quantity']) }}</span>
+                <span class="item-price">
+                    @if(isset($isSubscription) && $isSubscription)
+                        サブスク利用
+                    @else
+                        ¥{{ number_format($item['price'] * $item['quantity']) }}
+                    @endif
+                </span>
             </div>
-            
+
             @if(isset($item['options']) && count($item['options']) > 0)
                 @foreach($item['options'] as $option)
                 <div class="item-row" style="padding-left: 10px; font-size: 10px;">
                     <span class="item-name">└ {{ $option['name'] }}</span>
                     <span class="item-qty">×{{ $option['quantity'] }}</span>
-                    <span class="item-price">¥{{ number_format($option['price'] * $option['quantity']) }}</span>
+                    <span class="item-price">
+                        @if(isset($isSubscription) && $isSubscription)
+                            -
+                        @else
+                            ¥{{ number_format($option['price'] * $option['quantity']) }}
+                        @endif
+                    </span>
                 </div>
                 @endforeach
             @endif
@@ -220,27 +232,34 @@
         </div>
         
         <div class="totals-section">
+            @if(isset($isSubscription) && $isSubscription)
+            <div class="total-row grand-total">
+                <span>お支払い:</span>
+                <span>サブスクリプション利用</span>
+            </div>
+            @else
             <div class="total-row">
                 <span>小計:</span>
                 <span>¥{{ number_format($sale->subtotal) }}</span>
             </div>
-            
+
             @if($sale->discount_amount > 0)
             <div class="total-row">
                 <span>割引:</span>
                 <span>-¥{{ number_format($sale->discount_amount) }}</span>
             </div>
             @endif
-            
+
             <div class="total-row">
                 <span>消費税({{ $sale->tax_rate }}%):</span>
                 <span>¥{{ number_format($sale->tax_amount) }}</span>
             </div>
-            
+
             <div class="total-row grand-total">
                 <span>合計:</span>
                 <span>¥{{ number_format($sale->total_amount) }}</span>
             </div>
+            @endif
         </div>
         
         <div class="payment-section">

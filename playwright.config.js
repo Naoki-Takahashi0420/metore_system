@@ -12,7 +12,7 @@ export default defineConfig({
     ['json', { outputFile: 'test-results.json' }]
   ],
   use: {
-    baseURL: process.env.PRODUCTION_TEST ? 'http://13.115.38.179' : 'http://127.0.0.1:8000',
+    baseURL: process.env.PRODUCTION_TEST ? 'http://13.115.38.179' : 'http://127.0.0.1:8001',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -27,8 +27,8 @@ export default defineConfig({
   ],
   // Only start local server if not testing production
   webServer: process.env.PRODUCTION_TEST ? undefined : {
-    command: 'php artisan serve --port=8000',
-    port: 8000,
+    command: 'php artisan serve --port=8001',
+    port: 8001,
     reuseExistingServer: !process.env.CI,
   },
   timeout: 60000,

@@ -29,6 +29,11 @@ class ListReservations extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('calendar')
+                ->label('カレンダー表示')
+                ->icon('heroicon-o-calendar-days')
+                ->color('info')
+                ->url(fn () => static::getResource()::getUrl('calendar')),
             Actions\CreateAction::make()
                 ->label('新規予約')
                 ->icon('heroicon-o-plus-circle'),

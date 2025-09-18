@@ -14,11 +14,11 @@ class ListBlockedTimePeriods extends ListRecords
 
     #[Url]
     public $storeFilter = null;
-    
+
     public function mount(): void
     {
         parent::mount();
-        
+
         $user = auth()->user();
         if ($user) {
             // スーパーアドミン以外はデフォルトで所属店舗を選択
@@ -38,15 +38,16 @@ class ListBlockedTimePeriods extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make()->label('新規作成'),
+            Actions\CreateAction::make()
+                ->label('新規作成'),
         ];
     }
-    
+
     public function getHeader(): ?\Illuminate\Contracts\View\View
     {
         $user = auth()->user();
         $storeOptions = collect();
-        
+
         try {
             // スーパーアドミンは全店舗表示
             if ($user && $user->hasRole('super_admin')) {
@@ -60,31 +61,32 @@ class ListBlockedTimePeriods extends ListRecords
             elseif ($user && $user->store) {
                 $storeOptions = collect([$user->store_id => $user->store->name]);
             }
-            
+
             // 店舗選択が必要な場合のみヘッダーを表示
             if ($storeOptions->count() > 1) {
-                return view('filament.resources.blocked-time-period-resource.pages.list-blocked-time-periods-header', [
+                return view('filament.resources.blocked-time-period-resource.pages.list-blocked-time-periods-header-with-actions', [
                     'storeOptions' => $storeOptions->prepend('全店舗', '') ?? collect(),
-                    'selectedStore' => $this->storeFilter ?? ''
+                    'selectedStore' => $this->storeFilter ?? '',
+                    'headerActions' => $this->getCachedHeaderActions()
                 ]);
             }
         } catch (\Exception $e) {
             // エラーが発生した場合はヘッダーを表示しない
             \Log::error('BlockedTimePeriodResource header error: ' . $e->getMessage());
         }
-        
+
         return null;
     }
-    
+
     public function getTableQuery(): ?\Illuminate\Database\Eloquent\Builder
     {
         $query = parent::getTableQuery();
         $user = auth()->user();
-        
+
         if (!$user) {
             return $query->whereRaw('1 = 0');
         }
-        
+
         // スーパーアドミンは全ブロック時間表示（店舗フィルターがある場合は適用）
         if ($user->hasRole('super_admin')) {
             if ($this->storeFilter) {
@@ -92,11 +94,11 @@ class ListBlockedTimePeriods extends ListRecords
             }
             return $query;
         }
-        
+
         // オーナーは管理可能店舗のブロック時間のみ表示
         if ($user->hasRole('owner')) {
             $manageableStoreIds = $user->manageableStores()->pluck('stores.id');
-            
+
             if ($this->storeFilter) {
                 // 特定店舗が選択されている場合
                 if (in_array($this->storeFilter, $manageableStoreIds->toArray())) {
@@ -111,16 +113,16 @@ class ListBlockedTimePeriods extends ListRecords
             }
             return $query;
         }
-        
+
         // 店長・スタッフは所属店舗のブロック時間のみ表示
         if ($user->hasRole(['manager', 'staff'])) {
             $storeId = $this->storeFilter ?: $user->store_id;
-            
+
             // 自分の所属店舗以外が選択されている場合は空を返す
             if ($this->storeFilter && $this->storeFilter != $user->store_id) {
                 return $query->whereRaw('1 = 0');
             }
-            
+
             if ($storeId) {
                 $query->where('store_id', $storeId);
             } else {
@@ -128,7 +130,7 @@ class ListBlockedTimePeriods extends ListRecords
             }
             return $query;
         }
-        
+
         return $query->whereRaw('1 = 0');
     }
 }

@@ -341,6 +341,9 @@
                 <input type="hidden" name="menu_id" value="{{ $selectedMenu->id }}">
                 <input type="hidden" id="selectedDate" name="date">
                 <input type="hidden" id="selectedTime" name="time">
+                @if(Session::has('selected_staff_id'))
+                    <input type="hidden" name="staff_id" value="{{ Session::get('selected_staff_id') }}">
+                @endif
                 
                 <!-- 選択された日時表示 -->
                 <div class="mb-4 p-4 bg-blue-50 rounded">
@@ -354,6 +357,26 @@
                     <p class="text-lg font-semibold">{{ $selectedMenu->name }}</p>
                     <p class="text-sm text-gray-600">{{ $selectedMenu->duration }}分 / ¥{{ number_format($selectedMenu->price) }}</p>
                 </div>
+
+                @if(Session::has('selected_staff_id'))
+                    @php
+                        $selectedStaff = App\Models\User::find(Session::get('selected_staff_id'));
+                    @endphp
+                    @if($selectedStaff)
+                        <!-- 担当スタッフ表示 -->
+                        <div class="mb-4 p-4 bg-blue-50 rounded">
+                            <p class="text-sm text-gray-600 mb-1">担当スタッフ</p>
+                            <div class="flex items-center">
+                                <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                                    <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                    </svg>
+                                </div>
+                                <p class="text-lg font-semibold">{{ $selectedStaff->name }}</p>
+                            </div>
+                        </div>
+                    @endif
+                @endif
                 
                 <!-- お客様情報 -->
                 <div class="grid grid-cols-2 gap-4 mb-4">

@@ -226,10 +226,11 @@ class UserResource extends Resource
         if (!$user || !$user->roles()->exists()) {
             return false;
         }
-        
-        return $user->hasRole(['super_admin', 'owner', 'manager']);
+
+        // スーパー管理者のみユーザー管理可能
+        return $user->hasRole('super_admin');
     }
-    
+
     public static function canCreate(): bool
     {
         // Filamentのauth guardを使用
@@ -237,8 +238,9 @@ class UserResource extends Resource
         if (!$user) {
             return false;
         }
-        
-        return $user->hasRole(['super_admin', 'owner', 'manager']);
+
+        // スーパー管理者のみユーザー作成可能
+        return $user->hasRole('super_admin');
     }
     
     public static function canEdit($record): bool

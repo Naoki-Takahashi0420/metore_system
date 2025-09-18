@@ -19,7 +19,7 @@ function getReservationNumber() {
     const urlParams = new URLSearchParams(window.location.search);
     let reservation = urlParams.get('reservation');
     if (reservation) return reservation;
-    
+
     // 2. LIFF特有のliff.stateパラメータ（リダイレクト時に自動付与）
     const liffState = urlParams.get('liff.state');
     if (liffState) {
@@ -27,7 +27,7 @@ function getReservationNumber() {
         const match = decodedState.match(/reservation=([^&]+)/);
         if (match) return match[1];
     }
-    
+
     // 3. sessionStorageへのフォールバック
     return sessionStorage.getItem('reservation_number');
 }
@@ -49,7 +49,7 @@ if (reservationNumber) {
 ### Step 2: 連携開始ポイントの実装
 ```html
 <!-- 予約完了画面などからLIFF URLへ直接リンク -->
-<a href="https://liff.line.me/{{ LIFF_ID }}?reservation={{ reservation_number }}" 
+<a href="https://liff.line.me/{{ LIFF_ID }}?reservation={{ reservation_number }}"
    class="btn-line-link">
    LINEで連携
 </a>
@@ -59,18 +59,18 @@ if (reservationNumber) {
 ```javascript
 async function initializeLiff() {
     try {
-        await liff.init({ 
+        await liff.init({
             liffId: LIFF_ID,
             withLoginOnExternalBrowser: true // 外部ブラウザでも動作
         });
-        
+
         if (!liff.isLoggedIn()) {
             liff.login({
                 redirectUri: window.location.href // 現在のURLにリダイレクト
             });
             return;
         }
-        
+
         // IDトークン取得
         const idToken = liff.getIDToken();
         return idToken;
@@ -93,17 +93,17 @@ class LineTokenVerificationService
     {
         // JWKs取得
         $jwks = $this->fetchJWKs();
-        
+
         // ヘッダーからkeyIdを取得
         $header = $this->decodeHeader($idToken);
         $keyId = $header['kid'];
-        
+
         // 公開鍵を取得（Key型で返す）
         $publicKey = $this->findPublicKey($jwks, $keyId);
-        
+
         // トークン検証
         $decoded = JWT::decode($idToken, $publicKey);
-        
+
         return [
             'user_id' => $decoded->sub,  // LINEユーザーID
             'name' => $decoded->name ?? null,
@@ -111,7 +111,7 @@ class LineTokenVerificationService
             'email' => $decoded->email ?? null
         ];
     }
-    
+
     private function findPublicKey(array $jwks, string $keyId): Key
     {
         foreach ($jwks['keys'] as $key) {
@@ -132,22 +132,22 @@ public function linkByReservation(Request $request)
     $lineUserData = $this->tokenVerificationService->verifyIdToken(
         $request->input('id_token')
     );
-    
+
     // 予約番号から顧客を特定
     $reservation = Reservation::where('reservation_number', $request->input('reservation_number'))
         ->firstOrFail();
     $customer = $reservation->customer;
-    
+
     // LINE連携実行
     $customer->update([
         'line_user_id' => $lineUserData['user_id'],
         'line_display_name' => $lineUserData['name'],
         'line_picture_url' => $lineUserData['picture']
     ]);
-    
+
     // 連携完了メッセージをLINEに送信
     $this->sendWelcomeMessage($customer, $lineUserData['user_id']);
-    
+
     return response()->json(['success' => true]);
 }
 ```

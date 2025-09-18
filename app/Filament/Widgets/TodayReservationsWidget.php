@@ -174,9 +174,10 @@ class TodayReservationsWidget extends BaseWidget
                         !$record->medicalRecords()->exists()
                     ),
                     
-                Tables\Actions\EditAction::make()
+                Tables\Actions\Action::make('edit')
                     ->label('編集')
-                    ->icon('heroicon-m-pencil-square'),
+                    ->icon('heroicon-m-pencil-square')
+                    ->url(fn ($record) => "/admin/reservations/{$record->id}/edit"),
             ])
             ->bulkActions([])
             ->paginated(false)

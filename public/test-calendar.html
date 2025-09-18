@@ -2,32 +2,109 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Calendar Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>カレンダーコンポーネントテスト</title>
+    <script src="//unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-    <h1>カレンダーテスト</h1>
-    <p>セッションストレージを設定してカレンダーにアクセスします。</p>
-    
-    <button onclick="setupAndGo()">カレンダーへ移動</button>
-    
-    <script>
-        function setupAndGo() {
-            // セッションストレージに必要なデータを設定
-            sessionStorage.setItem('selectedStore', JSON.stringify({
-                id: 1,
-                name: '目のトレーニング 東京本店'
-            }));
-            
-            sessionStorage.setItem('selectedMenu', JSON.stringify({
-                id: 1,
-                name: '眼精疲労ケアコース',
-                price: 5000,
-                duration: 60
-            }));
-            
-            // カレンダーページへ移動
-            window.location.href = '/reservation/datetime';
-        }
-    </script>
+<body class="p-8 bg-gray-100">
+    <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow">
+        <h1 class="text-2xl font-bold mb-4">カレンダーコンポーネント動作テスト</h1>
+
+        <!-- フォームフィールド（テスト用） -->
+        <div class="mb-4 grid grid-cols-3 gap-4">
+            <div>
+                <label class="block text-sm font-medium mb-1">予約日</label>
+                <input type="date" name="reservation_date" id="reservation_date" class="w-full border rounded px-3 py-2">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">開始時間</label>
+                <input type="time" name="start_time" id="start_time" class="w-full border rounded px-3 py-2">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">終了時間</label>
+                <input type="time" name="end_time" id="end_time" class="w-full border rounded px-3 py-2">
+            </div>
+        </div>
+
+        <!-- カレンダーコンポーネント -->
+        <div
+            x-data="{
+                init() {
+                    console.log('🎯 カレンダーコンポーネント初期化完了！');
+                },
+                selectTimeSlot(date, time, duration) {
+                    console.log('========================================');
+                    console.log('🔵 Alpine.js: カレンダー選択開始');
+                    console.log('入力値:', { date, time, duration });
+                    console.log('========================================');
+
+                    // 終了時間を計算
+                    const [hours, minutes] = time.split(':').map(Number);
+                    const totalMinutes = hours * 60 + minutes + duration;
+                    const endHours = Math.floor(totalMinutes / 60);
+                    const endMinutes = totalMinutes % 60;
+                    const endTime = String(endHours).padStart(2, '0') + ':' + String(endMinutes).padStart(2, '0');
+
+                    // フォーム更新
+                    this.updateFormFields(date, time, endTime);
+                },
+                updateFormFields(date, time, endTime) {
+                    console.log('フォーム更新開始:', { date, time, endTime });
+
+                    // 日付フィールド更新
+                    const dateField = document.getElementById('reservation_date');
+                    if (dateField) {
+                        dateField.value = date;
+                        console.log('✅ 日付更新完了:', date);
+                    }
+
+                    // 開始時間フィールド更新
+                    const startTimeField = document.getElementById('start_time');
+                    if (startTimeField) {
+                        startTimeField.value = time;
+                        console.log('✅ 開始時間更新完了:', time);
+                    }
+
+                    // 終了時間フィールド更新
+                    const endTimeField = document.getElementById('end_time');
+                    if (endTimeField) {
+                        endTimeField.value = endTime;
+                        console.log('✅ 終了時間更新完了:', endTime);
+                    }
+
+                    console.log('🔵 フォーム更新処理完了');
+                }
+            }"
+            x-init="init()"
+            class="w-full">
+
+            <h2 class="text-lg font-semibold mb-3">空き状況カレンダー</h2>
+
+            <!-- サンプルボタン -->
+            <div class="grid grid-cols-3 gap-2">
+                <button
+                    @click="selectTimeSlot('2025-09-20', '10:00', 60)"
+                    class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
+                    9/20 10:00 (60分)
+                </button>
+                <button
+                    @click="selectTimeSlot('2025-09-21', '14:00', 90)"
+                    class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
+                    9/21 14:00 (90分)
+                </button>
+                <button
+                    @click="selectTimeSlot('2025-09-22', '16:30', 60)"
+                    class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
+                    9/22 16:30 (60分)
+                </button>
+            </div>
+        </div>
+
+        <!-- コンソール出力表示エリア -->
+        <div class="mt-6 p-4 bg-gray-900 text-green-400 rounded">
+            <p class="text-sm">ブラウザのコンソールを開いて動作を確認してください（F12キー）</p>
+        </div>
+    </div>
 </body>
 </html>

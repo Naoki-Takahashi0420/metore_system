@@ -49,6 +49,10 @@ Route::get('/reservation/options/{menu}', [App\Http\Controllers\PublicReservatio
 Route::post('/reservation/store-options', [App\Http\Controllers\PublicReservationController::class, 'storeOptions'])->name('reservation.store-options');
 Route::post('/reservation/store-menu', [App\Http\Controllers\PublicReservationController::class, 'storeMenu'])->name('reservation.store-menu');
 
+// スタッフ選択
+Route::get('/reservation/staff', [App\Http\Controllers\PublicReservationController::class, 'selectStaff'])->name('reservation.select-staff');
+Route::post('/reservation/store-staff', [App\Http\Controllers\PublicReservationController::class, 'storeStaff'])->name('reservation.store-staff');
+
 // 互換性保持用（旧ルート）
 Route::get('/reservation/menu', [App\Http\Controllers\PublicReservationController::class, 'selectMenu'])->name('reservation.menu');
 Route::get('/reservation/menu/{store_id}', [App\Http\Controllers\PublicReservationController::class, 'selectMenuWithStore'])->name('reservation.menu-with-store');
@@ -130,6 +134,178 @@ Route::prefix('customer')->group(function () {
 // 管理画面用ルート
 Route::post('/admin/menu-categories/update-order', [App\Http\Controllers\Admin\MenuCategoryController::class, 'updateOrder'])
     ->name('admin.menu-categories.update-order');
+
+// 領収証関連ルート
+Route::get('/receipt/reservation/{reservationId}', [App\Http\Controllers\ReceiptController::class, 'printFromReservation'])
+    ->name('receipt.print-reservation')
+    ->middleware(['auth.basic']);
+
+Route::get('/receipt/reservation/{reservationId}/pdf', [App\Http\Controllers\ReceiptController::class, 'downloadPdf'])
+    ->name('receipt.download-pdf')
+    ->middleware(['auth.basic']);
+
+// 予約空き状況API
+Route::post('/api/reservations/availability', function() {
+    $validated = request()->validate([
+        'store_id' => 'required|exists:stores,id',
+        'date' => 'required|date',
+        'staff_id' => 'nullable|exists:users,id',
+        'current_reservation_id' => 'nullable|exists:reservations,id',
+    ]);
+
+    $date = \Carbon\Carbon::parse($validated['date']);
+    $events = [];
+
+    // 既存の予約を取得
+    $query = \App\Models\Reservation::where('store_id', $validated['store_id'])
+        ->where('reservation_date', $date->format('Y-m-d'))
+        ->whereNotIn('status', ['cancelled', 'canceled']);
+
+    if (isset($validated['staff_id'])) {
+        $query->where('staff_id', $validated['staff_id']);
+    }
+
+    $reservations = $query->with(['customer', 'menu'])->get();
+
+    foreach ($reservations as $reservation) {
+        $isCurrentReservation = isset($validated['current_reservation_id']) &&
+                               $reservation->id == $validated['current_reservation_id'];
+
+        $events[] = [
+            'id' => $reservation->id,
+            'title' => $isCurrentReservation ? '現在の予約' :
+                      ($reservation->customer->last_name . ' ' . $reservation->customer->first_name),
+            'start' => $date->format('Y-m-d') . 'T' . $reservation->start_time,
+            'end' => $date->format('Y-m-d') . 'T' . $reservation->end_time,
+            'className' => $isCurrentReservation ? 'current-reservation' : 'other-reservation',
+            'editable' => false,
+        ];
+    }
+
+    return response()->json(['events' => $events]);
+})->middleware(['auth'])->name('api.reservations.availability');
+
+// 店舗営業時間API
+Route::get('/api/stores/{store}/business-hours', function(\App\Models\Store $store) {
+    $businessHours = [];
+    $hours = $store->businessHours()->where('is_open', true)->get();
+
+    foreach ($hours as $hour) {
+        $businessHours[] = [
+            'daysOfWeek' => [$hour->day_of_week],
+            'startTime' => $hour->open_time,
+            'endTime' => $hour->close_time,
+        ];
+    }
+
+    return response()->json(['businessHours' => $businessHours]);
+})->middleware(['auth'])->name('api.stores.business-hours');
+
+// 予約日時変更用API（カレンダーのドラッグ&ドロップ用）
+Route::post('/admin/reservations/update-datetime', function() {
+    $validated = request()->validate([
+        'id' => 'required|exists:reservations,id',
+        'date' => 'required|date',
+        'start_time' => 'required|date_format:H:i',
+        'end_time' => 'required|date_format:H:i',
+    ]);
+
+    try {
+        $reservation = \App\Models\Reservation::findOrFail($validated['id']);
+
+        // 権限チェック
+        $user = auth()->user();
+        if (!$user->hasRole('super_admin')) {
+            if ($user->hasRole('owner')) {
+                $manageableStoreIds = $user->manageableStores()->pluck('stores.id');
+                if (!$manageableStoreIds->contains($reservation->store_id)) {
+                    return response()->json(['success' => false, 'message' => '権限がありません'], 403);
+                }
+            } elseif ($user->hasRole(['manager', 'staff'])) {
+                if ($user->store_id !== $reservation->store_id) {
+                    return response()->json(['success' => false, 'message' => '権限がありません'], 403);
+                }
+            }
+        }
+
+        // 重複チェック（同じスタッフ、同じ日時に既存の予約がないか）
+        if ($reservation->staff_id) {
+            $existingReservation = \App\Models\Reservation::where('id', '!=', $reservation->id)
+                ->where('staff_id', $reservation->staff_id)
+                ->where('reservation_date', $validated['date'])
+                ->whereNotIn('status', ['cancelled', 'canceled'])
+                ->where(function($query) use ($validated) {
+                    $query->where(function($q) use ($validated) {
+                        // 新しい時間帯の開始時刻が既存の予約時間内にある
+                        $q->where('start_time', '<=', $validated['start_time'])
+                          ->where('end_time', '>', $validated['start_time']);
+                    })->orWhere(function($q) use ($validated) {
+                        // 新しい時間帯の終了時刻が既存の予約時間内にある
+                        $q->where('start_time', '<', $validated['end_time'])
+                          ->where('end_time', '>=', $validated['end_time']);
+                    })->orWhere(function($q) use ($validated) {
+                        // 新しい時間帯が既存の予約を完全に含む
+                        $q->where('start_time', '>=', $validated['start_time'])
+                          ->where('end_time', '<=', $validated['end_time']);
+                    });
+                })
+                ->exists();
+
+            if ($existingReservation) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '選択された時間帯は既に予約が入っています'
+                ], 400);
+            }
+        }
+
+        // 営業時間チェック
+        $store = $reservation->store;
+        $dayOfWeek = \Carbon\Carbon::parse($validated['date'])->dayOfWeek;
+        $businessHour = $store->businessHours()->where('day_of_week', $dayOfWeek)->first();
+
+        if (!$businessHour || !$businessHour->is_open) {
+            return response()->json([
+                'success' => false,
+                'message' => 'この日は営業していません'
+            ], 400);
+        }
+
+        if ($validated['start_time'] < $businessHour->open_time ||
+            $validated['end_time'] > $businessHour->close_time) {
+            return response()->json([
+                'success' => false,
+                'message' => '営業時間外です'
+            ], 400);
+        }
+
+        // 更新
+        $reservation->update([
+            'reservation_date' => $validated['date'],
+            'start_time' => $validated['start_time'],
+            'end_time' => $validated['end_time'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => '予約日時を変更しました'
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'エラーが発生しました: ' . $e->getMessage()
+        ], 500);
+    }
+})->middleware(['auth', 'auth.basic'])->name('admin.reservations.update-datetime');
+
+// 管理画面用の予約日程変更ページ
+Route::get('/admin/reservations/{reservation}/reschedule', [App\Http\Controllers\Admin\ReservationRescheduleController::class, 'show'])
+    ->name('admin.reservations.reschedule')
+    ->middleware(['auth', 'auth.basic']);
+Route::post('/admin/reservations/{reservation}/reschedule', [App\Http\Controllers\Admin\ReservationRescheduleController::class, 'update'])
+    ->name('admin.reservations.reschedule.update')
+    ->middleware(['auth', 'auth.basic']);
 
 // 勤怠レポートPDF出力用ルート
 Route::get('/admin/attendance-report/pdf', function() {

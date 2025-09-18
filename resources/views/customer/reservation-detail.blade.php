@@ -147,6 +147,9 @@
                     <button id="cancel-btn" class="bg-red-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-700 transition-colors" style="display: none;">
                         予約をキャンセル
                     </button>
+                    <a id="receipt-btn" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors cursor-pointer" style="display: none;" target="_blank">
+                        領収証を表示
+                    </a>
                     <a href="/customer/reservations" class="bg-gray-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-600 transition-colors">
                         戻る
                     </a>
@@ -285,6 +288,13 @@ function displayReservationDetail(reservation) {
         const cancelBtn = document.getElementById('cancel-btn');
         cancelBtn.style.display = 'block';
         cancelBtn.addEventListener('click', () => cancelReservation(reservation.id));
+    }
+
+    // Receipt button (show only for completed reservations)
+    if (reservation.status === 'completed') {
+        const receiptBtn = document.getElementById('receipt-btn');
+        receiptBtn.style.display = 'inline-block';
+        receiptBtn.href = `/receipt/reservation/${reservation.id}`;
     }
 }
 

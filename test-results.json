@@ -10,7 +10,9 @@
     "grep": {},
     "grepInvert": null,
     "maxFailures": 0,
-    "metadata": {},
+    "metadata": {
+      "actualWorkers": 1
+    },
     "preserveOutput": "always",
     "reporter": [
       [
@@ -40,7 +42,9 @@
         "outputDir": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results",
         "repeatEach": 1,
         "retries": 1,
-        "metadata": {},
+        "metadata": {
+          "actualWorkers": 1
+        },
         "id": "chromium",
         "name": "chromium",
         "testDir": "/Applications/MAMP/htdocs/Xsyumeno-main/tests",
@@ -57,22 +61,139 @@
     "version": "1.55.0",
     "workers": 1,
     "webServer": {
-      "command": "php artisan serve --port=8000",
-      "port": 8000,
+      "command": "php artisan serve --port=8001",
+      "port": 8001,
       "reuseExistingServer": true
     }
   },
-  "suites": [],
-  "errors": [
+  "suites": [
     {
-      "message": "Error: No tests found.\nMake sure that arguments are regular expressions matching test files.\nYou may need to escape symbols like \"$\" or \"*\" and quote the arguments.",
-      "stack": "Error: No tests found.\nMake sure that arguments are regular expressions matching test files.\nYou may need to escape symbols like \"$\" or \"*\" and quote the arguments."
+      "title": "admin-edit-modal.spec.js",
+      "file": "admin-edit-modal.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Admin Edit Modal Test",
+          "file": "admin-edit-modal.spec.js",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should open edit modal in reservation management",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 7783,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "Starting admin edit modal test...\n"
+                        },
+                        {
+                          "text": "Logged in to admin panel\n"
+                        },
+                        {
+                          "text": "Navigated to reservations page\n"
+                        },
+                        {
+                          "text": "Found 5 total buttons in table\n"
+                        },
+                        {
+                          "text": "Button 0: \n                                        \n  \n  \n\n            \n\n                            \n    \n    \n\n            \n        \n\n        \n            編集\n        \n\n        \n\n        \n    \n"
+                        },
+                        {
+                          "text": "Button 1: \n                                        \n  \n\n            \n\n                            \n    \n    \n\n            \n        \n\n        \n            完了\n        \n\n        \n\n        \n    \n"
+                        },
+                        {
+                          "text": "Button 2: \n                                        \n  \n\n            \n\n                            \n    \n    \n\n            \n        \n\n        \n            来店なし\n        \n\n        \n\n        \n    \n"
+                        },
+                        {
+                          "text": "Button 3: \n                                        \n  \n\n            \n\n                            \n    \n    \n\n            \n        \n\n        \n            キャンセル\n        \n\n        \n\n        \n    \n"
+                        },
+                        {
+                          "text": "Button 4: \n                                        \n  \n\n            \n\n                            \n    \n    \n\n            \n        \n\n        \n            サブラインへ移動\n        \n\n        \n\n        \n    \n"
+                        },
+                        {
+                          "text": "Found 0 edit buttons with title=\"編集\"\n"
+                        },
+                        {
+                          "text": "Found 0 edit buttons with pencil icon\n"
+                        },
+                        {
+                          "text": "Found 1 edit buttons with text\n"
+                        },
+                        {
+                          "text": "Clicked edit button\n"
+                        },
+                        {
+                          "text": "Modal title visible: false\n"
+                        },
+                        {
+                          "text": "Checking form fields...\n"
+                        },
+                        {
+                          "text": "Reservation number field exists: \u001b[33mfalse\u001b[39m\n"
+                        },
+                        {
+                          "text": "Status field exists: \u001b[33mfalse\u001b[39m\n"
+                        },
+                        {
+                          "text": "Found 0 input elements in modal\n"
+                        },
+                        {
+                          "text": "Open modal exists: \u001b[33mtrue\u001b[39m\n"
+                        },
+                        {
+                          "text": "Modal HTML length: \u001b[33m10545\u001b[39m\n"
+                        },
+                        {
+                          "text": "Modal text preview: \n    \n\n    \n        \n\n        \n            \n                \n                                            \n                                                            \n                                 \n"
+                        },
+                        {
+                          "text": "Form element found in modal\n"
+                        },
+                        {
+                          "text": "Screenshot saved as edit-modal-test.png\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-16T19:45:15.797Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "8acb9e72baec387bbbe0-194eb7bd741bb735009a",
+              "file": "admin-edit-modal.spec.js",
+              "line": 4,
+              "column": 3
+            }
+          ]
+        }
+      ]
     }
   ],
+  "errors": [],
   "stats": {
-    "startTime": "2025-09-10T00:32:54.999Z",
-    "duration": 46.870000000000005,
-    "expected": 0,
+    "startTime": "2025-09-16T19:45:15.291Z",
+    "duration": 9215.032000000001,
+    "expected": 1,
     "skipped": 0,
     "unexpected": 0,
     "flaky": 0

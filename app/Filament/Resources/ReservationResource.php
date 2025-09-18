@@ -11,6 +11,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Notifications\Notification;
+use Carbon\Carbon;
 
 class ReservationResource extends Resource
 {
@@ -67,6 +68,30 @@ class ReservationResource extends Resource
         return [
             'is_available' => true,
             'message' => '予約可能です'
+        ];
+    }
+
+    public static function getSimpleFormSchema(): array
+    {
+        return [
+            Forms\Components\TextInput::make('reservation_number')
+                ->label('予約番号')
+                ->disabled(),
+            Forms\Components\Select::make('status')
+                ->label('ステータス')
+                ->options([
+                    'booked' => '予約済み',
+                    'completed' => '完了',
+                    'no_show' => '来店なし',
+                    'cancelled' => 'キャンセル',
+                ])
+                ->required(),
+            Forms\Components\DatePicker::make('reservation_date')
+                ->label('予約日')
+                ->required(),
+            Forms\Components\TimePicker::make('start_time')
+                ->label('開始時刻')
+                ->required(),
         ];
     }
 
@@ -200,7 +225,7 @@ class ReservationResource extends Resource
                         Forms\Components\Select::make('staff_id')
                             ->label('担当スタッフ')
                             ->relationship('staff', 'name', function ($query) {
-                                return $query->where('is_active', true);
+                                return $query->where('is_active_staff', true);
                             })
                             ->placeholder('スタッフを選択（任意）')
                             ->searchable()
@@ -541,9 +566,25 @@ class ReservationResource extends Resource
                             );
                     }),
             ])
+            ->actionsColumnLabel('操作')
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\ViewAction::make()
+                    ->label('詳細'),
+                Tables\Actions\Action::make('reschedule')
+                    ->label('日程変更')
+                    ->icon('heroicon-o-calendar')
+                    ->color('info')
+                    ->url(fn ($record) => route('admin.reservations.reschedule', $record))
+                    ->openUrlInNewTab(false)
+                    ->visible(fn ($record) => $record->status === 'booked'),
+                Tables\Actions\Action::make('edit')
+                    ->label('編集')
+                    ->icon('heroicon-o-pencil')
+                    ->color('warning')
+                    ->action(function ($record) {
+                        // JavaScriptでページ遷移
+                        return redirect("/admin/reservations/{$record->id}/edit");
+                    }),
                 Tables\Actions\Action::make('complete')
                     ->label('完了')
                     ->icon('heroicon-o-check-circle')
@@ -553,7 +594,7 @@ class ReservationResource extends Resource
                     ->modalDescription('この予約を完了（来店済み）にマークします。')
                     ->action(function ($record) {
                         $record->update(['status' => 'completed']);
-                        
+
                         // サブスクリプション利用回数を更新
                         $customer = $record->customer;
                         if ($customer) {
@@ -589,6 +630,11 @@ class ReservationResource extends Resource
                             ->title('予約を完了しました')
                             ->body($message)
                             ->actions([
+                                \Filament\Notifications\Actions\Action::make('print_receipt')
+                                    ->label('領収証を印刷')
+                                    ->icon('heroicon-m-printer')
+                                    ->color('gray')
+                                    ->url("/receipt/reservation/{$record->id}", shouldOpenInNewTab: true),
                                 \Filament\Notifications\Actions\Action::make('create_medical_record')
                                     ->label($buttonLabel)
                                     ->url($url)
@@ -666,6 +712,13 @@ class ReservationResource extends Resource
                         'reservation_id' => $record->id
                     ]))
                     ->visible(fn ($record) => $record->status === 'completed'),
+                Tables\Actions\Action::make('receipt')
+                    ->label('領収証')
+                    ->icon('heroicon-o-document-text')
+                    ->color('gray')
+                    ->url(fn ($record) => "/receipt/reservation/{$record->id}")
+                    ->openUrlInNewTab()
+                    ->visible(fn ($record) => $record->status === 'completed'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -686,6 +739,7 @@ class ReservationResource extends Resource
     {
         return [
             'index' => Pages\ListReservations::route('/'),
+            'calendar' => Pages\CalendarView::route('/calendar'),
             'create' => Pages\CreateReservation::route('/create'),
             'view' => Pages\ViewReservation::route('/{record}'),
             'edit' => Pages\EditReservation::route('/{record}/edit'),
@@ -794,4 +848,5 @@ class ReservationResource extends Resource
         
         return false;
     }
+
 }

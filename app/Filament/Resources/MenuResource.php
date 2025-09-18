@@ -370,4 +370,18 @@ class MenuResource extends Resource
             'edit' => Pages\EditMenu::route('/{record}/edit'),
         ];
     }
+
+    public static function canViewAny(): bool
+    {
+        $user = auth()->user();
+        if (!$user) return false;
+
+        // スタッフは表示不可
+        if ($user->hasRole('staff')) {
+            return false;
+        }
+
+        // super_admin, owner, manager は表示可能
+        return $user->hasRole(['super_admin', 'owner', 'manager']);
+    }
 }

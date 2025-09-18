@@ -130,4 +130,81 @@ class ReceiptController extends Controller
         
         return $items;
     }
+
+    /**
+     * 領収証をPDFでダウンロード
+     */
+    public function downloadPdf(Request $request, $reservationId)
+    {
+        $reservation = Reservation::with(['customer', 'store', 'staff', 'menu', 'reservationOptions.menuOption'])->findOrFail($reservationId);
+
+        // サブスク判定
+        $isSubscription = false;
+        if ($reservation->total_amount === 0 ||
+            ($reservation->menu && str_contains($reservation->menu->name, 'サブスク'))) {
+            $isSubscription = true;
+        }
+
+        // 仮の売上データを作成
+        $sale = new Sale([
+            'receipt_number' => 'R' . str_pad($reservation->id, 8, '0', STR_PAD_LEFT),
+            'sale_date' => $reservation->reservation_date,
+            'customer_id' => $reservation->customer_id,
+            'store_id' => $reservation->store_id,
+            'staff_id' => $reservation->staff_id,
+            'subtotal' => $isSubscription ? 0 : $reservation->total_amount,
+            'tax_rate' => 10,
+            'tax_amount' => $isSubscription ? 0 : (int)($reservation->total_amount * 0.1 / 1.1),
+            'discount_amount' => 0,
+            'total_amount' => $isSubscription ? 0 : $reservation->total_amount,
+            'payment_method' => $isSubscription ? 'subscription' : ($reservation->payment_method ?? 'cash'),
+            'status' => 'completed',
+        ]);
+
+        // アイテムリストを構築
+        $items = [];
+
+        // メインメニュー
+        $items[] = [
+            'name' => $reservation->menu->name . ($isSubscription ? ' (サブスク利用)' : ''),
+            'quantity' => 1,
+            'price' => $isSubscription ? 0 : $reservation->menu->price,
+            'options' => [],
+        ];
+
+        // オプション
+        foreach ($reservation->reservationOptions as $option) {
+            $items[0]['options'][] = [
+                'name' => $option->menuOption->name,
+                'quantity' => $option->quantity,
+                'price' => $isSubscription ? 0 : $option->price,
+            ];
+        }
+
+        $paymentMethodLabels = [
+            'cash' => '現金',
+            'credit_card' => 'クレジットカード',
+            'debit_card' => 'デビットカード',
+            'e_money' => '電子マネー',
+            'qr_payment' => 'QRコード決済',
+            'bank_transfer' => '銀行振込',
+            'subscription' => 'サブスクリプション',
+            'other' => 'その他',
+        ];
+
+        $html = view('receipts.print', [
+            'sale' => $sale,
+            'customer' => $reservation->customer,
+            'store' => $reservation->store,
+            'staff' => $reservation->staff,
+            'items' => $items,
+            'paymentMethodLabels' => $paymentMethodLabels,
+            'isSubscription' => $isSubscription,
+        ])->render();
+
+        // PDFとして返す（ブラウザのPDF生成機能を利用）
+        return response($html)
+            ->header('Content-Type', 'text/html; charset=UTF-8')
+            ->header('Content-Disposition', 'inline; filename="receipt_' . $reservation->reservation_number . '.pdf"');
+    }
 }
