@@ -1,10 +1,53 @@
 <x-filament-widgets::widget>
     <x-filament::card>
+        <!-- Tom Select CSS -->
+        <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
+
         <style>
             .timeline-table {
                 border-collapse: collapse;
                 width: 100%;
                 min-width: 1200px;
+                position: relative;
+            }
+
+            .current-time-indicator {
+                position: absolute;
+                top: 40px;  /* ヘッダーの高さ分下げる */
+                bottom: 0;
+                width: 3px;
+                background-color: #ef4444;
+                z-index: 100;
+                pointer-events: none;
+                box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+            }
+
+            .current-time-indicator::before {
+                content: '';
+                position: absolute;
+                top: -5px;
+                left: -6px;
+                width: 0;
+                height: 0;
+                border-left: 8px solid transparent;
+                border-right: 8px solid transparent;
+                border-bottom: 10px solid #ef4444;
+            }
+
+            .current-time-text {
+                position: absolute;
+                top: -25px;
+                left: 50%;
+                transform: translateX(-50%);
+                color: #ef4444;
+                font-size: 12px;
+                font-weight: bold;
+                background: white;
+                padding: 2px 6px;
+                border: 1px solid #ef4444;
+                border-radius: 4px;
+                white-space: nowrap;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             }
             
             .timeline-table th,
@@ -306,7 +349,14 @@
         </div>
         
         <!-- タイムライン -->
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto" style="position: relative;">
+            <!-- 現在時刻インジケーター -->
+            @if(\Carbon\Carbon::parse($selectedDate)->isToday())
+                <div id="current-time-indicator" class="current-time-indicator" style="display: none;">
+                    <span class="current-time-text"></span>
+                </div>
+            @endif
+
             @if(!empty($timelineData))
                 <table class="timeline-table">
                     <thead>
@@ -357,8 +407,27 @@
                                         $slotDateTime = \Carbon\Carbon::parse($selectedDate . ' ' . $slot);
                                         $minimumTime = \Carbon\Carbon::now()->subMinutes(30);
                                         $isPast = $slotDateTime->lt($minimumTime);
-                                        
-                                        $isClickable = !$hasReservation && !$isBlocked && !$isPast && !$hasNoStaff;
+
+                                        // 営業時間チェック（最短メニュー60分を想定）
+                                        $isWithinBusinessHours = true;
+                                        $store = $currentStore;
+                                        if ($store) {
+                                            $dayOfWeek = $slotDateTime->format('l');
+                                            $closingTime = '20:00'; // デフォルト
+
+                                            if (isset($store->business_hours[$dayOfWeek])) {
+                                                $closingTime = $store->business_hours[$dayOfWeek]['close'] ?? '20:00';
+                                            } elseif (isset($store->business_hours['close'])) {
+                                                $closingTime = $store->business_hours['close'];
+                                            }
+
+                                            $closingDateTime = \Carbon\Carbon::parse($selectedDate . ' ' . $closingTime);
+                                            // 最短メニュー（60分）でも営業時間内に終わるかチェック
+                                            $minEndTime = $slotDateTime->copy()->addMinutes(60);
+                                            $isWithinBusinessHours = $minEndTime->lte($closingDateTime);
+                                        }
+
+                                        $isClickable = !$hasReservation && !$isBlocked && !$isPast && !$hasNoStaff && $isWithinBusinessHours;
                                     @endphp
                                     <td class="time-cell {{ $isBlocked ? 'blocked-cell' : '' }} {{ $hasNoStaff ? 'no-staff-cell' : '' }} {{ $isClickable ? 'empty-slot' : '' }}"
                                         @if($isClickable)
@@ -434,6 +503,205 @@
                 @endif
             @endforeach
         </div>
+
+        <!-- JavaScript for Current Time Indicator -->
+        <script>
+            function updateCurrentTimeIndicator() {
+                const indicator = document.getElementById('current-time-indicator');
+                if (!indicator) return;
+
+                const now = new Date();
+                const currentHour = now.getHours();
+                const currentMinute = now.getMinutes();
+
+                // タイムラインの開始と終了時刻（10:00-20:00）
+                const startHour = 10;
+                const endHour = 20;
+
+                // 営業時間外の場合は確実に非表示
+                if (currentHour < startHour || currentHour >= endHour) {
+                    indicator.style.display = 'none !important';
+                    console.log('営業時間外のため非表示:', currentHour + ':' + currentMinute);
+                    return;
+                }
+
+                // タイムラインテーブルを取得
+                const table = document.querySelector('.timeline-table');
+                if (!table) {
+                    indicator.style.display = 'none';
+                    return;
+                }
+
+                // すべての時間セルを取得（データ行の時間セル）
+                const firstRow = document.querySelector('.timeline-table tbody tr');
+                if (!firstRow) {
+                    indicator.style.display = 'none';
+                    return;
+                }
+
+                const cells = firstRow.querySelectorAll('td');
+                if (cells.length <= 1) {
+                    indicator.style.display = 'none';
+                    return;
+                }
+
+                // 最初のカラムの幅を取得
+                const firstCellWidth = cells[0].offsetWidth;
+
+                // 時間スロット数（10:00-20:00で15分刻み = 40スロット）
+                const totalSlots = (endHour - startHour) * 4;
+
+                // 現在時刻のスロット位置を計算
+                const currentSlotIndex = ((currentHour - startHour) * 4) + Math.floor(currentMinute / 15);
+                const minuteInSlot = currentMinute % 15;
+
+                // スロットごとの幅を計算
+                const timeCells = Array.from(cells).slice(1);
+                const slotWidth = timeCells[0] ? timeCells[0].offsetWidth : 0;
+
+                if (slotWidth === 0) {
+                    indicator.style.display = 'none';
+                    return;
+                }
+
+                // 位置を計算
+                const leftPosition = firstCellWidth + (currentSlotIndex * slotWidth) + ((minuteInSlot / 15) * slotWidth);
+
+                // インジケーターの位置と表示を設定
+                indicator.style.left = leftPosition + 'px';
+                indicator.style.display = 'block';
+
+                // 時刻テキストを更新
+                const timeText = indicator.querySelector('.current-time-text');
+                if (timeText) {
+                    timeText.textContent = now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+                }
+
+                console.log('Current time indicator updated:', {
+                    currentTime: currentHour + ':' + currentMinute,
+                    position: leftPosition,
+                    slotIndex: currentSlotIndex,
+                    営業時間内: true
+                });
+            }
+
+            // ページ読み込み時と定期的に更新
+            document.addEventListener('DOMContentLoaded', function() {
+                updateCurrentTimeIndicator();
+
+                // 1分ごとに更新
+                setInterval(updateCurrentTimeIndicator, 60000);
+
+                // ウィンドウサイズ変更時にも更新
+                window.addEventListener('resize', updateCurrentTimeIndicator);
+            });
+
+            // Livewire更新時にも実行
+            document.addEventListener('livewire:load', function() {
+                Livewire.hook('message.processed', () => {
+                    setTimeout(updateCurrentTimeIndicator, 100);
+                });
+            });
+        </script>
+
+        <!-- Tom Select JavaScript -->
+        <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+        <script>
+            // Tom Selectの初期化関数
+            function initializeMenuSelect() {
+                // セレクトボックスを探す
+                const menuSelect = document.querySelector('select[wire\\:model="newReservation.menu_id"]');
+
+                if (menuSelect) {
+                    // 既存のTomSelectインスタンスがある場合は破棄
+                    if (menuSelect.tomselect) {
+                        menuSelect.tomselect.destroy();
+                    }
+
+                    // Tom Selectを初期化
+                    try {
+                        new TomSelect(menuSelect, {
+                            searchField: ['text'],
+                            placeholder: 'メニューを検索・選択...',
+                            maxOptions: null,
+                            create: false,
+                            allowEmptyOption: true,
+                            render: {
+                                option: function(data, escape) {
+                                    return '<div>' + escape(data.text) + '</div>';
+                                },
+                                item: function(data, escape) {
+                                    return '<div>' + escape(data.text) + '</div>';
+                                },
+                                no_results: function(data, escape) {
+                                    return '<div class="no-results">該当するメニューがありません</div>';
+                                }
+                            },
+                            onChange: function(value) {
+                                // Livewireのモデルを更新
+                                menuSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                        });
+                        console.log('✅ Tom Select initialized successfully');
+                    } catch (error) {
+                        console.error('❌ Tom Select initialization error:', error);
+                    }
+                }
+            }
+
+            // DOMContentLoadedイベント
+            document.addEventListener('DOMContentLoaded', function() {
+                console.log('DOMContentLoaded - initializing Tom Select');
+                setTimeout(initializeMenuSelect, 500);
+            });
+
+            // Livewireイベント
+            document.addEventListener('livewire:load', function() {
+                console.log('Livewire loaded');
+
+                // modal-openedイベントをリッスン
+                window.Livewire.on('modal-opened', () => {
+                    console.log('Modal opened event received');
+                    setTimeout(initializeMenuSelect, 300);
+                });
+
+                // Livewireの更新後
+                window.Livewire.hook('message.processed', (message, component) => {
+                    // reservationStep が 3 の時のみ初期化
+                    if (component.fingerprint && component.fingerprint.name === 'app.filament.widgets.reservation-timeline-widget') {
+                        const stepElement = document.querySelector('[wire\\:model="reservationStep"]');
+                        if (stepElement && stepElement.value === '3') {
+                            setTimeout(initializeMenuSelect, 300);
+                        }
+                    }
+                });
+            });
+
+            // MutationObserverでモーダルの表示を監視
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'childList') {
+                        // 新規予約モーダルが追加されたか確認
+                        const menuSelect = document.querySelector('select[wire\\:model="newReservation.menu_id"]');
+                        if (menuSelect && !menuSelect.tomselect) {
+                            console.log('Menu select detected by MutationObserver');
+                            setTimeout(initializeMenuSelect, 100);
+                        }
+                    }
+                });
+            });
+
+            // body要素を監視
+            document.addEventListener('DOMContentLoaded', function() {
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
+            });
+
+            // 手動初期化用のグローバル関数
+            window.initMenuSelect = initializeMenuSelect;
+        </script>
     </x-filament::card>
     
     <!-- 予約詳細パネル -->
@@ -789,43 +1057,120 @@
                                 </div>
                             </div>
                         @endif
-                        
+
+                        <!-- メニュー選択を先に配置 -->
+                        <div>
+                            <label class="block text-sm font-medium mb-1">メニュー</label>
+
+                            <!-- 検索入力フィールド -->
+                            <div class="relative">
+                                <input
+                                    type="text"
+                                    wire:model.live.debounce.300ms="menuSearch"
+                                    placeholder="メニュー名を入力して検索..."
+                                    class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
+
+                                @if($menuSearch)
+                                    <!-- 検索結果のドロップダウン -->
+                                    <div class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                        @php
+                                            $filteredMenus = $this->getFilteredMenus();
+                                        @endphp
+
+                                        @if($filteredMenus->count() > 0)
+                                            @foreach($filteredMenus as $menu)
+                                                <button
+                                                    type="button"
+                                                    wire:click="selectMenu({{ $menu->id }})"
+                                                    class="w-full px-4 py-3 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none border-b border-gray-100 last:border-b-0">
+                                                    <div class="font-medium">{{ $menu->name }}</div>
+                                                    <div class="text-sm text-gray-600">
+                                                        {{ $menu->duration_minutes }}分 - ¥{{ number_format($menu->price) }}
+                                                    </div>
+                                                </button>
+                                            @endforeach
+                                        @else
+                                            <div class="px-4 py-3 text-gray-500">
+                                                該当するメニューが見つかりません
+                                            </div>
+                                        @endif
+                                    </div>
+                                @endif
+                            </div>
+
+                            <!-- 選択されたメニューの表示 -->
+                            @if($newReservation['menu_id'])
+                                @php
+                                    $selectedMenu = \App\Models\Menu::find($newReservation['menu_id']);
+                                @endphp
+                                @if($selectedMenu)
+                                    <div class="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                        <div class="flex justify-between items-center">
+                                            <div>
+                                                <div class="font-medium text-blue-900">{{ $selectedMenu->name }}</div>
+                                                <div class="text-sm text-blue-700">
+                                                    {{ $selectedMenu->duration_minutes }}分 - ¥{{ number_format($selectedMenu->price) }}
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                wire:click="$set('newReservation.menu_id', '')"
+                                                class="text-blue-600 hover:text-blue-800">
+                                                <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                @endif
+                            @else
+                                <p class="mt-2 text-sm text-gray-500">メニューを選択してください</p>
+                            @endif
+                        </div>
+
+                        <!-- 予約日時セクション -->
                         <div>
                             <label class="block text-sm font-medium mb-1">予約日時</label>
-                            <div class="grid grid-cols-3 gap-2">
-                                <input 
-                                    type="date" 
+                            <div class="grid grid-cols-2 gap-2">
+                                <input
+                                    type="date"
                                     wire:model="newReservation.date"
                                     value="{{ $selectedDate }}"
                                     class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
-                                <input 
-                                    type="time" 
+                                <input
+                                    type="time"
                                     wire:model="newReservation.start_time"
                                     class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
-                                <select 
-                                    wire:model="newReservation.duration"
-                                    class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
-                                    <option value="60">60分</option>
-                                    <option value="90">90分</option>
-                                    <option value="120">120分</option>
-                                </select>
                             </div>
+
+                            <!-- 所要時間の表示（メニュー選択後のみ） -->
+                            @if($newReservation['menu_id'])
+                                @php
+                                    $selectedMenuDuration = \App\Models\Menu::find($newReservation['menu_id']);
+                                @endphp
+                                @if($selectedMenuDuration)
+                                    <div class="mt-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+                                        <span class="text-sm text-gray-600">所要時間：</span>
+                                        <span class="font-medium">{{ $selectedMenuDuration->duration_minutes }}分</span>
+                                        @if($newReservation['start_time'])
+                                            @php
+                                                $endTime = \Carbon\Carbon::parse($newReservation['start_time'])
+                                                    ->addMinutes($selectedMenuDuration->duration_minutes)
+                                                    ->format('H:i');
+                                            @endphp
+                                            <span class="text-sm text-gray-600 ml-2">
+                                                ({{ $newReservation['start_time'] }} 〜 {{ $endTime }})
+                                            </span>
+                                        @endif
+                                    </div>
+                                @endif
+                            @else
+                                <p class="mt-2 text-sm text-amber-600">
+                                    ※ メニューを選択すると所要時間が自動設定されます
+                                </p>
+                            @endif
                         </div>
-                        
-                        <div>
-                            <label class="block text-sm font-medium mb-1">メニュー</label>
-                            <select 
-                                wire:model="newReservation.menu_id"
-                                class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
-                                <option value="">選択してください</option>
-                                @foreach(\App\Models\Menu::where('is_available', true)->get() as $menu)
-                                    <option value="{{ $menu->id }}">
-                                        {{ $menu->name }} ({{ $menu->duration_minutes }}分) - ¥{{ number_format($menu->price) }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        
+
                         <div>
                             <label class="block text-sm font-medium mb-1">ライン（席）</label>
                             <select 

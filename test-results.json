@@ -96,7 +96,7 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 7783,
+                      "duration": 8776,
                       "errors": [],
                       "stdout": [
                         {
@@ -109,22 +109,22 @@
                           "text": "Navigated to reservations page\n"
                         },
                         {
-                          "text": "Found 5 total buttons in table\n"
+                          "text": "Found 23 total buttons in table\n"
                         },
                         {
-                          "text": "Button 0: \n                                        \n  \n  \n\n            \n\n                            \n    \n    \n\n            \n        \n\n        \n            編集\n        \n\n        \n\n        \n    \n"
+                          "text": "Button 0: \n                                        \n  \n\n            \n\n                            \n    \n    \n\n            \n        \n\n        \n            来店\n        \n\n        \n\n        \n    \n"
                         },
                         {
                           "text": "Button 1: \n                                        \n  \n\n            \n\n                            \n    \n    \n\n            \n        \n\n        \n            完了\n        \n\n        \n\n        \n    \n"
                         },
                         {
-                          "text": "Button 2: \n                                        \n  \n\n            \n\n                            \n    \n    \n\n            \n        \n\n        \n            来店なし\n        \n\n        \n\n        \n    \n"
+                          "text": "Button 2: \n                                        \n  \n\n            \n\n                            \n    \n    \n\n            \n        \n\n        \n            編集\n        \n\n        \n\n        \n    \n"
                         },
                         {
-                          "text": "Button 3: \n                                        \n  \n\n            \n\n                            \n    \n    \n\n            \n        \n\n        \n            キャンセル\n        \n\n        \n\n        \n    \n"
+                          "text": "Button 3: \n                                        \n  \n\n            \n\n                            \n    \n    \n\n            \n        \n\n        \n            完了\n        \n\n        \n\n        \n    \n"
                         },
                         {
-                          "text": "Button 4: \n                                        \n  \n\n            \n\n                            \n    \n    \n\n            \n        \n\n        \n            サブラインへ移動\n        \n\n        \n\n        \n    \n"
+                          "text": "Button 4: \n                                        \n  \n\n            \n\n                            \n    \n    \n\n            \n        \n\n        \n            来店なし\n        \n\n        \n\n        \n    \n"
                         },
                         {
                           "text": "Found 0 edit buttons with title=\"編集\"\n"
@@ -133,7 +133,7 @@
                           "text": "Found 0 edit buttons with pencil icon\n"
                         },
                         {
-                          "text": "Found 1 edit buttons with text\n"
+                          "text": "Found 5 edit buttons with text\n"
                         },
                         {
                           "text": "Clicked edit button\n"
@@ -154,16 +154,10 @@
                           "text": "Found 0 input elements in modal\n"
                         },
                         {
-                          "text": "Open modal exists: \u001b[33mtrue\u001b[39m\n"
+                          "text": "Open modal exists: \u001b[33mfalse\u001b[39m\n"
                         },
                         {
-                          "text": "Modal HTML length: \u001b[33m10545\u001b[39m\n"
-                        },
-                        {
-                          "text": "Modal text preview: \n    \n\n    \n        \n\n        \n            \n                \n                                            \n                                                            \n                                 \n"
-                        },
-                        {
-                          "text": "Form element found in modal\n"
+                          "text": "No open modal found\n"
                         },
                         {
                           "text": "Screenshot saved as edit-modal-test.png\n"
@@ -171,7 +165,7 @@
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-16T19:45:15.797Z",
+                      "startTime": "2025-09-18T13:09:18.213Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -191,8 +185,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-09-16T19:45:15.291Z",
-    "duration": 9215.032000000001,
+    "startTime": "2025-09-18T13:09:17.904Z",
+    "duration": 9626.948,
     "expected": 1,
     "skipped": 0,
     "unexpected": 0,

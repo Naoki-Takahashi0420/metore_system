@@ -33,6 +33,7 @@ class User extends Authenticatable implements FilamentUser
         'last_login_at',
         'phone',
         'notification_preferences',
+        'theme_color',
     ];
 
     /**
@@ -68,6 +69,63 @@ class User extends Authenticatable implements FilamentUser
     {
         // 無効なユーザーはログイン不可
         return $this->is_active;
+    }
+
+    /**
+     * 利用可能な色のリスト
+     */
+    protected static $availableColors = [
+        '#ef4444', // 赤
+        '#f97316', // オレンジ
+        '#eab308', // 黄
+        '#84cc16', // ライム
+        '#22c55e', // 緑
+        '#14b8a6', // ティール
+        '#06b6d4', // シアン
+        '#3b82f6', // 青
+        '#6366f1', // インディゴ
+        '#8b5cf6', // バイオレット
+        '#a855f7', // パープル
+        '#d946ef', // フクシア
+        '#ec4899', // ピンク
+        '#f43f5e', // ローズ
+    ];
+
+    /**
+     * モデルの初期化処理
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($user) {
+            // theme_colorが設定されていない場合、自動的に割り当て
+            if (empty($user->theme_color)) {
+                $user->theme_color = static::getNextAvailableColor();
+            }
+        });
+    }
+
+    /**
+     * 次に利用可能な色を取得
+     */
+    protected static function getNextAvailableColor(): string
+    {
+        // 既存のユーザーが使用している色を取得
+        $usedColors = static::whereNotNull('theme_color')
+            ->pluck('theme_color')
+            ->toArray();
+
+        // まだ使われていない色を探す
+        $availableColors = array_diff(static::$availableColors, $usedColors);
+
+        if (!empty($availableColors)) {
+            // 使われていない色から最初のものを返す
+            return array_values($availableColors)[0];
+        }
+
+        // すべての色が使用されている場合、ランダムに選択
+        return static::$availableColors[array_rand(static::$availableColors)];
     }
 
     /**

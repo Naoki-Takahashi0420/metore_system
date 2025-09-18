@@ -1,0 +1,73 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - navigation [ref=e3]:
+    - generic [ref=e5]:
+      - link "目のトレーニング" [ref=e7] [cursor=pointer]:
+        - /url: http://127.0.0.1:8001
+        - img "目のトレーニング" [ref=e8] [cursor=pointer]
+      - generic [ref=e9]:
+        - link "ホーム" [ref=e10] [cursor=pointer]:
+          - /url: http://127.0.0.1:8001
+        - link "店舗一覧" [ref=e11] [cursor=pointer]:
+          - /url: http://127.0.0.1:8001/stores
+        - link "予約確認・カルテ" [ref=e12] [cursor=pointer]:
+          - /url: http://127.0.0.1:8001/customer/login
+        - link "ご予約" [ref=e13] [cursor=pointer]:
+          - /url: http://127.0.0.1:8001/stores
+  - main [ref=e14]:
+    - generic [ref=e17]:
+      - heading "予約確認・ログイン" [level=1] [ref=e18]
+      - paragraph [ref=e20]: 携帯電話番号でログインして、予約履歴やカルテをご確認いただけます。
+      - generic [ref=e21]:
+        - generic [ref=e22]:
+          - generic [ref=e23]: 携帯電話番号
+          - textbox "携帯電話番号" [ref=e24]: "08033372305"
+          - paragraph [ref=e25]: ハイフンなしで入力してください。
+        - button "SMS認証コードを送信" [ref=e26] [cursor=pointer]
+      - generic [ref=e27]:
+        - paragraph [ref=e28]: まだ予約をされていない方は
+        - link "新規予約はこちら" [ref=e29] [cursor=pointer]:
+          - /url: http://127.0.0.1:8001/reservation
+    - generic [ref=e31]:
+      - heading "SMS認証" [level=3] [ref=e32]
+      - paragraph [ref=e33]:
+        - generic [ref=e34]: "08033372305"
+        - text: に送信された6桁の認証コードを入力してください。
+      - generic [ref=e35]:
+        - textbox [active] [ref=e36]
+        - textbox [ref=e37]
+        - textbox [ref=e38]
+        - textbox [ref=e39]
+        - textbox [ref=e40]
+        - textbox [ref=e41]
+      - generic [ref=e42]:
+        - button "認証" [ref=e43] [cursor=pointer]
+        - button "再送信" [ref=e44] [cursor=pointer]
+      - button "キャンセル" [ref=e45] [cursor=pointer]
+  - contentinfo [ref=e46]:
+    - generic [ref=e48]:
+      - generic [ref=e49]:
+        - img "目のトレーニング" [ref=e51]
+        - paragraph [ref=e52]: 9割以上のお客様から視力回復、向上のお声を頂いております。最新の技術と専門的なトレーニングで、目の健康をサポートします。
+        - paragraph [ref=e54]: © 2025 目のトレーニング. All rights reserved.
+      - generic [ref=e55]:
+        - heading "クイックリンク" [level=4] [ref=e56]
+        - list [ref=e57]:
+          - listitem [ref=e58]:
+            - link "ホーム" [ref=e59] [cursor=pointer]:
+              - /url: http://127.0.0.1:8001
+          - listitem [ref=e60]:
+            - link "店舗一覧" [ref=e61] [cursor=pointer]:
+              - /url: http://127.0.0.1:8001/stores
+          - listitem [ref=e62]:
+            - link "新規ご予約" [ref=e63] [cursor=pointer]:
+              - /url: http://127.0.0.1:8001/stores
+          - listitem [ref=e64]:
+            - link "予約確認・カルテ（マイページ）" [ref=e65] [cursor=pointer]:
+              - /url: http://127.0.0.1:8001/customer/login
+          - listitem [ref=e66]:
+            - link "スタッフ専用" [ref=e67] [cursor=pointer]:
+              - /url: http://127.0.0.1:8001/admin
+```

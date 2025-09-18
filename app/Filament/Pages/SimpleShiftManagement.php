@@ -227,7 +227,8 @@ class SimpleShiftManagement extends Page implements HasForms
                     return [
                         'id' => $shift->id,
                         'user_name' => $shift->user ? $shift->user->name : 'Unknown',
-                        'time' => Carbon::parse($shift->start_time)->format('H:i') . '-' . 
+                        'user_color' => $shift->user ? $shift->user->theme_color : '#6b7280', // ユーザーの色を追加
+                        'time' => Carbon::parse($shift->start_time)->format('H:i') . '-' .
                                  Carbon::parse($shift->end_time)->format('H:i'),
                     ];
                 })->toArray(),

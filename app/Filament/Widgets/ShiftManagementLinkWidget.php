@@ -16,7 +16,7 @@ class ShiftManagementLinkWidget extends Widget
     
     protected int | string | array $columnSpan = 'full';
     
-    protected static ?int $sort = 4;
+    protected static ?int $sort = 40;
     
     public $selectedStore = null;
     public $stores = [];

@@ -15,7 +15,7 @@ class ReservationTimelineWidget extends Widget
     
     protected int|string|array $columnSpan = 'full';
     
-    protected static ?int $sort = 1;
+    protected static ?int $sort = 10;
     
     public $selectedStore = null;
     public $selectedDate = null;
@@ -31,6 +31,7 @@ class ReservationTimelineWidget extends Widget
     public $phoneSearch = '';
     public $searchResults = [];
     public $selectedCustomer = null;
+    public $menuSearch = '';  // メニュー検索用
     public $newCustomer = [
         'last_name' => '',
         'first_name' => '',
@@ -88,15 +89,17 @@ class ReservationTimelineWidget extends Widget
         }
         $this->loadTimelineData();
         $this->dispatch('store-changed', storeId: $this->selectedStore, date: $this->selectedDate);
+        $this->dispatch('date-changed', date: $this->selectedDate);
     }
     
     #[On('calendar-date-clicked')]
     public function updateFromCalendar($date): void
     {
         \Log::info('Calendar date clicked received:', ['date' => $date]);
-        
+
         $this->selectedDate = $date;
         $this->loadTimelineData();
+        $this->dispatch('date-changed', date: $this->selectedDate);
     }
     
     protected function getBaseQuery()
@@ -138,7 +141,10 @@ class ReservationTimelineWidget extends Widget
         
         // カテゴリー情報も読み込む
         $this->categories = $this->getCategories();
-        
+
+        // 日付変更イベントを発火
+        $this->dispatch('date-changed', date: $this->selectedDate);
+
         $store = Store::find($this->selectedStore);
         if (!$store) {
             return;
@@ -625,6 +631,7 @@ class ReservationTimelineWidget extends Widget
         $this->showNewReservationModal = true;
         $this->reservationStep = 1;
         $this->phoneSearch = '';
+        $this->menuSearch = '';  // メニュー検索をリセット
         $this->searchResults = [];
         $this->selectedCustomer = null;
         $this->newCustomer = [
@@ -644,6 +651,9 @@ class ReservationTimelineWidget extends Widget
             'line_number' => 1,
             'notes' => '電話予約'
         ];
+
+        // モーダルが開いたことをブラウザに通知
+        $this->dispatch('modal-opened');
     }
     
     public function openNewReservationFromSlot($seatKey, $timeSlot): void
@@ -662,6 +672,7 @@ class ReservationTimelineWidget extends Widget
         $this->showNewReservationModal = true;
         $this->reservationStep = 1;
         $this->phoneSearch = '';
+        $this->menuSearch = '';  // メニュー検索をリセット
         $this->searchResults = [];
         $this->selectedCustomer = null;
         $this->newCustomer = [
@@ -681,6 +692,9 @@ class ReservationTimelineWidget extends Widget
             'line_number' => $lineNumber,
             'notes' => '電話予約'
         ];
+
+        // モーダルが開いたことをブラウザに通知
+        $this->dispatch('modal-opened');
     }
     
     public function closeNewReservationModal(): void
@@ -732,6 +746,9 @@ class ReservationTimelineWidget extends Widget
     {
         $this->selectedCustomer = \App\Models\Customer::find($customerId);
         $this->reservationStep = 3; // 予約詳細入力へ
+
+        // ステップ3に移行したことをブラウザに通知
+        $this->dispatch('modal-opened');
     }
     
     public function startNewCustomerRegistration(): void
@@ -765,7 +782,10 @@ class ReservationTimelineWidget extends Widget
             // 既存顧客だった場合は、情報を更新して次へ進む
             $this->selectedCustomer = $existingCustomer;
             $this->reservationStep = 3;
-            
+
+            // ステップ3に移行したことをブラウザに通知
+            $this->dispatch('modal-opened');
+
             $this->dispatch('notify', [
                 'type' => 'info',
                 'message' => '既存のお客様でした（' . $existingCustomer->last_name . ' ' . $existingCustomer->first_name . '様）。予約詳細を入力してください。'
@@ -785,6 +805,9 @@ class ReservationTimelineWidget extends Widget
         
         $this->selectedCustomer = $customer;
         $this->reservationStep = 3; // 予約詳細入力へ
+
+        // ステップ3に移行したことをブラウザに通知
+        $this->dispatch('modal-opened');
         
         $this->dispatch('notify', [
             'type' => 'success',
@@ -827,7 +850,30 @@ class ReservationTimelineWidget extends Widget
         // 終了時刻を計算
         $startTime = \Carbon\Carbon::parse($this->newReservation['date'] . ' ' . $this->newReservation['start_time']);
         $endTime = $startTime->copy()->addMinutes($menu->duration_minutes ?? $this->newReservation['duration']);
-        
+
+        // 営業時間チェック（終了時刻ベース）
+        $store = \App\Models\Store::find($this->selectedStore);
+        $dayOfWeek = $startTime->format('l');
+        $closingTime = '20:00'; // デフォルト
+
+        // 曜日別営業時間があるか確認
+        if ($store && isset($store->business_hours[$dayOfWeek])) {
+            $closingTime = $store->business_hours[$dayOfWeek]['close'] ?? '20:00';
+        } elseif ($store && isset($store->business_hours['close'])) {
+            $closingTime = $store->business_hours['close'];
+        }
+
+        $closingDateTime = \Carbon\Carbon::parse($this->newReservation['date'] . ' ' . $closingTime);
+
+        // 終了時刻が営業時間を超える場合はエラー
+        if ($endTime->gt($closingDateTime)) {
+            $this->dispatch('notify', [
+                'type' => 'error',
+                'message' => '予約終了時刻（' . $endTime->format('H:i') . '）が営業時間（' . $closingTime . '）を超えています'
+            ]);
+            return;
+        }
+
         // 予約番号を生成
         $reservationNumber = 'R' . date('Ymd') . str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
         
@@ -864,5 +910,37 @@ class ReservationTimelineWidget extends Widget
             'message' => '予約を作成しました（予約番号: ' . $reservationNumber . '）'
         ]);
     }
-    
+
+    public function getFilteredMenus()
+    {
+        $query = \App\Models\Menu::where('is_available', true);
+
+        if (!empty($this->menuSearch)) {
+            $search = $this->menuSearch;
+            $query->where('name', 'like', '%' . $search . '%');
+        }
+
+        return $query->orderBy('id')->get();
+    }
+
+    public function updatedMenuSearch()
+    {
+        // メニュー検索が更新されたときの処理
+        // Livewireが自動的に再レンダリングする
+    }
+
+    public function selectMenu($menuId)
+    {
+        $this->newReservation['menu_id'] = $menuId;
+
+        // メニューの時間を自動設定
+        $menu = \App\Models\Menu::find($menuId);
+        if ($menu && $menu->duration_minutes) {
+            $this->newReservation['duration'] = $menu->duration_minutes;
+        }
+
+        // 検索フィールドをクリア
+        $this->menuSearch = '';
+    }
+
 }

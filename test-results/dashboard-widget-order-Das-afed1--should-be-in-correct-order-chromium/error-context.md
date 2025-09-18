@@ -1,7 +1,7 @@
 # Page snapshot
 
 ```yaml
-- generic [ref=e1]:
+- generic [active] [ref=e1]:
   - main [ref=e4]:
     - generic [ref=e5]:
       - generic [ref=e6]:
@@ -14,13 +14,13 @@
               - generic [ref=e17]:
                 - text: メールアドレス
                 - superscript [ref=e18]: "*"
-              - textbox "メールアドレス*" [active] [ref=e22]
+              - textbox "メールアドレス*" [ref=e22]: admin@eye-training.com
             - generic [ref=e25]:
               - generic [ref=e28]:
                 - text: パスワード
                 - superscript [ref=e29]: "*"
               - generic [ref=e31]:
-                - textbox "パスワード*" [ref=e33]
+                - textbox "パスワード*" [ref=e33]: password
                 - button "パスワードを表示" [ref=e36] [cursor=pointer]:
                   - generic [ref=e37] [cursor=pointer]: パスワードを表示
                   - img [ref=e38] [cursor=pointer]

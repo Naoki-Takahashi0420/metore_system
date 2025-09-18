@@ -11,43 +11,58 @@ use Carbon\Carbon;
 
 class TodayReservationsWidget extends BaseWidget
 {
-    protected static ?int $sort = 3;
+    protected static ?int $sort = 20;
     
     protected int | string | array $columnSpan = 'full';
     
     public ?string $storeFilter = null;
-    
-    protected $listeners = ['store-changed' => 'updateStore'];
+    public ?string $selectedDate = null;
+
+    protected $listeners = [
+        'store-changed' => 'updateStore',
+        'date-changed' => 'updateDate'
+    ];
     
     public function mount(): void
     {
         // URLパラメータから店舗フィルターを取得
         $this->storeFilter = request()->get('storeFilter');
+        // 本日の日付で初期化
+        $this->selectedDate = Carbon::today()->format('Y-m-d');
     }
     
     public function updateStore($storeId): void
     {
         $this->storeFilter = $storeId;
     }
+
+    public function updateDate($date): void
+    {
+        $this->selectedDate = $date;
+        $this->resetTable();
+    }
     
     protected function getTableHeading(): string
     {
+        $date = $this->selectedDate ? Carbon::parse($this->selectedDate) : Carbon::today();
+
         $query = $this->getBaseQuery()
-            ->whereDate('reservation_date', Carbon::today())
+            ->whereDate('reservation_date', $date)
             ->whereNotIn('status', ['cancelled', 'canceled']);
-            
+
         if ($this->storeFilter) {
             $query->where('store_id', $this->storeFilter);
         }
-        
+
         $count = $query->count();
         $storeName = '';
         if ($this->storeFilter) {
             $store = \App\Models\Store::find($this->storeFilter);
             $storeName = $store ? " - {$store->name}" : '';
         }
-        
-        return "今日の予約 ({$count}件) - " . Carbon::today()->format('Y年n月j日') . $storeName;
+
+        $dateLabel = $date->isToday() ? '今日' : $date->format('n月j日');
+        return "予約一覧 ({$count}件) - {$dateLabel} " . $date->format('(Y年n月j日)') . $storeName;
     }
     
     protected function getBaseQuery(): Builder
@@ -83,11 +98,13 @@ class TodayReservationsWidget extends BaseWidget
     
     public function table(Table $table): Table
     {
+        $date = $this->selectedDate ? Carbon::parse($this->selectedDate) : Carbon::today();
+
         $query = $this->getBaseQuery()
             ->with(['customer', 'store', 'menu', 'staff'])
-            ->whereDate('reservation_date', Carbon::today())
+            ->whereDate('reservation_date', $date)
             ->whereNotIn('status', ['cancelled', 'canceled']);
-            
+
         if ($this->storeFilter) {
             $query->where('store_id', $this->storeFilter);
         }

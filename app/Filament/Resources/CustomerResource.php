@@ -91,6 +91,19 @@ class CustomerResource extends Resource
                     ])
                     ->columns(2),
 
+                Forms\Components\Section::make('スタッフ用情報')
+                    ->description('顧客には表示されない、スタッフ間で共有する情報')
+                    ->schema([
+                        Forms\Components\Textarea::make('characteristics')
+                            ->label('顧客特性・メモ')
+                            ->placeholder('例：ドライアイ気味、丁寧な説明を好む、施術は優しめに、紹介者情報など')
+                            ->rows(4)
+                            ->helperText('接客時の注意点、施術の好み、体質、紹介者情報などをメモしてください')
+                            ->columnSpanFull(),
+                    ])
+                    ->collapsible()
+                    ->collapsed(),
+
                 Forms\Components\Section::make('通知設定')
                     ->description('顧客への通知方法と連携状態を管理します')
                     ->schema([

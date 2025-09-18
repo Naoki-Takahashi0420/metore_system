@@ -32,6 +32,7 @@ class Customer extends Model
         'preferences',
         'medical_notes',
         'notes',
+        'characteristics', // 顧客特性（スタッフ用）
         'is_blocked',
         'cancellation_count',
         'no_show_count',

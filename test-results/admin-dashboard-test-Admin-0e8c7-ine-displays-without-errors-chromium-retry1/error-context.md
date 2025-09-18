@@ -1,0 +1,853 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - navigation [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e9]:
+            - generic [ref=e10]: グローバル検索
+            - generic [ref=e11]:
+              - img [ref=e13]
+              - searchbox "グローバル検索" [ref=e16]
+          - button "ユーザーメニュー" [ref=e19] [cursor=pointer]:
+            - img "Administratorのアバター" [ref=e20] [cursor=pointer]
+      - main [ref=e21]:
+        - generic [ref=e22]:
+          - generic [ref=e23]:
+            - heading "ダッシュボード" [level=1] [ref=e26]
+            - generic [ref=e29]:
+              - generic [ref=e33]:
+                - generic [ref=e34]:
+                  - text: 💡
+                  - strong [ref=e35]: "席の移動方法:"
+                  - text: 予約ブロックをクリックすると詳細画面が開き、通常席⇔サブ枠の移動ができます
+                - generic [ref=e36]:
+                  - generic [ref=e37]:
+                    - generic [ref=e38]: 店舗：
+                    - combobox [ref=e39]:
+                      - option "銀座本店" [selected]
+                      - option "新宿店"
+                      - option "横浜店"
+                      - option "目のトレーニング名古屋駅前店"
+                      - option "渋谷店"
+                      - option "新宿店"
+                      - option "池袋店"
+                      - option "品川店"
+                      - option "上野店"
+                      - option "横浜店"
+                      - option "川崎店"
+                      - option "千葉店"
+                      - option "大宮店"
+                      - option "立川店"
+                      - option "テスト店舗 (LINE連携)"
+                      - option "テスト店舗 (LINE連携)"
+                  - generic [ref=e40]:
+                    - img [ref=e41]
+                    - generic [ref=e43]: 営業時間ベース
+                    - generic [ref=e44]: （1席）
+                  - generic [ref=e46]:
+                    - button "◀" [ref=e47] [cursor=pointer]
+                    - generic [ref=e48]: 2025年9月18日 (木)
+                    - button "▶" [ref=e49] [cursor=pointer]
+                - table [ref=e51]:
+                  - rowgroup [ref=e52]:
+                    - row "席数 10:00 11:00 12:00 13:00 14:00 15:00 16:00 17:00 18:00 19:00 20:00 21:00" [ref=e53]:
+                      - cell "席数" [ref=e54]
+                      - cell "10:00" [ref=e55]
+                      - cell "11:00" [ref=e56]
+                      - cell "12:00" [ref=e57]
+                      - cell "13:00" [ref=e58]
+                      - cell "14:00" [ref=e59]
+                      - cell "15:00" [ref=e60]
+                      - cell "16:00" [ref=e61]
+                      - cell "17:00" [ref=e62]
+                      - cell "18:00" [ref=e63]
+                      - cell "19:00" [ref=e64]
+                      - cell "20:00" [ref=e65]
+                      - cell "21:00" [ref=e66]
+                  - rowgroup [ref=e67]:
+                    - row "席1 田中 うんこたれ スタンダードコース" [ref=e68]:
+                      - cell "席1" [ref=e69] [cursor=pointer]
+                      - cell [ref=e70] [cursor=pointer]
+                      - cell [ref=e71] [cursor=pointer]
+                      - cell [ref=e72] [cursor=pointer]
+                      - cell [ref=e73] [cursor=pointer]
+                      - cell [ref=e74] [cursor=pointer]
+                      - cell [ref=e75] [cursor=pointer]
+                      - cell [ref=e76] [cursor=pointer]
+                      - cell [ref=e77] [cursor=pointer]
+                      - cell [ref=e78] [cursor=pointer]
+                      - cell [ref=e79] [cursor=pointer]
+                      - cell [ref=e80] [cursor=pointer]
+                      - cell [ref=e81] [cursor=pointer]
+                      - cell [ref=e82] [cursor=pointer]
+                      - cell [ref=e83] [cursor=pointer]
+                      - cell [ref=e84] [cursor=pointer]
+                      - cell [ref=e85] [cursor=pointer]
+                      - cell "田中 うんこたれ スタンダードコース" [ref=e86] [cursor=pointer]:
+                        - generic [ref=e87] [cursor=pointer]:
+                          - generic [ref=e88] [cursor=pointer]: 田中 うんこたれ
+                          - generic [ref=e89] [cursor=pointer]: スタンダードコース
+                      - cell [ref=e90] [cursor=pointer]
+                      - cell [ref=e91] [cursor=pointer]
+                      - cell [ref=e92] [cursor=pointer]
+                      - cell [ref=e93] [cursor=pointer]
+                      - cell [ref=e94] [cursor=pointer]
+                      - cell [ref=e95] [cursor=pointer]
+                      - cell [ref=e96] [cursor=pointer]
+                      - cell [ref=e97] [cursor=pointer]
+                      - cell [ref=e98] [cursor=pointer]
+                      - cell [ref=e99] [cursor=pointer]
+                      - cell [ref=e100] [cursor=pointer]
+                      - cell [ref=e101] [cursor=pointer]
+                      - cell [ref=e102] [cursor=pointer]
+                      - cell [ref=e103] [cursor=pointer]
+                      - cell [ref=e104] [cursor=pointer]
+                      - cell [ref=e105] [cursor=pointer]
+                      - cell [ref=e106] [cursor=pointer]
+                      - cell [ref=e107] [cursor=pointer]
+                      - cell [ref=e108] [cursor=pointer]
+                      - cell [ref=e109] [cursor=pointer]
+                      - cell [ref=e110] [cursor=pointer]
+                      - cell [ref=e111] [cursor=pointer]
+                      - cell [ref=e112] [cursor=pointer]
+                      - cell [ref=e113] [cursor=pointer]
+                      - cell [ref=e114] [cursor=pointer]
+                      - cell [ref=e115] [cursor=pointer]
+                      - cell [ref=e116] [cursor=pointer]
+                      - cell [ref=e117] [cursor=pointer]
+                      - cell [ref=e118] [cursor=pointer]
+                      - cell [ref=e119] [cursor=pointer]
+                      - cell [ref=e120] [cursor=pointer]
+                    - row "サブ" [ref=e121]:
+                      - cell "サブ" [ref=e122] [cursor=pointer]
+                      - cell [ref=e123] [cursor=pointer]
+                      - cell [ref=e124] [cursor=pointer]
+                      - cell [ref=e125] [cursor=pointer]
+                      - cell [ref=e126] [cursor=pointer]
+                      - cell [ref=e127] [cursor=pointer]
+                      - cell [ref=e128] [cursor=pointer]
+                      - cell [ref=e129] [cursor=pointer]
+                      - cell [ref=e130] [cursor=pointer]
+                      - cell [ref=e131] [cursor=pointer]
+                      - cell [ref=e132] [cursor=pointer]
+                      - cell [ref=e133] [cursor=pointer]
+                      - cell [ref=e134] [cursor=pointer]
+                      - cell [ref=e135] [cursor=pointer]
+                      - cell [ref=e136] [cursor=pointer]
+                      - cell [ref=e137] [cursor=pointer]
+                      - cell [ref=e138] [cursor=pointer]
+                      - cell [ref=e139] [cursor=pointer]
+                      - cell [ref=e140] [cursor=pointer]
+                      - cell [ref=e141] [cursor=pointer]
+                      - cell [ref=e142] [cursor=pointer]
+                      - cell [ref=e143] [cursor=pointer]
+                      - cell [ref=e144] [cursor=pointer]
+                      - cell [ref=e145] [cursor=pointer]
+                      - cell [ref=e146] [cursor=pointer]
+                      - cell [ref=e147] [cursor=pointer]
+                      - cell [ref=e148] [cursor=pointer]
+                      - cell [ref=e149] [cursor=pointer]
+                      - cell [ref=e150] [cursor=pointer]
+                      - cell [ref=e151] [cursor=pointer]
+                      - cell [ref=e152] [cursor=pointer]
+                      - cell [ref=e153] [cursor=pointer]
+                      - cell [ref=e154] [cursor=pointer]
+                      - cell [ref=e155] [cursor=pointer]
+                      - cell [ref=e156] [cursor=pointer]
+                      - cell [ref=e157] [cursor=pointer]
+                      - cell [ref=e158] [cursor=pointer]
+                      - cell [ref=e159] [cursor=pointer]
+                      - cell [ref=e160] [cursor=pointer]
+                      - cell [ref=e161] [cursor=pointer]
+                      - cell [ref=e162] [cursor=pointer]
+                      - cell [ref=e163] [cursor=pointer]
+                      - cell [ref=e164] [cursor=pointer]
+                      - cell [ref=e165] [cursor=pointer]
+                      - cell [ref=e166] [cursor=pointer]
+                      - cell [ref=e167] [cursor=pointer]
+                      - cell [ref=e168] [cursor=pointer]
+                      - cell [ref=e169] [cursor=pointer]
+                      - cell [ref=e170] [cursor=pointer]
+                - generic [ref=e171]:
+                  - generic [ref=e174]: ケアコース
+                  - generic [ref=e177]: 水素コース
+                  - generic [ref=e180]: トレーニングコース
+                  - generic [ref=e183]: ケアコース
+                  - generic [ref=e186]: ケアコース
+                  - generic [ref=e189]: ケアコース
+              - generic [ref=e191]:
+                - generic [ref=e192]:
+                  - generic [ref=e193]:
+                    - heading "予約一覧 (1件) - 今日 (2025年9月18日)" [level=3] [ref=e196]
+                    - generic [ref=e199]:
+                      - generic [ref=e200]: 検索
+                      - generic [ref=e201]:
+                        - img [ref=e203]
+                        - searchbox "検索" [ref=e206]
+                  - table [ref=e208]:
+                    - rowgroup [ref=e209]:
+                      - row "時間 店舗 顧客名 電話番号 メニュー 担当 状態 Actions" [ref=e210]:
+                        - cell "時間" [ref=e211]:
+                          - button "時間" [ref=e212] [cursor=pointer]:
+                            - generic [ref=e213] [cursor=pointer]: 時間
+                            - img [ref=e214] [cursor=pointer]
+                        - cell "店舗" [ref=e216]:
+                          - generic [ref=e218]: 店舗
+                        - cell "顧客名" [ref=e219]:
+                          - generic [ref=e221]: 顧客名
+                        - cell "電話番号" [ref=e222]:
+                          - generic [ref=e224]: 電話番号
+                        - cell "メニュー" [ref=e225]:
+                          - generic [ref=e227]: メニュー
+                        - cell "担当" [ref=e228]:
+                          - generic [ref=e230]: 担当
+                        - cell "状態" [ref=e231]:
+                          - generic [ref=e233]: 状態
+                        - cell "Actions" [ref=e234]
+                    - rowgroup [ref=e235]:
+                      - row "14:00-15:00 銀座本店 田中 うんこたれ 0205555555 スタンダードコース 未定 予約済 来店 完了 編集" [ref=e236]:
+                        - cell "14:00-15:00" [ref=e237]:
+                          - generic [ref=e244]: 14:00-15:00
+                        - cell "銀座本店" [ref=e245]:
+                          - generic [ref=e252]: 銀座本店
+                        - cell "田中 うんこたれ" [ref=e253]:
+                          - generic [ref=e260]: 田中 うんこたれ
+                        - cell "0205555555" [ref=e261]:
+                          - generic [ref=e268]: "0205555555"
+                        - cell "スタンダードコース" [ref=e269]:
+                          - generic [ref=e276]: スタンダードコース
+                        - cell "未定" [ref=e277]:
+                          - generic [ref=e281]: 未定
+                        - cell "予約済" [ref=e282]:
+                          - generic [ref=e290]: 予約済
+                        - cell "来店 完了 編集" [ref=e291]:
+                          - generic [ref=e293]:
+                            - button "来店" [ref=e294] [cursor=pointer]:
+                              - img [ref=e295] [cursor=pointer]
+                              - generic [ref=e297] [cursor=pointer]: 来店
+                            - button "完了" [ref=e298] [cursor=pointer]:
+                              - img [ref=e299] [cursor=pointer]
+                              - generic [ref=e301] [cursor=pointer]: 完了
+                            - link "編集" [ref=e302] [cursor=pointer]:
+                              - /url: /admin/reservations/2/edit
+                              - img [ref=e303] [cursor=pointer]
+                              - generic [ref=e306] [cursor=pointer]: 編集
+                - generic:
+                  - dialog
+                - generic:
+                  - dialog
+                - generic:
+                  - dialog
+                - generic:
+                  - dialog
+                - generic:
+                  - dialog
+              - generic [ref=e307]:
+                - generic [ref=e310]:
+                  - button "作成" [ref=e313] [cursor=pointer]:
+                    - generic [ref=e314] [cursor=pointer]: 作成
+                  - generic [ref=e315]:
+                    - generic [ref=e316]:
+                      - generic [ref=e317]:
+                        - generic [ref=e318]:
+                          - button "" [ref=e319] [cursor=pointer]:
+                            - generic [ref=e320] [cursor=pointer]: 
+                          - button "" [ref=e321] [cursor=pointer]:
+                            - generic [ref=e322] [cursor=pointer]: 
+                        - button "今日" [disabled] [ref=e323]
+                      - heading "2025年9月" [level=2] [ref=e325]
+                      - generic [ref=e327]:
+                        - button "月" [pressed] [ref=e328] [cursor=pointer]
+                        - button "週" [ref=e329] [cursor=pointer]
+                        - button "日" [ref=e330] [cursor=pointer]
+                    - grid [ref=e333]:
+                      - rowgroup [ref=e334]:
+                        - row "日曜日 月曜日 火曜日 水曜日 木曜日 金曜日 土曜日" [ref=e338]:
+                          - columnheader "日曜日" [ref=e339]:
+                            - generic "日曜日" [ref=e341]: 日
+                          - columnheader "月曜日" [ref=e342]:
+                            - generic "月曜日" [ref=e344]: 月
+                          - columnheader "火曜日" [ref=e345]:
+                            - generic "火曜日" [ref=e347]: 火
+                          - columnheader "水曜日" [ref=e348]:
+                            - generic "水曜日" [ref=e350]: 水
+                          - columnheader "木曜日" [ref=e351]:
+                            - generic "木曜日" [ref=e353]: 木
+                          - columnheader "金曜日" [ref=e354]:
+                            - generic "金曜日" [ref=e356]: 金
+                          - columnheader "土曜日" [ref=e357]:
+                            - generic "土曜日" [ref=e359]: 土
+                      - rowgroup [ref=e360]:
+                        - generic [ref=e363]:
+                          - row "2025年8月31日 2025年9月1日 2025年9月2日 2025年9月3日 2025年9月4日 2025年9月5日 2025年9月6日" [ref=e365]:
+                            - gridcell "2025年8月31日" [ref=e366]:
+                              - generic "2025年8月31日" [ref=e369] [cursor=pointer]: 31日
+                            - gridcell "2025年9月1日" [ref=e371]:
+                              - generic "2025年9月1日" [ref=e374] [cursor=pointer]: 1日
+                            - gridcell "2025年9月2日" [ref=e376]:
+                              - generic "2025年9月2日" [ref=e379] [cursor=pointer]: 2日
+                            - gridcell "2025年9月3日" [ref=e381]:
+                              - generic "2025年9月3日" [ref=e384] [cursor=pointer]: 3日
+                            - gridcell "2025年9月4日" [ref=e386]:
+                              - generic "2025年9月4日" [ref=e389] [cursor=pointer]: 4日
+                            - gridcell "2025年9月5日" [ref=e391]:
+                              - generic "2025年9月5日" [ref=e394] [cursor=pointer]: 5日
+                            - gridcell "2025年9月6日" [ref=e396]:
+                              - generic "2025年9月6日" [ref=e399] [cursor=pointer]: 6日
+                          - row "2025年9月7日 2025年9月8日 2025年9月9日 2025年9月10日 2025年9月11日 2025年9月12日 2025年9月13日" [ref=e401]:
+                            - gridcell "2025年9月7日" [ref=e402]:
+                              - generic "2025年9月7日" [ref=e405] [cursor=pointer]: 7日
+                            - gridcell "2025年9月8日" [ref=e407]:
+                              - generic "2025年9月8日" [ref=e410] [cursor=pointer]: 8日
+                            - gridcell "2025年9月9日" [ref=e412]:
+                              - generic "2025年9月9日" [ref=e415] [cursor=pointer]: 9日
+                            - gridcell "2025年9月10日" [ref=e417]:
+                              - generic "2025年9月10日" [ref=e420] [cursor=pointer]: 10日
+                            - gridcell "2025年9月11日" [ref=e422]:
+                              - generic "2025年9月11日" [ref=e425] [cursor=pointer]: 11日
+                            - gridcell "2025年9月12日" [ref=e427]:
+                              - generic "2025年9月12日" [ref=e430] [cursor=pointer]: 12日
+                            - gridcell "2025年9月13日" [ref=e432]:
+                              - generic "2025年9月13日" [ref=e435] [cursor=pointer]: 13日
+                          - row "2025年9月14日 2025年9月15日 2025年9月16日 2025年9月17日 2025年9月18日 2025年9月19日 2025年9月20日" [ref=e437]:
+                            - gridcell "2025年9月14日" [ref=e438]:
+                              - generic "2025年9月14日" [ref=e441] [cursor=pointer]: 14日
+                            - gridcell "2025年9月15日" [ref=e443]:
+                              - generic "2025年9月15日" [ref=e446] [cursor=pointer]: 15日
+                            - gridcell "2025年9月16日" [ref=e448]:
+                              - generic "2025年9月16日" [ref=e451] [cursor=pointer]: 16日
+                            - gridcell "2025年9月17日" [ref=e453]:
+                              - generic [ref=e454]:
+                                - generic "2025年9月17日" [ref=e456] [cursor=pointer]: 17日
+                                - generic [ref=e463]: 2件
+                            - gridcell "2025年9月18日" [ref=e464]:
+                              - generic [ref=e465]:
+                                - generic "2025年9月18日" [ref=e467] [cursor=pointer]: 18日
+                                - generic [ref=e474]: 1件
+                            - gridcell "2025年9月19日" [ref=e475]:
+                              - generic [ref=e476]:
+                                - generic "2025年9月19日" [ref=e478] [cursor=pointer]: 19日
+                                - generic [ref=e485]: 3件
+                            - gridcell "2025年9月20日" [ref=e486]:
+                              - generic [ref=e487]:
+                                - generic "2025年9月20日" [ref=e489] [cursor=pointer]: 20日
+                                - generic [ref=e496]: 1件
+                          - row "2025年9月21日 2025年9月22日 2025年9月23日 2025年9月24日 2025年9月25日 2025年9月26日 2025年9月27日" [ref=e497]:
+                            - gridcell "2025年9月21日" [ref=e498]:
+                              - generic "2025年9月21日" [ref=e501] [cursor=pointer]: 21日
+                            - gridcell "2025年9月22日" [ref=e503]:
+                              - generic "2025年9月22日" [ref=e506] [cursor=pointer]: 22日
+                            - gridcell "2025年9月23日" [ref=e508]:
+                              - generic "2025年9月23日" [ref=e511] [cursor=pointer]: 23日
+                            - gridcell "2025年9月24日" [ref=e513]:
+                              - generic "2025年9月24日" [ref=e516] [cursor=pointer]: 24日
+                            - gridcell "2025年9月25日" [ref=e518]:
+                              - generic "2025年9月25日" [ref=e521] [cursor=pointer]: 25日
+                            - gridcell "2025年9月26日" [ref=e523]:
+                              - generic "2025年9月26日" [ref=e526] [cursor=pointer]: 26日
+                            - gridcell "2025年9月27日" [ref=e528]:
+                              - generic "2025年9月27日" [ref=e531] [cursor=pointer]: 27日
+                          - row "2025年9月28日 2025年9月29日 2025年9月30日 2025年10月1日 2025年10月2日 2025年10月3日 2025年10月4日" [ref=e533]:
+                            - gridcell "2025年9月28日" [ref=e534]:
+                              - generic "2025年9月28日" [ref=e537] [cursor=pointer]: 28日
+                            - gridcell "2025年9月29日" [ref=e539]:
+                              - generic "2025年9月29日" [ref=e542] [cursor=pointer]: 29日
+                            - gridcell "2025年9月30日" [ref=e544]:
+                              - generic "2025年9月30日" [ref=e547] [cursor=pointer]: 30日
+                            - gridcell "2025年10月1日" [ref=e549]:
+                              - generic "2025年10月1日" [ref=e552] [cursor=pointer]: 1日
+                            - gridcell "2025年10月2日" [ref=e554]:
+                              - generic "2025年10月2日" [ref=e557] [cursor=pointer]: 2日
+                            - gridcell "2025年10月3日" [ref=e559]:
+                              - generic "2025年10月3日" [ref=e562] [cursor=pointer]: 3日
+                            - gridcell "2025年10月4日" [ref=e564]:
+                              - generic "2025年10月4日" [ref=e567] [cursor=pointer]: 4日
+                          - row "2025年10月5日 2025年10月6日 2025年10月7日 2025年10月8日 2025年10月9日 2025年10月10日 2025年10月11日" [ref=e569]:
+                            - gridcell "2025年10月5日" [ref=e570]:
+                              - generic "2025年10月5日" [ref=e573] [cursor=pointer]: 5日
+                            - gridcell "2025年10月6日" [ref=e575]:
+                              - generic "2025年10月6日" [ref=e578] [cursor=pointer]: 6日
+                            - gridcell "2025年10月7日" [ref=e580]:
+                              - generic "2025年10月7日" [ref=e583] [cursor=pointer]: 7日
+                            - gridcell "2025年10月8日" [ref=e585]:
+                              - generic "2025年10月8日" [ref=e588] [cursor=pointer]: 8日
+                            - gridcell "2025年10月9日" [ref=e590]:
+                              - generic "2025年10月9日" [ref=e593] [cursor=pointer]: 9日
+                            - gridcell "2025年10月10日" [ref=e595]:
+                              - generic "2025年10月10日" [ref=e598] [cursor=pointer]: 10日
+                            - gridcell "2025年10月11日" [ref=e600]:
+                              - generic "2025年10月11日" [ref=e603] [cursor=pointer]: 11日
+                - generic:
+                  - dialog
+                - generic:
+                  - dialog
+              - generic [ref=e609]:
+                - generic [ref=e610]:
+                  - generic [ref=e611]:
+                    - button [ref=e612] [cursor=pointer]:
+                      - img [ref=e613] [cursor=pointer]
+                    - heading "本日のシフト状況 （2025年9月18日 (木)）" [level=3] [ref=e615]:
+                      - text: 本日のシフト状況
+                      - generic [ref=e616]: （2025年9月18日 (木)）
+                    - button [ref=e617] [cursor=pointer]:
+                      - img [ref=e618] [cursor=pointer]
+                  - link "詳細管理画面へ →" [ref=e620] [cursor=pointer]:
+                    - /url: http://127.0.0.1:8000/admin/simple-shift-management
+                - table [ref=e622]:
+                  - rowgroup [ref=e623]:
+                    - row "スタッフ 10:00 11:00 12:00 13:00 14:00 15:00 16:00 17:00 18:00 19:00" [ref=e624]:
+                      - cell "スタッフ" [ref=e625]
+                      - cell "10:00" [ref=e626]
+                      - cell "11:00" [ref=e627]
+                      - cell "12:00" [ref=e628]
+                      - cell "13:00" [ref=e629]
+                      - cell "14:00" [ref=e630]
+                      - cell "15:00" [ref=e631]
+                      - cell "16:00" [ref=e632]
+                      - cell "17:00" [ref=e633]
+                      - cell "18:00" [ref=e634]
+                      - cell "19:00" [ref=e635]
+                  - rowgroup [ref=e636]:
+                    - row "テストスタッフ" [ref=e637]:
+                      - cell "テストスタッフ" [ref=e638]
+                      - cell [ref=e639]
+                      - cell [ref=e641]
+                      - cell [ref=e643]
+                      - cell [ref=e645]
+                      - cell [ref=e647]
+                      - cell [ref=e649]
+                      - cell [ref=e651]
+                      - cell [ref=e653]
+                      - cell [ref=e655]
+                      - cell [ref=e657]
+                      - cell [ref=e659]
+                      - cell [ref=e661]
+                      - cell [ref=e663]
+                      - cell [ref=e665]
+                      - cell [ref=e667]
+                      - cell [ref=e669]
+                      - cell [ref=e671]
+                      - cell [ref=e673]
+                      - cell [ref=e675]
+                      - cell [ref=e677]
+                      - cell [ref=e679]
+                      - cell [ref=e681]
+                      - cell [ref=e683]
+                      - cell [ref=e685]
+                      - cell [ref=e687]
+                      - cell [ref=e689]
+                      - cell [ref=e691]
+                      - cell [ref=e693]
+                      - cell [ref=e695]
+                      - cell [ref=e697]
+                      - cell [ref=e699]
+                      - cell [ref=e701]
+                      - cell [ref=e703]
+                      - cell [ref=e705]
+                      - cell [ref=e707]
+                      - cell [ref=e709]
+                      - cell [ref=e711]
+                      - cell [ref=e713]
+                      - cell [ref=e715]
+                      - cell [ref=e717]
+                    - row "銀座スタッフ" [ref=e719]:
+                      - cell "銀座スタッフ" [ref=e720]
+                      - cell [ref=e721]
+                      - cell [ref=e723]
+                      - cell [ref=e725]
+                      - cell [ref=e727]
+                      - cell [ref=e729]
+                      - cell [ref=e731]
+                      - cell [ref=e733]
+                      - cell [ref=e735]
+                      - cell [ref=e737]
+                      - cell [ref=e739]
+                      - cell [ref=e741]
+                      - cell [ref=e743]
+                      - cell [ref=e745]
+                      - cell [ref=e747]
+                      - cell [ref=e749]
+                      - cell [ref=e751]
+                      - cell [ref=e753]
+                      - cell [ref=e755]
+                      - cell [ref=e757]
+                      - cell [ref=e759]
+                      - cell [ref=e761]
+                      - cell [ref=e763]
+                      - cell [ref=e765]
+                      - cell [ref=e767]
+                      - cell [ref=e769]
+                      - cell [ref=e771]
+                      - cell [ref=e773]
+                      - cell [ref=e775]
+                      - cell [ref=e777]
+                      - cell [ref=e779]
+                      - cell [ref=e781]
+                      - cell [ref=e783]
+                      - cell [ref=e785]
+                      - cell [ref=e787]
+                      - cell [ref=e789]
+                      - cell [ref=e791]
+                      - cell [ref=e793]
+                      - cell [ref=e795]
+                      - cell [ref=e797]
+                      - cell [ref=e799]
+                    - row "銀座本店 スタッフ1" [ref=e801]:
+                      - cell "銀座本店 スタッフ1" [ref=e802]
+                      - cell [ref=e803]
+                      - cell [ref=e805]
+                      - cell [ref=e807]
+                      - cell [ref=e809]
+                      - cell [ref=e811]
+                      - cell [ref=e813]
+                      - cell [ref=e815]
+                      - cell [ref=e817]
+                      - cell [ref=e819]
+                      - cell [ref=e821]
+                      - cell [ref=e823]
+                      - cell [ref=e825]
+                      - cell [ref=e827]
+                      - cell [ref=e829]
+                      - cell [ref=e831]
+                      - cell [ref=e833]
+                      - cell [ref=e835]
+                      - cell [ref=e837]
+                      - cell [ref=e839]
+                      - cell [ref=e841]
+                      - cell [ref=e843]
+                      - cell [ref=e845]
+                      - cell [ref=e847]
+                      - cell [ref=e849]
+                      - cell [ref=e851]
+                      - cell [ref=e853]
+                      - cell [ref=e855]
+                      - cell [ref=e857]
+                      - cell [ref=e859]
+                      - cell [ref=e861]
+                      - cell [ref=e863]
+                      - cell [ref=e865]
+                      - cell [ref=e867]
+                      - cell [ref=e869]
+                      - cell [ref=e871]
+                      - cell [ref=e873]
+                      - cell [ref=e875]
+                      - cell [ref=e877]
+                      - cell [ref=e879]
+                      - cell [ref=e881]
+                    - row "銀座本店 スタッフ2" [ref=e883]:
+                      - cell "銀座本店 スタッフ2" [ref=e884]
+                      - cell [ref=e885]
+                      - cell [ref=e887]
+                      - cell [ref=e889]
+                      - cell [ref=e891]
+                      - cell [ref=e893]
+                      - cell [ref=e895]
+                      - cell [ref=e897]
+                      - cell [ref=e899]
+                      - cell [ref=e901]
+                      - cell [ref=e903]
+                      - cell [ref=e905]
+                      - cell [ref=e907]
+                      - cell [ref=e909]
+                      - cell [ref=e911]
+                      - cell [ref=e913]
+                      - cell [ref=e915]
+                      - cell [ref=e917]
+                      - cell [ref=e919]
+                      - cell [ref=e921]
+                      - cell [ref=e923]
+                      - cell [ref=e925]
+                      - cell [ref=e927]
+                      - cell [ref=e929]
+                      - cell [ref=e931]
+                      - cell [ref=e933]
+                      - cell [ref=e935]
+                      - cell [ref=e937]
+                      - cell [ref=e939]
+                      - cell [ref=e941]
+                      - cell [ref=e943]
+                      - cell [ref=e945]
+                      - cell [ref=e947]
+                      - cell [ref=e949]
+                      - cell [ref=e951]
+                      - cell [ref=e953]
+                      - cell [ref=e955]
+                      - cell [ref=e957]
+                      - cell [ref=e959]
+                      - cell [ref=e961]
+                      - cell [ref=e963]
+                    - row "銀座本店 店長" [ref=e965]:
+                      - cell "銀座本店 店長" [ref=e966]
+                      - cell [ref=e967]
+                      - cell [ref=e969]
+                      - cell [ref=e971]
+                      - cell [ref=e973]
+                      - cell [ref=e975]
+                      - cell [ref=e977]
+                      - cell [ref=e979]
+                      - cell [ref=e981]
+                      - cell [ref=e983]
+                      - cell [ref=e985]
+                      - cell [ref=e987]
+                      - cell [ref=e989]
+                      - cell [ref=e991]
+                      - cell [ref=e993]
+                      - cell [ref=e995]
+                      - cell [ref=e997]
+                      - cell [ref=e999]
+                      - cell [ref=e1001]
+                      - cell [ref=e1003]
+                      - cell [ref=e1005]
+                      - cell [ref=e1007]
+                      - cell [ref=e1009]
+                      - cell [ref=e1011]
+                      - cell [ref=e1013]
+                      - cell [ref=e1015]
+                      - cell [ref=e1017]
+                      - cell [ref=e1019]
+                      - cell [ref=e1021]
+                      - cell [ref=e1023]
+                      - cell [ref=e1025]
+                      - cell [ref=e1027]
+                      - cell [ref=e1029]
+                      - cell [ref=e1031]
+                      - cell [ref=e1033]
+                      - cell [ref=e1035]
+                      - cell [ref=e1037]
+                      - cell [ref=e1039]
+                      - cell [ref=e1041]
+                      - cell [ref=e1043]
+                      - cell [ref=e1045]
+                    - row "高橋直希" [ref=e1047]:
+                      - cell "高橋直希" [ref=e1048]
+                      - cell [ref=e1049]
+                      - cell [ref=e1051]
+                      - cell [ref=e1053]
+                      - cell [ref=e1055]
+                      - cell [ref=e1057]
+                      - cell [ref=e1059]
+                      - cell [ref=e1061]
+                      - cell [ref=e1063]
+                      - cell [ref=e1065]
+                      - cell [ref=e1067]
+                      - cell [ref=e1069]
+                      - cell [ref=e1071]
+                      - cell [ref=e1073]
+                      - cell [ref=e1075]
+                      - cell [ref=e1077]
+                      - cell [ref=e1079]
+                      - cell [ref=e1081]
+                      - cell [ref=e1083]
+                      - cell [ref=e1085]
+                      - cell [ref=e1087]
+                      - cell [ref=e1089]
+                      - cell [ref=e1091]
+                      - cell [ref=e1093]
+                      - cell [ref=e1095]
+                      - cell [ref=e1097]
+                      - cell [ref=e1099]
+                      - cell [ref=e1101]
+                      - cell [ref=e1103]
+                      - cell [ref=e1105]
+                      - cell [ref=e1107]
+                      - cell [ref=e1109]
+                      - cell [ref=e1111]
+                      - cell [ref=e1113]
+                      - cell [ref=e1115]
+                      - cell [ref=e1117]
+                      - cell [ref=e1119]
+                      - cell [ref=e1121]
+                      - cell [ref=e1123]
+                      - cell [ref=e1125]
+                      - cell [ref=e1127]
+                    - row "高橋直希" [ref=e1129]:
+                      - cell "高橋直希" [ref=e1130]
+                      - cell [ref=e1131]
+                      - cell [ref=e1133]
+                      - cell [ref=e1135]
+                      - cell [ref=e1137]
+                      - cell [ref=e1139]
+                      - cell [ref=e1141]
+                      - cell [ref=e1143]
+                      - cell [ref=e1145]
+                      - cell [ref=e1147]
+                      - cell [ref=e1149]
+                      - cell [ref=e1151]
+                      - cell [ref=e1153]
+                      - cell [ref=e1155]
+                      - cell [ref=e1157]
+                      - cell [ref=e1159]
+                      - cell [ref=e1161]
+                      - cell [ref=e1163]
+                      - cell [ref=e1165]
+                      - cell [ref=e1167]
+                      - cell [ref=e1169]
+                      - cell [ref=e1171]
+                      - cell [ref=e1173]
+                      - cell [ref=e1175]
+                      - cell [ref=e1177]
+                      - cell [ref=e1179]
+                      - cell [ref=e1181]
+                      - cell [ref=e1183]
+                      - cell [ref=e1185]
+                      - cell [ref=e1187]
+                      - cell [ref=e1189]
+                      - cell [ref=e1191]
+                      - cell [ref=e1193]
+                      - cell [ref=e1195]
+                      - cell [ref=e1197]
+                      - cell [ref=e1199]
+                      - cell [ref=e1201]
+                      - cell [ref=e1203]
+                      - cell [ref=e1205]
+                      - cell [ref=e1207]
+                      - cell [ref=e1209]
+                - generic [ref=e1211]:
+                  - generic [ref=e1214]: 勤務中
+                  - generic [ref=e1217]: 休憩中
+                  - generic [ref=e1220]: 不在
+          - generic:
+            - dialog
+          - generic:
+            - dialog
+          - generic:
+            - dialog
+    - complementary [ref=e1225]:
+      - generic [ref=e1227]:
+        - link "目のトレーニング 管理画面ロゴ" [ref=e1229] [cursor=pointer]:
+          - /url: http://127.0.0.1:8000/admin
+          - img "目のトレーニング 管理画面ロゴ" [ref=e1230] [cursor=pointer]
+        - button "サイドバーを折り畳む" [ref=e1231] [cursor=pointer]:
+          - generic [ref=e1232] [cursor=pointer]: サイドバーを折り畳む
+          - img [ref=e1233] [cursor=pointer]
+      - navigation [ref=e1235]:
+        - list [ref=e1236]:
+          - listitem [ref=e1237]:
+            - list [ref=e1238]:
+              - listitem [ref=e1239]:
+                - link "ダッシュボード" [ref=e1240] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin
+                  - img [ref=e1241] [cursor=pointer]
+                  - generic [ref=e1243] [cursor=pointer]: ダッシュボード
+              - listitem [ref=e1244]:
+                - link "店舗管理" [ref=e1245] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/stores
+                  - img [ref=e1246] [cursor=pointer]
+                  - generic [ref=e1248] [cursor=pointer]: 店舗管理
+              - listitem [ref=e1249]:
+                - link "予約ブロック設定" [ref=e1250] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/blocked-time-periods
+                  - img [ref=e1251] [cursor=pointer]
+                  - generic [ref=e1253] [cursor=pointer]: 予約ブロック設定
+              - listitem [ref=e1254]:
+                - link "ユーザー管理" [ref=e1255] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/users
+                  - img [ref=e1256] [cursor=pointer]
+                  - generic [ref=e1258] [cursor=pointer]: ユーザー管理
+              - listitem [ref=e1259]:
+                - link "カルテ管理" [ref=e1260] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/medical-records
+                  - img [ref=e1261] [cursor=pointer]
+                  - generic [ref=e1263] [cursor=pointer]: カルテ管理
+              - listitem [ref=e1264]:
+                - link "顧客管理" [ref=e1265] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/customers
+                  - img [ref=e1266] [cursor=pointer]
+                  - generic [ref=e1268] [cursor=pointer]: 顧客管理
+              - listitem [ref=e1269]:
+                - link "サブスク契約管理" [ref=e1270] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/subscriptions
+                  - img [ref=e1271] [cursor=pointer]
+                  - generic [ref=e1273] [cursor=pointer]: サブスク契約管理
+          - listitem [ref=e1274]:
+            - generic [ref=e1275] [cursor=pointer]:
+              - generic [ref=e1276] [cursor=pointer]: メニュー管理
+              - button "メニュー管理" [expanded] [ref=e1277] [cursor=pointer]:
+                - generic [ref=e1278] [cursor=pointer]: メニュー管理
+                - img [ref=e1279] [cursor=pointer]
+            - list [ref=e1281]:
+              - listitem [ref=e1282]:
+                - link "メニュー統合管理" [ref=e1283] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/menu-manager
+                  - img [ref=e1284] [cursor=pointer]
+                  - generic [ref=e1286] [cursor=pointer]: メニュー統合管理
+              - listitem [ref=e1287]:
+                - link "メニューカテゴリー" [ref=e1288] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/menu-categories
+                  - img [ref=e1289] [cursor=pointer]
+                  - generic [ref=e1291] [cursor=pointer]: メニューカテゴリー
+              - listitem [ref=e1292]:
+                - link "メニュー管理" [ref=e1293] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/menus
+                  - img [ref=e1294] [cursor=pointer]
+                  - generic [ref=e1296] [cursor=pointer]: メニュー管理
+          - listitem [ref=e1297]:
+            - generic [ref=e1298] [cursor=pointer]:
+              - generic [ref=e1299] [cursor=pointer]: スタッフ管理
+              - button "スタッフ管理" [expanded] [ref=e1300] [cursor=pointer]:
+                - generic [ref=e1301] [cursor=pointer]: スタッフ管理
+                - img [ref=e1302] [cursor=pointer]
+            - list [ref=e1304]:
+              - listitem [ref=e1305]:
+                - link "シフト管理" [ref=e1306] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/simple-shift-management
+                  - img [ref=e1307] [cursor=pointer]
+                  - generic [ref=e1309] [cursor=pointer]: シフト管理
+              - listitem [ref=e1310]:
+                - link "シフト設定" [ref=e1311] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/shift-settings
+                  - img [ref=e1312] [cursor=pointer]
+                  - generic [ref=e1315] [cursor=pointer]: シフト設定
+              - listitem [ref=e1316]:
+                - link "勤怠レポート" [ref=e1317] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/attendance-report
+                  - img [ref=e1318] [cursor=pointer]
+                  - generic [ref=e1320] [cursor=pointer]: 勤怠レポート
+          - listitem [ref=e1321]:
+            - generic [ref=e1322] [cursor=pointer]:
+              - generic [ref=e1323] [cursor=pointer]: 売上・会計
+              - button "売上・会計" [expanded] [ref=e1324] [cursor=pointer]:
+                - generic [ref=e1325] [cursor=pointer]: 売上・会計
+                - img [ref=e1326] [cursor=pointer]
+            - list [ref=e1328]:
+              - listitem [ref=e1329]:
+                - link "売上管理 0" [ref=e1330] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/sales
+                  - img [ref=e1331] [cursor=pointer]
+                  - generic [ref=e1333] [cursor=pointer]: 売上管理
+                  - generic [ref=e1337] [cursor=pointer]: "0"
+          - listitem [ref=e1338]:
+            - generic [ref=e1339] [cursor=pointer]:
+              - generic [ref=e1340] [cursor=pointer]: 予約管理
+              - button "予約管理" [expanded] [ref=e1341] [cursor=pointer]:
+                - generic [ref=e1342] [cursor=pointer]: 予約管理
+                - img [ref=e1343] [cursor=pointer]
+            - list [ref=e1345]:
+              - listitem [ref=e1346]:
+                - link "予約カレンダー" [ref=e1347] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/reservation-calendars
+                  - img [ref=e1348] [cursor=pointer]
+                  - generic [ref=e1350] [cursor=pointer]: 予約カレンダー
+              - listitem [ref=e1351]:
+                - link "予約管理" [ref=e1352] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/reservations
+                  - img [ref=e1353] [cursor=pointer]
+                  - generic [ref=e1355] [cursor=pointer]: 予約管理
+          - listitem [ref=e1356]:
+            - generic [ref=e1357] [cursor=pointer]:
+              - generic [ref=e1358] [cursor=pointer]: 顧客管理
+              - button "顧客管理" [expanded] [ref=e1359] [cursor=pointer]:
+                - generic [ref=e1360] [cursor=pointer]: 顧客管理
+                - img [ref=e1361] [cursor=pointer]
+            - list [ref=e1363]:
+              - listitem [ref=e1364]:
+                - link "顧客インポート" [ref=e1365] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/import-customers
+                  - img [ref=e1366] [cursor=pointer]
+                  - generic [ref=e1368] [cursor=pointer]: 顧客インポート
+  - generic:
+    - status
+```

@@ -44,9 +44,9 @@ class MedicalRecordResource extends Resource
                                             ->label('顧客')
                                             ->options(function () {
                                                 $user = auth()->user();
-                                                
+
                                                 $query = Customer::query();
-                                                
+
                                                 // スーパーアドミンは全顧客にアクセス可能
                                                 if ($user->hasRole('super_admin')) {
                                                     // 全顧客
@@ -66,14 +66,18 @@ class MedicalRecordResource extends Resource
                                                         return [];
                                                     }
                                                 }
-                                                
+
                                                 return $query->get()->mapWithKeys(function ($customer) {
                                                     $name = ($customer->last_name ?? '') . ' ' . ($customer->first_name ?? '') . ' (' . ($customer->phone ?? '') . ')';
                                                     return [$customer->id => $name];
                                                 });
                                             })
                                             ->searchable()
-                                            ->required(),
+                                            ->required()
+                                            ->reactive()
+                                            ->afterStateUpdated(fn ($state, callable $set) => $set('customer_characteristics',
+                                                $state ? Customer::find($state)?->characteristics : null
+                                            )),
                                         
                                         Forms\Components\Select::make('reservation_id')
                                             ->label('予約')
@@ -137,6 +141,37 @@ class MedicalRecordResource extends Resource
                                             ->default(now())
                                             ->required(),
                                     ]),
+
+                                // 顧客特性表示（スタッフ用情報）
+                                Forms\Components\Placeholder::make('customer_characteristics_display')
+                                    ->label('')
+                                    ->content(function ($get) {
+                                        $customerId = $get('customer_id');
+                                        if (!$customerId) {
+                                            return '';
+                                        }
+
+                                        $customer = Customer::find($customerId);
+                                        if (!$customer || !$customer->characteristics) {
+                                            return '';
+                                        }
+
+                                        return new \Illuminate\Support\HtmlString(
+                                            '<div class="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">' .
+                                            '<div class="flex items-start gap-2">' .
+                                            '<svg class="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">' .
+                                            '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>' .
+                                            '</svg>' .
+                                            '<div class="flex-1">' .
+                                            '<h4 class="font-semibold text-yellow-800 dark:text-yellow-200 mb-1">顧客特性（スタッフ用メモ）</h4>' .
+                                            '<p class="text-sm text-yellow-700 dark:text-yellow-300 whitespace-pre-wrap">' . nl2br(e($customer->characteristics)) . '</p>' .
+                                            '</div>' .
+                                            '</div>' .
+                                            '</div>'
+                                        );
+                                    })
+                                    ->columnSpanFull()
+                                    ->visible(fn ($get) => (bool) $get('customer_id')),
                             ]),
                         
                         // 顧客管理情報タブ（常に表示）

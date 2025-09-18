@@ -208,6 +208,25 @@
             </div>
         </div>
 
+        {{-- スタッフカラー凡例 --}}
+        @if(count($staffList) > 0)
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-4">
+            <h3 class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">スタッフ一覧</h3>
+            <div class="flex flex-wrap gap-2">
+                @foreach($staffList as $staff)
+                    <div class="flex items-center gap-1 px-2 py-1 rounded-md"
+                         style="background-color: {{ $staff->theme_color }}15;">
+                        <div class="w-3 h-3 rounded-full"
+                             style="background-color: {{ $staff->theme_color }};"></div>
+                        <span class="text-xs font-medium text-gray-700 dark:text-gray-300">
+                            {{ $staff->name }}
+                        </span>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+        @endif
+
         {{-- シンプルなカレンダー表示 --}}
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
             <div class="grid grid-cols-7 gap-0">
@@ -254,11 +273,12 @@
                         {{-- シフト一覧（シンプル表示） --}}
                         <div class="space-y-1">
                             @foreach($dayData['shifts'] as $shift)
-                                <div class="text-xs p-1 bg-blue-100 dark:bg-blue-800 rounded truncate cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-700"
+                                <div class="text-xs p-1 rounded truncate cursor-pointer transition-all hover:opacity-80 hover:shadow-sm"
+                                     style="background-color: {{ $shift['user_color'] }}20; border-left: 3px solid {{ $shift['user_color'] }};"
                                      data-shift-id="{{ $shift['id'] }}"
                                      wire:click.stop="openEditModal({{ $shift['id'] }})">
-                                    <span class="text-blue-800 dark:text-blue-200">{{ $shift['user_name'] }}</span>
-                                    <span class="text-gray-600 dark:text-gray-400">{{ $shift['time'] }}</span>
+                                    <span class="font-medium" style="color: {{ $shift['user_color'] }};">{{ $shift['user_name'] }}</span>
+                                    <span class="text-gray-600 dark:text-gray-400 text-xs">{{ $shift['time'] }}</span>
                                 </div>
                             @endforeach
                         </div>

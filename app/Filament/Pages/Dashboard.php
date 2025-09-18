@@ -13,15 +13,18 @@ class Dashboard extends BaseDashboard
     public function getHeaderWidgets(): array
     {
         return [
-            \App\Filament\Widgets\ReservationTimelineWidget::class,
-            \App\Filament\Widgets\TodayReservationsWidget::class,
+            // ヘッダーウィジェットは使用しない
         ];
     }
-    
+
     public function getWidgets(): array
     {
         return [
-            // ウィジェットを削除
+            \App\Filament\Widgets\ReservationTimelineWidget::class,     // 1. 予約タイムラインテーブル
+            \App\Filament\Widgets\TodayReservationsWidget::class,       // 2. 予約一覧
+            \App\Filament\Widgets\ReservationCalendarWidget::class,     // 3. 予約カレンダー
+            \App\Filament\Widgets\ShiftManagementLinkWidget::class,     // 4. 本日のシフト状況
+            \App\Filament\Widgets\SubscriptionStatsWidget::class,       // 5. 統計情報
         ];
     }
 }

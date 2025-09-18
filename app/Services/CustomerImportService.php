@@ -80,9 +80,9 @@ class CustomerImportService
                 return $value ?? '';
             }, $data);
             
-            // 必須フィールドチェック
-            if (empty($data['顧客番号']) || empty($data['顧客名'])) {
-                $this->addError($rowNumber, '必須項目（顧客番号または顧客名）が不足');
+            // 必須フィールドチェック（顧客名のみ必須）
+            if (empty($data['顧客名'])) {
+                $this->addError($rowNumber, '必須項目（顧客名）が不足');
                 $this->errorCount++;
                 return;
             }
@@ -90,7 +90,7 @@ class CustomerImportService
             // 電話番号の取得（電話番号1が優先、なければ電話番号2）
             $phoneNumber1 = trim($data['電話番号1'] ?? '');
             $phoneNumber2 = trim($data['電話番号2'] ?? '');
-            
+
             // より厳密な空チェック
             $phoneNumber = '';
             if (!empty($phoneNumber1) && $phoneNumber1 !== '' && $phoneNumber1 !== '　' && $phoneNumber1 !== '-') {
@@ -98,42 +98,53 @@ class CustomerImportService
             } elseif (!empty($phoneNumber2) && $phoneNumber2 !== '' && $phoneNumber2 !== '　' && $phoneNumber2 !== '-') {
                 $phoneNumber = $phoneNumber2;
             }
-            
-            // 電話番号がない場合はエラー（より厳密な判定）
-            if (empty($phoneNumber) || $phoneNumber === '' || $phoneNumber === '　' || $phoneNumber === '-' || strlen(trim($phoneNumber)) === 0) {
-                $this->addError($rowNumber, '電話番号が必須です（電話番号1または電話番号2のいずれかが必要）');
-                $this->errorCount++;
-                return;
+
+            // 電話番号の正規化（電話番号がある場合のみ）
+            $phone = null;
+            if (!empty($phoneNumber) && $phoneNumber !== '' && $phoneNumber !== '　' && $phoneNumber !== '-') {
+                $phone = $this->normalizePhone($phoneNumber);
+                if (!$phone) {
+                    // 電話番号の形式が不正でも警告のみでインポートは継続
+                    $this->addError($rowNumber, '警告: 電話番号の形式が不正です（' . $phoneNumber . '）。電話番号なしで登録します。');
+                    $phone = null;
+                }
             }
-            
-            // 電話番号の正規化
-            $phone = $this->normalizePhone($phoneNumber);
-            if (!$phone) {
-                $this->addError($rowNumber, '電話番号の形式が不正: ' . $phoneNumber);
-                $this->errorCount++;
-                return;
-            }
-            
-            // 既存顧客チェック（同一店舗内）- 電話番号で判定
-            $existingCustomer = Customer::where('phone', $phone)
-                ->where('store_id', $storeId)
-                ->first();
-            
-            if ($existingCustomer) {
-                $this->addError($rowNumber, '既存顧客（同一店舗）のためスキップ');
-                $this->skipCount++;
-                return;
+
+            // 既存顧客チェック（同一店舗内）
+            if ($phone) {
+                // 電話番号がある場合は電話番号で重複チェック
+                $existingCustomer = Customer::where('phone', $phone)
+                    ->where('store_id', $storeId)
+                    ->first();
+
+                if ($existingCustomer) {
+                    $this->addError($rowNumber, '既存顧客（同一店舗・同一電話番号）のためスキップ');
+                    $this->skipCount++;
+                    return;
+                }
+            } else {
+                // 電話番号がない場合は顧客名で重複チェック（同姓同名を避けるため）
+                $customerName = $this->splitName($data['顧客名']);
+                if ($customerName['last'] && $customerName['first']) {
+                    $existingCustomer = Customer::where('last_name', $customerName['last'])
+                        ->where('first_name', $customerName['first'])
+                        ->where('store_id', $storeId)
+                        ->whereNull('phone') // 電話番号なしの顧客同士で比較
+                        ->first();
+
+                    if ($existingCustomer) {
+                        $this->addError($rowNumber, '既存顧客（同一店舗・同姓同名・電話番号なし）のためスキップ');
+                        $this->skipCount++;
+                        return;
+                    }
+                }
             }
             
             // 顧客データを作成
             $customerData = $this->mapToCustomerData($data, $storeId);
             
-            // 最終安全チェック：電話番号が確実に設定されているか
-            if (empty($customerData['phone']) || $customerData['phone'] === null || $customerData['phone'] === '') {
-                $this->addError($rowNumber, '最終チェック: 電話番号が設定されていません');
-                $this->errorCount++;
-                return;
-            }
+            // 電話番号がnullでも許可する（削除またはコメントアウト）
+            // 電話番号は必須ではなくなった
             
             // 顧客を作成
             Customer::create($customerData);
@@ -187,14 +198,20 @@ class CustomerImportService
             $phoneNumber = $phoneNumber2;
         }
         
+        // 電話番号の正規化（電話番号がある場合のみ）
+        $normalizedPhone = null;
+        if (!empty($phoneNumber) && $phoneNumber !== '' && $phoneNumber !== '　' && $phoneNumber !== '-') {
+            $normalizedPhone = $this->normalizePhone($phoneNumber);
+        }
+
         return [
-            'customer_number' => $data['顧客番号'],
+            'customer_number' => !empty($data['顧客番号']) ? $data['顧客番号'] : null,
             'store_id' => $storeId,
             'last_name' => $nameParts['last'],
             'first_name' => $nameParts['first'],
             'last_name_kana' => $this->toKatakana($kanaParts['last']),
             'first_name_kana' => $this->toKatakana($kanaParts['first']),
-            'phone' => $this->normalizePhone($phoneNumber),
+            'phone' => $normalizedPhone, // nullを許可
             'email' => $this->validateEmail($data['メールアドレス'] ?? ''),
             'gender' => $gender,
             'birth_date' => $birthDate,
@@ -204,6 +221,7 @@ class CustomerImportService
             'address' => $addressParts['address'],
             'building' => $data['建物名'] ?? null,
             'notes' => $notes,
+            'characteristics' => $data['顧客特性'] ?? null, // 顧客特性を追加
             'created_at' => $createdAt ?: now(),
             'updated_at' => $updatedAt ?: now(),
         ];
