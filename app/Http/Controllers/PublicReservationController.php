@@ -286,7 +286,8 @@ class PublicReservationController extends Controller
             return redirect()->route('reservation.select-staff');
         }
 
-        // スタッフ指定が不要な場合は○×形式のカレンダーページへリダイレクト
+        // スタッフ指定が不要な場合はスタッフ情報をクリアしてカレンダーページへ
+        Session::forget('selected_staff_id');
         return redirect()->route('reservation.index');
     }
 
@@ -705,15 +706,17 @@ class PublicReservationController extends Controller
                     $availableStaffCount = $dayShifts->filter(function ($shift) use ($slotTime, $slotEnd) {
                         $shiftStart = Carbon::parse($shift->shift_date->format('Y-m-d') . ' ' . $shift->start_time);
                         $shiftEnd = Carbon::parse($shift->shift_date->format('Y-m-d') . ' ' . $shift->end_time);
-                        
+
                         // 予約時間がシフト時間に収まるかチェック（休憩時間は考慮しない）
                         return $slotTime->gte($shiftStart) && $slotEnd->lte($shiftEnd);
                     })->count();
-                    
-                    // min(設備台数, スタッフ数) でキャパシティを決定
-                    $equipmentCapacity = $store->shift_based_capacity ?? 1;
-                    $maxConcurrent = min($equipmentCapacity, $availableStaffCount);
-                    
+
+                    // シフトモード：min(席数, スタッフ数×設備台数) でキャパシティを決定
+                    $seatsCapacity = $store->main_lines_count ?? 1;  // 席数
+                    $equipmentCapacity = $store->shift_based_capacity ?? 1;  // 1スタッフあたりの設備台数
+                    $staffCapacity = $availableStaffCount * $equipmentCapacity;  // スタッフ×設備台数
+                    $maxConcurrent = min($seatsCapacity, $staffCapacity);
+
                     if ($maxConcurrent <= 0) {
                         $availability[$dateStr][$slot] = false;
                         continue;
@@ -721,16 +724,26 @@ class PublicReservationController extends Controller
                 }
                 // 営業時間ベースの場合はシフトチェックをスキップ
                 
-                // 予約が重複していないかチェック（席数を考慮）
+                // 予約が重複していないかチェック（メインラインのみカウント、サブラインは除外）
                 $overlappingCount = $dayReservations->filter(function ($reservation) use ($slotTime, $slotEnd) {
-                    $reservationStart = Carbon::parse($reservation->start_time);
-                    $reservationEnd = Carbon::parse($reservation->end_time);
-                    
+                    // サブラインの予約は除外（line_typeがsubまたはis_subがtrueの場合）
+                    if ($reservation->line_type === 'sub' || $reservation->is_sub == true) {
+                        return false;
+                    }
+
+                    // 時間をH:i形式に統一して比較
+                    $slotTimeStr = $slotTime->format('H:i');
+                    $slotEndStr = $slotEnd->format('H:i');
+
+                    // DBの時間形式を正規化（H:i または H:i:s → H:i）
+                    $reservationStart = substr($reservation->start_time, 0, 5);  // "10:00:00" → "10:00"
+                    $reservationEnd = substr($reservation->end_time, 0, 5);      // "11:00:00" → "11:00"
+
                     // 時間が重なっているかチェック
                     return (
-                        ($slotTime->gte($reservationStart) && $slotTime->lt($reservationEnd)) ||
-                        ($slotEnd->gt($reservationStart) && $slotEnd->lte($reservationEnd)) ||
-                        ($slotTime->lte($reservationStart) && $slotEnd->gte($reservationEnd))
+                        ($slotTimeStr >= $reservationStart && $slotTimeStr < $reservationEnd) ||
+                        ($slotEndStr > $reservationStart && $slotEndStr <= $reservationEnd) ||
+                        ($slotTimeStr <= $reservationStart && $slotEndStr >= $reservationEnd)
                     );
                 })->count();
                 

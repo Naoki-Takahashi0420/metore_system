@@ -230,6 +230,12 @@ class ReservationResource extends Resource
                             ->placeholder('スタッフを選択（任意）')
                             ->searchable()
                             ->reactive()
+                            ->visible(function ($get) {
+                                $menuId = $get('menu_id');
+                                if (!$menuId) return true; // メニュー未選択時は表示
+                                $menu = \App\Models\Menu::find($menuId);
+                                return $menu && $menu->requires_staff;
+                            })
                             ->afterStateUpdated(function ($state, $set, $get) {
                                 // スタッフの空き時間をチェック
                                 if ($state && $get('reservation_date') && $get('start_time')) {

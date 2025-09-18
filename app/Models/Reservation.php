@@ -227,20 +227,24 @@ class Reservation extends Model
      */
     public static function checkAvailability($reservation): bool
     {
-        // 開始時間と終了時間を取得
-        $startTime = Carbon::parse($reservation->start_time);
-        $endTime = Carbon::parse($reservation->end_time);
-        
+        // 開始時間と終了時間を文字列として取得（HH:MM形式）
+        $startTime = is_string($reservation->start_time)
+            ? $reservation->start_time
+            : Carbon::parse($reservation->start_time)->format('H:i:s');
+        $endTime = is_string($reservation->end_time)
+            ? $reservation->end_time
+            : Carbon::parse($reservation->end_time)->format('H:i:s');
+
         // 同じ店舗、同じ日付の予約を取得
         $query = self::where('store_id', $reservation->store_id)
             ->whereDate('reservation_date', $reservation->reservation_date)
             ->whereNotIn('status', ['cancelled', 'canceled']);
-        
+
         // 更新の場合は自分自身を除外
         if ($reservation->id) {
             $query->where('id', '!=', $reservation->id);
         }
-        
+
         // 時間の重複チェック
         $overlappingReservations = $query->where(function ($q) use ($startTime, $endTime) {
             $q->where(function ($sub) use ($startTime, $endTime) {
@@ -283,44 +287,57 @@ class Reservation extends Model
             return !$overlapping;
         }
         
-        // 通常席の場合
-        if ($reservation->seat_number) {
-            // 同じ席番号での重複をチェック
-            $overlapping = $overlappingReservations
-                ->where('seat_number', $reservation->seat_number)
-                ->where('is_sub', false)
-                ->exists();
-                
-            return !$overlapping;
-        }
-        
-        // 席番号が未指定の場合は空いている席があるかチェック
-        $store = Store::find($reservation->store_id);
-        
-        // シフトベースモードの場合、スタッフ勤務時間をチェック
-        if ($store->use_staff_assignment && ($reservation->line_type === 'main' || !$reservation->is_sub)) {
-            $hasAvailableStaff = self::checkStaffAvailability($store, $reservation);
-            if (!$hasAvailableStaff) {
-                return false; // スタッフ不在のため予約不可
+        // 通常席（メインライン）の場合
+        if ($reservation->line_type === 'main' || !$reservation->is_sub) {
+            $store = Store::find($reservation->store_id);
+
+            // シフトベースモードの場合、スタッフ勤務時間をチェック
+            if ($store->use_staff_assignment) {
+                $hasAvailableStaff = self::checkStaffAvailability($store, $reservation);
+                if (!$hasAvailableStaff) {
+                    return false; // スタッフ不在のため予約不可
+                }
             }
-        }
-        
-        $maxSeats = $store->main_lines_count ?? 3;
-        
-        for ($seatNum = 1; $seatNum <= $maxSeats; $seatNum++) {
-            $seatTaken = $overlappingReservations
-                ->where('seat_number', $seatNum)
-                ->where('is_sub', false)
-                ->exists();
-                
-            if (!$seatTaken) {
-                // 空いている席を自動割り当て
-                $reservation->seat_number = $seatNum;
-                return true;
+
+            $maxSeats = $store->main_lines_count ?? 1;
+
+            // 既に席番号が指定されている場合
+            if ($reservation->seat_number) {
+                // 同じ席番号での重複をチェック
+                $overlapping = $overlappingReservations
+                    ->where('seat_number', $reservation->seat_number)
+                    ->where(function($q) {
+                        $q->where('is_sub', false)
+                          ->orWhere('line_type', 'main');
+                    })
+                    ->exists();
+
+                return !$overlapping;
             }
+
+            // 席番号が未指定の場合は空いている席を探す
+            for ($seatNum = 1; $seatNum <= $maxSeats; $seatNum++) {
+                $seatTaken = $overlappingReservations
+                    ->where('seat_number', $seatNum)
+                    ->where(function($q) {
+                        $q->where('is_sub', false)
+                          ->orWhere('line_type', 'main');
+                    })
+                    ->exists();
+
+                if (!$seatTaken) {
+                    // 空いている席を自動割り当て
+                    $reservation->seat_number = $seatNum;
+                    $reservation->line_number = $seatNum;
+                    return true;
+                }
+            }
+
+            return false;
         }
-        
-        return false;
+
+        // サブラインの場合は既存のロジックで処理済み
+        return true;
     }
     
     /**

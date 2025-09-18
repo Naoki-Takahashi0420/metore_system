@@ -53,12 +53,19 @@
                         <span class="text-gray-600">メニュー</span>
                         <span>{{ $reservation->menu->name ?? '-' }}</span>
                     </div>
-                    
+
+                    @if($reservation->staff_id && $reservation->staff)
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">担当スタッフ</span>
+                        <span>{{ $reservation->staff->name }}</span>
+                    </div>
+                    @endif
+
                     <div class="flex justify-between">
                         <span class="text-gray-600">料金</span>
                         <span class="font-semibold">¥{{ number_format($reservation->total_amount) }}</span>
                     </div>
-                    
+
                     <div class="flex justify-between">
                         <span class="text-gray-600">お名前</span>
                         <span>{{ $reservation->customer->last_name }} {{ $reservation->customer->first_name }} 様</span>

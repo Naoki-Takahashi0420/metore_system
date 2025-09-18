@@ -350,12 +350,23 @@
                     <p class="text-sm text-gray-600">選択された日時</p>
                     <p id="selectedDateTime" class="text-lg font-semibold"></p>
                 </div>
-                
+
                 <!-- メニュー表示（変更不可） -->
                 <div class="mb-4 p-4 bg-gray-50 rounded">
                     <p class="text-sm text-gray-600 mb-1">メニュー</p>
                     <p class="text-lg font-semibold">{{ $selectedMenu->name }}</p>
                     <p class="text-sm text-gray-600">{{ $selectedMenu->duration }}分 / ¥{{ number_format($selectedMenu->price) }}</p>
+
+                    @if(Session::has('selected_staff_id'))
+                        @php
+                            $selectedStaff = \App\Models\User::find(Session::get('selected_staff_id'));
+                        @endphp
+                        @if($selectedStaff)
+                            <div class="mt-2 pt-2 border-t border-gray-200">
+                                <p class="text-sm text-gray-600">担当スタッフ: <span class="font-semibold">{{ $selectedStaff->name }}</span></p>
+                            </div>
+                        @endif
+                    @endif
                 </div>
 
                 @if(Session::has('selected_staff_id'))
