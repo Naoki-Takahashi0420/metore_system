@@ -123,16 +123,33 @@ document.addEventListener('DOMContentLoaded', async function() {
     const urlParams = new URLSearchParams(window.location.search);
     const isChangeMode = urlParams.get('change') === 'true' || sessionStorage.getItem('isChangingReservation') === 'true';
     
+    // 顧客情報を取得
+    const customerData = JSON.parse(localStorage.getItem('customer_data') || '{}');
+
     // セッションストレージから情報を取得
     storeId = sessionStorage.getItem('subscription_store_id');
     menuId = sessionStorage.getItem('subscription_menu_id');
     const menuName = sessionStorage.getItem('subscription_menu_name');
     const storeName = sessionStorage.getItem('subscription_store_name');
     customerId = sessionStorage.getItem('existing_customer_id');
-    
-    // 顧客情報を取得
-    const customerData = JSON.parse(localStorage.getItem('customer_data') || '{}');
-    
+
+    // customerId が文字列で保存されている場合があるので、適切に処理
+    console.log('🔍 Initial customerId from session:', customerId, 'type:', typeof customerId);
+
+    if (customerId && customerId !== 'null' && customerId !== 'undefined') {
+        customerId = parseInt(customerId, 10) || customerId;
+        console.log('✅ Parsed customerId:', customerId, 'type:', typeof customerId);
+    } else {
+        // セッションになければ、customer_dataから取得
+        if (customerData && customerData.id) {
+            customerId = customerData.id;
+            sessionStorage.setItem('existing_customer_id', customerId);
+            console.log('✅ Set customerId from customerData:', customerId);
+        }
+    }
+
+    console.log('🎯 Final customerId to be used:', customerId, 'type:', typeof customerId);
+
     // 変更モードの場合の処理
     let changingReservation = null;
     if (isChangeMode) {
@@ -162,6 +179,18 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     if (!customerId) {
         alert('予約情報が不足しています。マイページから再度お試しください。');
+        window.location.href = '/customer/dashboard';
+        return;
+    }
+
+    // 重要な値の確認
+    if (!storeId || !menuId) {
+        console.error('必須パラメータが不足:', {
+            storeId: storeId,
+            menuId: menuId,
+            customerId: customerId
+        });
+        alert('店舗またはメニュー情報が不足しています。マイページから再度お試しください。');
         window.location.href = '/customer/dashboard';
         return;
     }
@@ -278,15 +307,8 @@ function generateTimeSlots(dates) {
             if (slotDateTime < new Date()) {
                 td.innerHTML = '<span class="text-gray-400 text-xl">×</span>';
             } else {
-                // 予約可能な場合は○を表示
-                const button = document.createElement('button');
-                button.type = 'button';
-                button.className = 'time-slot w-8 h-8 rounded-full bg-green-500 text-white font-bold hover:bg-green-600';
-                button.innerHTML = '○';
-                button.dataset.date = date.toISOString().split('T')[0];
-                button.dataset.time = slot;
-                button.onclick = function() { selectTimeSlot(this); };
-                td.appendChild(button);
+                // 実際の予約可能性をチェック
+                checkSlotAvailability(date.toISOString().split('T')[0], slot, td);
             }
             
             tr.appendChild(td);
@@ -294,6 +316,74 @@ function generateTimeSlots(dates) {
         
         timeSlotsBody.appendChild(tr);
     });
+}
+
+async function checkSlotAvailability(date, time, td) {
+    try {
+        // デバッグ情報を出力
+        console.log(`🔍 Checking availability for ${date} ${time}`, {
+            store_id: storeId,
+            menu_id: menuId,
+            customer_id: customerId,
+            customerId_type: typeof customerId
+        });
+
+        // 新規予約と同じAPIを使用 - customer_idを含める
+        const requestBody = {
+            store_id: storeId,
+            menu_id: menuId,
+            customer_id: customerId,  // 顧客IDを追加
+            date: date,
+            time: time
+        };
+
+        console.log('📤 API Request:', requestBody);
+
+        const response = await fetch('/api/check-availability', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            console.log(`📥 API Response for ${date} ${time}:`, data);
+
+            if (data.available) {
+                // 予約可能な場合は○を表示
+                console.log(`✅ ${date} ${time} is AVAILABLE`);
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'time-slot w-8 h-8 rounded-full bg-green-500 text-white font-bold hover:bg-green-600';
+                button.innerHTML = '○';
+                button.dataset.date = date;
+                button.dataset.time = time;
+                button.onclick = function() { selectTimeSlot(this); };
+                td.appendChild(button);
+            } else {
+                console.log(`❌ ${date} ${time} is NOT available - reason: ${data.reason}`);
+                td.innerHTML = '<span class="text-gray-400 text-xl">×</span>';
+            }
+        } else {
+            // APIエラーの場合は×を表示
+            console.error('API error response:', response.status, response.statusText);
+            const errorText = await response.text();
+            console.error('Error details:', errorText);
+            td.innerHTML = '<span class="text-gray-400 text-xl">×</span>';
+        }
+    } catch (error) {
+        console.error('Availability check failed:', error);
+        console.error('Request details:', {
+            storeId: storeId,
+            menuId: menuId,
+            date: date,
+            time: time
+        });
+        // エラーの場合は×を表示
+        td.innerHTML = '<span class="text-gray-400 text-xl">×</span>';
+    }
 }
 
 function changeWeek(direction) {
@@ -429,8 +519,7 @@ async function confirmReservation() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify(reservationData)
         });

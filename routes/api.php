@@ -38,6 +38,7 @@ Route::apiResource('menus', MenuController::class)->only(['index', 'show']);
 // 予約可能時間の取得（認証不要）
 Route::get('availability/slots', [AvailabilityController::class, 'getAvailableSlots']);
 Route::get('availability/days', [AvailabilityController::class, 'getAvailableDays']);
+Route::post('check-availability', [\App\Http\Controllers\PublicReservationController::class, 'checkAvailability']);
 
 // 顧客チェック（認証不要）
 Route::post('customer/check-phone', [CustomerCheckController::class, 'checkPhone']);

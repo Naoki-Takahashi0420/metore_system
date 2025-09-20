@@ -68,6 +68,11 @@ class PublicReservationController extends Controller
      */
     public function selectCategory(Request $request)
     {
+        // URLパラメータからstore_idを取得（マイページからの遷移時）
+        if ($request->has('store_id')) {
+            Session::put('selected_store_id', $request->get('store_id'));
+        }
+
         // 店舗が選択されていない場合は店舗選択へ
         $storeId = Session::get('selected_store_id');
         if (!$storeId) {
@@ -355,22 +360,119 @@ class PublicReservationController extends Controller
 
     public function index(Request $request)
     {
+        // URLパラメータでサブスク予約かチェック
+        $isSubscriptionFromUrl = $request->get('type') === 'subscription';
+
+        if ($isSubscriptionFromUrl) {
+            \Log::info('URLパラメータでサブスク予約を検知');
+            Session::put('is_subscription_booking', true);
+
+            // 電話番号から顧客IDを取得
+            $phone = $request->get('phone');
+            if ($phone) {
+                $customer = \App\Models\Customer::where('phone', $phone)->first();
+                if ($customer) {
+                    Session::put('customer_id', $customer->id);
+                    Session::put('existing_customer_id', $customer->id);
+                    \Log::info('電話番号から顧客情報を設定', [
+                        'phone' => $phone,
+                        'customer_id' => $customer->id,
+                        'customer_name' => $customer->full_name
+                    ]);
+                }
+            }
+        }
+
         // 通常予約の場合、サブスク関連のセッション情報をクリア
-        if (!Session::get('is_subscription_booking')) {
+        if (!Session::get('is_subscription_booking') && !$isSubscriptionFromUrl) {
             Session::forget(['customer_id', 'subscription_id', 'from_mypage']);
             \Log::info('通常予約のため、サブスク関連セッション情報をクリア');
         }
-        
+
+        // セッション情報をデバッグログ
+        \Log::info('予約カレンダーアクセス', [
+            'is_subscription_booking' => Session::get('is_subscription_booking'),
+            'reservation_menu' => Session::get('reservation_menu'),
+            'selected_store_id' => Session::get('selected_store_id'),
+            'customer_id' => Session::get('customer_id'),
+            'subscription_id' => Session::get('subscription_id'),
+            'all_session' => Session::all()
+        ]);
+
         // セッションから情報を取得
         $selectedMenu = Session::get('reservation_menu');
         $selectedOptions = Session::get('reservation_options', collect());
         $selectedStoreId = Session::get('selected_store_id');
-        
+
+        // サブスク予約の場合、必要な情報を設定
+        if (Session::get('is_subscription_booking') || $isSubscriptionFromUrl) {
+            $customerId = Session::get('customer_id');
+            $subscriptionId = Session::get('subscription_id');
+
+            \Log::info('サブスク予約モード処理', [
+                'customer_id' => $customerId,
+                'subscription_id' => $subscriptionId,
+                'has_menu' => !!$selectedMenu,
+                'has_store' => !!$selectedStoreId,
+                'from_url' => $isSubscriptionFromUrl
+            ]);
+
+            // サブスク情報が不足している場合、アクティブなサブスクリプションから取得
+            if (!$selectedMenu || !$selectedStoreId) {
+                // 最初にセッションストレージからの情報を確認（JavaScript側で設定されている可能性）
+                $requestCustomerId = $request->header('X-Customer-ID');
+
+                // 現在ログイン中の顧客のアクティブサブスクリプションを取得
+                $subscriptions = \App\Models\CustomerSubscription::where('status', 'active')
+                    ->where('payment_failed', false)
+                    ->where('is_paused', false)
+                    ->with(['plan'])
+                    ->get();
+
+                if ($subscriptions->isNotEmpty()) {
+                    $subscription = $subscriptions->first();
+                    \Log::info('アクティブサブスクリプション発見', [
+                        'subscription_id' => $subscription->id,
+                        'customer_id' => $subscription->customer_id,
+                        'store_id' => $subscription->store_id,
+                        'menu_id' => $subscription->menu_id
+                    ]);
+
+                    // 顧客IDを設定
+                    if (!$customerId) {
+                        Session::put('customer_id', $subscription->customer_id);
+                        $customerId = $subscription->customer_id;
+                    }
+
+                    // メニューを設定
+                    if (!$selectedMenu && $subscription->menu_id) {
+                        $menu = \App\Models\Menu::find($subscription->menu_id);
+                        if ($menu) {
+                            Session::put('reservation_menu', $menu);
+                            $selectedMenu = $menu;
+                            \Log::info('サブスクメニューを設定', ['menu_id' => $menu->id, 'menu_name' => $menu->name]);
+                        }
+                    }
+
+                    // 店舗を設定
+                    if (!$selectedStoreId && $subscription->store_id) {
+                        Session::put('selected_store_id', $subscription->store_id);
+                        $selectedStoreId = $subscription->store_id;
+                        \Log::info('サブスク店舗を設定', ['store_id' => $subscription->store_id]);
+                    }
+
+                    // サブスクリプションIDを設定
+                    Session::put('subscription_id', $subscription->id);
+                    Session::put('from_mypage', true);
+                }
+            }
+        }
+
         // サブスク予約以外で、メニューが選択されていない場合はメニュー選択ページへリダイレクト
         if (!$selectedMenu && !Session::get('is_subscription_booking')) {
             return redirect()->route('reservation.menu');
         }
-        
+
         // サブスク予約以外で、店舗が選択されていない場合は店舗選択ページへリダイレクト
         if (!$selectedStoreId && !Session::get('is_subscription_booking')) {
             return redirect('/stores');
@@ -427,7 +529,19 @@ class PublicReservationController extends Controller
         }
         
         // 各日の営業時間を取得して予約状況を生成
-        $availability = $this->getAvailability($selectedStoreId, $selectedStore, $startDate, $dates, $totalDuration);
+        // サブスク予約の場合は顧客IDを渡す
+        $customerId = null;
+        if (Session::get('is_subscription_booking')) {
+            // existing_customer_id または customer_id を取得
+            $customerId = Session::get('existing_customer_id') ?? Session::get('customer_id');
+
+            \Log::info('サブスク予約の顧客ID確認', [
+                'existing_customer_id' => Session::get('existing_customer_id'),
+                'customer_id' => Session::get('customer_id'),
+                'final_customer_id' => $customerId
+            ]);
+        }
+        $availability = $this->getAvailability($selectedStoreId, $selectedStore, $startDate, $dates, $totalDuration, $customerId);
         
         return view('reservation.public.index', compact(
             'stores',
@@ -578,10 +692,61 @@ class PublicReservationController extends Controller
         return $slots;
     }
     
-    private function getAvailability($storeId, $store, $startDate, $dates, $menuDuration = 60)
+    private function getAvailability($storeId, $store, $startDate, $dates, $menuDuration = 60, $customerId = null)
     {
         $availability = [];
         $endDate = $startDate->copy()->addDays(6);
+
+        // サブスク予約の場合、既存予約を取得して5日間隔制限用に準備
+        $existingReservationDates = [];
+        $isSubscriptionBooking = Session::get('is_subscription_booking', false);
+
+        if ($isSubscriptionBooking && $customerId) {
+            \Log::info('既存予約取得開始', [
+                'customer_id' => $customerId,
+                'customer_id_type' => gettype($customerId),
+                'is_subscription' => $isSubscriptionBooking
+            ]);
+
+            $existingReservations = Reservation::where('customer_id', $customerId)
+                ->whereNotIn('status', ['cancelled', 'canceled'])
+                ->get();
+
+            \Log::info('既存予約クエリ結果', [
+                'customer_id' => $customerId,
+                'reservations_count' => $existingReservations->count(),
+                'reservations' => $existingReservations->map(function($r) {
+                    return [
+                        'id' => $r->id,
+                        'customer_id' => $r->customer_id,
+                        'reservation_date' => $r->reservation_date,
+                        'status' => $r->status
+                    ];
+                })->toArray()
+            ]);
+
+            $existingReservationDates = $existingReservations
+                ->pluck('reservation_date')
+                ->map(function($date) {
+                    return Carbon::parse($date)->format('Y-m-d');
+                })
+                ->unique()
+                ->values()
+                ->toArray();
+
+            \Log::info('サブスク予約の5日間隔チェック', [
+                'customer_id' => $customerId,
+                'existing_dates' => $existingReservationDates,
+                'is_subscription' => $isSubscriptionBooking
+            ]);
+        }
+
+        \Log::info('getAvailability開始', [
+            'store_id' => $storeId,
+            'start_date' => $startDate->format('Y-m-d'),
+            'end_date' => $endDate->format('Y-m-d'),
+            'menu_duration' => $menuDuration
+        ]);
         
         // 店舗の予約設定を取得
         $store = Store::find($storeId);
@@ -638,9 +803,19 @@ class PublicReservationController extends Controller
             $dayOfWeek = strtolower($date->format('l'));
             $dayReservations = $existingReservations->get($dateStr, collect());
             $dayBlocks = $blockedPeriods->get($dateStr, collect());
-            
+
+            \Log::info("日付処理: $dateStr ($dayOfWeek)", [
+                'existing_reservations' => $dayReservations->count(),
+                'blocked_periods' => $dayBlocks->count()
+            ]);
+
             // その日の営業時間に基づいて時間枠を生成
             $timeSlots = $this->generateTimeSlotsForDay($store, $dayOfWeek);
+
+            \Log::info("タイムスロット生成: $dateStr", [
+                'time_slots_count' => count($timeSlots),
+                'time_slots' => array_slice($timeSlots, 0, 5) // 最初の5個だけログ
+            ]);
             
             // 休業日の場合はその店舗の通常時間枠をすべてfalseに
             if (empty($timeSlots)) {
@@ -661,16 +836,33 @@ class PublicReservationController extends Controller
             foreach ($timeSlots as $slot) {
                 $slotTime = Carbon::parse($dateStr . ' ' . $slot);
                 $slotEnd = $slotTime->copy()->addMinutes($menuDuration);
-                
+
+                $isAvailable = true;
+                $reason = null;
+
                 // 過去の日付は予約不可
                 if ($date->lt(Carbon::today())) {
-                    $availability[$dateStr][$slot] = false;
-                    continue;
+                    $isAvailable = false;
+                    $reason = 'past_date';
                 }
-                
+
                 // 当日の過去時間は予約不可
-                if ($date->isToday() && $slotTime->lt(now()->addHours($minBookingHours))) {
+                elseif ($date->isToday() && $slotTime->lt(now()->addHours($minBookingHours))) {
+                    $isAvailable = false;
+                    $reason = 'past_time_today';
+                }
+
+                if (!$isAvailable) {
                     $availability[$dateStr][$slot] = false;
+                    if ($slot === '10:00') { // 10:00の判定結果のみログ出力
+                        \Log::info("時間判定: $dateStr $slot = false", [
+                            'reason' => $reason,
+                            'is_today' => $date->isToday(),
+                            'slot_time' => $slotTime->format('Y-m-d H:i:s'),
+                            'current_time' => now()->format('Y-m-d H:i:s'),
+                            'min_booking_hours' => $minBookingHours
+                        ]);
+                    }
                     continue;
                 }
                 
@@ -748,7 +940,85 @@ class PublicReservationController extends Controller
                 })->count();
                 
                 // 最終的な予約可否を判定（$maxConcurrentは既に上で適切に設定済み）
-                $availability[$dateStr][$slot] = $overlappingCount < $maxConcurrent;
+                $finalAvailability = $overlappingCount < $maxConcurrent;
+
+                // サブスク予約の5日間隔制限チェック
+                if ($finalAvailability && $isSubscriptionBooking && !empty($existingReservationDates)) {
+                    $currentDate = Carbon::parse($dateStr);
+
+                    \Log::info('5日間制限チェック開始', [
+                        'target_date' => $dateStr,
+                        'slot' => $slot,
+                        'existing_dates' => $existingReservationDates,
+                        'is_subscription' => $isSubscriptionBooking,
+                        'initial_availability' => $finalAvailability
+                    ]);
+
+                    foreach ($existingReservationDates as $existingDateStr) {
+                        $existingDate = Carbon::parse($existingDateStr);
+                        $daysDiff = $currentDate->diffInDays($existingDate, false); // 符号付きで取得
+
+                        // 5日間隔制限: 予約間に最低5日間空ける必要がある
+                        // つまり、既存予約日から5日以内は予約不可
+                        // 例: 19日の予約がある場合、20,21,22,23,24日は不可、25日から可
+                        if (abs($daysDiff) < 6) {
+                            \Log::info('5日間隔制限により予約不可', [
+                                'target_date' => $dateStr,
+                                'existing_date' => $existingDateStr,
+                                'days_diff' => $daysDiff,
+                                'abs_days_diff' => abs($daysDiff),
+                                'slot' => $slot
+                            ]);
+                            $finalAvailability = false;
+                            break;
+                        } else {
+                            \Log::info('5日間隔制限OK', [
+                                'target_date' => $dateStr,
+                                'existing_date' => $existingDateStr,
+                                'days_diff' => $daysDiff,
+                                'abs_days_diff' => abs($daysDiff),
+                                'slot' => $slot
+                            ]);
+                        }
+                    }
+                } else {
+                    \Log::info('5日間制限チェックをスキップ', [
+                        'target_date' => $dateStr,
+                        'slot' => $slot,
+                        'final_availability' => $finalAvailability,
+                        'is_subscription' => $isSubscriptionBooking,
+                        'has_existing_dates' => !empty($existingReservationDates),
+                        'existing_dates_count' => count($existingReservationDates ?? [])
+                    ]);
+                }
+
+                // サブスク予約の5日間制限内かどうかの情報も保存
+                $withinFiveDays = false;
+                if ($isSubscriptionBooking && !empty($existingReservationDates)) {
+                    $currentDate = Carbon::parse($dateStr);
+                    foreach ($existingReservationDates as $existingDateStr) {
+                        $existingDate = Carbon::parse($existingDateStr);
+                        $daysDiff = $currentDate->diffInDays($existingDate, false);
+                        if (abs($daysDiff) < 6) {
+                            $withinFiveDays = true;
+                            break;
+                        }
+                    }
+                }
+
+                $availability[$dateStr][$slot] = [
+                    'available' => $finalAvailability,
+                    'within_five_days' => $withinFiveDays,
+                    'is_subscription' => $isSubscriptionBooking
+                ];
+
+                if ($slot === '10:00') { // 10:00の最終判定のみログ出力
+                    \Log::info("最終判定: $dateStr $slot = " . ($finalAvailability ? 'true' : 'false'), [
+                        'overlapping_count' => $overlappingCount,
+                        'max_concurrent' => $maxConcurrent,
+                        'close_time' => $closeTime ? $closeTime->format('H:i') : 'null'
+                    ]);
+                }
             }
         }
         
@@ -1432,5 +1702,165 @@ class PublicReservationController extends Controller
         
         // 重複を除去
         return array_unique($potentialIds);
+    }
+
+    /**
+     * 顧客の最後に訪問した店舗IDを取得
+     */
+    public function getLastVisitedStore(Request $request)
+    {
+        $customerId = $request->get('customer_id');
+
+        if (!$customerId) {
+            return response()->json(['store_id' => null]);
+        }
+
+        // 顧客の最新の予約から店舗IDを取得
+        $lastReservation = Reservation::where('customer_id', $customerId)
+            ->whereNotNull('store_id')
+            ->orderBy('reservation_date', 'desc')
+            ->orderBy('start_time', 'desc')
+            ->first();
+
+        if ($lastReservation && $lastReservation->store_id) {
+            // 店舗がアクティブかチェック
+            $store = Store::where('id', $lastReservation->store_id)
+                ->where('is_active', true)
+                ->first();
+
+            if ($store) {
+                return response()->json(['store_id' => $store->id]);
+            }
+        }
+
+        return response()->json(['store_id' => null]);
+    }
+
+    /**
+     * 特定の時間枠の予約可能性をチェック
+     */
+    public function checkAvailability(Request $request)
+    {
+        \Log::info('checkAvailability called', [
+            'request_data' => $request->all(),
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent()
+        ]);
+
+        $validated = $request->validate([
+            'store_id' => 'required|exists:stores,id',
+            'menu_id' => 'required|exists:menus,id',
+            'date' => 'required|date',
+            'time' => 'required',
+            'customer_id' => 'nullable|exists:customers,id'  // customer_idを追加（オプション）
+        ]);
+
+        $store = Store::find($validated['store_id']);
+        $menu = Menu::find($validated['menu_id']);
+        $date = Carbon::parse($validated['date']);
+        $time = $validated['time'];
+        $duration = $menu->duration_minutes ?? 60;
+        $customerId = $validated['customer_id'] ?? null;
+
+        \Log::info('checkAvailability processing', [
+            'customer_id' => $customerId,
+            'menu_id' => $menu->id,
+            'menu_is_subscription' => $menu->is_subscription,
+            'date' => $validated['date'],
+            'time' => $time
+        ]);
+
+        // 時間枠の開始と終了を計算
+        $startDateTime = Carbon::parse($validated['date'] . ' ' . $time);
+        $endDateTime = $startDateTime->copy()->addMinutes($duration);
+
+        // 過去の時間をチェック
+        if ($startDateTime <= now()) {
+            return response()->json(['available' => false, 'reason' => 'past_time']);
+        }
+
+        // 営業時間をチェック
+        $dayOfWeek = strtolower($date->format('l'));
+        $businessHours = collect($store->business_hours ?? [])->firstWhere('day', $dayOfWeek);
+
+        if (!$businessHours || ($businessHours['is_closed'] ?? false)) {
+            return response()->json(['available' => false, 'reason' => 'closed']);
+        }
+
+        $openTime = Carbon::parse($validated['date'] . ' ' . ($businessHours['open_time'] ?? '10:00'));
+        $closeTime = Carbon::parse($validated['date'] . ' ' . ($businessHours['close_time'] ?? '18:00'));
+
+        if ($startDateTime < $openTime || $endDateTime > $closeTime) {
+            return response()->json(['available' => false, 'reason' => 'outside_hours']);
+        }
+
+        // 既存の予約との重複をチェック
+        $overlappingReservations = Reservation::where('store_id', $validated['store_id'])
+            ->whereDate('reservation_date', $validated['date'])
+            ->whereNotIn('status', ['cancelled', 'canceled'])
+            ->where(function($query) use ($time, $duration) {
+                $startTime = $time;
+                $endTime = Carbon::parse($time)->addMinutes($duration)->format('H:i:s');
+
+                $query->where(function($q) use ($startTime, $endTime) {
+                    // 既存予約の開始時間が新しい予約の時間範囲内
+                    $q->where('start_time', '>=', $startTime)
+                      ->where('start_time', '<', $endTime);
+                })->orWhere(function($q) use ($startTime, $endTime) {
+                    // 既存予約の終了時間が新しい予約の時間範囲内
+                    $q->where('end_time', '>', $startTime)
+                      ->where('end_time', '<=', $endTime);
+                })->orWhere(function($q) use ($startTime, $endTime) {
+                    // 既存予約が新しい予約を完全に包含
+                    $q->where('start_time', '<=', $startTime)
+                      ->where('end_time', '>=', $endTime);
+                });
+            })
+            ->count();
+
+        $capacity = $store->main_lines_count ?? 1;
+        $available = $overlappingReservations < $capacity;
+
+        // サブスク予約の5日間制限チェック
+        if ($available && $customerId && $menu->is_subscription) {
+            $customer = Customer::find($customerId);
+            if ($customer) {
+                // 顧客の既存予約を取得
+                $existingReservations = $customer->reservations()
+                    ->whereNotIn('status', ['cancelled', 'canceled'])
+                    ->whereDate('reservation_date', '!=', $validated['date'])
+                    ->get();
+
+                // 5日間隔制限のチェック
+                foreach ($existingReservations as $reservation) {
+                    $existingDate = Carbon::parse($reservation->reservation_date);
+                    $daysDiff = $existingDate->diffInDays($date, false);
+
+                    if (abs($daysDiff) < 6) {
+                        \Log::info('5日間隔制限により予約不可 (checkAvailability)', [
+                            'customer_id' => $customerId,
+                            'check_date' => $validated['date'],
+                            'existing_date' => $reservation->reservation_date,
+                            'days_diff' => abs($daysDiff)
+                        ]);
+
+                        return response()->json([
+                            'available' => false,
+                            'reason' => '5days_restriction',
+                            'message' => '前後の予約から5日以上空ける必要があります',
+                            'existing_date' => $reservation->reservation_date,
+                            'days_diff' => abs($daysDiff)
+                        ]);
+                    }
+                }
+            }
+        }
+
+        return response()->json([
+            'available' => $available,
+            'reason' => $available ? null : 'fully_booked',
+            'capacity' => $capacity,
+            'current_bookings' => $overlappingReservations
+        ]);
     }
 }

@@ -237,7 +237,18 @@
                             @foreach($dates as $date)
                                 @php
                                     $dateStr = $date['date']->format('Y-m-d');
-                                    $isAvailable = $availability[$dateStr][$slot] ?? false;
+                                    $availabilityData = $availability[$dateStr][$slot] ?? false;
+
+                                    // 新しい形式（連想配列）か古い形式（boolean）かを判定
+                                    if (is_array($availabilityData)) {
+                                        $isAvailable = $availabilityData['available'] ?? false;
+                                        $withinFiveDays = $availabilityData['within_five_days'] ?? false;
+                                        $isSubscription = $availabilityData['is_subscription'] ?? false;
+                                    } else {
+                                        $isAvailable = $availabilityData;
+                                        $withinFiveDays = false;
+                                        $isSubscription = false;
+                                    }
                                     
                                     // 元の予約日時かチェック（日程変更の場合）
                                     $isOriginalReservation = false;
@@ -272,13 +283,19 @@
                                             </button>
                                         </div>
                                     @elseif($isAvailable)
-                                        <button type="button" 
+                                        <button type="button"
                                                 class="time-slot w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-green-500 text-white font-bold hover:bg-green-600 text-xs sm:text-base"
                                                 data-date="{{ $dateStr }}"
                                                 data-time="{{ $slot }}"
                                                 onclick="selectTimeSlot(this)">
                                             ○
                                         </button>
+                                    @elseif($withinFiveDays && $isSubscription)
+                                        {{-- サブスク予約で5日間制限内の場合は△を表示 --}}
+                                        <div class="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gray-400 text-white font-bold flex items-center justify-center border-2 border-gray-500 shadow-md text-xs sm:text-base mx-auto"
+                                             title="前回予約から5日以内のため予約できません">
+                                            △
+                                        </div>
                                     @else
                                         <span class="text-gray-400 text-lg sm:text-xl">×</span>
                                     @endif
@@ -435,15 +452,28 @@
         
         // ページ読み込み時に既存顧客情報をチェック
         document.addEventListener('DOMContentLoaded', async function() {
+            console.log('🚀 ページ読み込み開始');
+
             checkExistingCustomer();
-            
+
             // URLパラメータからサブスク予約かどうかを判定
             const urlParams = new URLSearchParams(window.location.search);
             const isSubscriptionBooking = urlParams.get('type') === 'subscription';
-            
+
+            console.log('🔍 URLパラメータ確認:', {
+                isSubscriptionBooking,
+                fullUrl: window.location.href,
+                params: Object.fromEntries(urlParams)
+            });
+
             if (isSubscriptionBooking) {
+                console.log('📋 サブスク予約モード - 既存予約を取得開始');
                 await fetchExistingReservations();
+                console.log('🔄 カレンダー更新開始');
                 updateCalendarWithReservations();
+                console.log('✅ カレンダー更新完了');
+            } else {
+                console.log('📅 通常予約モード');
             }
         });
         
@@ -473,38 +503,83 @@
         
         // カレンダーに既存予約を表示する関数
         function updateCalendarWithReservations() {
-            if (existingReservations.length === 0) return;
-            
+            console.log('🎯 updateCalendarWithReservations開始');
+            console.log('既存予約数:', existingReservations.length);
+
+            if (existingReservations.length === 0) {
+                console.log('⚠️ 既存予約なし - 処理をスキップ');
+                return;
+            }
+
             console.log('既存予約の表示更新開始', existingReservations);
-            
+
             // URLパラメータからサブスク予約かどうかを判定
             const urlParams = new URLSearchParams(window.location.search);
             const isSubscriptionBooking = urlParams.get('type') === 'subscription';
-            
+            console.log('サブスク予約モード:', isSubscriptionBooking);
+
             // 現在のメニューIDを取得
             const currentMenuId = @json($selectedMenu->id);
-            
+            console.log('現在のメニューID:', currentMenuId);
+
             // 5日間隔制限のために既存予約の日付を取得
             const reservationDates = getExistingReservationDates();
             console.log('予約日リスト:', reservationDates);
             
             // カレンダーの各セルをチェック（予約可能なボタンのみ）
-            document.querySelectorAll('button[data-date][data-time].time-slot').forEach(button => {
+            const buttons = document.querySelectorAll('button[data-date][data-time].time-slot');
+            console.log(`🔍 チェック対象ボタン数: ${buttons.length}`);
+
+            if (buttons.length === 0) {
+                console.log('⚠️ 予約可能なボタンが見つかりません');
+                console.log('すべてのボタン要素:', document.querySelectorAll('button').length);
+                console.log('data-date属性を持つ要素:', document.querySelectorAll('[data-date]').length);
+                console.log('time-slotクラスを持つ要素:', document.querySelectorAll('.time-slot').length);
+
+                // 全ボタンの詳細を出力
+                document.querySelectorAll('button').forEach((btn, i) => {
+                    console.log(`ボタン${i}: class="${btn.className}", data-date="${btn.getAttribute('data-date')}", data-time="${btn.getAttribute('data-time')}"`);
+                });
+
+                // より広範囲で検索
+                const allCells = document.querySelectorAll('td');
+                console.log(`テーブルセル数: ${allCells.length}`);
+
+                let greenButtons = 0;
+                let redButtons = 0;
+                allCells.forEach(cell => {
+                    if (cell.textContent === '○') greenButtons++;
+                    if (cell.textContent === '×') redButtons++;
+                });
+                console.log(`○のセル数: ${greenButtons}, ×のセル数: ${redButtons}`);
+            }
+
+            buttons.forEach((button, index) => {
                 const dateStr = button.getAttribute('data-date');
                 const timeStr = button.getAttribute('data-time');
-                
+
+                console.log(`📌 ボタン ${index + 1}/${buttons.length}: ${dateStr} ${timeStr}`);
+
                 // この日時に既存予約があるかチェック
                 const existingReservation = findExistingReservation(dateStr, timeStr);
-                
+
                 // 5日間隔制限チェック
                 const isWithinFiveDays = isDateWithinFiveDaysOfReservation(dateStr, reservationDates);
-                
+
+                // デバッグ情報を出力
+                console.log(`チェック中: ${dateStr}`, {
+                    isWithinFiveDays: isWithinFiveDays,
+                    isSubscriptionBooking: isSubscriptionBooking,
+                    reservationDates: reservationDates,
+                    existingReservation: existingReservation
+                });
+
                 if (isWithinFiveDays) {
                     console.log(`${dateStr} は5日以内: true, サブスク予約: ${isSubscriptionBooking}`);
                 }
                 
                 if (existingReservation) {
-                    const isSameMenu = existingReservation.menu_id && 
+                    const isSameMenu = existingReservation.menu_id &&
                                      existingReservation.menu_id.toString() === currentMenuId.toString();
                     
                     // ボタンを置き換え
@@ -528,9 +603,11 @@
                     }
                 } else if (isWithinFiveDays && isSubscriptionBooking) {
                     // サブスク予約で既存予約から5日以内で予約不可
+                    console.log(`5日制限適用: ${dateStr} ${timeStr} - blocked by reservations:`, reservationDates);
+
                     const td = button.parentElement;
                     td.innerHTML = ''; // 既存のボタンを削除
-                    
+
                     const blockedDiv = document.createElement('div');
                     blockedDiv.className = 'w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gray-400 text-white font-bold flex items-center justify-center border-2 border-gray-500 shadow-md text-xs sm:text-base mx-auto';
                     blockedDiv.innerHTML = '△';
@@ -561,28 +638,88 @@
         
         // 既存予約の日付を取得する関数
         function getExistingReservationDates() {
-            return existingReservations
-                .filter(reservation => !['cancelled', 'canceled'].includes(reservation.status))
+            console.log('=== 既存予約データ確認 ===');
+            console.log('existingReservations type:', typeof existingReservations);
+            console.log('existingReservations length:', existingReservations ? existingReservations.length : 'null/undefined');
+            console.log('existingReservations full data:', JSON.stringify(existingReservations, null, 2));
+
+            if (!existingReservations || existingReservations.length === 0) {
+                console.log('⚠️ 既存予約データなし');
+                return [];
+            }
+
+            const dates = existingReservations
+                .filter(reservation => {
+                    const isActive = !['cancelled', 'canceled'].includes(reservation.status);
+                    console.log(`予約ID ${reservation.id}: status=${reservation.status}, active=${isActive}, date=${reservation.reservation_date}`);
+                    return isActive;
+                })
                 .map(reservation => {
                     // 'Y-m-d H:i:s' または 'Y-m-dTH:i:s' 形式から日付部分のみ抽出
                     const dateStr = reservation.reservation_date.split(/[T ]/)[0];
                     console.log('予約日付抽出:', reservation.reservation_date, '->', dateStr);
                     return dateStr;
                 });
+
+            console.log('✅ 最終的な有効予約日一覧:', dates);
+            return dates;
         }
         
         // 指定した日付が既存予約から5日以内かチェックする関数
         function isDateWithinFiveDaysOfReservation(dateStr, reservationDates) {
-            const targetDate = new Date(dateStr);
-            
-            return reservationDates.some(reservationDateStr => {
-                const reservationDate = new Date(reservationDateStr);
-                const diffTime = Math.abs(targetDate - reservationDate);
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                
-                // 同じ日は除外、1-5日以内をチェック
-                return diffDays > 0 && diffDays <= 5;
+            console.log(`\n🔍 ===== 5日制限チェック開始: ${dateStr} =====`);
+
+            if (!reservationDates || reservationDates.length === 0) {
+                console.log('❌ 既存予約データなし → 制限なし');
+                return false;
+            }
+
+            // 日付文字列を日本時間で処理するために、時刻を含まない日付として扱う
+            const [year, month, day] = dateStr.split('-').map(Number);
+            const targetDate = new Date(year, month - 1, day); // monthは0ベースなので-1
+            targetDate.setHours(0, 0, 0, 0);
+
+            console.log(`📅 対象日付: ${dateStr}`);
+            console.log(`🕐 対象Date (Local): ${targetDate.toLocaleDateString('ja-JP')} ${targetDate.toLocaleTimeString('ja-JP')}`);
+            console.log(`📋 既存予約日リスト: [${reservationDates.join(', ')}]`);
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            console.log(`📆 今日: ${today.toLocaleDateString('ja-JP')}`);
+
+            let minDaysSinceReservation = Infinity;
+            let closestReservation = null;
+
+            const result = reservationDates.some(reservationDateStr => {
+                const [resYear, resMonth, resDay] = reservationDateStr.split('-').map(Number);
+                const reservationDate = new Date(resYear, resMonth - 1, resDay);
+                reservationDate.setHours(0, 0, 0, 0);
+
+                const diffTime = targetDate.getTime() - reservationDate.getTime();
+                const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+                console.log(`\n  📊 比較: ${dateStr} vs ${reservationDateStr}`);
+                console.log(`    🔗 予約Date (Local): ${reservationDate.toLocaleDateString('ja-JP')}`);
+                console.log(`    ⏱️  時間差(ms): ${diffTime}`);
+                console.log(`    📏 日数差: ${diffDays}日`);
+                console.log(`    ✅ 条件(1-5日): ${diffDays > 0 && diffDays <= 5}`);
+
+                if (diffDays > 0 && diffDays < minDaysSinceReservation) {
+                    minDaysSinceReservation = diffDays;
+                    closestReservation = reservationDateStr;
+                }
+
+                // 既存予約日から前後5日以内（計6日間）をチェック
+                // 例: 19日の予約がある場合、14-24日は不可、13日以前と25日以降は可
+                return Math.abs(diffDays) <= 5;
             });
+
+            console.log(`\n📈 サマリー:`);
+            console.log(`  🎯 最も近い予約: ${closestReservation} (${minDaysSinceReservation}日前)`);
+            console.log(`  🚫 制限適用: ${result ? 'YES' : 'NO'}`);
+            console.log(`🏁 ===== 5日制限チェック終了: ${dateStr} =====\n`);
+
+            return result;
         }
         
         function checkExistingCustomer() {
