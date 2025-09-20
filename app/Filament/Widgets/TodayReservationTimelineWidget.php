@@ -76,6 +76,8 @@ class TodayReservationTimelineWidget extends Widget
         // 新規顧客の判定（シンプル版：顧客の初回予約=新規）
         $reservations->transform(function ($reservation) {
             $reservation->is_new_customer = $reservation->customer->isFirstReservation($reservation);
+            // カテゴリー別の色クラスを設定
+            $reservation->category_color_class = $this->getCategoryColorClass($reservation->menu->category_id ?? null);
             return $reservation;
         });
         
@@ -155,24 +157,80 @@ class TodayReservationTimelineWidget extends Widget
         if (!$this->selectedReservationId) {
             return null;
         }
-        
+
         // キャッシュされた予約データから取得（色が変わらない）
         $cachedReservations = $this->getData()['reservations'];
         $cachedReservation = $cachedReservations->where('id', $this->selectedReservationId)->first();
-        
+
         if ($cachedReservation) {
             return $cachedReservation;
         }
-        
+
         // フォールバック（通常は使われない）
         $reservation = Reservation::with(['customer', 'menu', 'store'])
             ->find($this->selectedReservationId);
-            
+
         if ($reservation) {
             $reservation->is_new_customer = $reservation->customer->isFirstReservation($reservation);
+            $reservation->category_color_class = $this->getCategoryColorClass($reservation->menu->category_id ?? null);
         }
-        
+
         return $reservation;
+    }
+
+    /**
+     * カテゴリーIDから色クラスを取得
+     */
+    private function getCategoryColorClass($categoryId): string
+    {
+        // カテゴリーIDがnullの場合はデフォルトを返す
+        if (!$categoryId) {
+            return 'default';
+        }
+
+        // 見やすく区別しやすい配色パターンを使用
+        $colorPatterns = [
+            'care',      // 青系
+            'hydrogen',  // 紫系
+            'training',  // オレンジ系
+            'special',   // 緑系
+            'premium',   // 赤系
+            'vip',       // 黄系
+        ];
+
+        // カテゴリーIDを元に色を決定（循環使用）
+        $index = ($categoryId - 1) % count($colorPatterns);
+        return $colorPatterns[$index];
+    }
+
+    /**
+     * すべてのカテゴリー色情報を取得
+     */
+    public function getCategoryColors(): array
+    {
+        $categories = \App\Models\MenuCategory::where('is_active', true)->orderBy('id')->get();
+        $colorPatterns = [
+            'care' => '#3b82f6',      // 青系
+            'hydrogen' => '#8b5cf6',  // 紫系
+            'training' => '#f97316',  // オレンジ系
+            'special' => '#22c55e',   // 緑系
+            'premium' => '#ef4444',   // 赤系
+            'vip' => '#eab308',       // 黄系
+        ];
+
+        $result = [];
+        foreach ($categories as $index => $category) {
+            $colorKey = array_keys($colorPatterns)[$index % count($colorPatterns)];
+            $result[] = [
+                'id' => $category->id,
+                'name' => $category->name,
+                'colorClass' => $colorKey,
+                'colorHex' => $colorPatterns[$colorKey],
+                'initial' => mb_substr($category->name, 0, 1)
+            ];
+        }
+
+        return $result;
     }
 
     private function generateTimeSlots(): Collection

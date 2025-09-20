@@ -187,7 +187,7 @@
                                             @endif
                                             @if($reservation && $isStartCell)
                                                 <!-- 予約セル（結合対応） -->
-                                                <div class="reservation-cell {{ $reservation->is_new_customer ? 'new-customer' : 'existing-customer' }}"
+                                                <div class="reservation-cell category-{{ $reservation->category_color_class ?? 'default' }}"
                                                      onclick="openReservationModalFromData(this)"
                                                      data-reservation-id="{{ $reservation->id }}"
                                                      data-customer-id="{{ $reservation->customer_id }}"
@@ -259,13 +259,22 @@
             <div class="bg-white border-2 border-gray-800 rounded p-4">
                 <h4 class="font-bold text-gray-900 mb-3 text-lg">📖 凡例</h4>
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    @php
+                        $categoryColors = $this->getCategoryColors();
+                    @endphp
+                    @foreach($categoryColors as $categoryInfo)
+                        <div class="flex items-center">
+                            <div class="w-6 h-6 border border-gray-600 rounded mr-3 text-white text-xs font-bold flex items-center justify-center"
+                                 style="background-color: {{ $categoryInfo['colorHex'] }} !important;">
+                                {{ $categoryInfo['initial'] }}
+                            </div>
+                            <span class="font-bold text-gray-800">{{ $categoryInfo['name'] }}</span>
+                        </div>
+                    @endforeach
                     <div class="flex items-center">
-                        <div class="w-6 h-6 border border-gray-600 rounded mr-3 reservation-cell new-customer">★新</div>
-                        <span class="font-bold text-gray-800">新規顧客（クリック可能）</span>
-                    </div>
-                    <div class="flex items-center">
-                        <div class="w-6 h-6 border border-gray-600 rounded mr-3 reservation-cell existing-customer">●既</div>
-                        <span class="font-bold text-gray-800">既存顧客（クリック可能）</span>
+                        <div class="w-6 h-6 border border-gray-600 rounded mr-3 text-white text-xs font-bold flex items-center justify-center"
+                             style="background-color: #6b7280 !important;">-</div>
+                        <span class="font-bold text-gray-800">未分類</span>
                     </div>
                     <div class="flex items-center">
                         <div class="w-6 h-6 border-2 border-red-600 rounded mr-3 flex items-center justify-center text-red-700 text-xs font-bold" style="background-color: #fbbf24 !important;">NOW</div>
@@ -321,14 +330,27 @@
             opacity: 0.8;
         }
         
-        /* 新規顧客 - 緑色 */
-        .new-customer {
-            background-color: #22c55e !important;
+        /* カテゴリー別の色定義 - 動的生成 */
+        @php
+            $categoryColors = $this->getCategoryColors();
+            $colorPatterns = [
+                'care' => '#3b82f6',
+                'hydrogen' => '#8b5cf6',
+                'training' => '#f97316',
+                'special' => '#22c55e',
+                'premium' => '#ef4444',
+                'vip' => '#eab308',
+            ];
+        @endphp
+
+        @foreach($colorPatterns as $colorClass => $colorHex)
+        .category-{{ $colorClass }} {
+            background-color: {{ $colorHex }} !important;
         }
-        
-        /* 既存顧客 - 青色 */
-        .existing-customer {
-            background-color: #3b82f6 !important;
+        @endforeach
+
+        .category-default {
+            background-color: #6b7280 !important; /* グレー - 未分類 */
         }
 
         /* シンプルモーダル */

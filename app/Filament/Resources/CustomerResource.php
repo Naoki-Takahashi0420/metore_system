@@ -263,10 +263,10 @@ class CustomerResource extends Resource
                         ]),
                         
                         // 新規サブスク契約追加
-                        Forms\Components\Repeater::make('new_subscriptions')
+                        Forms\Components\Repeater::make('subscriptions')
                             ->relationship('subscriptions')
                             ->label('新規サブスク契約追加')
-                            ->visible(true)
+                            ->visible(fn ($operation) => $operation === 'edit' || $operation === 'view')
                             ->schema([
                                 Forms\Components\Select::make('store_id')
                                     ->label('店舗')
@@ -300,8 +300,10 @@ class CustomerResource extends Resource
                                             if ($menu) {
                                                 $set('plan_name', $menu->name);
                                                 $set('plan_type', 'MENU_' . $menu->id);
-                                                $set('monthly_price', $menu->subscription_monthly_price);
-                                                $set('monthly_limit', $menu->max_monthly_usage);
+                                                // subscription_monthly_priceがない場合は通常のpriceを使用
+                                                $monthlyPrice = $menu->subscription_monthly_price ?? $menu->price ?? 0;
+                                                $set('monthly_price', $monthlyPrice);
+                                                $set('monthly_limit', $menu->max_monthly_usage ?? null);
                                                 $set('contract_months', $menu->contract_months ?? 12);
                                             }
                                         }
@@ -351,13 +353,15 @@ class CustomerResource extends Resource
                                     ->numeric()
                                     ->prefix('¥')
                                     ->disabled()
-                                    ->dehydrated(),
+                                    ->dehydrated()
+                                    ->default(0),
                                 Forms\Components\TextInput::make('monthly_limit')
                                     ->label('月間利用回数')
                                     ->numeric()
                                     ->suffix('回')
                                     ->disabled()
                                     ->dehydrated()
+                                    ->default(0)
                                     ->helperText('空欄の場合は無制限'),
                                 Forms\Components\Select::make('status')
                                     ->label('状態')
@@ -376,7 +380,9 @@ class CustomerResource extends Resource
                             ])
                             ->columns(2)
                             ->defaultItems(0)
+                            ->addActionLabel('サブスク契約を追加')
                             ->collapsible()
+                            ->collapsed()
                             ->cloneable()
                             ->deleteAction(
                                 fn (Forms\Components\Actions\Action $action) => $action->requiresConfirmation(),

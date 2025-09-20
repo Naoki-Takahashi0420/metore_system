@@ -41,18 +41,56 @@ class CustomerSubscriptionResource extends Resource
                                 return $query->orderBy('last_name');
                             })
                             ->getOptionLabelFromRecordUsing(fn ($record) => $record->last_name . ' ' . $record->first_name)
-                            ->disabled()
-                            ->helperText('顧客の変更はできません'),
-                        
+                            ->default(fn () => request()->has('customer_id') ? request('customer_id') : null)
+                            ->disabled(fn ($operation) => $operation === 'edit')
+                            ->required()
+                            ->helperText(fn ($operation) => $operation === 'edit' ? '顧客の変更はできません' : '顧客を選択してください'),
+
                         Forms\Components\Select::make('store_id')
                             ->label('店舗')
                             ->relationship('store', 'name')
-                            ->disabled()
-                            ->helperText('店舗の変更はできません'),
+                            ->default(function () {
+                                if (request()->has('customer_id')) {
+                                    $customer = \App\Models\Customer::find(request('customer_id'));
+                                    return $customer ? $customer->store_id : null;
+                                }
+                                return null;
+                            })
+                            ->disabled(fn ($operation) => $operation === 'edit')
+                            ->required()
+                            ->helperText(fn ($operation) => $operation === 'edit' ? '店舗の変更はできません' : '店舗を選択してください'),
                         
+                        Forms\Components\Select::make('menu_id')
+                            ->label('サブスクメニュー')
+                            ->options(function (callable $get) {
+                                $storeId = $get('store_id');
+                                if (!$storeId) {
+                                    return [];
+                                }
+                                return \App\Models\Menu::where('store_id', $storeId)
+                                    ->where('is_subscription', true)
+                                    ->where('is_available', true)
+                                    ->pluck('name', 'id');
+                            })
+                            ->required()
+                            ->reactive()
+                            ->visible(fn ($operation) => $operation === 'create')
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                if ($state) {
+                                    $menu = \App\Models\Menu::find($state);
+                                    if ($menu) {
+                                        $set('plan_name', $menu->name);
+                                        $set('plan_type', 'MENU_' . $menu->id);
+                                        $set('monthly_price', $menu->subscription_monthly_price);
+                                        $set('monthly_limit', $menu->max_monthly_usage);
+                                    }
+                                }
+                            }),
+
                         Forms\Components\TextInput::make('plan_name')
                             ->label('プラン名')
-                            ->disabled()
+                            ->disabled(fn ($operation) => $operation === 'edit')
+                            ->visible(fn ($operation) => $operation === 'edit')
                             ->helperText('プランの変更は新規契約で行ってください'),
                         
                         Forms\Components\Select::make('status')
@@ -104,14 +142,18 @@ class CustomerSubscriptionResource extends Resource
                         Forms\Components\DatePicker::make('billing_start_date')
                             ->label('課金開始日')
                             ->displayFormat('Y年m月d日')
-                            ->disabled()
-                            ->helperText('契約時に決定（変更不可）'),
-                        
+                            ->default(now())
+                            ->required()
+                            ->disabled(fn ($operation) => $operation === 'edit')
+                            ->helperText(fn ($operation) => $operation === 'edit' ? '契約時に決定（変更不可）' : '課金を開始する日を選択'),
+
                         Forms\Components\DatePicker::make('service_start_date')
                             ->label('サービス開始日')
                             ->displayFormat('Y年m月d日')
-                            ->disabled()
-                            ->helperText('契約時に決定（変更不可）'),
+                            ->default(now())
+                            ->required()
+                            ->disabled(fn ($operation) => $operation === 'edit')
+                            ->helperText(fn ($operation) => $operation === 'edit' ? '契約時に決定（変更不可）' : 'サブスク限定メニューが利用可能になる日'),
                         
                         Forms\Components\DatePicker::make('end_date')
                             ->label('契約終了日')

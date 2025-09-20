@@ -397,9 +397,12 @@ class CustomerSubscription extends Model
      */
     public function isEndingSoon(): bool
     {
-        return $this->end_date && 
-               $this->end_date->diffInDays(now()) <= 30 &&
-               $this->end_date->isAfter(now());
+        if (!$this->end_date) {
+            return false;
+        }
+
+        $daysUntilEnd = now()->diffInDays($this->end_date, false);
+        return $daysUntilEnd >= 0 && $daysUntilEnd <= 30;
     }
 
     /**
