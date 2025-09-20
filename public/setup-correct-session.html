@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>正しいセッション設定</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        button { padding: 10px 20px; margin: 5px; background: #28a745; color: white; border: none; cursor: pointer; }
+        button:hover { background: #218838; }
+        .result { margin-top: 10px; padding: 10px; background: #f0f0f0; }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>正しいセッション設定ツール</h1>
+
+    <div class="section">
+        <h2>顧客情報</h2>
+        <p>電話番号: 08033372305</p>
+        <p>名前: 高橋 直希</p>
+        <p>正しいID: 2 (データベース確認済み)</p>
+    </div>
+
+    <div class="section">
+        <h2>1. 正しいデータを設定</h2>
+        <button onclick="setCorrectData()">正しいデータを設定</button>
+        <div id="setup-result" class="result"></div>
+    </div>
+
+    <div class="section">
+        <h2>2. サブスク予約ページへ</h2>
+        <button onclick="goToSubscription()">サブスク予約ページへ移動</button>
+        <p style="color: gray;">※ コンソールを開いてデバッグ情報を確認してください</p>
+    </div>
+
+    <script>
+        function setCorrectData() {
+            // 正しい顧客データ（ID: 2）
+            const correctCustomerData = {
+                id: 2,  // 正しいID
+                last_name: "高橋",
+                first_name: "直希",
+                last_name_kana: "タカハシ",
+                first_name_kana: "ナオキ",
+                phone: "08033372305",
+                email: "naoki@example.com"
+            };
+
+            // localStorageに設定
+            localStorage.setItem('customer_data', JSON.stringify(correctCustomerData));
+            localStorage.setItem('customer_token', 'test-token-for-customer-2');
+
+            // sessionStorageに設定
+            sessionStorage.setItem('existing_customer_id', '2');  // 正しいID
+            sessionStorage.setItem('subscription_store_id', '1');
+            sessionStorage.setItem('subscription_menu_id', '1');
+            sessionStorage.setItem('subscription_store_name', '銀座本店');
+            sessionStorage.setItem('subscription_menu_name', 'スタンダードコース');
+            sessionStorage.setItem('from_mypage', 'true');
+            sessionStorage.setItem('is_subscription_booking', 'true');
+
+            // 結果表示
+            const resultDiv = document.getElementById('setup-result');
+            resultDiv.innerHTML = `
+                <p class="success">✅ データ設定完了！</p>
+                <p><strong>localStorage:</strong></p>
+                <pre>${JSON.stringify(correctCustomerData, null, 2)}</pre>
+                <p><strong>sessionStorage:</strong></p>
+                <ul>
+                    <li>existing_customer_id: 2</li>
+                    <li>subscription_store_id: 1</li>
+                    <li>subscription_menu_id: 1</li>
+                </ul>
+            `;
+
+            // コンソールにも出力
+            console.log('✅ 正しいデータを設定しました');
+            console.log('customer_data:', correctCustomerData);
+            console.log('existing_customer_id:', sessionStorage.getItem('existing_customer_id'));
+        }
+
+        function goToSubscription() {
+            // データが設定されていることを確認
+            const customerData = localStorage.getItem('customer_data');
+            const customerId = sessionStorage.getItem('existing_customer_id');
+
+            if (!customerData || !customerId) {
+                alert('先に「正しいデータを設定」ボタンをクリックしてください');
+                return;
+            }
+
+            // サブスク予約ページへ移動
+            window.location.href = '/reservation/subscription-booking';
+        }
+
+        // ページ読み込み時に現在の状態を表示
+        window.addEventListener('load', () => {
+            console.log('=== 現在の状態 ===');
+
+            const customerData = localStorage.getItem('customer_data');
+            if (customerData) {
+                try {
+                    const parsed = JSON.parse(customerData);
+                    console.log('localStorage customer_data:', parsed);
+                } catch (e) {
+                    console.log('localStorage customer_data: パースエラー');
+                }
+            } else {
+                console.log('localStorage customer_data: なし');
+            }
+
+            const sessionCustomerId = sessionStorage.getItem('existing_customer_id');
+            console.log('sessionStorage existing_customer_id:', sessionCustomerId);
+        });
+    </script>
+</body>
+</html>

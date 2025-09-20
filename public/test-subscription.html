@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>サブスク予約テスト</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>サブスク予約 デバッグテスト</h1>
+
+    <div class="section">
+        <h3>1. SessionStorage設定テスト</h3>
+        <button onclick="setTestSessionStorage()">テスト用SessionStorageを設定</button>
+        <button onclick="checkSessionStorage()">SessionStorageを確認</button>
+        <div id="session-result" class="result"></div>
+    </div>
+
+    <div class="section">
+        <h3>2. API動作テスト</h3>
+        <button onclick="testAPI()">API可用性チェック</button>
+        <div id="api-result" class="result"></div>
+    </div>
+
+    <div class="section">
+        <h3>3. サブスク予約画面へ移動</h3>
+        <button onclick="goToSubscriptionBooking()">サブスク予約画面を開く</button>
+    </div>
+
+    <script>
+        function setTestSessionStorage() {
+            // 顧客データを設定
+            const customerData = {
+                id: 48,
+                last_name: "大山",
+                first_name: "花梨",
+                phone: "090-1234-5678",
+                email: "test@example.com"
+            };
+            localStorage.setItem('customer_data', JSON.stringify(customerData));
+            localStorage.setItem('customer_token', 'test-token');
+
+            // サブスク予約用のセッションストレージを設定
+            sessionStorage.setItem('existing_customer_id', '48');
+            sessionStorage.setItem('subscription_store_id', '1');
+            sessionStorage.setItem('subscription_menu_id', '1');
+            sessionStorage.setItem('subscription_store_name', '銀座本店');
+            sessionStorage.setItem('subscription_menu_name', 'スタンダードコース');
+
+            document.getElementById('session-result').innerHTML = '✅ テスト用データを設定しました';
+        }
+
+        function checkSessionStorage() {
+            const data = {
+                customer_id: sessionStorage.getItem('existing_customer_id'),
+                store_id: sessionStorage.getItem('subscription_store_id'),
+                menu_id: sessionStorage.getItem('subscription_menu_id'),
+                store_name: sessionStorage.getItem('subscription_store_name'),
+                menu_name: sessionStorage.getItem('subscription_menu_name')
+            };
+
+            document.getElementById('session-result').innerHTML =
+                '<strong>SessionStorage内容:</strong><br>' +
+                Object.entries(data).map(([key, value]) =>
+                    `${key}: ${value || 'null'}`
+                ).join('<br>');
+        }
+
+        async function testAPI() {
+            try {
+                const response = await fetch('/api/check-availability', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        store_id: 1,
+                        menu_id: 1,
+                        date: '2025-09-20',
+                        time: '10:00'
+                    })
+                });
+
+                const data = await response.json();
+                document.getElementById('api-result').innerHTML =
+                    `<strong>API応答:</strong><br>
+                    Status: ${response.status}<br>
+                    Available: ${data.available}<br>
+                    Reason: ${data.reason || 'なし'}<br>
+                    Capacity: ${data.capacity}<br>
+                    Current Bookings: ${data.current_bookings}`;
+
+            } catch (error) {
+                document.getElementById('api-result').innerHTML =
+                    `<strong>APIエラー:</strong><br>${error.message}`;
+            }
+        }
+
+        function goToSubscriptionBooking() {
+            window.location.href = '/reservation/subscription-booking';
+        }
+    </script>
+</body>
+</html>

@@ -14,10 +14,16 @@ use Livewire\Attributes\On;
 class ShiftCalendarWidget extends Widget
 {
     protected static string $view = 'filament.widgets.shift-calendar';
-    
+
     protected int|string|array $columnSpan = 'full';
-    
+
     protected static ?int $sort = 2;
+
+    public static function canView(): bool
+    {
+        $user = auth()->user();
+        return $user && !$user->hasRole('staff');
+    }
     
     public $selectedStore = null;
     public $currentMonth;

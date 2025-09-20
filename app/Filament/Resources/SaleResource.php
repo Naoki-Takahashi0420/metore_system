@@ -460,4 +460,10 @@ class SaleResource extends Resource
     {
         return 'success';
     }
+
+    public static function canViewAny(): bool
+    {
+        $user = auth()->user();
+        return $user && !$user->hasRole('staff');
+    }
 }

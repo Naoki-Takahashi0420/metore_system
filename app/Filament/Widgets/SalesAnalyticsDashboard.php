@@ -12,7 +12,13 @@ use Illuminate\Support\Number;
 class SalesAnalyticsDashboard extends BaseWidget
 {
     protected static ?int $sort = 1;
-    
+
+    public static function canView(): bool
+    {
+        $user = auth()->user();
+        return $user && !$user->hasRole('staff');
+    }
+
     protected function getStats(): array
     {
         $today = Carbon::today();

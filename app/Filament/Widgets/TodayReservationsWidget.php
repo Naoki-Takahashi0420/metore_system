@@ -146,55 +146,84 @@ class TodayReservationsWidget extends BaseWidget
                     ->placeholder('未定'),
                     
                 Tables\Columns\BadgeColumn::make('status')
-                    ->label('状態')
+                    ->label('ステータス')
                     ->colors([
+                        'primary' => 'booked',
                         'success' => 'completed',
-                        'warning' => 'booked',
-                        'info' => 'arrived',
-                        'danger' => ['cancelled', 'no_show'],
+                        'warning' => 'no_show',
+                        'danger' => 'cancelled',
                     ])
-                    ->formatStateUsing(function ($state) {
-                        return match($state) {
-                            'booked' => '予約済',
-                            'arrived' => '来店済',
-                            'completed' => '完了',
-                            'no_show' => '無断欠席',
-                            'cancelled', 'canceled' => 'キャンセル',
-                            default => $state,
-                        };
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'booked' => '予約済み',
+                        'completed' => '完了',
+                        'no_show' => '来店なし',
+                        'cancelled' => 'キャンセル',
+                        'pending' => '予約済み',  // 旧データ用
+                        'confirmed' => '予約済み', // 旧データ用
+                        'arrived' => '完了', // 旧データを完了扱い
+                        default => $state,
                     }),
             ])
             ->actions([
-                Tables\Actions\Action::make('arrive')
-                    ->label('来店')
-                    ->icon('heroicon-m-user-plus')
+                Tables\Actions\ViewAction::make()
+                    ->label('詳細'),
+
+                Tables\Actions\Action::make('reschedule')
+                    ->label('日程変更')
+                    ->icon('heroicon-o-calendar')
                     ->color('info')
-                    ->visible(fn ($record) => $record->status === 'booked')
-                    ->requiresConfirmation()
-                    ->action(fn ($record) => $record->update(['status' => 'arrived'])),
-                    
+                    ->url(fn ($record) => route('admin.reservations.reschedule', $record))
+                    ->openUrlInNewTab(false)
+                    ->visible(fn ($record) => $record->status === 'booked'),
+
+                Tables\Actions\Action::make('edit')
+                    ->label('編集')
+                    ->icon('heroicon-o-pencil')
+                    ->color('warning')
+                    ->url(fn ($record) => "/admin/reservations/{$record->id}/edit"),
+
                 Tables\Actions\Action::make('complete')
                     ->label('完了')
-                    ->icon('heroicon-m-check-circle')
+                    ->icon('heroicon-o-check-circle')
                     ->color('success')
-                    ->visible(fn ($record) => in_array($record->status, ['booked', 'arrived']))
                     ->requiresConfirmation()
+                    ->modalHeading('予約を完了にする')
+                    ->modalDescription('この予約を完了にしてもよろしいですか？')
+                    ->modalSubmitActionLabel('完了にする')
+                    ->visible(fn ($record) => $record->status === 'booked')
                     ->action(fn ($record) => $record->update(['status' => 'completed'])),
-                    
+
+                Tables\Actions\Action::make('no_show')
+                    ->label('来店なし')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('warning')
+                    ->requiresConfirmation()
+                    ->modalHeading('来店なしにする')
+                    ->modalDescription('この予約を来店なしにしてもよろしいですか？')
+                    ->modalSubmitActionLabel('来店なしにする')
+                    ->visible(fn ($record) => $record->status === 'booked')
+                    ->action(fn ($record) => $record->update(['status' => 'no_show'])),
+
+                Tables\Actions\Action::make('cancel')
+                    ->label('キャンセル')
+                    ->icon('heroicon-o-x-mark')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalHeading('予約をキャンセル')
+                    ->modalDescription('この予約をキャンセルしてもよろしいですか？')
+                    ->modalSubmitActionLabel('キャンセルする')
+                    ->visible(fn ($record) => $record->status === 'booked')
+                    ->action(fn ($record) => $record->update(['status' => 'cancelled'])),
+
                 Tables\Actions\Action::make('create_medical_record')
                     ->label('カルテ作成')
                     ->icon('heroicon-m-document-plus')
                     ->color('primary')
                     ->url(fn ($record) => "/admin/medical-records/create?reservation_id={$record->id}")
-                    ->visible(fn ($record) => 
-                        in_array($record->status, ['arrived', 'completed']) &&
+                    ->visible(fn ($record) =>
+                        $record->status === 'completed' &&
                         !$record->medicalRecords()->exists()
                     ),
-                    
-                Tables\Actions\Action::make('edit')
-                    ->label('編集')
-                    ->icon('heroicon-m-pencil-square')
-                    ->url(fn ($record) => "/admin/reservations/{$record->id}/edit"),
             ])
             ->bulkActions([])
             ->paginated(false)

@@ -72,48 +72,24 @@
                 </div>
             </div>
 
-            <!-- 店舗・メニュー選択 -->
+            <!-- 店舗・メニュー情報（変更不可） -->
             <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
-                <h3 class="text-lg font-semibold mb-4">店舗・メニュー選択</h3>
+                <h3 class="text-lg font-semibold mb-4">予約内容（変更不可）</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- 店舗選択 -->
+                    <!-- 店舗表示 -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">店舗 <span class="text-red-500">*</span></label>
-                        <select name="store_id" id="store-select" class="w-full border border-gray-300 rounded-lg px-3 py-2" required>
-                            @foreach($stores as $store)
-                                <option value="{{ $store->id }}" {{ $store->id == $reservation->store_id ? 'selected' : '' }}>
-                                    {{ $store->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                        @if($errors->has('store_id'))
-                            <p class="text-red-500 text-xs mt-1">{{ $errors->first('store_id') }}</p>
-                        @endif
+                        <label class="block text-sm font-medium text-gray-700 mb-2">店舗</label>
+                        <div class="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-gray-700">
+                            {{ $reservation->store->name }}
+                        </div>
                     </div>
 
-                    <!-- メニュー選択 -->
+                    <!-- メニュー表示 -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">メニュー <span class="text-red-500">*</span></label>
-                        <select name="menu_id" id="menu-select" class="w-full border border-gray-300 rounded-lg px-3 py-2" required>
-                            <option value="">-- メニューを選択してください --</option>
-                            @foreach($menuCategories as $category)
-                                @if($category->menus->count() > 0)
-                                    <optgroup label="{{ $category->name }}">
-                                        @foreach($category->menus as $menu)
-                                            <option value="{{ $menu->id }}"
-                                                    data-duration="{{ $menu->duration }}"
-                                                    data-price="{{ $menu->price }}"
-                                                    {{ $menu->id == $reservation->menu_id ? 'selected' : '' }}>
-                                                {{ $menu->name }} ({{ $menu->duration }}分 / {{ number_format($menu->price) }}円)
-                                            </option>
-                                        @endforeach
-                                    </optgroup>
-                                @endif
-                            @endforeach
-                        </select>
-                        @if($errors->has('menu_id'))
-                            <p class="text-red-500 text-xs mt-1">{{ $errors->first('menu_id') }}</p>
-                        @endif
+                        <label class="block text-sm font-medium text-gray-700 mb-2">メニュー</label>
+                        <div class="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-gray-700">
+                            {{ $reservation->menu->name }} ({{ $reservation->menu->duration }}分)
+                        </div>
                     </div>
                 </div>
             </div>

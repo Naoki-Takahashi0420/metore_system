@@ -80,6 +80,11 @@ Route::post('/reservation/prepare-change', [App\Http\Controllers\PublicReservati
 Route::post('/reservation/submit', [App\Http\Controllers\PublicReservationController::class, 'store'])->name('reservation.store');
 Route::get('/reservation/complete/{reservationNumber}', [App\Http\Controllers\PublicReservationController::class, 'complete'])->name('reservation.complete');
 
+// 顧客の最後に訪問した店舗を取得
+Route::get('/reservation/last-visited-store', [App\Http\Controllers\PublicReservationController::class, 'getLastVisitedStore'])->name('reservation.last-visited-store');
+
+// 可用性チェックAPI - api.phpに移動済み
+
 // Customer routes
 Route::prefix('customer')->group(function () {
     Route::get('/login', function () {

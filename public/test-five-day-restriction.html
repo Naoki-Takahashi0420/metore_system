@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>5日間制限テスト</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        button { padding: 10px 20px; margin: 5px; background: #28a745; color: white; border: none; cursor: pointer; }
+        .result { margin-top: 10px; padding: 10px; background: #f5f5f5; font-family: monospace; white-space: pre-wrap; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background: #28a745; color: white; }
+        .available { background: #d4edda; color: #155724; }
+        .unavailable { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>🧪 5日間制限 完全テスト</h1>
+
+    <div class="section">
+        <h2>テスト設定</h2>
+        <p><strong>顧客ID:</strong> 2 (高橋 直希)</p>
+        <p><strong>既存予約:</strong> 2025-09-17, 2025-09-19</p>
+        <p><strong>5日間制限ルール:</strong> 既存予約から前後5日間は予約不可（6日目から予約可能）</p>
+        <p><strong>期待結果:</strong></p>
+        <ul>
+            <li>9月12-16日: ○ (9/17から6日以上前)</li>
+            <li>9月17日: × (既存予約)</li>
+            <li>9月18日: × (9/17から1日後, 9/19から1日前)</li>
+            <li>9月19日: × (既存予約)</li>
+            <li>9月20-24日: × (9/19から1-5日後)</li>
+            <li>9月25日以降: ○ (9/19から6日以上後)</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>API直接テスト</h2>
+        <button onclick="testAllDates()">全日程をテスト</button>
+        <div id="test-results" class="result"></div>
+    </div>
+
+    <div class="section">
+        <h2>JavaScript計算 vs サーバー計算</h2>
+        <button onclick="compareCalculations()">計算方法を比較</button>
+        <div id="comparison-results" class="result"></div>
+    </div>
+
+    <script>
+        async function testAllDates() {
+            const resultDiv = document.getElementById('test-results');
+            resultDiv.textContent = 'テスト実行中...\n\n';
+
+            const testDates = [
+                '2025-09-12', '2025-09-13', '2025-09-14', '2025-09-15', '2025-09-16',
+                '2025-09-17', '2025-09-18', '2025-09-19', '2025-09-20', '2025-09-21',
+                '2025-09-22', '2025-09-23', '2025-09-24', '2025-09-25', '2025-09-26',
+                '2025-09-27', '2025-09-28', '2025-09-29', '2025-09-30', '2025-10-01'
+            ];
+
+            const existingDates = ['2025-09-17', '2025-09-19'];
+
+            let html = '<table>';
+            html += '<tr><th>日付</th><th>期待値</th><th>API結果</th><th>理由</th><th>判定</th></tr>';
+
+            for (const date of testDates) {
+                // JavaScript計算
+                const expectedAvailable = isDateExpectedAvailable(date, existingDates);
+
+                try {
+                    // API呼び出し
+                    const response = await fetch('/api/check-availability', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            store_id: 1,
+                            menu_id: 26,  // 水素サブスクプラン
+                            customer_id: 2,
+                            date: date,
+                            time: '10:00'
+                        })
+                    });
+
+                    const data = await response.json();
+                    const apiAvailable = data.available;
+                    const isCorrect = expectedAvailable === apiAvailable;
+
+                    const reason = getReason(date, existingDates);
+
+                    html += `<tr class="${isCorrect ? 'available' : 'unavailable'}">`;
+                    html += `<td>${date}</td>`;
+                    html += `<td>${expectedAvailable ? '○' : '×'}</td>`;
+                    html += `<td>${apiAvailable ? '○' : '×'}</td>`;
+                    html += `<td>${reason}</td>`;
+                    html += `<td>${isCorrect ? '✅' : '❌'}</td>`;
+                    html += '</tr>';
+
+                } catch (error) {
+                    html += `<tr class="unavailable">`;
+                    html += `<td>${date}</td>`;
+                    html += `<td>-</td>`;
+                    html += `<td colspan="3">エラー: ${error.message}</td>`;
+                    html += '</tr>';
+                }
+
+                // レート制限を避けるため少し待機
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            html += '</table>';
+            resultDiv.innerHTML = html;
+        }
+
+        function isDateExpectedAvailable(targetDate, existingDates) {
+            const target = new Date(targetDate + 'T00:00:00');
+
+            for (const existingDateStr of existingDates) {
+                const existing = new Date(existingDateStr + 'T00:00:00');
+                const daysDiff = Math.abs((target - existing) / (24 * 60 * 60 * 1000));
+
+                // 5日間制限: 6日未満の場合は予約不可
+                if (daysDiff < 6) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        function getReason(targetDate, existingDates) {
+            if (existingDates.includes(targetDate)) {
+                return '既存予約日';
+            }
+
+            const target = new Date(targetDate + 'T00:00:00');
+            let minDays = Infinity;
+            let closestDate = '';
+
+            for (const existingDateStr of existingDates) {
+                const existing = new Date(existingDateStr + 'T00:00:00');
+                const daysDiff = Math.abs((target - existing) / (24 * 60 * 60 * 1000));
+
+                if (daysDiff < minDays) {
+                    minDays = daysDiff;
+                    closestDate = existingDateStr;
+                }
+            }
+
+            if (minDays < 6) {
+                return `${closestDate}から${minDays}日後`;
+            } else {
+                return `${closestDate}から${minDays}日後（予約可能）`;
+            }
+        }
+
+        function compareCalculations() {
+            const resultDiv = document.getElementById('comparison-results');
+
+            const testCases = [
+                { target: '2025-09-17', existing: '2025-09-17' },  // 同日
+                { target: '2025-09-24', existing: '2025-09-19' },  // 5日後
+                { target: '2025-09-25', existing: '2025-09-19' },  // 6日後
+                { target: '2025-09-12', existing: '2025-09-17' },  // 5日前
+                { target: '2025-09-11', existing: '2025-09-17' },  // 6日前
+            ];
+
+            let result = '=== JavaScript vs サーバー計算 ===\n\n';
+
+            for (const testCase of testCases) {
+                const targetDate = new Date(testCase.target + 'T00:00:00');
+                const existingDate = new Date(testCase.existing + 'T00:00:00');
+
+                // JavaScript計算
+                const jsTimeDiff = targetDate - existingDate;
+                const jsDaysDiff = jsTimeDiff / (24 * 60 * 60 * 1000);
+                const jsAbsDaysDiff = Math.abs(jsDaysDiff);
+                const jsAvailable = jsAbsDaysDiff >= 6;
+
+                // Carbon計算シミュレーション（符号付き）
+                const carbonDaysDiff = jsDaysDiff;  // 同じ計算
+                const carbonAbsDaysDiff = Math.abs(carbonDaysDiff);
+                const carbonAvailable = carbonAbsDaysDiff >= 6;
+
+                result += `${testCase.target} vs ${testCase.existing}:\n`;
+                result += `  日数差: ${jsDaysDiff} (絶対値: ${jsAbsDaysDiff})\n`;
+                result += `  予約可能: ${jsAvailable ? 'Yes' : 'No'}\n`;
+                result += `  制限チェック: abs(${carbonDaysDiff}) < 6 = ${carbonAbsDaysDiff < 6}\n\n`;
+            }
+
+            resultDiv.textContent = result;
+        }
+
+        // ページ読み込み時に実行
+        window.addEventListener('load', () => {
+            compareCalculations();
+        });
+    </script>
+</body>
+</html>

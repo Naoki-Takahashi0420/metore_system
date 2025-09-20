@@ -358,6 +358,7 @@ async function fetchStats() {
         console.log('=== サブスクリプション取得開始 ===');
         console.log('Using token:', token);
         console.log('Token length:', token ? token.length : 'undefined');
+        console.log('Fetching from:', '/api/customer/subscriptions-token');
         
         const subscriptionResponse = await fetch('/api/customer/subscriptions-token', {
             headers: {
@@ -380,11 +381,14 @@ async function fetchStats() {
             console.log('Found active subscription?', !!activeSubscription);
             
             if (activeSubscription) {
-                console.log('サブスクセクション表示開始');
+                console.log('=== サブスクセクション表示開始 ===');
                 const subscriptionSection = document.getElementById('subscription-section');
                 console.log('subscription-section element:', subscriptionSection);
+                console.log('Element classes before:', subscriptionSection.className);
                 subscriptionSection.classList.remove('hidden');
-                console.log('hidden class removed');
+                console.log('Element classes after:', subscriptionSection.className);
+                console.log('Element display style:', window.getComputedStyle(subscriptionSection).display);
+                console.log('Element visibility:', window.getComputedStyle(subscriptionSection).visibility);
                 
                 // メニュー名と料金を取得
                 const menuName = activeSubscription.menu?.name || activeSubscription.plan?.name || 'サブスクプラン';
@@ -472,20 +476,23 @@ function displayNextReservation() {
             const dateStr = r.reservation_date.split('T')[0];
             const [year, month, day] = dateStr.split('-').map(Number);
             const [hours, minutes] = r.start_time.split(':').map(Number);
-            
+
             // 月は0-11なので1を引く
             const reservationDate = new Date(year, month - 1, day, hours, minutes);
-            // 今日の予約も含める（>=にする）
-            return reservationDate >= now && !['cancelled', 'canceled'].includes(r.status);
+            const reservationDateOnly = new Date(year, month - 1, day);
+            const todayDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+            // 今日以降の日付の予約、または今日の予約（時間に関係なく）を含める
+            return reservationDateOnly >= todayDateOnly && !['cancelled', 'canceled'].includes(r.status);
         })
         .sort((a, b) => {
-            const dateStrA = a.reservation_date.split('T')[0];
-            const dateStrB = b.reservation_date.split('T')[0];
-            const [yearA, monthA, dayA] = dateStrA.split('-').map(Number);
-            const [yearB, monthB, dayB] = dateStrB.split('-').map(Number);
+            const datePartA = a.reservation_date.split(' ')[0];
+            const datePartB = b.reservation_date.split(' ')[0];
+            const [yearA, monthA, dayA] = datePartA.split('-').map(Number);
+            const [yearB, monthB, dayB] = datePartB.split('-').map(Number);
             const [hoursA, minutesA] = a.start_time.split(':').map(Number);
             const [hoursB, minutesB] = b.start_time.split(':').map(Number);
-            
+
             const dateA = new Date(yearA, monthA - 1, dayA, hoursA, minutesA);
             const dateB = new Date(yearB, monthB - 1, dayB, hoursB, minutesB);
             return dateA - dateB;
@@ -532,8 +539,8 @@ function updateReservationCount() {
     const now = new Date();
     const activeCount = allReservations.filter(r => {
         // 日付フォーマットを正規化して正しくパース
-        const dateStr = r.reservation_date.split('T')[0];
-        const [year, month, day] = dateStr.split('-').map(Number);
+        const datePart = r.reservation_date.split(' ')[0];
+        const [year, month, day] = datePart.split('-').map(Number);
         const [hours, minutes] = r.start_time.split(':').map(Number);
         const reservationDate = new Date(year, month - 1, day, hours, minutes);
         return reservationDate > now && !['cancelled', 'canceled'].includes(r.status);
@@ -560,19 +567,20 @@ function displayReservations() {
     const container = document.getElementById('reservations-container');
     const emptyState = document.getElementById('empty-state');
     const now = new Date();
-    
+
     console.log('=== displayReservations called ===');
     console.log('allReservations at display:', allReservations);
     console.log('allReservations length:', allReservations.length);
     console.log('Current filter:', currentFilter);
+    console.log('Current time:', now.toISOString());
     
     // フィルタリング
     let filteredReservations = allReservations;
     if (currentFilter === 'upcoming') {
         filteredReservations = allReservations.filter(r => {
             // 日付フォーマットを正規化して正しくパース
-            const dateStr = r.reservation_date.split('T')[0];
-            const [year, month, day] = dateStr.split('-').map(Number);
+            const datePart = r.reservation_date.split(' ')[0];
+            const [year, month, day] = datePart.split('-').map(Number);
             const [hours, minutes] = r.start_time.split(':').map(Number);
             const reservationDate = new Date(year, month - 1, day, hours, minutes);
             return reservationDate > now;
@@ -580,8 +588,8 @@ function displayReservations() {
     } else if (currentFilter === 'past') {
         filteredReservations = allReservations.filter(r => {
             // 日付フォーマットを正規化して正しくパース
-            const dateStr = r.reservation_date.split('T')[0];
-            const [year, month, day] = dateStr.split('-').map(Number);
+            const datePart = r.reservation_date.split(' ')[0];
+            const [year, month, day] = datePart.split('-').map(Number);
             const [hours, minutes] = r.start_time.split(':').map(Number);
             const reservationDate = new Date(year, month - 1, day, hours, minutes);
             return reservationDate <= now;
@@ -601,18 +609,29 @@ function displayReservations() {
     container.classList.remove('hidden');
     emptyState.classList.add('hidden');
     
-    container.innerHTML = filteredReservations.map(reservation => {
+    container.innerHTML = filteredReservations.map((reservation, index) => {
         // 日付フォーマットを正規化して正しくパース
-        const dateStr = reservation.reservation_date.split('T')[0];
-        const [year, month, day] = dateStr.split('-').map(Number);
+        // APIから「2025-09-19 00:00:00」形式で来る場合に対応
+        const datePart = reservation.reservation_date.split(' ')[0];
+        const [year, month, day] = datePart.split('-').map(Number);
         const [hours, minutes] = reservation.start_time.split(':').map(Number);
         const reservationDate = new Date(year, month - 1, day, hours, minutes);
         const isPast = reservationDate <= now;
-        const isToday = dateStr === now.toISOString().split('T')[0];
-        const isTomorrow = dateStr === new Date(now.getTime() + 24*60*60*1000).toISOString().split('T')[0];
-        
+        const isToday = datePart === now.toISOString().split('T')[0];
+        const isTomorrow = datePart === new Date(now.getTime() + 24*60*60*1000).toISOString().split('T')[0];
+
         // サブスク予約かどうかを判定
         const isSubscription = reservation.is_subscription || reservation.subscription_id;
+
+        // デバッグ情報
+        console.log(`=== 予約${index + 1} ===`);
+        console.log('Reservation ID:', reservation.id);
+        console.log('Status:', reservation.status);
+        console.log('Date:', datePart, 'Time:', reservation.start_time);
+        console.log('Reservation DateTime:', reservationDate.toISOString());
+        console.log('isPast:', isPast);
+        console.log('canCancel result:', canCancel(reservation));
+        console.log('Will show buttons:', !isPast && canCancel(reservation));
         
         return `
         <div class="border ${isPast ? 'border-gray-200' : isToday ? 'border-blue-400 border-2' : isTomorrow ? 'border-blue-300' : 'border-gray-200'} rounded-lg p-4 mb-4 ${isPast ? 'bg-gray-50' : isToday ? 'bg-blue-50' : 'bg-white'} relative">
@@ -735,23 +754,37 @@ function formatTime(timeString) {
 }
 
 function canCancel(reservation) {
+    console.log('=== canCancel called ===');
+    console.log('Reservation ID:', reservation.id);
+    console.log('Status:', reservation.status);
+
     if (['cancelled', 'canceled', 'completed', 'no_show'].includes(reservation.status)) {
+        console.log('Cannot cancel: invalid status');
         return false;
     }
-    
+
     // 日付フォーマットを正規化して正しくパース
-    const dateStr = reservation.reservation_date.split('T')[0];
-    const [year, month, day] = dateStr.split('-').map(Number);
+    const datePart = reservation.reservation_date.split(' ')[0];
+    const [year, month, day] = datePart.split('-').map(Number);
     const [hours, minutes] = reservation.start_time.split(':').map(Number);
     const reservationDateTime = new Date(year, month - 1, day, hours, minutes);
     const now = new Date();
+
+    const isFuture = reservationDateTime > now;
     const hoursDiff = (reservationDateTime - now) / (1000 * 60 * 60);
-    
-    return hoursDiff > 24;
+
+    console.log('Reservation DateTime:', reservationDateTime.toISOString());
+    console.log('Current DateTime:', now.toISOString());
+    console.log('Is future:', isFuture);
+    console.log('Hours difference:', hoursDiff.toFixed(2));
+    console.log('Will return:', isFuture);
+
+    // 24時間以内でもボタンは表示する（タップすると電話案内モーダルが出る）
+    return isFuture;
 }
 
 // マイページから既存顧客として予約
-function goToReservation() {
+async function goToReservation() {
     // 顧客データを取得
     const customerData = localStorage.getItem('customer_data');
     if (customerData) {
@@ -759,8 +792,24 @@ function goToReservation() {
         // セッションストレージに既存顧客情報を保存
         sessionStorage.setItem('existing_customer_id', customer.id);
         sessionStorage.setItem('from_mypage', 'true');
+
+        try {
+            // 最後に訪問した店舗を取得
+            const response = await fetch(`/reservation/last-visited-store?customer_id=${customer.id}`);
+            const data = await response.json();
+
+            if (data.store_id) {
+                // 店舗IDをセッションストレージに保存
+                sessionStorage.setItem('selected_store_id', data.store_id);
+                // 直接カテゴリ選択ページへ遷移
+                window.location.href = `/reservation/category?store_id=${data.store_id}&from_mypage=true&existing_customer_id=${customer.id}`;
+                return;
+            }
+        } catch (error) {
+            console.error('Failed to fetch last visited store:', error);
+        }
     }
-    // 店舗選択ページへ遷移
+    // 最後に訪問した店舗がない場合は店舗選択ページへ
     window.location.href = '/stores';
 }
 
@@ -823,14 +872,18 @@ function goToSubscriptionBooking() {
             store_name: storeName,
             plan_name: planName
         });
+
+        console.log('activeSubscription詳細:', activeSubscription);
+        console.log('storeId:', storeId, 'menuId:', menuId);
         
         // セッションストレージに必要な情報を保存
         sessionStorage.setItem('existing_customer_id', customer.id);
         sessionStorage.setItem('from_mypage', 'true');
         sessionStorage.setItem('is_subscription_booking', 'true');
-        sessionStorage.setItem('selected_store_id', storeId);
-        sessionStorage.setItem('selected_store_name', storeName);
-        sessionStorage.setItem('selected_menu_id', menuId);
+        sessionStorage.setItem('subscription_store_id', storeId);
+        sessionStorage.setItem('subscription_store_name', storeName);
+        sessionStorage.setItem('subscription_menu_id', menuId);
+        sessionStorage.setItem('subscription_menu_name', activeSubscription.plan?.name || 'サブスクメニュー');
         sessionStorage.setItem('subscription_data', JSON.stringify(activeSubscription));
         
         // サブスク予約用のセッション設定APIを呼んでからカレンダーへ
@@ -849,8 +902,18 @@ function goToSubscriptionBooking() {
                 menu_id: menuId
             })
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                return response.text().then(text => {
+                    console.error('Error response:', text);
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                });
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('Response data:', data);
             if (data.success) {
                 console.log('セッション設定完了、カレンダーへ遷移');
                 // サブスク予約用のパラメータを付与
@@ -860,8 +923,9 @@ function goToSubscriptionBooking() {
             }
         })
         .catch(error => {
-            console.error('エラー:', error);
-            alert('サブスク予約の準備に失敗しました。再度お試しください。');
+            console.error('詳細なエラー:', error);
+            console.error('エラーメッセージ:', error.message);
+            alert('サブスク予約の準備に失敗しました。再度お試しください。\nエラー: ' + error.message);
         });
     } else {
         alert('サブスクリプション情報が見つかりません');
@@ -871,22 +935,23 @@ function goToSubscriptionBooking() {
 // 日程変更
 function changeReservationDate(reservationId) {
     const reservation = allReservations.find(r => r.id === reservationId);
-    
+
     if (!reservation) {
         alert('予約情報が見つかりません');
         return;
     }
-    
+
     // 24時間前チェック
-    const dateStr = reservation.reservation_date.split('T')[0];
-    const [year, month, day] = dateStr.split('-').map(Number);
+    const datePart = reservation.reservation_date.split(' ')[0];
+    const [year, month, day] = datePart.split('-').map(Number);
     const [hours, minutes] = reservation.start_time.split(':').map(Number);
     const reservationDateTime = new Date(year, month - 1, day, hours, minutes);
     const now = new Date();
     const hoursDiff = (reservationDateTime - now) / (1000 * 60 * 60);
-    
+
     if (hoursDiff <= 24) {
-        alert('予約の24時間前を過ぎているため、変更できません。\nお電話でお問い合わせください。');
+        // 24時間以内の場合は電話案内モーダルを表示
+        showPhoneContactModal(reservation, '日程変更');
         return;
     }
     
@@ -944,18 +1009,46 @@ function changeReservationDate(reservationId) {
 let currentReservationId = null;
 let currentReservation = null;
 
+// 電話連絡を促すモーダルを表示
+function showPhoneContactModal(reservation, actionType) {
+    const modalContent = document.getElementById('cancelModalContent');
+    modalContent.innerHTML = `
+        <div class="text-center">
+            <div class="mb-4">
+                <svg class="w-16 h-16 text-yellow-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </div>
+            <p class="text-lg font-semibold mb-2">予約まで24時間を切っています</p>
+            <p class="text-sm text-gray-600 mb-4">${actionType}をご希望の場合は、お手数ですが店舗へ直接お電話でご連絡ください。</p>
+
+            <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                <p class="font-semibold text-gray-900">${reservation.store?.name || '店舗'}</p>
+                <a href="tel:${reservation.store?.phone}" class="text-blue-600 text-xl font-bold hover:underline">
+                    📞 ${reservation.store?.phone || '電話番号'}
+                </a>
+            </div>
+
+            <button onclick="closeCancelModal()" class="w-full px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">
+                閉じる
+            </button>
+        </div>
+    `;
+    document.getElementById('cancelModal').classList.remove('hidden');
+}
+
 function cancelReservation(reservationId) {
     currentReservationId = reservationId;
     currentReservation = allReservations.find(r => r.id === reservationId);
-    
+
     if (!currentReservation) {
         alert('予約情報が見つかりません');
         return;
     }
-    
+
     // 24時間前チェック
-    const dateStr = currentReservation.reservation_date.split('T')[0];
-    const [year, month, day] = dateStr.split('-').map(Number);
+    const datePart = currentReservation.reservation_date.split(' ')[0];
+    const [year, month, day] = datePart.split('-').map(Number);
     const [hours, minutes] = currentReservation.start_time.split(':').map(Number);
     const reservationDateTime = new Date(year, month - 1, day, hours, minutes);
     const now = new Date();
@@ -963,30 +1056,7 @@ function cancelReservation(reservationId) {
     
     if (hoursDiff <= 24) {
         // 24時間以内の場合は電話案内モーダルを表示
-        const modalContent = document.getElementById('cancelModalContent');
-        modalContent.innerHTML = `
-            <div class="text-center">
-                <div class="mb-4">
-                    <svg class="w-16 h-16 text-yellow-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                </div>
-                <p class="text-lg font-semibold mb-2">予約まで24時間を切っています</p>
-                <p class="text-sm text-gray-600 mb-4">キャンセルをご希望の場合は、お手数ですが店舗へ直接お電話でご連絡ください。</p>
-                
-                <div class="bg-gray-50 p-4 rounded-lg mb-4">
-                    <p class="font-semibold text-gray-900">${currentReservation.store?.name || '店舗'}</p>
-                    <a href="tel:${currentReservation.store?.phone}" class="text-blue-600 text-xl font-bold hover:underline">
-                        📞 ${currentReservation.store?.phone || '電話番号'}
-                    </a>
-                </div>
-                
-                <button onclick="closeCancelModal()" class="w-full px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">
-                    閉じる
-                </button>
-            </div>
-        `;
-        document.getElementById('cancelModal').classList.remove('hidden');
+        showPhoneContactModal(currentReservation, 'キャンセル');
         return;
     }
     

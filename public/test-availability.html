@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>空き状況テスト</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .result { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .available { background-color: #d4edda; }
+        .unavailable { background-color: #f8d7da; }
+        button { padding: 10px 20px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>サブスク予約 空き状況チェック</h1>
+
+    <div>
+        <h3>テスト設定</h3>
+        <label>店舗ID: <input type="number" id="storeId" value="1"></label><br>
+        <label>メニューID: <input type="number" id="menuId" value="1"></label><br>
+        <label>日付: <input type="date" id="date" value="2025-09-20"></label><br>
+        <label>時間: <input type="time" id="time" value="10:00"></label><br>
+        <button onclick="checkAvailability()">空き状況をチェック</button>
+    </div>
+
+    <div>
+        <h3>複数時間枠テスト</h3>
+        <button onclick="checkMultipleSlots()">10:00-18:00の全時間枠をテスト</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        async function checkAvailability() {
+            const storeId = document.getElementById('storeId').value;
+            const menuId = document.getElementById('menuId').value;
+            const date = document.getElementById('date').value;
+            const time = document.getElementById('time').value;
+
+            try {
+                const response = await fetch('/api/check-availability', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        store_id: parseInt(storeId),
+                        menu_id: parseInt(menuId),
+                        date: date,
+                        time: time
+                    })
+                });
+
+                const data = await response.json();
+
+                const resultDiv = document.createElement('div');
+                resultDiv.className = `result ${data.available ? 'available' : 'unavailable'}`;
+                resultDiv.innerHTML = `
+                    <strong>${date} ${time}</strong><br>
+                    利用可能: ${data.available ? 'はい' : 'いいえ'}<br>
+                    理由: ${data.reason || 'なし'}<br>
+                    容量: ${data.capacity}<br>
+                    現在の予約数: ${data.current_bookings}
+                `;
+
+                document.getElementById('results').appendChild(resultDiv);
+
+            } catch (error) {
+                console.error('Error:', error);
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'result unavailable';
+                resultDiv.innerHTML = `<strong>エラー:</strong> ${error.message}`;
+                document.getElementById('results').appendChild(resultDiv);
+            }
+        }
+
+        async function checkMultipleSlots() {
+            const storeId = document.getElementById('storeId').value;
+            const menuId = document.getElementById('menuId').value;
+            const date = document.getElementById('date').value;
+
+            document.getElementById('results').innerHTML = '';
+
+            const times = [];
+            for (let hour = 10; hour <= 18; hour++) {
+                times.push(`${hour.toString().padStart(2, '0')}:00`);
+                if (hour < 18) {
+                    times.push(`${hour.toString().padStart(2, '0')}:30`);
+                }
+            }
+
+            for (const time of times) {
+                document.getElementById('time').value = time;
+                await checkAvailability();
+                await new Promise(resolve => setTimeout(resolve, 100)); // 100msの待機
+            }
+        }
+    </script>
+</body>
+</html>

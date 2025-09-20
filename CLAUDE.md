@@ -12,11 +12,20 @@
 - 現在の構成を見直し必要
 - 詳細は後日確定
 
+### J-Payment決済連携（2025-09-19）
+- **決済用Webhook URL**: `/api/webhook/jpayment/payment`
+- **サブスク用Webhook URL**: `/api/webhook/jpayment/subscription`
+- 株式会社ロボットペイメントとの連携
+- 実装時は上記URLでWebhook受信エンドポイントを作成すること
+
+### オープン前のTODO
+- **権限エラー時のUX改善**（本番環境のみ）
+  - 403/404/500エラー時にトースト通知＋トップへリダイレクト
+  - 開発環境では詳細エラー表示を維持（デバッグ優先）
+
 ---
 
-## 🎉 CI/CD稼働完了！（2025-08-26）
-
-### 本番環境情報
+## 本番環境情報
 - **URL**: https://reservation.meno-training.com/
 - **管理画面**: https://reservation.meno-training.com/admin/login
 - **SSL証明書**: Let's Encrypt（自動更新設定済み）
@@ -25,28 +34,6 @@
   - パスワード: `password`
   - メール2: `naoki@yumeno-marketing.jp`
   - パスワード2: `Takahashi5000`
-
-### デプロイ方法
-```bash
-# ローカルで開発・修正後
-git add -A && git commit -m "feat: 新機能追加"
-git push
-
-# GitHub Actionsが自動でデプロイ（または手動実行）
-gh workflow run deploy-simple.yml
-```
-
-### 使用するワークフロー
-- **`deploy-simple.yml`のみ使用すること**
-- 他のワークフローは使わない（アーカイブ済み）
-
-### EC2情報（絶対に削除・変更しないこと）
-- **インスタンス名**: xsyumeno-ssh-enabled
-- **インスタンスID**: i-061a146fcb1cc54ae
-- **IP**: 54.64.54.226
-- **SSHキー**: ~/.ssh/xsyumeno-20250826-095948.pem
-- **PHP**: 8.3
-- **DB**: SQLite
 
 ## 🚨 AWS操作時の厳守事項
 

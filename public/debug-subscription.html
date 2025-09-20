@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>サブスク予約デバッグ</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #444; background: #2d2d30; }
+        h2 { color: #4ec9b0; }
+        .success { color: #6a9955; }
+        .error { color: #f48771; }
+        .warning { color: #dcdcaa; }
+        .info { color: #9cdcfe; }
+        button { padding: 10px; margin: 5px; background: #007acc; color: white; border: none; cursor: pointer; }
+        button:hover { background: #005a9e; }
+        pre { background: #1e1e1e; padding: 10px; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #444; padding: 8px; text-align: left; }
+        th { background: #007acc; color: white; }
+    </style>
+</head>
+<body>
+    <h1 style="color: #4ec9b0;">🔍 サブスク予約 完全デバッグツール</h1>
+
+    <div class="section">
+        <h2>1. 環境チェック</h2>
+        <button onclick="checkEnvironment()">環境を確認</button>
+        <pre id="env-result"></pre>
+    </div>
+
+    <div class="section">
+        <h2>2. 顧客データ確認</h2>
+        <button onclick="checkCustomerData()">顧客データを確認</button>
+        <pre id="customer-result"></pre>
+    </div>
+
+    <div class="section">
+        <h2>3. API直接テスト（複数パターン）</h2>
+        <button onclick="testAPIPatterns()">APIテストを実行</button>
+        <pre id="api-result"></pre>
+    </div>
+
+    <div class="section">
+        <h2>4. サブスク予約ページの動作確認</h2>
+        <button onclick="simulateSubscriptionPage()">ページ動作をシミュレート</button>
+        <pre id="simulation-result"></pre>
+    </div>
+
+    <div class="section">
+        <h2>5. ネットワーク監視</h2>
+        <button onclick="startNetworkMonitor()">ネットワーク監視開始</button>
+        <button onclick="window.open('/reservation/subscription-booking', '_blank')">サブスク予約ページを開く（別タブ）</button>
+        <pre id="network-result"></pre>
+    </div>
+
+    <script>
+        const log = (target, message, type = 'info') => {
+            const colors = {
+                success: '#6a9955',
+                error: '#f48771',
+                warning: '#dcdcaa',
+                info: '#9cdcfe'
+            };
+            const timestamp = new Date().toLocaleTimeString('ja-JP', { hour12: false, milliseconds: true });
+            const element = document.getElementById(target);
+            element.innerHTML += `<span style="color: ${colors[type]}">[${timestamp}] ${message}</span>\n`;
+        };
+
+        async function checkEnvironment() {
+            const result = document.getElementById('env-result');
+            result.innerHTML = '';
+
+            log('env-result', '=== 環境チェック開始 ===', 'info');
+
+            // localStorage チェック
+            const customerData = localStorage.getItem('customer_data');
+            const customerToken = localStorage.getItem('customer_token');
+
+            log('env-result', `localStorage.customer_data: ${customerData ? 'あり' : 'なし'}`, customerData ? 'success' : 'error');
+            if (customerData) {
+                try {
+                    const parsed = JSON.parse(customerData);
+                    log('env-result', `  -> ID: ${parsed.id}, 名前: ${parsed.last_name} ${parsed.first_name}, 電話: ${parsed.phone}`, 'info');
+                } catch (e) {
+                    log('env-result', `  -> パースエラー: ${e.message}`, 'error');
+                }
+            }
+
+            log('env-result', `localStorage.customer_token: ${customerToken ? 'あり' : 'なし'}`, customerToken ? 'success' : 'error');
+
+            // sessionStorage チェック
+            log('env-result', '\n=== sessionStorage チェック ===', 'info');
+            const sessionKeys = [
+                'existing_customer_id',
+                'subscription_store_id',
+                'subscription_menu_id',
+                'subscription_store_name',
+                'subscription_menu_name'
+            ];
+
+            sessionKeys.forEach(key => {
+                const value = sessionStorage.getItem(key);
+                log('env-result', `${key}: ${value || 'なし'}`, value ? 'success' : 'warning');
+            });
+
+            // Cookie チェック
+            log('env-result', '\n=== Cookie チェック ===', 'info');
+            log('env-result', `Cookies: ${document.cookie || 'なし'}`, 'info');
+        }
+
+        async function checkCustomerData() {
+            const result = document.getElementById('customer-result');
+            result.innerHTML = '';
+
+            log('customer-result', '=== 顧客データ詳細確認 ===', 'info');
+
+            // localStorage から取得
+            const customerDataStr = localStorage.getItem('customer_data');
+            if (!customerDataStr) {
+                log('customer-result', 'customer_data が localStorage にありません', 'error');
+                return;
+            }
+
+            try {
+                const customerData = JSON.parse(customerDataStr);
+                log('customer-result', 'customer_data パース成功:', 'success');
+                log('customer-result', JSON.stringify(customerData, null, 2), 'info');
+
+                // セッションストレージの customer_id と比較
+                const sessionCustomerId = sessionStorage.getItem('existing_customer_id');
+                log('customer-result', `\nlocalStorage の ID: ${customerData.id}`, 'info');
+                log('customer-result', `sessionStorage の ID: ${sessionCustomerId}`, 'info');
+
+                if (customerData.id != sessionCustomerId) {
+                    log('customer-result', '⚠️ ID が一致しません！', 'error');
+                } else {
+                    log('customer-result', '✅ ID が一致しています', 'success');
+                }
+
+            } catch (e) {
+                log('customer-result', `パースエラー: ${e.message}`, 'error');
+            }
+        }
+
+        async function testAPIPatterns() {
+            const result = document.getElementById('api-result');
+            result.innerHTML = '';
+
+            log('api-result', '=== API テストパターン実行 ===', 'info');
+
+            // テストパターン
+            const patterns = [
+                { customer_id: null, label: 'customer_id なし' },
+                { customer_id: 48, label: 'customer_id: 48 (間違ったID)' },
+                { customer_id: 2, label: 'customer_id: 2 (正しいID)' },
+                { customer_id: '2', label: 'customer_id: "2" (文字列)' },
+            ];
+
+            const testDate = '2025-09-25';
+
+            for (const pattern of patterns) {
+                log('api-result', `\n--- ${pattern.label} ---`, 'warning');
+
+                const payload = {
+                    store_id: 1,
+                    menu_id: 1,
+                    date: testDate,
+                    time: '10:00'
+                };
+
+                if (pattern.customer_id !== null) {
+                    payload.customer_id = pattern.customer_id;
+                }
+
+                try {
+                    const response = await fetch('/api/check-availability', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const data = await response.json();
+                    log('api-result', `Request: ${JSON.stringify(payload)}`, 'info');
+                    log('api-result', `Response: ${JSON.stringify(data)}`, data.available ? 'success' : 'error');
+
+                } catch (e) {
+                    log('api-result', `エラー: ${e.message}`, 'error');
+                }
+            }
+        }
+
+        async function simulateSubscriptionPage() {
+            const result = document.getElementById('simulation-result');
+            result.innerHTML = '';
+
+            log('simulation-result', '=== サブスク予約ページ動作シミュレーション ===', 'info');
+
+            // ページと同じロジックを実行
+            const customerData = JSON.parse(localStorage.getItem('customer_data') || '{}');
+            let customerId = sessionStorage.getItem('existing_customer_id');
+
+            log('simulation-result', `1. customerData から取得:`, 'info');
+            log('simulation-result', `   ${JSON.stringify(customerData)}`, 'info');
+
+            log('simulation-result', `2. sessionStorage から existing_customer_id 取得: "${customerId}"`, 'info');
+
+            // ページのロジックを再現
+            if (customerId && customerId !== 'null' && customerId !== 'undefined') {
+                customerId = parseInt(customerId, 10) || customerId;
+                log('simulation-result', `3. parseInt 後の customerId: ${customerId} (型: ${typeof customerId})`, 'warning');
+            } else {
+                if (customerData && customerData.id) {
+                    customerId = customerData.id;
+                    log('simulation-result', `3. customerData.id から設定: ${customerId}`, 'warning');
+                }
+            }
+
+            const storeId = sessionStorage.getItem('subscription_store_id');
+            const menuId = sessionStorage.getItem('subscription_menu_id');
+
+            log('simulation-result', `\n4. 最終的な値:`, 'info');
+            log('simulation-result', `   storeId: ${storeId} (型: ${typeof storeId})`, 'info');
+            log('simulation-result', `   menuId: ${menuId} (型: ${typeof menuId})`, 'info');
+            log('simulation-result', `   customerId: ${customerId} (型: ${typeof customerId})`, 'info');
+
+            // テスト API 呼び出し
+            log('simulation-result', `\n5. この値でAPIをテスト (2025-09-25 10:00):`, 'info');
+
+            const payload = {
+                store_id: storeId,
+                menu_id: menuId,
+                customer_id: customerId,
+                date: '2025-09-25',
+                time: '10:00'
+            };
+
+            try {
+                const response = await fetch('/api/check-availability', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                log('simulation-result', `Request: ${JSON.stringify(payload)}`, 'info');
+                log('simulation-result', `Response: ${JSON.stringify(data, null, 2)}`, data.available ? 'success' : 'error');
+
+            } catch (e) {
+                log('simulation-result', `エラー: ${e.message}`, 'error');
+            }
+        }
+
+        // ネットワークモニター
+        let originalFetch = window.fetch;
+        let networkLog = [];
+
+        function startNetworkMonitor() {
+            log('network-result', '=== ネットワーク監視開始 ===', 'success');
+            log('network-result', '別タブでサブスク予約ページを開いてください', 'warning');
+
+            // fetch をインターセプト
+            window.fetch = function(...args) {
+                const [url, options] = args;
+
+                if (url.includes('check-availability')) {
+                    const requestData = {
+                        url: url,
+                        method: options?.method || 'GET',
+                        body: options?.body ? JSON.parse(options.body) : null,
+                        timestamp: new Date().toISOString()
+                    };
+
+                    log('network-result', `\n📤 Request to ${url}:`, 'warning');
+                    log('network-result', JSON.stringify(requestData.body, null, 2), 'info');
+
+                    return originalFetch.apply(this, args)
+                        .then(response => {
+                            const clonedResponse = response.clone();
+                            clonedResponse.json().then(data => {
+                                log('network-result', `📥 Response:`, 'warning');
+                                log('network-result', JSON.stringify(data, null, 2), response.ok ? 'success' : 'error');
+                            });
+                            return response;
+                        });
+                }
+
+                return originalFetch.apply(this, args);
+            };
+        }
+
+        // ページ読み込み時に自動実行
+        window.addEventListener('load', () => {
+            checkEnvironment();
+            // ネットワーク監視を自動開始
+            startNetworkMonitor();
+        });
+    </script>
+</body>
+</html>

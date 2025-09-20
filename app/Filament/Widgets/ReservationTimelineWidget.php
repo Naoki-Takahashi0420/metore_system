@@ -32,6 +32,7 @@ class ReservationTimelineWidget extends Widget
     public $searchResults = [];
     public $selectedCustomer = null;
     public $menuSearch = '';  // メニュー検索用
+    public $showAllMenus = false;  // 全メニュー表示フラグ
     public $newCustomer = [
         'last_name' => '',
         'first_name' => '',
@@ -939,8 +940,9 @@ class ReservationTimelineWidget extends Widget
             $this->newReservation['duration'] = $menu->duration_minutes;
         }
 
-        // 検索フィールドをクリア
+        // 検索フィールドをクリア & ドロップダウンを閉じる
         $this->menuSearch = '';
+        $this->showAllMenus = false;
     }
 
 }

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Raw Calendar Test</title>
+    <style>
+        table { border-collapse: collapse; width: 100%; }
+        td, th { border: 1px solid #ccc; padding: 8px; text-align: center; }
+        .available { background-color: green; color: white; }
+        .unavailable { background-color: red; color: white; }
+    </style>
+</head>
+<body>
+    <h1>カレンダー空き状況テスト</h1>
+    <p>JavaScriptなし、シンプルな表示</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>時間</th>
+                <th>26 (木)</th>
+                <th>27 (金)</th>
+                <th>28 (土)</th>
+                <th>29 (日)</th>
+                <th>30 (月)</th>
+                <th>1 (火)</th>
+                <th>2 (水)</th>
+            </tr>
+        </thead>
+        <tbody id="calendar-body">
+        </tbody>
+    </table>
+
+    <script>
+        // APIから実際の空き状況を取得してテーブルに表示
+        async function loadAvailability() {
+            const times = ['10:00', '10:30', '11:00', '11:30', '12:00'];
+            const dates = [
+                '2025-09-26', '2025-09-27', '2025-09-28',
+                '2025-09-29', '2025-09-30', '2025-10-01', '2025-10-02'
+            ];
+
+            const tbody = document.getElementById('calendar-body');
+
+            for (const time of times) {
+                const row = document.createElement('tr');
+
+                // 時間列
+                const timeCell = document.createElement('td');
+                timeCell.textContent = time;
+                row.appendChild(timeCell);
+
+                // 各日付の空き状況をAPIで確認
+                for (const date of dates) {
+                    const cell = document.createElement('td');
+
+                    try {
+                        const response = await fetch('/api/check-availability', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                store_id: 1,
+                                menu_id: 1,
+                                date: date,
+                                time: time
+                            })
+                        });
+
+                        const data = await response.json();
+
+                        if (data.available) {
+                            cell.className = 'available';
+                            cell.textContent = '○';
+                        } else {
+                            cell.className = 'unavailable';
+                            cell.textContent = '×';
+                        }
+
+                        cell.title = `${date} ${time}: ${data.available ? '利用可能' : '利用不可'} (${data.reason || ''})`;
+
+                    } catch (error) {
+                        cell.className = 'unavailable';
+                        cell.textContent = 'エラー';
+                        cell.title = error.message;
+                    }
+
+                    row.appendChild(cell);
+                }
+
+                tbody.appendChild(row);
+            }
+        }
+
+        // ページ読み込み時に実行
+        loadAvailability();
+    </script>
+</body>
+</html>

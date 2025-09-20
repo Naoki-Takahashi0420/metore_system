@@ -13,10 +13,16 @@ use Illuminate\Support\Facades\Auth;
 class ShiftManagementLinkWidget extends Widget
 {
     protected static string $view = 'filament.widgets.shift-management-link';
-    
+
     protected int | string | array $columnSpan = 'full';
-    
+
     protected static ?int $sort = 40;
+
+    public static function canView(): bool
+    {
+        $user = auth()->user();
+        return $user && !$user->hasRole('staff');
+    }
     
     public $selectedStore = null;
     public $stores = [];

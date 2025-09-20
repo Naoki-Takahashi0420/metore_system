@@ -45,14 +45,28 @@ class CreateReservation extends CreateRecord
     public function mount(): void
     {
         parent::mount();
-        
+
+        $defaultValues = [];
+
+        // カルテから来た場合（customer_idとstore_idがURLパラメータにある）
+        if (request()->has('customer_id')) {
+            $defaultValues['customer_id'] = request()->get('customer_id');
+        }
+
+        if (request()->has('store_id')) {
+            $defaultValues['store_id'] = request()->get('store_id');
+        }
+
         // 電話予約の場合のデフォルト値設定
         if (request()->get('source') === 'phone') {
-            $this->form->fill([
-                'source' => 'phone',
-                'status' => 'booked',
-                'reservation_date' => now()->addDay()->format('Y-m-d'),
-            ]);
+            $defaultValues['source'] = 'phone';
+            $defaultValues['status'] = 'booked';
+            $defaultValues['reservation_date'] = now()->addDay()->format('Y-m-d');
+        }
+
+        // デフォルト値が設定されている場合はフォームに反映
+        if (!empty($defaultValues)) {
+            $this->form->fill($defaultValues);
         }
     }
 }

@@ -12,7 +12,8 @@ trait HasShiftPermissions
      */
     public function canAccessShiftManagement(): bool
     {
-        return in_array($this->role, ['superadmin', 'admin', 'manager', 'staff']);
+        // staffはアクセス不可
+        return in_array($this->role, ['superadmin', 'admin', 'manager']);
     }
     
     /**

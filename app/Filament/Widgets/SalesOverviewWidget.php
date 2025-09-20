@@ -11,8 +11,14 @@ use Carbon\Carbon;
 class SalesOverviewWidget extends BaseWidget
 {
     protected static ?int $sort = 1;
-    
+
     protected static ?string $pollingInterval = '30s';
+
+    public static function canView(): bool
+    {
+        $user = auth()->user();
+        return $user && !$user->hasRole('staff');
+    }
 
     protected function getStats(): array
     {

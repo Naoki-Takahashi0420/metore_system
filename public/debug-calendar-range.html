@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>カレンダー日付範囲デバッグ</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; cursor: pointer; }
+        .result { margin-top: 10px; padding: 10px; background: #f5f5f5; font-family: monospace; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background: #007bff; color: white; }
+    </style>
+</head>
+<body>
+    <h1>📅 カレンダー日付範囲デバッグ</h1>
+
+    <div class="section">
+        <h2>現在の状況</h2>
+        <p>今日: <span id="today"></span></p>
+        <p>問題: 9月25-26日が×、10月1日だけ○</p>
+    </div>
+
+    <div class="section">
+        <h2>異なる週オフセットでテスト</h2>
+        <button onclick="testWeek(0)">Week 0 (今週)</button>
+        <button onclick="testWeek(1)">Week 1 (来週)</button>
+        <button onclick="testWeek(-1)">Week -1 (先週)</button>
+        <div id="week-results" class="result"></div>
+    </div>
+
+    <div class="section">
+        <h2>URLパラメータ確認</h2>
+        <button onclick="checkCurrentURL()">現在のURL確認</button>
+        <div id="url-results" class="result"></div>
+    </div>
+
+    <div class="section">
+        <h2>日付計算シミュレーション</h2>
+        <button onclick="simulateDateCalculation()">日付計算をシミュレート</button>
+        <div id="simulation-results" class="result"></div>
+    </div>
+
+    <script>
+        document.getElementById('today').textContent = new Date().toLocaleDateString('ja-JP');
+
+        async function testWeek(weekOffset) {
+            const resultDiv = document.getElementById('week-results');
+            resultDiv.innerHTML += `\n=== Week ${weekOffset} のテスト ===\n`;
+
+            const url = `/reservation/calendar?type=subscription&week=${weekOffset}`;
+
+            try {
+                const response = await fetch(url);
+                const html = await response.text();
+
+                // HTMLから日付情報を抽出
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+
+                // カレンダーヘッダーの日付を取得
+                const dateHeaders = doc.querySelectorAll('th');
+                const dates = [];
+                dateHeaders.forEach(header => {
+                    const text = header.textContent.trim();
+                    if (text.match(/^\d+$/)) {  // 数字のみ（日付）
+                        dates.push(text);
+                    }
+                });
+
+                resultDiv.innerHTML += `URL: ${url}\n`;
+                resultDiv.innerHTML += `表示される日付: [${dates.join(', ')}]\n`;
+
+                // 9月25日と10月1日の状態を確認
+                const sept25Elements = doc.querySelectorAll('[data-date*="2025-09-25"]');
+                const oct1Elements = doc.querySelectorAll('[data-date*="2025-10-01"]');
+
+                resultDiv.innerHTML += `9月25日の要素数: ${sept25Elements.length}\n`;
+                resultDiv.innerHTML += `10月1日の要素数: ${oct1Elements.length}\n`;
+
+            } catch (error) {
+                resultDiv.innerHTML += `エラー: ${error.message}\n`;
+            }
+
+            resultDiv.innerHTML += '\n';
+        }
+
+        function checkCurrentURL() {
+            const resultDiv = document.getElementById('url-results');
+            const currentURL = window.location.href;
+            const urlParams = new URLSearchParams(window.location.search);
+
+            resultDiv.innerHTML = `現在のURL: ${currentURL}\n\n`;
+            resultDiv.innerHTML += 'URLパラメータ:\n';
+
+            if (urlParams.size === 0) {
+                resultDiv.innerHTML += '(パラメータなし)\n';
+            } else {
+                for (const [key, value] of urlParams) {
+                    resultDiv.innerHTML += `${key}: ${value}\n`;
+                }
+            }
+        }
+
+        function simulateDateCalculation() {
+            const resultDiv = document.getElementById('simulation-results');
+            const today = new Date();
+
+            resultDiv.innerHTML = '=== PHPの Carbon::today()->addWeeks($weekOffset) をシミュレート ===\n\n';
+
+            for (let weekOffset = 0; weekOffset <= 2; weekOffset++) {
+                const startDate = new Date(today);
+                startDate.setDate(today.getDate() + (weekOffset * 7));
+
+                resultDiv.innerHTML += `Week ${weekOffset}:\n`;
+                resultDiv.innerHTML += `  開始日: ${startDate.toLocaleDateString('ja-JP')}\n`;
+
+                const weekDates = [];
+                for (let i = 0; i < 7; i++) {
+                    const date = new Date(startDate);
+                    date.setDate(startDate.getDate() + i);
+                    weekDates.push(date.toLocaleDateString('ja-JP'));
+                }
+
+                resultDiv.innerHTML += `  7日間: [${weekDates.join(', ')}]\n\n`;
+            }
+        }
+
+        // ページ読み込み時に実行
+        window.addEventListener('load', () => {
+            checkCurrentURL();
+            simulateDateCalculation();
+        });
+    </script>
+</body>
+</html>

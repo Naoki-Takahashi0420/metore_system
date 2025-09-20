@@ -11,8 +11,14 @@ class SalesChartWidget extends ChartWidget
     protected static ?string $heading = '売上推移';
     protected static ?int $sort = 3;
     protected int | string | array $columnSpan = 'full';
-    
+
     public ?string $filter = 'week';
+
+    public static function canView(): bool
+    {
+        $user = auth()->user();
+        return $user && !$user->hasRole('staff');
+    }
     
     protected function getData(): array
     {

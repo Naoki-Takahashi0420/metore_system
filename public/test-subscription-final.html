@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>サブスク予約最終テスト</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin: 10px 0; padding: 10px; background: #f5f5f5; border-radius: 3px; }
+        .available { color: green; font-weight: bold; }
+        .unavailable { color: red; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background-color: #f2f2f2; }
+        .status-available { background-color: #d4edda; }
+        .status-unavailable { background-color: #f8d7da; }
+    </style>
+</head>
+<body>
+    <h1>サブスク予約 最終動作確認テスト</h1>
+
+    <div class="section">
+        <h3>テスト設定</h3>
+        <p>顧客: 高橋 直希 (ID: 2, 電話: 08033372305)</p>
+        <p>既存予約: 2025-09-17, 2025-09-19 (2回)</p>
+        <p>5日間制限により、2025-09-25以降が予約可能</p>
+    </div>
+
+    <div class="section">
+        <h3>1. セッション設定</h3>
+        <button onclick="setupSession()">正しいセッションデータを設定</button>
+        <div id="session-result" class="result"></div>
+    </div>
+
+    <div class="section">
+        <h3>2. API直接テスト</h3>
+        <button onclick="testAPI()">空き状況をAPIで確認</button>
+        <div id="api-results" class="result"></div>
+    </div>
+
+    <div class="section">
+        <h3>3. サブスク予約画面へ移動</h3>
+        <button onclick="goToSubscriptionBooking()">サブスク予約画面を開く</button>
+        <p style="color: gray;">※ 画面で Sept 25以降が○になることを確認</p>
+    </div>
+
+    <script>
+        function setupSession() {
+            // 正しい顧客データを設定
+            const customerData = {
+                id: 2,  // 正しいID
+                last_name: "高橋",
+                first_name: "直希",
+                phone: "08033372305",
+                email: "test@example.com"
+            };
+
+            localStorage.setItem('customer_data', JSON.stringify(customerData));
+            localStorage.setItem('customer_token', 'test-token');
+
+            // サブスク予約用のセッション設定
+            sessionStorage.setItem('existing_customer_id', '2');  // 正しいID
+            sessionStorage.setItem('subscription_store_id', '1');
+            sessionStorage.setItem('subscription_menu_id', '1');
+            sessionStorage.setItem('subscription_store_name', '銀座本店');
+            sessionStorage.setItem('subscription_menu_name', 'スタンダードコース');
+
+            document.getElementById('session-result').innerHTML =
+                '✅ セッションデータ設定完了<br>' +
+                'Customer ID: 2<br>' +
+                'Phone: 08033372305';
+        }
+
+        async function testAPI() {
+            const resultsDiv = document.getElementById('api-results');
+            resultsDiv.innerHTML = '<p>テスト中...</p>';
+
+            const dates = [
+                { date: '2025-09-21', expected: '×', reason: '9/19から2日後' },
+                { date: '2025-09-22', expected: '×', reason: '9/19から3日後' },
+                { date: '2025-09-23', expected: '×', reason: '9/19から4日後' },
+                { date: '2025-09-24', expected: '×', reason: '9/19から5日後' },
+                { date: '2025-09-25', expected: '○', reason: '9/19から6日後' },
+                { date: '2025-09-26', expected: '○', reason: '9/19から7日後' },
+                { date: '2025-09-27', expected: '○', reason: '9/19から8日後' },
+                { date: '2025-09-28', expected: '○', reason: '9/19から9日後' },
+                { date: '2025-09-29', expected: '○', reason: '9/19から10日後' },
+                { date: '2025-09-30', expected: '○', reason: '9/19から11日後' },
+                { date: '2025-10-01', expected: '○', reason: '9/19から12日後' }
+            ];
+
+            let html = '<table>';
+            html += '<tr><th>日付</th><th>期待値</th><th>実際</th><th>理由</th><th>結果</th></tr>';
+
+            for (const test of dates) {
+                try {
+                    const response = await fetch('/api/check-availability', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            store_id: 1,
+                            menu_id: 1,
+                            customer_id: 2,  // 正しいID
+                            date: test.date,
+                            time: '10:00'
+                        })
+                    });
+
+                    const data = await response.json();
+                    const actual = data.available ? '○' : '×';
+                    const isCorrect = actual === test.expected;
+
+                    html += `<tr class="${isCorrect ? 'status-available' : 'status-unavailable'}">`;
+                    html += `<td>${test.date}</td>`;
+                    html += `<td>${test.expected}</td>`;
+                    html += `<td><strong>${actual}</strong></td>`;
+                    html += `<td>${test.reason}</td>`;
+                    html += `<td>${isCorrect ? '✅ OK' : '❌ NG'}</td>`;
+                    html += '</tr>';
+
+                } catch (error) {
+                    html += `<tr class="status-unavailable">`;
+                    html += `<td>${test.date}</td>`;
+                    html += `<td>${test.expected}</td>`;
+                    html += `<td>エラー</td>`;
+                    html += `<td colspan="2">${error.message}</td>`;
+                    html += '</tr>';
+                }
+            }
+
+            html += '</table>';
+            resultsDiv.innerHTML = html;
+        }
+
+        function goToSubscriptionBooking() {
+            window.location.href = '/reservation/subscription-booking';
+        }
+
+        // ページ読み込み時に自動実行
+        window.addEventListener('load', () => {
+            setupSession();
+            setTimeout(testAPI, 500);
+        });
+    </script>
+</body>
+</html>

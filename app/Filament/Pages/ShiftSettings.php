@@ -32,8 +32,8 @@ class ShiftSettings extends Page implements HasForms
     public static function canAccess(): bool
     {
         $user = Auth::user();
-        // スタッフも含めて全ロールがアクセス可能
-        return $user->hasRole(['super_admin', 'owner', 'manager', 'staff']);
+        // スタッフはアクセス不可
+        return $user->hasRole(['super_admin', 'owner', 'manager']);
     }
     
     public function mount(): void

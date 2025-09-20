@@ -616,6 +616,31 @@ class MedicalRecordResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\Action::make('create_reservation')
+                    ->label('予約作成')
+                    ->icon('heroicon-o-calendar-days')
+                    ->color('success')
+                    ->url(function ($record) {
+                        // 顧客の直近の予約を取得
+                        $lastReservation = \App\Models\Reservation::where('customer_id', $record->customer_id)
+                            ->whereNotNull('store_id')
+                            ->orderBy('reservation_date', 'desc')
+                            ->orderBy('created_at', 'desc')
+                            ->first();
+
+                        // 直近利用店舗がある場合はそれを使用、なければ予約作成画面へ
+                        if ($lastReservation && $lastReservation->store_id) {
+                            return route('filament.admin.resources.reservations.create', [
+                                'customer_id' => $record->customer_id,
+                                'store_id' => $lastReservation->store_id
+                            ]);
+                        }
+
+                        return route('filament.admin.resources.reservations.create', [
+                            'customer_id' => $record->customer_id
+                        ]);
+                    })
+                    ->openUrlInNewTab(),
                 Tables\Actions\Action::make('print')
                     ->label('印刷')
                     ->icon('heroicon-o-printer')

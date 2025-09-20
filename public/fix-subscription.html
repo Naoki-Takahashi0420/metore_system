@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>サブスク予約修正</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .card { background: white; border-radius: 8px; padding: 20px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1 { color: #333; border-bottom: 3px solid #007bff; padding-bottom: 10px; }
+        h2 { color: #555; margin-top: 0; }
+        button { padding: 12px 24px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #0056b3; }
+        button.success { background: #28a745; }
+        button.success:hover { background: #218838; }
+        button.danger { background: #dc3545; }
+        button.danger:hover { background: #c82333; }
+        .result { margin-top: 15px; padding: 15px; background: #f8f9fa; border-left: 4px solid #007bff; font-family: monospace; }
+        .available { color: green; font-weight: bold; font-size: 18px; }
+        .unavailable { color: red; font-weight: bold; font-size: 18px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #dee2e6; padding: 10px; text-align: center; }
+        th { background: #007bff; color: white; }
+        .status-ok { background: #d4edda; }
+        .status-ng { background: #f8d7da; }
+        .code { background: #f4f4f4; padding: 10px; border-radius: 4px; margin: 10px 0; overflow-x: auto; }
+        pre { margin: 0; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 サブスク予約問題の修正</h1>
+
+        <div class="card">
+            <h2>問題の概要</h2>
+            <p>顧客（高橋 直希, ID: 2）のサブスク予約で、9月25日以降が予約可能であるべきなのに、すべて×と表示される。</p>
+            <ul>
+                <li>既存予約: 2025-09-17, 2025-09-19</li>
+                <li>5日間制限により、2025-09-25以降が予約可能</li>
+                <li>APIは正しく動作（customer_id=2を送信すれば正しい結果を返す）</li>
+                <li>問題: フロントエンドが正しいcustomer_idを送信していない可能性</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h2>ステップ1: 正しいデータをセットアップ</h2>
+            <button onclick="setupCorrectData()" class="success">正しいデータを設定</button>
+            <button onclick="clearAllData()" class="danger">すべてクリア</button>
+            <div id="setup-result" class="result" style="display:none;"></div>
+        </div>
+
+        <div class="card">
+            <h2>ステップ2: API動作確認</h2>
+            <button onclick="testAPI()">APIをテスト</button>
+            <div id="api-result" class="result" style="display:none;"></div>
+        </div>
+
+        <div class="card">
+            <h2>ステップ3: サブスク予約ページの修正版</h2>
+            <button onclick="openFixedSubscriptionPage()">修正版サブスク予約ページを開く</button>
+            <div class="code">
+                <strong>修正内容:</strong>
+                <pre>1. customer_idを確実に取得して送信
+2. デバッグ情報をコンソールに出力
+3. エラーハンドリングを改善</pre>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>ステップ4: リアルタイム監視</h2>
+            <button onclick="startMonitoring()">監視を開始</button>
+            <div id="monitor-result" class="result" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script>
+        function setupCorrectData() {
+            const correctData = {
+                customer: {
+                    id: 2,
+                    last_name: "高橋",
+                    first_name: "直希",
+                    phone: "08033372305",
+                    email: "naoki@example.com"
+                },
+                session: {
+                    existing_customer_id: "2",
+                    subscription_store_id: "1",
+                    subscription_menu_id: "1",
+                    subscription_store_name: "銀座本店",
+                    subscription_menu_name: "スタンダードコース"
+                }
+            };
+
+            // localStorageに設定
+            localStorage.setItem('customer_data', JSON.stringify(correctData.customer));
+            localStorage.setItem('customer_token', 'test-token');
+
+            // sessionStorageに設定
+            Object.entries(correctData.session).forEach(([key, value]) => {
+                sessionStorage.setItem(key, value);
+            });
+
+            const resultDiv = document.getElementById('setup-result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = `
+                <strong>✅ データ設定完了</strong><br><br>
+                <strong>localStorage:</strong><br>
+                customer_data: ${JSON.stringify(correctData.customer, null, 2)}<br><br>
+                <strong>sessionStorage:</strong><br>
+                ${Object.entries(correctData.session).map(([k, v]) => `${k}: ${v}`).join('<br>')}
+            `;
+        }
+
+        function clearAllData() {
+            localStorage.clear();
+            sessionStorage.clear();
+            document.getElementById('setup-result').style.display = 'block';
+            document.getElementById('setup-result').innerHTML = '✅ すべてのデータをクリアしました';
+        }
+
+        async function testAPI() {
+            const resultDiv = document.getElementById('api-result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = 'テスト中...';
+
+            const tests = [
+                { date: '2025-09-21', expected: false },
+                { date: '2025-09-22', expected: false },
+                { date: '2025-09-23', expected: false },
+                { date: '2025-09-24', expected: false },
+                { date: '2025-09-25', expected: true },
+                { date: '2025-09-26', expected: true },
+                { date: '2025-09-27', expected: true }
+            ];
+
+            let html = '<table>';
+            html += '<tr><th>日付</th><th>期待値</th><th>実際</th><th>結果</th></tr>';
+
+            for (const test of tests) {
+                const response = await fetch('/api/check-availability', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        store_id: 1,
+                        menu_id: 1,
+                        customer_id: 2,
+                        date: test.date,
+                        time: '10:00'
+                    })
+                });
+
+                const data = await response.json();
+                const isCorrect = data.available === test.expected;
+
+                html += `<tr class="${isCorrect ? 'status-ok' : 'status-ng'}">`;
+                html += `<td>${test.date}</td>`;
+                html += `<td>${test.expected ? '○' : '×'}</td>`;
+                html += `<td>${data.available ? '○' : '×'}</td>`;
+                html += `<td>${isCorrect ? '✅' : '❌'}</td>`;
+                html += '</tr>';
+            }
+
+            html += '</table>';
+            resultDiv.innerHTML = html;
+        }
+
+        function openFixedSubscriptionPage() {
+            // 修正版のページを作成
+            const fixedCode = `
+// 修正版: customer_idを確実に取得して送信
+const customerData = JSON.parse(localStorage.getItem('customer_data') || '{}');
+let customerId = sessionStorage.getItem('existing_customer_id');
+
+// 文字列の場合は数値に変換
+if (customerId) {
+    customerId = parseInt(customerId, 10);
+} else if (customerData && customerData.id) {
+    customerId = customerData.id;
+}
+
+console.log('使用するcustomer_id:', customerId);
+
+// API呼び出し時に必ず含める
+const requestBody = {
+    store_id: storeId,
+    menu_id: menuId,
+    customer_id: customerId,  // 必ず含める
+    date: date,
+    time: time
+};
+            `;
+
+            alert('修正版のコードがコンソールに出力されました。\n/reservation/subscription-booking を開いてください。');
+            console.log(fixedCode);
+            window.open('/reservation/subscription-booking', '_blank');
+        }
+
+        async function startMonitoring() {
+            const resultDiv = document.getElementById('monitor-result');
+            resultDiv.style.display = 'block';
+
+            // Fetch APIをインターセプト
+            const originalFetch = window.fetch;
+            window.fetch = function(...args) {
+                const [url, options] = args;
+
+                if (url.includes('check-availability') && options) {
+                    const body = JSON.parse(options.body || '{}');
+                    resultDiv.innerHTML += `
+                        <div style="border-bottom: 1px solid #ccc; padding: 10px 0;">
+                            <strong>📤 API呼び出し検知:</strong><br>
+                            URL: ${url}<br>
+                            customer_id: ${body.customer_id || 'なし'} ${body.customer_id ? '✅' : '❌'}<br>
+                            date: ${body.date}, time: ${body.time}
+                        </div>
+                    `;
+                }
+
+                return originalFetch.apply(this, args).then(response => {
+                    if (url.includes('check-availability')) {
+                        const clone = response.clone();
+                        clone.json().then(data => {
+                            resultDiv.innerHTML += `
+                                <div style="padding: 10px 0;">
+                                    <strong>📥 レスポンス:</strong>
+                                    ${data.available ? '<span class="available">○ 予約可能</span>' : '<span class="unavailable">× 予約不可</span>'}
+                                    ${data.reason ? ` (理由: ${data.reason})` : ''}
+                                </div>
+                            `;
+                        });
+                    }
+                    return response;
+                });
+            };
+
+            resultDiv.innerHTML = '<strong>🔍 監視開始...</strong><br>別タブでサブスク予約ページを開いてください。<br><br>';
+        }
+
+        // ページ読み込み時に自動実行
+        window.addEventListener('load', () => {
+            console.log('=== サブスク予約修正ツール起動 ===');
+            console.log('現在のcustomer_data:', localStorage.getItem('customer_data'));
+            console.log('現在のexisting_customer_id:', sessionStorage.getItem('existing_customer_id'));
+        });
+    </script>
+</body>
+</html>

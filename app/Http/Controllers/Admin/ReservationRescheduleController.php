@@ -112,16 +112,10 @@ class ReservationRescheduleController extends Controller
     public function update(Request $request, Reservation $reservation)
     {
         $validated = $request->validate([
-            'store_id' => 'required|exists:stores,id',
-            'menu_id' => 'required|exists:menus,id',
             'reservation_date' => 'required|date|after_or_equal:today',
             'start_time' => 'required',
             'staff_id' => 'nullable|exists:users,id',
         ], [
-            'store_id.required' => '店舗を選択してください',
-            'store_id.exists' => '選択された店舗が見つかりません',
-            'menu_id.required' => 'メニューを選択してください',
-            'menu_id.exists' => '選択されたメニューが見つかりません',
             'reservation_date.required' => '予約日を選択してください',
             'reservation_date.date' => '正しい日付を入力してください',
             'reservation_date.after_or_equal' => '過去の日付は選択できません',
@@ -134,8 +128,9 @@ class ReservationRescheduleController extends Controller
             abort(401);
         }
 
-        $store = Store::findOrFail($validated['store_id']);
-        $menu = Menu::findOrFail($validated['menu_id']);
+        // 日程変更では店舗とメニューは変更できない
+        $store = $reservation->store;
+        $menu = $reservation->menu;
 
         // アクセス権限チェック
         if ($user->hasRole('staff') && $user->store_id !== $store->id) {
@@ -167,18 +162,12 @@ class ReservationRescheduleController extends Controller
                 return back()->withErrors(['error' => $availability['message']]);
             }
 
-            // 料金を再計算
-            $totalAmount = $menu->price;
-
-            // 予約を更新
+            // 予約を更新（店舗とメニューは変更しない）
             $reservation->update([
-                'store_id' => $validated['store_id'],
-                'menu_id' => $validated['menu_id'],
                 'reservation_date' => $validated['reservation_date'],
                 'start_time' => $validated['start_time'],
                 'end_time' => $endTime->format('H:i:s'),
                 'staff_id' => $validated['staff_id'],
-                'total_amount' => $totalAmount,
                 'updated_at' => now(),
             ]);
 

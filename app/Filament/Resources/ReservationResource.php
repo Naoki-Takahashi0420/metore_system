@@ -176,23 +176,57 @@ class ReservationResource extends Resource
                             }),
                         Forms\Components\Select::make('menu_id')
                             ->label('メニュー')
-                            ->relationship('menu', 'name', function ($query) {
-                                return $query->where('is_available', true)
-                                    ->where('is_visible_to_customer', true);
-                            })
-                            ->getOptionLabelFromRecordUsing(function ($record) {
-                                $label = $record->name;
-                                if ($record->duration_minutes) {
-                                    $label .= ' (' . $record->duration_minutes . '分)';
+                            ->options(function () {
+                                $menus = \App\Models\Menu::where('is_available', true)
+                                    ->where('is_visible_to_customer', true)
+                                    ->with('category')
+                                    ->orderBy('is_subscription', 'desc')
+                                    ->orderBy('sort_order')
+                                    ->orderBy('name')
+                                    ->get();
+
+                                $options = [];
+                                foreach ($menus as $menu) {
+                                    $label = '';
+
+                                    // アイコンを追加
+                                    if ($menu->is_subscription) {
+                                        $label .= '🔄 ';  // サブスクアイコン
+                                    } else {
+                                        $label .= '📍 ';  // 通常メニューアイコン
+                                    }
+
+                                    $label .= $menu->name;
+
+                                    // 時間と料金を見やすく表示
+                                    $details = [];
+                                    if ($menu->duration_minutes) {
+                                        $details[] = $menu->duration_minutes . '分';
+                                    }
+                                    if ($menu->is_subscription) {
+                                        $details[] = 'サブスク';
+                                    } elseif ($menu->price) {
+                                        $details[] = '¥' . number_format($menu->price);
+                                    }
+
+                                    if (!empty($details)) {
+                                        $label .= ' (' . implode(' / ', $details) . ')';
+                                    }
+
+                                    // カテゴリー名をキーに含める（検索用）
+                                    if ($menu->category) {
+                                        $label = '【' . $menu->category->name . '】 ' . $label;
+                                    }
+
+                                    $options[$menu->id] = $label;
                                 }
-                                if ($record->is_subscription) {
-                                    $label .= ' [サブスク]';
-                                } elseif ($record->price) {
-                                    $label .= ' ¥' . number_format($record->price);
-                                }
-                                return $label;
+
+                                return $options;
                             })
                             ->searchable()
+                            ->searchPrompt('メニュー名、時間（60、90）、「サブスク」で検索')
+                            ->placeholder('クリックして全メニューを表示')
+                            ->native(false)  // ネイティブセレクトを無効にして検索を強化
                             ->required()
                             ->reactive()
                             ->afterStateUpdated(function ($state, $set) {
@@ -320,22 +354,27 @@ class ReservationResource extends Resource
                                     }
                                 }
                             })
-                            ->minDate(function ($get) {
+                            ->minDate(function ($get, $record) {
+                                // 編集時（既存レコードがある場合）は過去の日付も選択可能
+                                if ($record !== null) {
+                                    return null;
+                                }
+
                                 $storeId = $get('store_id');
                                 if (!$storeId) {
                                     return today();
                                 }
-                                
+
                                 $store = \App\Models\Store::find($storeId);
                                 if (!$store) {
                                     return today();
                                 }
-                                
+
                                 // 当日予約が不可の場合は明日から
                                 if (!$store->allow_same_day_booking) {
                                     return today()->addDay();
                                 }
-                                
+
                                 return today();
                             })
                             ->maxDate(function ($get) {

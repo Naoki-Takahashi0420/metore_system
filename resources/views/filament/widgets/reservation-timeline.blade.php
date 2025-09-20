@@ -1060,37 +1060,136 @@
 
                         <!-- メニュー選択を先に配置 -->
                         <div>
-                            <label class="block text-sm font-medium mb-1">メニュー</label>
+                            <label class="block text-sm font-medium mb-2">メニュー</label>
 
-                            <!-- 検索入力フィールド -->
+                            <!-- よく使うメニューのクイック選択ボタン -->
+                            @php
+                                $popularMenus = \App\Models\Menu::where('is_available', true)
+                                    ->where('is_visible_to_customer', true)
+                                    ->whereIn('name', ['視力回復コース(60分)', '水素吸入コース(90分)', 'サブスク60分'])
+                                    ->orderBy('is_subscription', 'desc')
+                                    ->limit(3)
+                                    ->get();
+                            @endphp
+
+                            @if($popularMenus->count() > 0)
+                                <div class="mb-3">
+                                    <p class="text-xs text-gray-500 mb-2">よく使うメニュー：</p>
+                                    <div class="flex flex-wrap gap-2">
+                                        @foreach($popularMenus as $menu)
+                                            <button
+                                                type="button"
+                                                wire:click="selectMenu({{ $menu->id }})"
+                                                class="px-3 py-2 text-xs border rounded-lg hover:bg-blue-50 hover:border-blue-400 transition-colors {{ $newReservation['menu_id'] == $menu->id ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-white border-gray-300' }}">
+                                                <div class="font-medium">
+                                                    {{ $menu->is_subscription ? '🔄 ' : '' }}{{ Str::limit($menu->name, 20) }}
+                                                </div>
+                                                <div class="text-gray-500 text-xs mt-1">
+                                                    {{ $menu->duration_minutes }}分
+                                                </div>
+                                            </button>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+
+                            <!-- 検索ボックス改良版 -->
                             <div class="relative">
-                                <input
-                                    type="text"
-                                    wire:model.live.debounce.300ms="menuSearch"
-                                    placeholder="メニュー名を入力して検索..."
-                                    class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                <div class="relative">
+                                    <input
+                                        type="text"
+                                        wire:model.live.debounce.200ms="menuSearch"
+                                        wire:focus="$set('showAllMenus', true)"
+                                        placeholder="クリックで全メニュー表示 / 入力で検索"
+                                        class="w-full px-3 py-2 pl-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer">
+                                    <svg class="absolute left-3 top-3 w-4 h-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+                                    </svg>
+                                </div>
 
-                                @if($menuSearch)
-                                    <!-- 検索結果のドロップダウン -->
-                                    <div class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                @if($menuSearch || $showAllMenus)
+                                    <!-- 検索結果/全メニューのドロップダウン -->
+                                    <div class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-xl max-h-80 overflow-y-auto"
+                                         x-data
+                                         @click.outside="@this.set('showAllMenus', false)">
                                         @php
-                                            $filteredMenus = $this->getFilteredMenus();
+                                            $displayMenus = $menuSearch ? $this->getFilteredMenus() : \App\Models\Menu::where('is_available', true)
+                                                ->where('is_visible_to_customer', true)
+                                                ->orderBy('is_subscription', 'desc')
+                                                ->orderBy('sort_order')
+                                                ->get();
                                         @endphp
 
-                                        @if($filteredMenus->count() > 0)
-                                            @foreach($filteredMenus as $menu)
-                                                <button
-                                                    type="button"
-                                                    wire:click="selectMenu({{ $menu->id }})"
-                                                    class="w-full px-4 py-3 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none border-b border-gray-100 last:border-b-0">
-                                                    <div class="font-medium">{{ $menu->name }}</div>
-                                                    <div class="text-sm text-gray-600">
-                                                        {{ $menu->duration_minutes }}分 - ¥{{ number_format($menu->price) }}
+                                        @if($displayMenus->count() > 0)
+                                            {{-- サブスクメニュー --}}
+                                            @php
+                                                $subscriptionMenus = $displayMenus->where('is_subscription', true);
+                                            @endphp
+                                            @if($subscriptionMenus->count() > 0)
+                                                <div class="border-b border-gray-200">
+                                                    <div class="px-4 py-2 bg-blue-50 text-xs font-semibold text-blue-700 sticky top-0">
+                                                        サブスクリプション
                                                     </div>
-                                                </button>
-                                            @endforeach
+                                                    @foreach($subscriptionMenus as $menu)
+                                                        <button
+                                                            type="button"
+                                                            wire:click="selectMenu({{ $menu->id }})"
+                                                            class="w-full px-4 py-3 text-left hover:bg-blue-50 focus:bg-blue-50 focus:outline-none transition-colors">
+                                                            <div class="flex items-center justify-between">
+                                                                <div>
+                                                                    <div class="font-medium text-blue-600">
+                                                                        🔄 {{ $menu->name }}
+                                                                    </div>
+                                                                    <div class="text-sm text-gray-600">
+                                                                        {{ $menu->duration_minutes }}分 - サブスク
+                                                                    </div>
+                                                                </div>
+                                                                @if($newReservation['menu_id'] == $menu->id)
+                                                                    <svg class="w-5 h-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                                                    </svg>
+                                                                @endif
+                                                            </div>
+                                                        </button>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+
+                                            {{-- 通常メニュー --}}
+                                            @php
+                                                $regularMenus = $displayMenus->where('is_subscription', false);
+                                            @endphp
+                                            @if($regularMenus->count() > 0)
+                                                <div>
+                                                    <div class="px-4 py-2 bg-gray-50 text-xs font-semibold text-gray-600 sticky top-0">
+                                                        通常メニュー
+                                                    </div>
+                                                    @foreach($regularMenus as $menu)
+                                                        <button
+                                                            type="button"
+                                                            wire:click="selectMenu({{ $menu->id }})"
+                                                            class="w-full px-4 py-3 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none border-b border-gray-100 last:border-b-0 transition-colors">
+                                                            <div class="flex items-center justify-between">
+                                                                <div>
+                                                                    <div class="font-medium text-gray-900">
+                                                                        {{ $menu->name }}
+                                                                    </div>
+                                                                    <div class="text-sm text-gray-600">
+                                                                        {{ $menu->duration_minutes }}分 - ¥{{ number_format($menu->price) }}
+                                                                    </div>
+                                                                </div>
+                                                                @if($newReservation['menu_id'] == $menu->id)
+                                                                    <svg class="w-5 h-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                                                    </svg>
+                                                                @endif
+                                                            </div>
+                                                        </button>
+                                                    @endforeach
+                                                </div>
+                                            @endif
                                         @else
-                                            <div class="px-4 py-3 text-gray-500">
+                                            <div class="px-4 py-3 text-gray-500 text-center">
                                                 該当するメニューが見つかりません
                                             </div>
                                         @endif
