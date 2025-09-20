@@ -32,6 +32,89 @@ class StoreResource extends Resource
                     ->tabs([
                         Forms\Components\Tabs\Tab::make('基本情報')
                             ->schema([
+                                Forms\Components\Section::make('予約用リンク')
+                                    ->schema([
+                                        Forms\Components\Placeholder::make('reservation_links')
+                                            ->label('')
+                                            ->content(function ($record) {
+                                                if (!$record || !$record->id) {
+                                                    return '保存後にリンクが生成されます';
+                                                }
+
+                                                $baseUrl = config('app.url', 'https://reservation.meno-training.com');
+                                                $linkById = $baseUrl . '/stores?store_id=' . $record->id;
+                                                $linkBySlug = $baseUrl . '/stores?store=' . urlencode(strtolower(str_replace(' ', '-', $record->name)));
+
+                                                return new \Illuminate\Support\HtmlString("
+                                                    <div class='space-y-4'>
+                                                        <div>
+                                                            <p class='text-sm font-medium text-gray-700 mb-2'>IDを使用したリンク（推奨）</p>
+                                                            <div class='flex items-center space-x-2'>
+                                                                <input
+                                                                    type='text'
+                                                                    value='{$linkById}'
+                                                                    id='link-by-id'
+                                                                    readonly
+                                                                    class='flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm'
+                                                                />
+                                                                <button
+                                                                    type='button'
+                                                                    onclick='copyToClipboard(\"link-by-id\")'
+                                                                    class='px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm'
+                                                                >
+                                                                    コピー
+                                                                </button>
+                                                            </div>
+                                                        </div>
+
+                                                        <div>
+                                                            <p class='text-sm font-medium text-gray-700 mb-2'>店舗名を使用したリンク</p>
+                                                            <div class='flex items-center space-x-2'>
+                                                                <input
+                                                                    type='text'
+                                                                    value='{$linkBySlug}'
+                                                                    id='link-by-slug'
+                                                                    readonly
+                                                                    class='flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm'
+                                                                />
+                                                                <button
+                                                                    type='button'
+                                                                    onclick='copyToClipboard(\"link-by-slug\")'
+                                                                    class='px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm'
+                                                                >
+                                                                    コピー
+                                                                </button>
+                                                            </div>
+                                                        </div>
+
+                                                        <script>
+                                                            function copyToClipboard(elementId) {
+                                                                const input = document.getElementById(elementId);
+                                                                input.select();
+                                                                document.execCommand('copy');
+
+                                                                // フィードバック表示
+                                                                const button = input.nextElementSibling;
+                                                                const originalText = button.innerText;
+                                                                button.innerText = 'コピーしました！';
+                                                                button.classList.add('bg-green-600', 'hover:bg-green-700');
+                                                                button.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+
+                                                                setTimeout(() => {
+                                                                    button.innerText = originalText;
+                                                                    button.classList.remove('bg-green-600', 'hover:bg-green-700');
+                                                                    button.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                                                                }, 2000);
+                                                            }
+                                                        </script>
+                                                    </div>
+                                                ");
+                                            })
+                                            ->columnSpanFull(),
+                                    ])
+                                    ->columns(1)
+                                    ->collapsed(fn ($record) => !$record || !$record->id),
+
                                 Forms\Components\Section::make('基本情報')
                                     ->schema([
                                         Forms\Components\TextInput::make('name')

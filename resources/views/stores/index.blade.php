@@ -91,8 +91,48 @@
 
 <script>
 
-document.addEventListener('DOMContentLoaded', function() {
-    loadStores();
+document.addEventListener('DOMContentLoaded', async function() {
+    // 優先順位：
+    // 1. URLパラメータ（LP流入）
+    // 2. ローカルストレージ（直前の選択）
+    // 3. 通常の店舗一覧表示
+
+    // URLパラメータによる自動選択を最初に試みる
+    const urlAutoSelected = await checkURLAndAutoSelectStore();
+    if (urlAutoSelected) {
+        return; // URLパラメータで選択済み
+    }
+
+    // ローカルストレージから最後に選択した店舗を確認
+    const lastStoreId = localStorage.getItem('last_selected_store_id');
+    const lastStoreName = localStorage.getItem('last_selected_store_name');
+
+    if (lastStoreId && lastStoreName) {
+        // 確認メッセージを表示
+        const confirmMessage = document.createElement('div');
+        confirmMessage.className = 'bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded mb-4 mx-4 text-center';
+        confirmMessage.innerHTML = `
+            <p class="text-sm mb-2">
+                前回選択した「${lastStoreName}」で予約を続けますか？
+            </p>
+            <div class="flex justify-center space-x-2">
+                <button onclick="selectStore(${lastStoreId}, '${lastStoreName}')"
+                        class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                    はい、続ける
+                </button>
+                <button onclick="this.parentElement.parentElement.remove(); loadStores();"
+                        class="bg-gray-300 text-gray-700 px-4 py-2 rounded text-sm hover:bg-gray-400">
+                    他の店舗を選ぶ
+                </button>
+            </div>
+        `;
+
+        const container = document.querySelector('.max-w-7xl.mx-auto.px-4.sm\\:px-6.lg\\:px-8.py-8');
+        container.insertBefore(confirmMessage, container.firstChild);
+    } else {
+        // 通常の店舗一覧を表示
+        loadStores();
+    }
 });
 
 async function loadStores() {
@@ -302,12 +342,15 @@ function getOpeningHours(openingHours) {
 }
 
 function selectStore(storeId, storeName) {
-    
+    // ローカルストレージに保存（次回のため）
+    localStorage.setItem('last_selected_store_id', storeId);
+    localStorage.setItem('last_selected_store_name', storeName);
+
     // Store selection via form POST to maintain PHP session
     const form = document.createElement('form');
     form.method = 'POST';
     form.action = '/reservation/store-selection';
-    
+
     const csrfToken = document.querySelector('meta[name="csrf-token"]');
     if (csrfToken) {
         const tokenInput = document.createElement('input');
@@ -316,15 +359,91 @@ function selectStore(storeId, storeName) {
         tokenInput.value = csrfToken.content;
         form.appendChild(tokenInput);
     }
-    
+
     const storeInput = document.createElement('input');
     storeInput.type = 'hidden';
     storeInput.name = 'store_id';
     storeInput.value = storeId;
     form.appendChild(storeInput);
-    
+
     document.body.appendChild(form);
     form.submit();
+}
+
+// URLパラメータから店舗IDまたはslugを取得
+function getStoreFromURL() {
+    const urlParams = new URLSearchParams(window.location.search);
+
+    // store_id パラメータ（例: ?store_id=1）
+    const storeId = urlParams.get('store_id');
+    if (storeId) {
+        return { type: 'id', value: parseInt(storeId) };
+    }
+
+    // store パラメータ（例: ?store=ginza）
+    const storeSlug = urlParams.get('store');
+    if (storeSlug) {
+        return { type: 'slug', value: storeSlug };
+    }
+
+    return null;
+}
+
+// URLパラメータによる自動選択
+async function checkURLAndAutoSelectStore() {
+    const urlStore = getStoreFromURL();
+
+    if (!urlStore) {
+        return false;
+    }
+
+    try {
+        const response = await fetch('/api/stores');
+        if (!response.ok) {
+            return false;
+        }
+
+        const data = await response.json();
+        const stores = data.data || data;
+
+        let targetStore = null;
+
+        if (urlStore.type === 'id') {
+            targetStore = stores.find(s => s.id === urlStore.value);
+        } else if (urlStore.type === 'slug') {
+            // slugで検索（大文字小文字を無視）
+            targetStore = stores.find(s =>
+                s.slug === urlStore.value ||
+                s.name.toLowerCase().includes(urlStore.value.toLowerCase())
+            );
+        }
+
+        if (targetStore) {
+            // 自動選択のメッセージを表示
+            const autoSelectMessage = document.createElement('div');
+            autoSelectMessage.className = 'bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-4 text-center';
+            autoSelectMessage.innerHTML = `
+                <p class="text-sm">
+                    「${targetStore.name}」を選択しています...
+                </p>
+            `;
+
+            const container = document.getElementById('stores-container');
+            container.innerHTML = '';
+            container.appendChild(autoSelectMessage);
+
+            // 少し待ってから自動的に進む
+            setTimeout(() => {
+                selectStore(targetStore.id, targetStore.name);
+            }, 800);
+
+            return true;
+        }
+    } catch (error) {
+        console.error('URLパラメータによる店舗選択でエラー:', error);
+    }
+
+    return false;
 }
 </script>
 @endsection
