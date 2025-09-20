@@ -126,7 +126,13 @@ jobs:
         
         sudo php create_admin.php
         sudo rm create_admin.php
-        
+
+        # 既存シフトのカテゴリーを更新
+        if [ -f "$APP_DIR/update_shift_categories.php" ]; then
+          echo "=== Updating shift categories ==="
+          sudo php $APP_DIR/update_shift_categories.php || echo "Category update completed"
+        fi
+
         # 権限設定
         sudo chown -R www-data:www-data $APP_DIR
         sudo chmod -R 755 $APP_DIR
