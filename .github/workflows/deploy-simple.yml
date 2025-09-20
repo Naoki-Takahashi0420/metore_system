@@ -89,6 +89,9 @@ jobs:
         sudo php artisan filament:assets
         sudo php artisan vendor:publish --tag=filament-panels-assets --force
         sudo php artisan vendor:publish --tag=filament-support-assets --force
+
+        # FullCalendarアセットを公開
+        sudo php artisan vendor:publish --tag=filament-fullcalendar-assets --force
         
         # Livewire設定を公開（Filamentのログイン用）
         sudo php artisan livewire:publish --config
