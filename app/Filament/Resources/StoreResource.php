@@ -42,49 +42,29 @@ class StoreResource extends Resource
                                                 }
 
                                                 $baseUrl = config('app.url', 'https://reservation.meno-training.com');
-                                                $linkById = $baseUrl . '/stores?store_id=' . $record->id;
-                                                $linkBySlug = $baseUrl . '/stores?store=' . urlencode(strtolower(str_replace(' ', '-', $record->name)));
+                                                $reservationLink = $baseUrl . '/stores?store_id=' . $record->id;
 
                                                 return new \Illuminate\Support\HtmlString("
-                                                    <div class='space-y-4'>
+                                                    <div class='space-y-3'>
                                                         <div>
-                                                            <p class='text-sm font-medium text-gray-700 mb-2'>IDを使用したリンク（推奨）</p>
+                                                            <p class='text-sm font-medium text-gray-700 mb-2'>この店舗の予約リンク</p>
                                                             <div class='flex items-center space-x-2'>
                                                                 <input
                                                                     type='text'
-                                                                    value='{$linkById}'
-                                                                    id='link-by-id'
+                                                                    value='{$reservationLink}'
+                                                                    id='reservation-link'
                                                                     readonly
-                                                                    class='flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm'
+                                                                    class='flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm font-mono'
                                                                 />
                                                                 <button
                                                                     type='button'
-                                                                    onclick='copyToClipboard(\"link-by-id\")'
-                                                                    class='px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm'
+                                                                    onclick='copyToClipboard(\"reservation-link\")'
+                                                                    class='px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium'
                                                                 >
                                                                     コピー
                                                                 </button>
                                                             </div>
-                                                        </div>
-
-                                                        <div>
-                                                            <p class='text-sm font-medium text-gray-700 mb-2'>店舗名を使用したリンク</p>
-                                                            <div class='flex items-center space-x-2'>
-                                                                <input
-                                                                    type='text'
-                                                                    value='{$linkBySlug}'
-                                                                    id='link-by-slug'
-                                                                    readonly
-                                                                    class='flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm'
-                                                                />
-                                                                <button
-                                                                    type='button'
-                                                                    onclick='copyToClipboard(\"link-by-slug\")'
-                                                                    class='px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm'
-                                                                >
-                                                                    コピー
-                                                                </button>
-                                                            </div>
+                                                            <p class='text-xs text-gray-500 mt-1'>LPやメール、SNS広告などにこのリンクをご利用ください</p>
                                                         </div>
 
                                                         <script>
