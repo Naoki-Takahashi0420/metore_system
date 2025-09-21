@@ -109,7 +109,7 @@ class User extends Authenticatable implements FilamentUser
     /**
      * 次に利用可能な色を取得
      */
-    protected static function getNextAvailableColor(): string
+    public static function getNextAvailableColor(): string
     {
         // 既存のユーザーが使用している色を取得
         $usedColors = static::whereNotNull('theme_color')
