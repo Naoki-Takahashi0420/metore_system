@@ -1,5 +1,5 @@
-<x-filament-widgets::widget>
-    <x-filament::section>
+<div class="fi-wi-widget">
+    <div class="fi-section rounded-xl bg-white shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10 p-6">
         <div class="space-y-6">
             <!-- ヘッダー -->
             <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -289,9 +289,9 @@
                 </div>
             </div>
         </div>
-    </x-filament::section>
+    </div>
 
-    <style>
+        <style>
         /* エクセル風のスタイル */
         table {
             font-family: 'Times New Roman', serif;
@@ -787,4 +787,4 @@
         <div class="modal-content" id="modalContent">
         </div>
     </div>
-</x-filament-widgets::widget>
+</div>

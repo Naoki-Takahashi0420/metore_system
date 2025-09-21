@@ -10,9 +10,15 @@
 
     {{-- ダッシュボードと同じ構成 --}}
 
-    {{-- タイムラインウィジェット --}}
+    {{-- タイムラインリンク --}}
     <div class="fi-wi-stats-overview-stats-ctn grid gap-6 md:grid-cols-1">
-        @livewire(\App\Filament\Widgets\TodayReservationTimelineWidget::class)
+        <div class="rounded-xl bg-blue-50 p-4 border border-blue-200">
+            <p class="text-sm text-blue-800">
+                📅 タイムライン表示は
+                <a href="/admin" class="font-semibold underline hover:text-blue-600">ダッシュボード</a>
+                でご確認ください
+            </p>
+        </div>
     </div>
 
     {{-- スペース --}}
