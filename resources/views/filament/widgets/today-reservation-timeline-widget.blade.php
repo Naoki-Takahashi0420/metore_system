@@ -347,9 +347,15 @@
         .category-{{ $colorClass }} {
             background-color: {{ $colorHex }} !important;
         }
+        .course-{{ $colorClass }} {
+            background-color: {{ $colorHex }} !important;
+        }
         @endforeach
 
         .category-default {
+            background-color: #6b7280 !important; /* グレー - 未分類 */
+        }
+        .course-default {
             background-color: #6b7280 !important; /* グレー - 未分類 */
         }
 
