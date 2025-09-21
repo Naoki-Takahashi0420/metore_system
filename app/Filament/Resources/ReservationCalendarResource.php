@@ -20,8 +20,13 @@ class ReservationCalendarResource extends Resource
     protected static ?string $pluralModelLabel = '予約カレンダー';
     
     protected static ?string $navigationGroup = '予約管理';
-    
-    protected static ?int $navigationSort = 2;
+
+    protected static ?int $navigationSort = 99;
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false; // ナビゲーションから非表示
+    }
     
     public static function getPages(): array
     {

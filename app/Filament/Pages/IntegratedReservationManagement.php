@@ -23,7 +23,12 @@ class IntegratedReservationManagement extends Page implements HasTable, HasForms
     protected static ?string $navigationIcon = 'heroicon-o-calendar-days';
     protected static ?string $navigationLabel = '予約管理（統合版）';
     protected static ?string $navigationGroup = '予約管理';
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 99;
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false; // ナビゲーションから非表示
+    }
     protected static string $view = 'filament.pages.integrated-reservation-management';
 
     protected ?string $heading = '予約管理';
