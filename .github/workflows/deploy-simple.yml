@@ -140,6 +140,10 @@ jobs:
         echo "=== Assigning colors to users ==="
         sudo php artisan users:assign-colors || echo "User color assignment completed"
 
+        # 既存カテゴリーに色を割り当て
+        echo "=== Assigning colors to categories ==="
+        sudo php artisan categories:assign-colors || echo "Category color assignment completed"
+
         # 権限設定
         sudo chown -R www-data:www-data $APP_DIR
         sudo chmod -R 755 $APP_DIR

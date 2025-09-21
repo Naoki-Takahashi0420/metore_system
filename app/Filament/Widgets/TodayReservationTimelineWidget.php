@@ -209,23 +209,30 @@ class TodayReservationTimelineWidget extends Widget
     public function getCategoryColors(): array
     {
         $categories = \App\Models\MenuCategory::where('is_active', true)->orderBy('id')->get();
-        $colorPatterns = [
-            'care' => '#3b82f6',      // 青系
-            'hydrogen' => '#8b5cf6',  // 紫系
-            'training' => '#f97316',  // オレンジ系
-            'special' => '#22c55e',   // 緑系
-            'premium' => '#ef4444',   // 赤系
-            'vip' => '#eab308',       // 黄系
+
+        // フォールバック用のカラーパターン
+        $fallbackColors = [
+            '#3b82f6',  // 青系
+            '#8b5cf6',  // 紫系
+            '#f97316',  // オレンジ系
+            '#22c55e',  // 緑系
+            '#ef4444',  // 赤系
+            '#eab308',  // 黄系
         ];
 
         $result = [];
         foreach ($categories as $index => $category) {
-            $colorKey = array_keys($colorPatterns)[$index % count($colorPatterns)];
+            // データベースの色を優先、なければフォールバック色を使用
+            $colorHex = $category->color ?: $fallbackColors[$index % count($fallbackColors)];
+
+            // カラークラス名を生成（category-{id}形式）
+            $colorClass = 'category-' . $category->id;
+
             $result[] = [
                 'id' => $category->id,
                 'name' => $category->name,
-                'colorClass' => $colorKey,
-                'colorHex' => $colorPatterns[$colorKey],
+                'colorClass' => $colorClass,
+                'colorHex' => $colorHex,
                 'initial' => mb_substr($category->name, 0, 1)
             ];
         }
