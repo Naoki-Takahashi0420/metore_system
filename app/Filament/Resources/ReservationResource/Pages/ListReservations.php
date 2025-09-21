@@ -12,7 +12,7 @@ class ListReservations extends ListRecords
 {
     protected static string $resource = ReservationResource::class;
 
-    // protected static string $view = 'filament.resources.reservation-resource.pages.list-reservations';
+    protected static string $view = 'filament.resources.reservation-resource.pages.list-reservations';
 
     #[Url]
     public $storeFilter = null;
