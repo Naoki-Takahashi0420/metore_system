@@ -26,6 +26,23 @@
             background-color: #3b82f6 !important;
             color: white !important;
         }
+        .current-reservation {
+            background-color: #fbbf24 !important;
+            color: white !important;
+            position: relative;
+        }
+        .current-reservation::after {
+            content: '現在';
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #ef4444;
+            color: white;
+            font-size: 8px;
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -50,24 +67,30 @@
             @csrf
 
             <!-- 現在の予約情報 -->
-            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-                <h3 class="font-semibold text-yellow-800 mb-2">現在の予約</h3>
+            <div class="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4 mb-6">
+                <h3 class="font-semibold text-yellow-800 mb-3 flex items-center">
+                    <span class="bg-yellow-500 text-white w-6 h-6 rounded-full inline-flex items-center justify-center text-xs mr-2">現</span>
+                    現在の予約情報
+                </h3>
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
                     <div>
-                        <span class="text-yellow-700">店舗:</span>
-                        <span class="font-medium">{{ $reservation->store->name }}</span>
+                        <span class="text-yellow-700 font-medium">店舗:</span>
+                        <span class="font-bold text-yellow-900">{{ $reservation->store->name }}</span>
                     </div>
                     <div>
-                        <span class="text-yellow-700">メニュー:</span>
-                        <span class="font-medium">{{ $reservation->menu->name }}</span>
+                        <span class="text-yellow-700 font-medium">メニュー:</span>
+                        <span class="font-bold text-yellow-900">{{ $reservation->menu->name }}</span>
                     </div>
                     <div>
-                        <span class="text-yellow-700">日時:</span>
-                        <span class="font-medium">{{ $reservation->reservation_date->format('n月j日') }} {{ substr($reservation->start_time, 0, 5) }}</span>
+                        <span class="text-yellow-700 font-medium">日時:</span>
+                        <span class="font-bold text-yellow-900 text-lg">
+                            📅 {{ $reservation->reservation_date->format('n月j日') }}（{{ ['日', '月', '火', '水', '木', '金', '土'][$reservation->reservation_date->dayOfWeek] }}）
+                            ⏰ {{ substr($reservation->start_time, 0, 5) }}
+                        </span>
                     </div>
                     <div>
-                        <span class="text-yellow-700">料金:</span>
-                        <span class="font-medium">{{ number_format($reservation->total_amount) }}円</span>
+                        <span class="text-yellow-700 font-medium">料金:</span>
+                        <span class="font-bold text-yellow-900">¥{{ number_format($reservation->total_amount) }}</span>
                     </div>
                 </div>
             </div>
@@ -119,6 +142,10 @@
                     <h3 class="text-lg font-semibold">空き状況カレンダー</h3>
                     <div class="flex items-center space-x-4 mt-2 text-sm">
                         <div class="flex items-center">
+                            <span class="w-6 h-6 bg-yellow-500 text-white rounded-full flex items-center justify-center text-xs mr-2 font-bold">現</span>
+                            <span class="font-medium">現在の予約</span>
+                        </div>
+                        <div class="flex items-center">
                             <span class="w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center text-xs mr-2">○</span>
                             <span>予約可能</span>
                         </div>
@@ -156,9 +183,19 @@
                                         @php
                                             $dateStr = $date['date']->format('Y-m-d');
                                             $isAvailable = $availability[$dateStr][$slot] ?? false;
+                                            $isCurrentReservation =
+                                                $reservation->reservation_date->format('Y-m-d') == $dateStr &&
+                                                substr($reservation->start_time, 0, 5) == $slot;
                                         @endphp
-                                        <td class="py-2 px-2 {{ $date['is_today'] ? 'bg-blue-50' : '' }}">
-                                            @if($isAvailable && !$date['is_past'])
+                                        <td class="py-2 px-2 {{ $date['is_today'] ? 'bg-blue-50' : '' }} {{ $isCurrentReservation ? 'relative' : '' }}">
+                                            @if($isCurrentReservation)
+                                                <button type="button"
+                                                        class="time-slot w-8 h-8 current-reservation rounded-full text-xs font-bold relative"
+                                                        style="background-color: #fbbf24 !important;"
+                                                        onclick="selectTimeSlot('{{ $dateStr }}', '{{ $slot }}')">
+                                                    現
+                                                </button>
+                                            @elseif($isAvailable && !$date['is_past'])
                                                 <button type="button"
                                                         class="time-slot w-8 h-8 bg-green-500 text-white rounded-full text-xs font-bold hover:bg-green-600"
                                                         onclick="selectTimeSlot('{{ $dateStr }}', '{{ $slot }}')">
