@@ -254,7 +254,16 @@ class TodayReservationTimelineWidget extends Widget
         // 各店舗の営業時間をチェック
         foreach ($stores as $store) {
             if ($store->business_hours) {
-                foreach ($store->business_hours as $hours) {
+                // business_hoursが文字列の場合はデコード
+                $businessHours = is_string($store->business_hours)
+                    ? json_decode($store->business_hours, true)
+                    : $store->business_hours;
+
+                if (!is_array($businessHours)) {
+                    continue;
+                }
+
+                foreach ($businessHours as $hours) {
                     if ($hours['day'] === $dayOfWeek && 
                         (!isset($hours['is_closed']) || !$hours['is_closed']) && 
                         isset($hours['open_time']) && isset($hours['close_time']) &&
@@ -309,8 +318,14 @@ class TodayReservationTimelineWidget extends Widget
         $selectedDate = Carbon::parse($this->selectedDate);
         $dayOfWeek = strtolower($selectedDate->format('l')); // monday, tuesday, etc.
         
-        if ($store->business_hours && is_array($store->business_hours)) {
-            foreach ($store->business_hours as $hours) {
+        if ($store->business_hours) {
+            // business_hoursが文字列の場合はデコード
+            $businessHours = is_string($store->business_hours)
+                ? json_decode($store->business_hours, true)
+                : $store->business_hours;
+
+            if (is_array($businessHours)) {
+                foreach ($businessHours as $hours) {
                 if (isset($hours['day']) && $hours['day'] === $dayOfWeek) {
                     // 休業日チェック（is_closedまたはopen_time/close_timeがnull）
                     if ((isset($hours['is_closed']) && $hours['is_closed']) || 
@@ -329,6 +344,7 @@ class TodayReservationTimelineWidget extends Widget
                         'is_open' => true
                     ];
                 }
+            }
             }
         }
         
