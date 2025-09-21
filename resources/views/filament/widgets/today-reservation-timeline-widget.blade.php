@@ -74,23 +74,21 @@
                     
                     <!-- 店舗別予約行（予約ライン数に応じて複数行表示） -->
                     <tbody>
-                        @foreach($stores as $store)
+                        @foreach($stores as $storeIndex => $store)
                             @php
                                 $storeReservations = $reservations->where('store_id', $store->id);
                                 $businessHours = $this->getStoreBusinessHours($store);
                                 $totalLines = ($store->main_lines_count ?? 1) + ($store->sub_lines_count ?? 0);
                                 $mainLines = $store->main_lines_count ?? 1;
-                                
-                                // デバッグ用（一時的）
-                                echo "Store: {$store->name}, Main: {$store->main_lines_count}, Sub: {$store->sub_lines_count}, Total: {$totalLines}<br>";
+                                $isEvenStore = $storeIndex % 2 === 0;
                             @endphp
-                            
+
                             @for($lineIndex = 0; $lineIndex < $totalLines; $lineIndex++)
                                 @php
                                     $isMainLine = $lineIndex < $mainLines;
                                     $lineType = $isMainLine ? '本' : '予';
                                 @endphp
-                                <tr class="{{ $loop->parent->even ? 'bg-gray-50' : 'bg-white' }} {{ $isMainLine ? 'border-l-4 border-blue-500' : 'border-l-4 border-orange-400' }}">
+                                <tr class="{{ $isEvenStore ? 'bg-white' : 'bg-gray-50' }} {{ $isMainLine ? 'border-l-4 border-blue-500' : 'border-l-4 border-orange-400' }}">
                                     <!-- 店舗名列（最初の行のみ表示、他は結合） -->
                                     @if($lineIndex === 0)
                                         <td class="border-2 border-gray-800 px-4 py-3 bg-blue-50" rowspan="{{ $totalLines }}">
