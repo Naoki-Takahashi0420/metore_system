@@ -12,6 +12,8 @@ class ListReservations extends ListRecords
 {
     protected static string $resource = ReservationResource::class;
 
+    protected static string $view = 'filament.resources.reservation-resource.pages.list-reservations';
+
     #[Url]
     public $storeFilter = null;
 
@@ -72,7 +74,7 @@ class ListReservations extends ListRecords
     protected function getHeaderWidgets(): array
     {
         return [
-            \App\Filament\Widgets\TodayReservationTimelineWidget::class,
+            // \App\Filament\Widgets\TodayReservationTimelineWidget::class,
         ];
     }
 }
