@@ -264,14 +264,23 @@ class TodayReservationTimelineWidget extends Widget
                 }
 
                 foreach ($businessHours as $hours) {
-                    if ($hours['day'] === $dayOfWeek && 
-                        (!isset($hours['is_closed']) || !$hours['is_closed']) && 
+                    // $hoursが配列でない場合はスキップ
+                    if (!is_array($hours)) {
+                        continue;
+                    }
+
+                    if (isset($hours['day']) && $hours['day'] === $dayOfWeek &&
+                        (!isset($hours['is_closed']) || !$hours['is_closed']) &&
                         isset($hours['open_time']) && isset($hours['close_time']) &&
                         $hours['open_time'] && $hours['close_time']) {
                         
                         try {
-                            $openTime = Carbon::createFromFormat('H:i', $hours['open_time']);
-                            $closeTime = Carbon::createFromFormat('H:i', $hours['close_time']);
+                            // H:i:sフォーマットの場合もH:iフォーマットの場合も対応
+                            $openTimeStr = substr($hours['open_time'], 0, 5); // HH:MM部分のみ取得
+                            $closeTimeStr = substr($hours['close_time'], 0, 5);
+
+                            $openTime = Carbon::createFromFormat('H:i', $openTimeStr);
+                            $closeTime = Carbon::createFromFormat('H:i', $closeTimeStr);
                             
                             if ($earliestOpen === null || $openTime->lt($earliestOpen)) {
                                 $earliestOpen = $openTime;
@@ -326,7 +335,12 @@ class TodayReservationTimelineWidget extends Widget
 
             if (is_array($businessHours)) {
                 foreach ($businessHours as $hours) {
-                if (isset($hours['day']) && $hours['day'] === $dayOfWeek) {
+                    // $hoursが配列でない場合はスキップ
+                    if (!is_array($hours)) {
+                        continue;
+                    }
+
+                    if (isset($hours['day']) && $hours['day'] === $dayOfWeek) {
                     // 休業日チェック（is_closedまたはopen_time/close_timeがnull）
                     if ((isset($hours['is_closed']) && $hours['is_closed']) || 
                         !isset($hours['open_time']) || !isset($hours['close_time']) ||
