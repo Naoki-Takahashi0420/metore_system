@@ -5,11 +5,13 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\CustomerResource\Pages;
 use App\Filament\Resources\CustomerResource\RelationManagers;
 use App\Models\Customer;
+use App\Services\CustomerMergeService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Filament\Notifications\Notification;
 use Illuminate\Contracts\Support\Htmlable;
 
 class CustomerResource extends Resource
@@ -639,6 +641,106 @@ class CustomerResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\Action::make('find_similar')
+                    ->label('類似顧客を探す')
+                    ->icon('heroicon-o-magnifying-glass')
+                    ->color('info')
+                    ->requiresConfirmation()
+                    ->modalHeading(fn ($record) => $record->last_name . $record->first_name . 'さんの類似顧客検索')
+                    ->modalDescription('同姓同名の顧客を検索し、統合可能な場合は統合処理を実行できます。')
+                    ->modalSubmitActionLabel('検索実行')
+                    ->action(function ($record) {
+                        $mergeService = new CustomerMergeService();
+                        $similarCustomers = $mergeService->findSimilarCustomers($record);
+
+                        if (empty($similarCustomers)) {
+                            Notification::make()
+                                ->title('類似顧客なし')
+                                ->body('同姓同名の顧客は見つかりませんでした。')
+                                ->info()
+                                ->send();
+                            return;
+                        }
+
+                        // 類似顧客が見つかった場合の処理
+                        session()->flash('similar_customers_for_' . $record->id, $similarCustomers);
+
+                        Notification::make()
+                            ->title('類似顧客発見')
+                            ->body(count($similarCustomers) . '件の類似顧客が見つかりました。統合アクションで詳細を確認してください。')
+                            ->success()
+                            ->send();
+                    }),
+                Tables\Actions\Action::make('merge_customers')
+                    ->label('顧客統合')
+                    ->icon('heroicon-o-arrows-pointing-in')
+                    ->color('warning')
+                    ->visible(fn ($record) => session()->has('similar_customers_for_' . $record->id))
+                    ->requiresConfirmation()
+                    ->modalHeading(fn ($record) => $record->last_name . $record->first_name . 'さんの顧客統合')
+                    ->modalDescription('類似顧客との統合プレビューを確認し、統合を実行してください。')
+                    ->modalContent(function ($record) {
+                        $similarCustomers = session()->get('similar_customers_for_' . $record->id, []);
+
+                        if (empty($similarCustomers)) {
+                            return view('filament.customer.no-similar-customers');
+                        }
+
+                        return view('filament.customer.merge-preview', [
+                            'customer' => $record,
+                            'similarCustomers' => $similarCustomers
+                        ]);
+                    })
+                    ->form([
+                        Forms\Components\Select::make('target_customer_id')
+                            ->label('統合対象の顧客を選択')
+                            ->options(function ($record) {
+                                $similarCustomers = session()->get('similar_customers_for_' . $record->id, []);
+                                $options = [];
+                                foreach ($similarCustomers as $customer) {
+                                    $options[$customer['id']] = $customer['name'] . ' (予約' . $customer['reservations_count'] . '件, 最終来店: ' . $customer['last_visit'] . ')';
+                                }
+                                return $options;
+                            })
+                            ->required()
+                            ->native(false)
+                            ->helperText('統合後は選択した顧客の情報が削除され、現在の顧客に統合されます。'),
+                    ])
+                    ->modalSubmitActionLabel('統合実行')
+                    ->action(function ($record, array $data) {
+                        $targetCustomerId = $data['target_customer_id'];
+                        $targetCustomer = Customer::find($targetCustomerId);
+
+                        if (!$targetCustomer) {
+                            Notification::make()
+                                ->title('エラー')
+                                ->body('統合対象の顧客が見つかりません。')
+                                ->danger()
+                                ->send();
+                            return;
+                        }
+
+                        try {
+                            $mergeService = new CustomerMergeService();
+                            $mergedCustomer = $mergeService->merge($record, $targetCustomer);
+
+                            // セッションから類似顧客情報を削除
+                            session()->forget('similar_customers_for_' . $record->id);
+
+                            Notification::make()
+                                ->title('統合完了')
+                                ->body($record->last_name . $record->first_name . 'さんと' . $targetCustomer->last_name . $targetCustomer->first_name . 'さんの情報が統合されました。')
+                                ->success()
+                                ->send();
+
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->title('統合エラー')
+                                ->body('顧客統合処理中にエラーが発生しました: ' . $e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
