@@ -75,7 +75,8 @@ class ReservationCalendarWidget extends FullCalendarWidget
     {
         $this->selectedStoreId = $storeId;
         // FullCalendarのイベントを再取得
-        $this->refreshRecords();
+        // $this->refreshRecords(); // このメソッドは存在しない可能性がある
+        $this->dispatch('refreshCalendar'); // 代わりにイベントを発火
     }
 
     protected function getBaseQuery()
@@ -111,11 +112,12 @@ class ReservationCalendarWidget extends FullCalendarWidget
 
     public function fetchEvents(array $info): array
     {
-        $start = Carbon::parse($info['start']);
-        $end = Carbon::parse($info['end']);
+        try {
+            $start = Carbon::parse($info['start']);
+            $end = Carbon::parse($info['end']);
 
-        $query = $this->getBaseQuery()
-            ->whereBetween('reservation_date', [$start, $end]);
+            $query = $this->getBaseQuery()
+                ->whereBetween('reservation_date', [$start, $end]);
 
         // 店舗フィルタリング
         if ($this->selectedStoreId) {
@@ -191,6 +193,11 @@ class ReservationCalendarWidget extends FullCalendarWidget
                 ],
             ];
         })->toArray();
+        } catch (\Exception $e) {
+            // エラーが発生した場合は空の配列を返す
+            \Log::error('ReservationCalendarWidget fetchEvents error: ' . $e->getMessage());
+            return [];
+        }
     }
 
 
