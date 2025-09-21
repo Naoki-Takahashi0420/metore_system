@@ -12,7 +12,7 @@ class ListReservations extends ListRecords
 {
     protected static string $resource = ReservationResource::class;
 
-    protected static string $view = 'filament.resources.reservation-resource.pages.list-reservations';
+    // protected static string $view = 'filament.resources.reservation-resource.pages.list-reservations';
 
     #[Url]
     public $storeFilter = null;
@@ -44,21 +44,21 @@ class ListReservations extends ListRecords
         ];
     }
     
-    public function getHeader(): ?\Illuminate\Contracts\View\View
-    {
-        $user = auth()->user();
-        
-        if ($user && $user->hasRole('super_admin')) {
-            $storeOptions = Store::where('is_active', true)->pluck('name', 'id');
-            
-            return view('filament.resources.reservation-resource.pages.list-reservations-header', [
-                'storeOptions' => $storeOptions->prepend('全店舗', ''),
-                'selectedStore' => $this->storeFilter ?? ''
-            ]);
-        }
-        
-        return null;
-    }
+    // public function getHeader(): ?\Illuminate\Contracts\View\View
+    // {
+    //     $user = auth()->user();
+
+    //     if ($user && $user->hasRole('super_admin')) {
+    //         $storeOptions = Store::where('is_active', true)->pluck('name', 'id');
+
+    //         return view('filament.resources.reservation-resource.pages.list-reservations-header', [
+    //             'storeOptions' => $storeOptions->prepend('全店舗', ''),
+    //             'selectedStore' => $this->storeFilter ?? ''
+    //         ]);
+    //     }
+
+    //     return null;
+    // }
     
     public function getTableQuery(): ?\Illuminate\Database\Eloquent\Builder
     {
