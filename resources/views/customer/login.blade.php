@@ -69,13 +69,21 @@
         </div>
         @endif
         
-        <div class="flex space-x-2 mb-4">
-            <input type="text" id="otp1" maxlength="1" class="w-12 h-12 text-center text-xl border border-gray-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
-            <input type="text" id="otp2" maxlength="1" class="w-12 h-12 text-center text-xl border border-gray-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
-            <input type="text" id="otp3" maxlength="1" class="w-12 h-12 text-center text-xl border border-gray-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
-            <input type="text" id="otp4" maxlength="1" class="w-12 h-12 text-center text-xl border border-gray-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
-            <input type="text" id="otp5" maxlength="1" class="w-12 h-12 text-center text-xl border border-gray-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
-            <input type="text" id="otp6" maxlength="1" class="w-12 h-12 text-center text-xl border border-gray-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+        <div class="mb-4">
+            <label for="otp-input" class="block text-sm font-medium text-gray-700 mb-2">
+                認証コード（6桁）
+            </label>
+            <input
+                type="text"
+                id="otp-input"
+                maxlength="6"
+                pattern="[0-9]{6}"
+                inputmode="numeric"
+                class="w-full px-3 py-3 text-center text-xl border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                placeholder="123456"
+                autocomplete="one-time-code"
+            >
+            <p class="mt-1 text-sm text-gray-500">コピー&ペーストで入力できます</p>
         </div>
         
         <div class="flex space-x-3">
@@ -132,14 +140,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const closeModalButton = document.getElementById('close-modal');
     const otpError = document.getElementById('otp-error');
     
-    // OTP入力フィールドを個別に取得（確実にするため）
-    const otp1 = document.getElementById('otp1');
-    const otp2 = document.getElementById('otp2');
-    const otp3 = document.getElementById('otp3');
-    const otp4 = document.getElementById('otp4');
-    const otp5 = document.getElementById('otp5');
-    const otp6 = document.getElementById('otp6');
-    const otpInputs = [otp1, otp2, otp3, otp4, otp5, otp6];
+    // OTP入力フィールド（新しい統一フィールド）
+    const otpInput = document.getElementById('otp-input');
     
     let currentPhone = '';
     
@@ -190,102 +192,50 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // OTP input handling - 改善版
-    otpInputs.forEach((input, index) => {
-        // 入力制限と自動移動
-        input.addEventListener('keyup', function(e) {
-            const value = e.target.value;
-            
-            // 数字以外を削除
-            if (value && !/^\d$/.test(value)) {
-                e.target.value = value.replace(/[^\d]/g, '').slice(0, 1);
-            }
-            
-            // 数字が入力されたら次のフィールドへ
-            if (e.target.value.length === 1) {
-                if (index < otpInputs.length - 1) {
-                    // 次のフィールドにフォーカス
-                    setTimeout(() => {
-                        otpInputs[index + 1].focus();
-                    }, 10);
-                } else {
-                    // 最後のフィールドの場合、全体をチェック
-                    const otp = otpInputs.map(inp => inp.value).join('');
-                    if (otp.length === 6) {
-                        // 自動で認証ボタンをクリック（オプション）
-                        // verifyButton.click();
-                    }
-                }
-            }
+    // OTP入力フィールドの処理（新しいコピペ対応版）
+    if (otpInput) {
+        // 数字のみ入力許可
+        otpInput.addEventListener('input', function(e) {
+            // 数字以外を削除し、6桁に制限
+            e.target.value = e.target.value.replace(/[^\d]/g, '').slice(0, 6);
         });
-        
-        // バックスペース処理
-        input.addEventListener('keydown', function(e) {
-            if (e.key === 'Backspace') {
-                if (!e.target.value && index > 0) {
-                    // 前のフィールドに移動
-                    e.preventDefault();
-                    otpInputs[index - 1].focus();
-                    otpInputs[index - 1].value = '';
-                }
-            }
-            // 数字キー以外の入力を防ぐ（タブ、バックスペース、削除キーは許可）
-            else if (!/^\d$/.test(e.key) && !['Tab', 'Delete', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+
+        // キーダウンイベント（数字以外の入力を防ぐ）
+        otpInput.addEventListener('keydown', function(e) {
+            // 数字、バックスペース、削除、矢印キー、タブは許可
+            if (!/^\d$/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.key)) {
                 e.preventDefault();
             }
         });
-        
-        // ペースト対応（どのフィールドでもペースト可能）
-        input.addEventListener('paste', function(e) {
+
+        // ペースト対応
+        otpInput.addEventListener('paste', function(e) {
             e.preventDefault();
             const pastedData = e.clipboardData.getData('text');
-            const digits = pastedData.replace(/\D/g, '');
-            
-            if (digits.length === 6) {
-                // 6桁の場合は全フィールドに設定
-                digits.split('').forEach((digit, i) => {
-                    if (otpInputs[i]) {
-                        otpInputs[i].value = digit;
-                    }
-                });
-                // 最後のフィールドにフォーカス
-                otpInputs[5].focus();
-            } else if (digits.length > 0) {
-                // 6桁以外の場合は現在の位置から順番に設定
-                let currentIndex = index;
-                digits.slice(0, 6 - index).split('').forEach((digit, i) => {
-                    if (otpInputs[currentIndex + i]) {
-                        otpInputs[currentIndex + i].value = digit;
-                    }
-                });
-                // 適切な位置にフォーカス
-                const nextIndex = Math.min(index + digits.length, otpInputs.length - 1);
-                otpInputs[nextIndex].focus();
+            const digits = pastedData.replace(/\D/g, '').slice(0, 6);
+            e.target.value = digits;
+        });
+
+        // フォーカス時に全選択
+        otpInput.addEventListener('focus', function() {
+            this.select();
+        });
+
+        // 6桁入力完了時の自動認証（オプション）
+        otpInput.addEventListener('input', function(e) {
+            if (e.target.value.length === 6) {
+                // 自動認証は無効化（ユーザーが明示的にボタンを押す方が安全）
+                // verifyButton.click();
             }
         });
-        
-        // フォーカス時の処理
-        input.addEventListener('focus', function() {
-            // フィールドが既に埋まっている場合は選択状態にする
-            if (this.value) {
-                this.select();
-            }
-        });
-        
-        // 値の変更を監視（プログラムによる変更も含む）
-        input.addEventListener('input', function(e) {
-            // 複数文字が入力された場合、最初の1文字のみ残す
-            if (e.target.value.length > 1) {
-                e.target.value = e.target.value[0];
-            }
-        });
-    });
+    }
     
     // Verify OTP
     verifyButton.addEventListener('click', async function() {
-        const otp = Array.from(otpInputs).map(input => input.value).join('');
+        const otp = otpInput.value;
         if (otp.length !== 6) {
             otpError.classList.remove('hidden');
+            otpError.textContent = '6桁の認証コードを入力してください';
             return;
         }
         
@@ -352,9 +302,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }));
                 
-                // Clear inputs
-                otpInputs.forEach(input => input.value = '');
-                otpInputs[0].focus();
+                // Clear input
+                otpInput.value = '';
+                otpInput.focus();
                 otpError.classList.add('hidden');
             }
         } catch (error) {
@@ -366,7 +316,7 @@ document.addEventListener('DOMContentLoaded', function() {
     closeModalButton.addEventListener('click', function() {
         otpModal.classList.remove('flex');
         otpModal.classList.add('hidden');
-        otpInputs.forEach(input => input.value = '');
+        otpInput.value = '';
         otpError.classList.add('hidden');
     });
     
@@ -374,13 +324,13 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('phone-display').textContent = phone;
         otpModal.classList.remove('hidden');
         otpModal.classList.add('flex');
-        otpInputs[0].focus();
+        otpInput.focus();
     }
     
     function hideOTPModal() {
         otpModal.classList.remove('flex');
         otpModal.classList.add('hidden');
-        otpInputs.forEach(input => input.value = '');
+        otpInput.value = '';
         otpError.classList.add('hidden');
     }
     
