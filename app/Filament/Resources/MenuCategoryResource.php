@@ -70,6 +70,10 @@ class MenuCategoryResource extends Resource
                             ->default(0)
                             ->helperText('小さい数字が先に表示されます'),
 
+                        Forms\Components\ColorPicker::make('color')
+                            ->label('カテゴリー色')
+                            ->helperText('予約タイムラインで表示される色を設定'),
+
                         Forms\Components\Toggle::make('is_active')
                             ->label('有効')
                             ->default(true)
@@ -97,6 +101,10 @@ class MenuCategoryResource extends Resource
                     ->label('カテゴリー名')
                     ->searchable()
                     ->sortable(),
+
+                Tables\Columns\ColorColumn::make('color')
+                    ->label('カテゴリー色')
+                    ->placeholder('未設定'),
 
                 Tables\Columns\TextColumn::make('menus_count')
                     ->label('メニュー数')

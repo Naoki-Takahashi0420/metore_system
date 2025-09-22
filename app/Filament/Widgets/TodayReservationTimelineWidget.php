@@ -229,8 +229,8 @@ class TodayReservationTimelineWidget extends Widget
             return 'default';
         }
 
-        // カテゴリー名をベースにした統一の色クラスを生成（getCategoryColors()と一致）
-        return 'category-' . \Str::slug($category->name);
+        // カテゴリーIDをベースにした統一の色クラスを生成（getCategoryColors()と一致）
+        return $categoryId;
     }
 
     /**
@@ -318,8 +318,8 @@ class TodayReservationTimelineWidget extends Widget
             // データベースの色を優先、なければフォールバック色を使用
             $colorHex = $category->color ?: $fallbackColors[$index % count($fallbackColors)];
 
-            // カラークラス名を生成（category-{name-slug}形式で統一）
-            $colorClass = 'category-' . \Str::slug($category->name);
+            // カラークラス名を生成（category-{id}形式で統一）
+            $colorClass = $category->id;
             $nameToColorClass[$category->name] = $colorClass;
 
             $result[] = [

@@ -21,6 +21,7 @@ class MenuCategory extends Model
         'store_id',
         'available_durations',
         'duration_prices',
+        'color',
     ];
 
     protected $casts = [
