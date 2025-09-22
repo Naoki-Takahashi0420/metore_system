@@ -340,8 +340,9 @@ class CustomerResource extends Resource
                                     ->reactive()
                                     ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
                                         if ($state && $get('service_start_date')) {
+                                            $contractMonths = (int) $state; // 文字列を整数に変換
                                             $endDate = \Carbon\Carbon::parse($get('service_start_date'))
-                                                ->addMonths($state);
+                                                ->addMonths($contractMonths);
                                             $set('end_date', $endDate->format('Y-m-d'));
                                         }
                                     }),
