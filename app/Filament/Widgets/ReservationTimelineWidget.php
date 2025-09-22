@@ -52,7 +52,7 @@ class ReservationTimelineWidget extends Widget
     public function mount(): void
     {
         $user = auth()->user();
-        
+
         // ユーザーの権限に応じて店舗を取得
         if ($user->hasRole('super_admin')) {
             $this->stores = Store::where('is_active', true)->get();
@@ -62,14 +62,38 @@ class ReservationTimelineWidget extends Widget
             // 店長・スタッフは所属店舗のみ
             $this->stores = $user->store ? collect([$user->store]) : collect();
         }
-        
+
         $this->selectedStore = $this->stores->first()?->id;
         $this->selectedDate = Carbon::today()->format('Y-m-d');
+
+        // 明確にこのウィジェットが使用されていることを示す
+        logger('🟢 ReservationTimelineWidget が使用されています - selectedStore: ' . $this->selectedStore);
+
+        logger('🔧 mount() - selectedStore設定完了: ' . $this->selectedStore);
+        logger('🔧 mount() - selectedDate設定完了: ' . $this->selectedDate);
+
+        // マウント時のデバッグ情報
+        $this->dispatch('debug-log', [
+            'message' => 'Widget mounted',
+            'userRole' => $user->getRoleNames()->first(),
+            'selectedStore' => $this->selectedStore,
+            'storeCount' => $this->stores->count(),
+            'allStores' => $this->stores->pluck('name', 'id')->toArray()
+        ]);
+
+        logger('🔧 mount() - loadTimelineData()を呼び出します');
         $this->loadTimelineData();
+        logger('🔧 mount() - loadTimelineData()完了');
     }
     
     public function updatedSelectedStore(): void
     {
+        // 店舗選択変更時のデバッグ情報
+        $this->dispatch('debug-log', [
+            'message' => 'Store selection updated',
+            'newSelectedStore' => $this->selectedStore
+        ]);
+
         $this->loadTimelineData();
         $this->dispatch('store-changed', storeId: $this->selectedStore, date: $this->selectedDate);
     }
@@ -136,12 +160,20 @@ class ReservationTimelineWidget extends Widget
     
     public function loadTimelineData(): void
     {
+        // 強制的にログに出力
+        logger('🚀 loadTimelineData() が呼び出されました - selectedStore: ' . ($this->selectedStore ?? 'null') . ', selectedDate: ' . ($this->selectedDate ?? 'null'));
+
         if (!$this->selectedStore || !$this->selectedDate) {
+            logger('❌ loadTimelineData() 早期リターン - 店舗または日付が未設定');
             return;
         }
-        
+
+        logger('✅ loadTimelineData() カテゴリー読み込み開始');
+
         // カテゴリー情報も読み込む
+        logger('🔥 loadTimelineData() - getCategories()を呼び出します');
         $this->categories = $this->getCategories();
+        logger('🔥 loadTimelineData() - getCategories()完了 - カテゴリー数: ' . count($this->categories));
 
         // 日付変更イベントを発火
         $this->dispatch('date-changed', date: $this->selectedDate);
@@ -435,10 +467,50 @@ class ReservationTimelineWidget extends Widget
     
     public function getCategories()
     {
-        return \App\Models\MenuCategory::where('is_active', true)
-            ->orderBy('id')
-            ->get()
-            ->map(function ($category, $index) {
+        // 強制的にログに出力
+        logger('🔥 getCategories() が呼び出されました - selectedStore: ' . ($this->selectedStore ?? 'null'));
+
+        $query = \App\Models\MenuCategory::where('is_active', true);
+
+        // デバッグ情報をJavaScriptコンソールに出力
+        $this->dispatch('debug-log', [
+            'message' => 'getCategories called',
+            'selectedStore' => $this->selectedStore,
+            'hasSelectedStore' => !empty($this->selectedStore)
+        ]);
+
+        // 選択された店舗がある場合、その店舗のカテゴリーのみ取得
+        if ($this->selectedStore) {
+            $query->where('store_id', $this->selectedStore);
+            $this->dispatch('debug-log', [
+                'message' => 'Store filter applied',
+                'storeId' => $this->selectedStore
+            ]);
+        } else {
+            $this->dispatch('debug-log', [
+                'message' => 'No store filter - showing all stores',
+                'selectedStore' => $this->selectedStore
+            ]);
+        }
+
+        $categories = $query->orderBy('id')->get();
+
+        // 取得されたカテゴリーの詳細をログ出力
+        $categoryDetails = $categories->map(function($cat) {
+            return [
+                'id' => $cat->id,
+                'name' => $cat->name,
+                'store_id' => $cat->store_id
+            ];
+        })->toArray();
+
+        $this->dispatch('debug-log', [
+            'message' => 'Categories retrieved',
+            'count' => $categories->count(),
+            'categories' => $categoryDetails
+        ]);
+
+        return $categories->map(function ($category, $index) {
                 $colors = ['care', 'hydrogen', 'training', 'special', 'premium', 'vip'];
                 return [
                     'id' => $category->id,

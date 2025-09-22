@@ -19,7 +19,10 @@ class TodayReservationTimelineWidget extends Widget
 
     #[Url]
     public string $selectedDate = '';
-    
+
+    #[Url]
+    public ?int $selectedStoreId = null;
+
     public ?int $selectedReservationId = null;
     public bool $showReservationModal = false;
     
@@ -29,10 +32,13 @@ class TodayReservationTimelineWidget extends Widget
 
     public function mount(): void
     {
+        // 明確にこのウィジェットが使用されていることを示す
+        logger('🔴 TodayReservationTimelineWidget が使用されています');
+
         if (empty($this->selectedDate)) {
             $this->selectedDate = Carbon::today()->format('Y-m-d');
         }
-        
+
         // 初期データをキャッシュ
         $this->refreshData();
     }
@@ -53,21 +59,31 @@ class TodayReservationTimelineWidget extends Widget
         $selectedDate = Carbon::parse($this->selectedDate);
         $user = auth()->user();
         
-        // 店舗クエリを構築（ロール制限適用）
+        // 店舗クエリを構築（ロール制限 + 選択店舗フィルタ適用）
         $storesQuery = Store::where('is_active', true);
-        if ($user && !$user->hasRole('super_admin') && $user->store_id) {
+
+        // 選択された店舗がある場合は、その店舗のみ
+        if ($this->selectedStoreId) {
+            $storesQuery->where('id', $this->selectedStoreId);
+        } elseif ($user && !$user->hasRole('super_admin') && $user->store_id) {
+            // 非スーパーアドミンの場合は自店舗のみ
             $storesQuery->where('id', $user->store_id);
         }
+
         $stores = $storesQuery->get();
         
-        // 予約クエリを構築（ロール制限適用）
-        $reservationsQuery = Reservation::with(['customer', 'menu', 'store'])
+        // 予約クエリを構築（ロール制限 + 選択店舗フィルタ適用）
+        $reservationsQuery = Reservation::with(['customer', 'menu.menuCategory', 'store'])
             ->whereDate('reservation_date', $selectedDate)
             ->whereNotIn('status', ['cancelled', 'canceled'])
             ->orderBy('store_id')
             ->orderBy('start_time');
-            
-        if ($user && !$user->hasRole('super_admin') && $user->store_id) {
+
+        // 選択された店舗がある場合は、その店舗のみ
+        if ($this->selectedStoreId) {
+            $reservationsQuery->where('store_id', $this->selectedStoreId);
+        } elseif ($user && !$user->hasRole('super_admin') && $user->store_id) {
+            // 非スーパーアドミンの場合は自店舗のみ
             $reservationsQuery->where('store_id', $user->store_id);
         }
         
@@ -77,7 +93,8 @@ class TodayReservationTimelineWidget extends Widget
         $reservations->transform(function ($reservation) {
             $reservation->is_new_customer = $reservation->customer->isFirstReservation($reservation);
             // カテゴリー別の色クラスを設定
-            $reservation->category_color_class = $this->getCategoryColorClass($reservation->menu->category_id ?? null);
+            $categoryId = $reservation->menu ? $reservation->menu->category_id : null;
+            $reservation->category_color_class = $this->getCategoryColorClass($categoryId);
             return $reservation;
         });
         
@@ -136,6 +153,24 @@ class TodayReservationTimelineWidget extends Widget
     {
         $this->refreshData();
     }
+
+    public function updatedSelectedStoreId()
+    {
+        $this->refreshData();
+    }
+
+    public function getAvailableStores(): Collection
+    {
+        $user = auth()->user();
+        $storesQuery = Store::where('is_active', true);
+
+        // スーパーアドミン以外は自店舗のみ
+        if ($user && !$user->hasRole('super_admin') && $user->store_id) {
+            $storesQuery->where('id', $user->store_id);
+        }
+
+        return $storesQuery->orderBy('name')->get();
+    }
     
     public function openReservationModal(int $reservationId): void
     {
@@ -188,16 +223,76 @@ class TodayReservationTimelineWidget extends Widget
             return 'default';
         }
 
-        // カテゴリーIDをそのまま使用してCSSクラスを生成
-        return $categoryId;
+        // カテゴリー情報を取得してname-based の色クラスを生成
+        $category = \App\Models\MenuCategory::find($categoryId);
+        if (!$category) {
+            return 'default';
+        }
+
+        // カテゴリー名をベースにした統一の色クラスを生成（getCategoryColors()と一致）
+        return 'category-' . \Str::slug($category->name);
     }
 
     /**
-     * すべてのカテゴリー色情報を取得
+     * すべてのカテゴリー色情報を取得（実際に使用されているもの + 利用可能なメニューがあるもの）
      */
     public function getCategoryColors(): array
     {
-        $categories = \App\Models\MenuCategory::where('is_active', true)->orderBy('id')->get();
+        // 今日の予約で使用されているカテゴリーIDを取得
+        $selectedDate = Carbon::parse($this->selectedDate);
+        $user = auth()->user();
+
+        $reservationsQuery = \App\Models\Reservation::with(['menu'])
+            ->whereDate('reservation_date', $selectedDate)
+            ->whereNotIn('status', ['cancelled', 'canceled']);
+
+        // 選択された店舗がある場合は、その店舗のみ
+        if ($this->selectedStoreId) {
+            $reservationsQuery->where('store_id', $this->selectedStoreId);
+        } elseif ($user && !$user->hasRole('super_admin') && $user->store_id) {
+            // 非スーパーアドミンの場合は自店舗のみ
+            $reservationsQuery->where('store_id', $user->store_id);
+        }
+
+        $usedCategoryIds = $reservationsQuery->get()
+            ->pluck('menu.category_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->toArray();
+
+        // 利用可能なメニューがあるカテゴリーIDも取得（店舗フィルタリング適用）
+        $availableMenusQuery = \App\Models\Menu::where('is_available', true)
+            ->whereNotNull('category_id');
+
+        // 権限に応じた店舗フィルタリング
+        if ($this->selectedStoreId) {
+            $availableMenusQuery->where('store_id', $this->selectedStoreId);
+        } elseif ($user && !$user->hasRole('super_admin') && $user->store_id) {
+            $availableMenusQuery->where('store_id', $user->store_id);
+        }
+
+        $availableCategoryIds = $availableMenusQuery
+            ->pluck('category_id')
+            ->unique()
+            ->values()
+            ->toArray();
+
+        // 今日使用されているカテゴリー + 利用可能なメニューがあるカテゴリーを結合
+        $allCategoryIds = array_unique(array_merge($usedCategoryIds, $availableCategoryIds));
+
+        // カテゴリーを取得（店舗フィルタリング適用）
+        $categoriesQuery = \App\Models\MenuCategory::whereIn('id', $allCategoryIds)
+            ->where('is_active', true);
+
+        // 権限に応じた店舗フィルタリング
+        if ($this->selectedStoreId) {
+            $categoriesQuery->where('store_id', $this->selectedStoreId);
+        } elseif ($user && !$user->hasRole('super_admin') && $user->store_id) {
+            $categoriesQuery->where('store_id', $user->store_id);
+        }
+
+        $categories = $categoriesQuery->orderBy('id')->get();
 
         // フォールバック用のカラーパターン
         $fallbackColors = [
@@ -210,12 +305,22 @@ class TodayReservationTimelineWidget extends Widget
         ];
 
         $result = [];
+        $seenNames = []; // 重複チェック用
+        $nameToColorClass = []; // 名前とカラークラスのマッピング
+
         foreach ($categories as $index => $category) {
+            // 同じ名前のカテゴリーが既に追加されている場合はスキップ
+            if (in_array($category->name, $seenNames)) {
+                continue;
+            }
+            $seenNames[] = $category->name;
+
             // データベースの色を優先、なければフォールバック色を使用
             $colorHex = $category->color ?: $fallbackColors[$index % count($fallbackColors)];
 
-            // カラークラス名を生成（category-{id}形式）
-            $colorClass = 'category-' . $category->id;
+            // カラークラス名を生成（category-{name-slug}形式で統一）
+            $colorClass = 'category-' . \Str::slug($category->name);
+            $nameToColorClass[$category->name] = $colorClass;
 
             $result[] = [
                 'id' => $category->id,

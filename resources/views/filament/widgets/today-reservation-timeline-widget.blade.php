@@ -11,6 +11,20 @@
                 </h2>
                 
                 <div class="flex items-center space-x-4">
+                    <!-- 店舗選択（スーパーアドミンのみ表示） -->
+                    @if(auth()->user()->hasRole('super_admin'))
+                        <div class="flex items-center space-x-2">
+                            <label class="text-sm font-medium text-gray-700">店舗:</label>
+                            <select wire:model.live="selectedStoreId"
+                                class="px-3 py-1 border border-gray-300 rounded text-sm bg-white">
+                                <option value="">全店舗</option>
+                                @foreach($this->getAvailableStores() as $store)
+                                    <option value="{{ $store->id }}">{{ $store->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
+
                     <!-- 日付ナビゲーション -->
                     <div class="flex items-center space-x-2">
                         <button 

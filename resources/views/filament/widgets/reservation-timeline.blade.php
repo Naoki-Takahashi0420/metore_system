@@ -481,27 +481,16 @@
             @endif
         </div>
         
-        <!-- 凡例（動的生成） -->
+        <!-- 凡例（店舗フィルター適用） -->
         <div class="flex flex-wrap gap-4 mt-4 text-sm">
-            @php
-                $categories = \App\Models\MenuCategory::where('is_active', true)
-                    ->orderBy('id')
-                    ->get();
-                $colorPatterns = ['care', 'hydrogen', 'training', 'special', 'premium', 'vip'];
-                $shownColors = [];
-            @endphp
-            @foreach($categories as $category)
-                @php
-                    $colorClass = $colorPatterns[($category->id - 1) % count($colorPatterns)];
-                @endphp
-                @if(!in_array($colorClass, $shownColors))
-                    @php $shownColors[] = $colorClass; @endphp
+            @if(!empty($categories))
+                @foreach($categories as $category)
                     <div class="flex items-center gap-2">
-                        <div class="w-5 h-5 rounded course-{{ $colorClass }} border"></div>
-                        <span>{{ $category->name }}</span>
+                        <div class="w-5 h-5 rounded course-{{ $category['color_class'] }} border"></div>
+                        <span>{{ $category['name'] }}</span>
                     </div>
-                @endif
-            @endforeach
+                @endforeach
+            @endif
         </div>
 
         <!-- JavaScript for Current Time Indicator -->
@@ -1319,4 +1308,38 @@
             </div>
         </div>
     @endif
+
+    <!-- デバッグ用JavaScript -->
+    <script>
+        document.addEventListener('livewire:load', function () {
+            // デバッグログイベントをリッスン
+            window.Livewire.on('debug-log', (data) => {
+                console.group('🔍 ReservationTimelineWidget Debug');
+                console.log('Message:', data.message);
+                if (data.selectedStore !== undefined) {
+                    console.log('Selected Store:', data.selectedStore);
+                }
+                if (data.hasSelectedStore !== undefined) {
+                    console.log('Has Selected Store:', data.hasSelectedStore);
+                }
+                if (data.storeId !== undefined) {
+                    console.log('Store ID for filter:', data.storeId);
+                }
+                if (data.count !== undefined) {
+                    console.log('Category Count:', data.count);
+                }
+                if (data.categories !== undefined) {
+                    console.log('Categories:', data.categories);
+                }
+                console.groupEnd();
+            });
+
+            // 店舗選択変更時のデバッグ
+            document.addEventListener('change', function(e) {
+                if (e.target.matches('select[wire\\:model\\.live="selectedStore"]')) {
+                    console.log('🏪 Store selection changed to:', e.target.value);
+                }
+            });
+        });
+    </script>
 </x-filament-widgets::widget>
