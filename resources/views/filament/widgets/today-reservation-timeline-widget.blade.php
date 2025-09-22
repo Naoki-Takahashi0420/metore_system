@@ -328,25 +328,17 @@
             opacity: 0.8;
         }
         
-        /* カテゴリー別の色定義 - 動的生成 */
+        /* カテゴリー別の色定義 - 実際のカテゴリー色を使用 */
         @php
             $categoryColors = $this->getCategoryColors();
-            $colorPatterns = [
-                'care' => '#3b82f6',
-                'hydrogen' => '#8b5cf6',
-                'training' => '#f97316',
-                'special' => '#22c55e',
-                'premium' => '#ef4444',
-                'vip' => '#eab308',
-            ];
         @endphp
 
-        @foreach($colorPatterns as $colorClass => $colorHex)
-        .category-{{ $colorClass }} {
-            background-color: {{ $colorHex }} !important;
+        @foreach($categoryColors as $category)
+        .category-{{ $category['id'] }} {
+            background-color: {{ $category['colorHex'] }} !important;
         }
-        .course-{{ $colorClass }} {
-            background-color: {{ $colorHex }} !important;
+        .course-{{ $category['id'] }} {
+            background-color: {{ $category['colorHex'] }} !important;
         }
         @endforeach
 

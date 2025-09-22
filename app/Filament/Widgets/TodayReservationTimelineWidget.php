@@ -188,19 +188,8 @@ class TodayReservationTimelineWidget extends Widget
             return 'default';
         }
 
-        // 見やすく区別しやすい配色パターンを使用
-        $colorPatterns = [
-            'care',      // 青系
-            'hydrogen',  // 紫系
-            'training',  // オレンジ系
-            'special',   // 緑系
-            'premium',   // 赤系
-            'vip',       // 黄系
-        ];
-
-        // カテゴリーIDを元に色を決定（循環使用）
-        $index = ($categoryId - 1) % count($colorPatterns);
-        return $colorPatterns[$index];
+        // カテゴリーIDをそのまま使用してCSSクラスを生成
+        return $categoryId;
     }
 
     /**
