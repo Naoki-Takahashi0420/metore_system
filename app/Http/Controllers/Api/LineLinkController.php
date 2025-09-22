@@ -459,12 +459,17 @@ class LineLinkController extends Controller
             // 予約詳細をLINEに送信
             $lineMessageSent = $this->sendReservationDetailsToLine($customer, $reservation, $store);
             
-            // LINE送信成功時は確認通知送信済みフラグを設定
+            // LINE送信成功時は確認通知送信済みフラグを設定（統一的な管理）
             if ($lineMessageSent) {
-                $reservation->update(['confirmation_sent' => true]);
+                $reservation->update([
+                    'confirmation_sent' => true,
+                    'confirmation_sent_at' => now(),
+                    'confirmation_method' => 'line'
+                ]);
                 \Log::info('LINE連携時の予約詳細送信成功、確認通知フラグ設定', [
                     'reservation_id' => $reservation->id,
-                    'customer_id' => $customer->id
+                    'customer_id' => $customer->id,
+                    'sent_at' => now()->toISOString()
                 ]);
             }
 

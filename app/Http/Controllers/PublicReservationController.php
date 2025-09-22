@@ -1386,8 +1386,9 @@ class PublicReservationController extends Controller
                 // 即時LINE送信を試行
                 $confirmationService = app(\App\Services\ReservationConfirmationService::class);
                 if ($confirmationService->sendLineConfirmation($reservation)) {
+                    // 統一的なフラグ設定（ReservationConfirmationService::markConfirmationSentを使用）
                     $confirmationService->markConfirmationSent($reservation, 'line');
-                    
+
                     \Log::info('即時LINE確認通知送信成功', [
                         'reservation_id' => $reservation->id,
                         'customer_id' => $customer->id

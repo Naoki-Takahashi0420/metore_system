@@ -28,29 +28,35 @@ class SendCustomerReservationNotification implements ShouldQueue
     public function handle(ReservationCreated $event): void
     {
         $reservation = $event->reservation;
-        
+
         // 既に確認通知送信済みの場合はスキップ（LINE連携時に送信済みの場合など）
-        if ($reservation->confirmation_sent) {
+        // confirmation_sent_at フラグで統一的にチェック
+        if ($reservation->confirmation_sent_at) {
             Log::info('顧客予約確認通知スキップ（送信済み）', [
                 'reservation_id' => $reservation->id,
-                'customer_id' => $reservation->customer_id
+                'customer_id' => $reservation->customer_id,
+                'sent_at' => $reservation->confirmation_sent_at
             ]);
             return;
         }
-        
+
         // 予約確認通知を送信
         try {
             $result = $this->notificationService->sendReservationConfirmation($reservation);
-            
+
             Log::info('顧客予約確認通知送信', [
                 'reservation_id' => $reservation->id,
                 'customer_id' => $reservation->customer_id,
                 'result' => $result
             ]);
-            
-            // 送信成功時はフラグを設定
+
+            // 送信成功時はフラグを設定（統一的な管理）
             if (!empty($result['line']) || !empty($result['sms'])) {
-                $reservation->update(['confirmation_sent' => true]);
+                $reservation->update([
+                    'confirmation_sent' => true,
+                    'confirmation_sent_at' => now(),
+                    'confirmation_method' => !empty($result['line']) ? 'line' : 'sms'
+                ]);
             }
         } catch (\Exception $e) {
             Log::error('顧客予約確認通知送信失敗', [

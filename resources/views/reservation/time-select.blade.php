@@ -154,14 +154,12 @@
                     
                     <div class="px-2 md:px-0 md:ml-8">
                         {{-- 画像 (16:9) --}}
-                        <div class="mb-4">
-                            @if($menu->image_path)
-                                <img src="{{ Storage::url($menu->image_path) }}" alt="{{ $menu->name }}" 
+                        @if($menu->image_path)
+                            <div class="mb-4">
+                                <img src="{{ Storage::url($menu->image_path) }}" alt="{{ $menu->name }}"
                                     class="w-full h-auto aspect-video object-contain bg-white rounded-lg">
-                            @else
-                                <div class="w-full aspect-video bg-gray-200 rounded-lg"></div>
-                            @endif
-                        </div>
+                            </div>
+                        @endif
                         
                         {{-- コンテンツ部分 --}}
                         <div class="flex flex-col gap-4">
