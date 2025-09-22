@@ -50,16 +50,40 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
             </div>
-            <h3 class="text-base font-medium text-gray-900 mb-2">診療記録がありません</h3>
-            <p class="text-sm text-gray-500 mb-6">まだ診療を受けていらっしゃいません</p>
-            <a href="/stores" class="bg-gray-900 text-white px-5 py-2.5 rounded-lg text-sm hover:bg-gray-800 transition-colors inline-block">
-                初回カウンセリングを予約
+            <h3 class="text-base font-medium text-gray-900 mb-2">情報が見つかりません</h3>
+            <p class="text-sm text-gray-500 mb-6">まだトレーニングを受けていらっしゃいません</p>
+            <a href="#" onclick="goToReservation(); return false;" class="bg-gray-900 text-white px-5 py-2.5 rounded-lg text-sm hover:bg-gray-800 transition-colors inline-block">
+                初回予約を取る
             </a>
         </div>
     </div>
 </div>
 
 <script>
+function goToReservation() {
+    // ローカルストレージから顧客情報を取得
+    const customerData = localStorage.getItem('customer_data');
+
+    if (customerData) {
+        try {
+            const customer = JSON.parse(customerData);
+            const customerId = customer.id;
+
+            // 顧客IDがある場合は、URLパラメータ付きで遷移
+            if (customerId) {
+                window.location.href = `/reservation/store?customer_id=${customerId}`;
+            } else {
+                window.location.href = '/reservation/store';
+            }
+        } catch (e) {
+            console.error('Error parsing customer data:', e);
+            window.location.href = '/reservation/store';
+        }
+    } else {
+        window.location.href = '/reservation/store';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', async function() {
     const token = localStorage.getItem('customer_token');
     const customerData = localStorage.getItem('customer_data');
@@ -166,7 +190,7 @@ function displayMedicalRecords(records) {
                     </div>
                     <div class="text-right">
                         <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                            診療記録
+                            トレーニング記録
                         </span>
                     </div>
                 </div>

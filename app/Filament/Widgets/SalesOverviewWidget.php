@@ -118,7 +118,7 @@ class SalesOverviewWidget extends BaseWidget
                 ->color('warning')
                 ->extraAttributes([
                     'class' => 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition',
-                    'onclick' => "window.location.href='/admin/reservations'",
+                    'onclick' => "window.location.href='" . \App\Filament\Resources\ReservationResource::getUrl('index') . "'",
                     'title' => '予約一覧へ移動',
                 ]),
         ];

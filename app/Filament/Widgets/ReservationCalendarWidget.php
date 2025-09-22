@@ -175,11 +175,21 @@ class ReservationCalendarWidget extends FullCalendarWidget
                 $title .= "\n(ｷｬﾝｾﾙ" . $group->cancelled_count . ')';
             }
 
+            // URLを生成（ここが重要！）
+            $baseUrl = \App\Filament\Resources\ReservationResource::getUrl('index');
+            $eventUrl = $baseUrl . '?tableFilters[reservation_date][from]=' . $date->format('Y-m-d') . '&tableFilters[reservation_date][to]=' . $date->format('Y-m-d');
+
+            \Log::info('📅 Event URL created in fetchEvents:', [
+                'date' => $date->format('Y-m-d'),
+                'url' => $eventUrl
+            ]);
+
             return [
                 'id' => 'count_' . $date->format('Y-m-d'),
                 'title' => $title,
                 'start' => $date->format('Y-m-d'),
                 'allDay' => true, // 終日イベントとして表示
+                'url' => $eventUrl, // ← ここにURLを追加！
                 'backgroundColor' => $backgroundColor,
                 'borderColor' => $backgroundColor,
                 'textColor' => $textColor,
@@ -228,6 +238,7 @@ class ReservationCalendarWidget extends FullCalendarWidget
             Actions\ViewAction::make()
                 ->label('予約一覧')
                 ->modalHeading(function (array $arguments) {
+                    \Log::info('🎯 modalHeading - arguments:', $arguments);
                     $date = $arguments['event']['extendedProps']['date'] ?? '';
                     return $date . 'の予約一覧';
                 })
@@ -236,6 +247,7 @@ class ReservationCalendarWidget extends FullCalendarWidget
                     Forms\Components\Placeholder::make('summary')
                         ->label('')
                         ->content(function (array $arguments) {
+                            \Log::info('📊 form content - arguments:', $arguments);
                             $activeCount = $arguments['event']['extendedProps']['activeCount'] ?? 0;
                             $cancelledCount = $arguments['event']['extendedProps']['cancelledCount'] ?? 0;
                             $totalCount = $arguments['event']['extendedProps']['totalCount'] ?? 0;
@@ -255,17 +267,27 @@ class ReservationCalendarWidget extends FullCalendarWidget
                         ->icon('heroicon-o-list-bullet')
                         ->color('primary')
                         ->url(function (array $arguments) {
+                            \Log::info('🔗 URL生成開始 - arguments:', $arguments);
                             // 日付から予約一覧ページへのリンクを生成
                             $date = str_replace('count_', '', $arguments['event']['id'] ?? '');
                             $baseUrl = \App\Filament\Resources\ReservationResource::getUrl('index');
-                            return $baseUrl . '?tableFilters[reservation_date][from]=' . $date . '&tableFilters[reservation_date][to]=' . $date;
+                            $finalUrl = $baseUrl . '?tableFilters[reservation_date][from]=' . $date . '&tableFilters[reservation_date][to]=' . $date;
+                            \Log::info('🔗 ReservationCalendarWidget URL Generated:', [
+                                'date' => $date,
+                                'baseUrl' => $baseUrl,
+                                'finalUrl' => $finalUrl,
+                                'full_arguments' => $arguments
+                            ]);
+                            return $finalUrl;
                         })
                         ->openUrlInNewTab()
                         ->action(function () {
+                            \Log::info('🚀 Action triggered');
                             // URLリンクなのでアクションは不要
                         }),
                 ])
                 ->fillForm(function (array $arguments) {
+                    \Log::info('📝 fillForm - arguments:', $arguments);
                     // カウントデータをフォームに表示
                     return [];
                 })
@@ -326,7 +348,22 @@ class ReservationCalendarWidget extends FullCalendarWidget
             'allDayText' => '終日',
 
             // イベントクリック処理を有効化
-            'eventClick' => true,
+            'eventClick' => 'function(info) {
+                console.log("=== カレンダークリック詳細 ===");
+                console.log("Event ID:", info.event.id);
+                console.log("Event Title:", info.event.title);
+                console.log("Event Props:", info.event.extendedProps);
+                console.log("Event URL:", info.event.url);
+                console.log("Full Event Object:", info.event);
+                console.log("=========================");
+
+                // デフォルトの動作を阻止してURLを確認
+                if (info.event.url) {
+                    console.log("🔗 遷移先URL:", info.event.url);
+                    // info.jsEvent.preventDefault();
+                    // window.open(info.event.url, "_blank");
+                }
+            }',
 
             'editable' => false,
 

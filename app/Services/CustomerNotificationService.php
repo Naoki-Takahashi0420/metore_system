@@ -27,29 +27,46 @@ class CustomerNotificationService
     public function sendNotification(Customer $customer, Store $store, string $message, string $notificationType = 'general'): array
     {
         $results = [];
-        
+
+        // デバッグログ追加
+        Log::info('🔔 顧客通知送信開始', [
+            'customer_id' => $customer->id,
+            'store_id' => $store->id,
+            'type' => $notificationType,
+            'has_line' => $customer->canReceiveLineNotifications(),
+            'line_user_id' => $customer->line_user_id,
+            'has_phone' => !empty($customer->phone),
+            'sms_enabled' => $customer->sms_notifications_enabled
+        ]);
+
         // LINE連携済みの場合は LINE > SMS の順で試行
         if ($customer->canReceiveLineNotifications()) {
             $lineResult = $this->sendLineNotification($customer, $store, $message, $notificationType);
             $results['line'] = $lineResult;
-            
+
             if ($lineResult) {
-                Log::info('顧客通知成功 (LINE)', [
+                Log::info('✅ 顧客通知成功 (LINE) - SMS送信をスキップ', [
                     'customer_id' => $customer->id,
                     'store_id' => $store->id,
                     'type' => $notificationType
                 ]);
+                // LINE送信成功時はSMSを送信しない
+                $results['sms'] = false;
                 return $results;
             }
-            
-            Log::warning('LINE通知失敗、SMSにフォールバック', [
+
+            Log::warning('⚠️ LINE通知失敗、SMSにフォールバック', [
                 'customer_id' => $customer->id,
                 'store_id' => $store->id
             ]);
         }
-        
+
         // LINE送信失敗またはLINE未連携の場合はSMSを試行
         if ($customer->phone && $customer->sms_notifications_enabled) {
+            Log::info('📱 SMS送信を試行', [
+                'customer_id' => $customer->id,
+                'phone' => $customer->phone
+            ]);
             $smsResult = $this->sendSmsNotification($customer, $message, $notificationType);
             $results['sms'] = $smsResult;
             

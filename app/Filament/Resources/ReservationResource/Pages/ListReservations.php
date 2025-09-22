@@ -12,7 +12,8 @@ class ListReservations extends ListRecords
 {
     protected static string $resource = ReservationResource::class;
 
-    protected static string $view = 'filament.resources.reservation-resource.pages.list-reservations';
+    // カスタムビューを一時的に無効化して標準的なFilamentテーブルを使用
+    // protected static string $view = 'filament.resources.reservation-resource.pages.list-reservations';
 
     #[Url]
     public $storeFilter = null;

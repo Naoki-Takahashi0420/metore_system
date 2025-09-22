@@ -143,7 +143,7 @@
                 </div>
                 <h3 class="text-lg font-medium text-gray-900 mb-2">予約がありません</h3>
                 <p class="text-gray-500 mb-6">新しい予約を取りましょう</p>
-                <a href="/reservation/store" class="bg-primary-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-700 transition-colors inline-block">
+                <a href="#" onclick="goToReservation(); return false;" class="bg-primary-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-700 transition-colors inline-block">
                     予約する
                 </a>
             </div>
@@ -225,6 +225,30 @@
 <script>
 let allReservations = [];
 let currentFilter = 'all';
+
+function goToReservation() {
+    // ローカルストレージから顧客情報を取得
+    const customerData = localStorage.getItem('customer_data');
+
+    if (customerData) {
+        try {
+            const customer = JSON.parse(customerData);
+            const customerId = customer.id;
+
+            // 顧客IDがある場合は、URLパラメータ付きで遷移
+            if (customerId) {
+                window.location.href = `/reservation/store?customer_id=${customerId}`;
+            } else {
+                window.location.href = '/reservation/store';
+            }
+        } catch (e) {
+            console.error('Error parsing customer data:', e);
+            window.location.href = '/reservation/store';
+        }
+    } else {
+        window.location.href = '/reservation/store';
+    }
+}
 
 document.addEventListener('DOMContentLoaded', async function() {
     const token = localStorage.getItem('customer_token');
