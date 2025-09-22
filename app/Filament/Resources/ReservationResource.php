@@ -554,6 +554,14 @@ class ReservationResource extends Resource
                         })->join(', ');
                     })
                     ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('notes')
+                    ->label('お客様備考')
+                    ->limit(50)
+                    ->placeholder('なし')
+                    ->tooltip(function ($record) {
+                        return $record->notes ? $record->notes : null;
+                    })
+                    ->toggleable(isToggledHiddenByDefault: false),
                 Tables\Columns\BadgeColumn::make('status')
                     ->label('ステータス')
                     ->colors([

@@ -14,12 +14,20 @@ mv metore_system-main current
 cd current
 
 # Environment setup
-cat > .env << 'EOF'
-APP_NAME=Xsyumeno
+# AWS credentials should be set as environment variables before running this script
+# export AWS_ACCESS_KEY_ID=your_access_key
+# export AWS_SECRET_ACCESS_KEY=your_secret_key
+
+cat > .env << EOF
+APP_NAME="目のトレーニング"
 APP_ENV=production
 APP_KEY=base64:FhDmJJEPuQPAz6t5HMt6qTVSYLs7pJg7xLDgBEcVHHg=
 APP_DEBUG=false
-APP_URL=http://13.231.41.238
+APP_URL=https://reservation.meno-training.com
+
+APP_LOCALE=ja
+APP_FALLBACK_LOCALE=en
+APP_FAKER_LOCALE=ja_JP
 
 DB_CONNECTION=mysql
 DB_HOST=xsyumeno-db.cbq0ywo44b0p.ap-northeast-1.rds.amazonaws.com
@@ -28,9 +36,35 @@ DB_DATABASE=xsyumenodb
 DB_USERNAME=admin
 DB_PASSWORD=Xsyumeno2024#!
 
-CACHE_DRIVER=file
-SESSION_DRIVER=file
-QUEUE_CONNECTION=sync
+SESSION_DRIVER=database
+SESSION_LIFETIME=10080
+SESSION_ENCRYPT=false
+SESSION_PATH=/
+SESSION_DOMAIN=null
+
+CACHE_DRIVER=database
+QUEUE_CONNECTION=database
+
+# メール設定 (AWS SES)
+MAIL_MAILER=ses
+MAIL_FROM_ADDRESS="noreply@meno-training.com"
+MAIL_FROM_NAME="目のトレーニング"
+
+# AWS設定
+AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+AWS_DEFAULT_REGION=ap-northeast-1
+AWS_BUCKET=
+AWS_USE_PATH_STYLE_ENDPOINT=false
+
+# SMS設定（Amazon SNS）
+SMS_ENABLED=true
+SMS_FROM_NAME=Xsyumeno
+
+# Basic認証設定（本番環境で使用）
+BASIC_AUTH_ENABLED=false
+BASIC_AUTH_USERNAME=xsyumeno
+BASIC_AUTH_PASSWORD=xsyumeno2025!
 EOF
 
 # Composer install
