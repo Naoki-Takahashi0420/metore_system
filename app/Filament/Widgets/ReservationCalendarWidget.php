@@ -258,7 +258,7 @@ class ReservationCalendarWidget extends FullCalendarWidget
                             // 日付から予約一覧ページへのリンクを生成
                             $date = str_replace('count_', '', $arguments['event']['id'] ?? '');
                             $baseUrl = \App\Filament\Resources\ReservationResource::getUrl('index');
-                            return $baseUrl . '?tableFilters[reservation_date][date]=' . $date;
+                            return $baseUrl . '?tableFilters[reservation_date][from]=' . $date . '&tableFilters[reservation_date][to]=' . $date;
                         })
                         ->openUrlInNewTab()
                         ->action(function () {
