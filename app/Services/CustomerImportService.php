@@ -31,9 +31,15 @@ class CustomerImportService
     {
         $this->resetCounters();
         
-        // CSVファイルを読み込み（Shift-JISからUTF-8に変換）
+        // CSVファイルを読み込み（文字エンコーディングを自動判定して変換）
         $csvData = file_get_contents($filePath);
-        $csvData = mb_convert_encoding($csvData, 'UTF-8', 'SJIS-win');
+
+        // 文字エンコーディングを自動判定
+        $encoding = mb_detect_encoding($csvData, ['UTF-8', 'SJIS-win', 'SJIS', 'EUC-JP', 'JIS'], true);
+
+        if ($encoding && $encoding !== 'UTF-8') {
+            $csvData = mb_convert_encoding($csvData, 'UTF-8', $encoding);
+        }
         
         // 一時ファイルに保存
         $tempFile = tempnam(sys_get_temp_dir(), 'csv');
