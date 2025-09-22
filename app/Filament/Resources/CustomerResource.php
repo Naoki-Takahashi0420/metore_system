@@ -699,12 +699,29 @@ class CustomerResource extends Resource
                         }
 
                         // 類似顧客が見つかった場合の処理
-                        session()->flash('similar_customers_for_' . $record->id, $similarCustomers);
+                        session()->put('similar_customers_for_' . $record->id, $similarCustomers);
 
                         Notification::make()
                             ->title('類似顧客発見')
                             ->body(count($similarCustomers) . '件の類似顧客が見つかりました。統合アクションで詳細を確認してください。')
                             ->success()
+                            ->send();
+                    }),
+                Tables\Actions\Action::make('dismiss_similar')
+                    ->label('統合をスキップ')
+                    ->icon('heroicon-o-x-mark')
+                    ->color('gray')
+                    ->visible(fn ($record) => session()->has('similar_customers_for_' . $record->id))
+                    ->requiresConfirmation()
+                    ->modalHeading(fn ($record) => $record->last_name . $record->first_name . 'さんの類似顧客をスキップ')
+                    ->modalDescription('類似顧客の統合をスキップします。後でもう一度「類似顧客を探す」を実行できます。')
+                    ->modalSubmitActionLabel('スキップする')
+                    ->action(function ($record) {
+                        session()->forget('similar_customers_for_' . $record->id);
+                        Notification::make()
+                            ->title('統合をスキップしました')
+                            ->body('類似顧客の統合をスキップしました。必要に応じて再度「類似顧客を探す」を実行してください。')
+                            ->info()
                             ->send();
                     }),
                 Tables\Actions\Action::make('merge_customers')
