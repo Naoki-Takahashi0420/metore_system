@@ -12,32 +12,125 @@ use Illuminate\Support\Facades\Log;
 class CustomerMergeService
 {
     /**
-     * 類似顧客を検索（同姓同名）
+     * 類似顧客を検索（柔軟検索）
      */
     public function findSimilarCustomers(Customer $customer): array
     {
-        return Customer::where('last_name', $customer->last_name)
+        $results = collect();
+
+        // 1. 完全一致（姓名共に一致）
+        $exactMatches = Customer::where('last_name', $customer->last_name)
             ->where('first_name', $customer->first_name)
             ->where('id', '!=', $customer->id)
-            ->whereNull('deleted_at')
             ->with(['reservations' => function($query) {
                 $query->latest('reservation_date')->limit(1);
             }])
             ->withCount('reservations')
-            ->get()
-            ->map(function($similarCustomer) {
-                return [
-                    'id' => $similarCustomer->id,
-                    'name' => $similarCustomer->last_name . $similarCustomer->first_name,
-                    'phone' => $similarCustomer->phone ?: '(電話番号なし)',
-                    'email' => $similarCustomer->email ?: '(メールなし)',
-                    'reservations_count' => $similarCustomer->reservations_count,
-                    'last_visit' => $similarCustomer->reservations->first()
-                        ? $similarCustomer->reservations->first()->reservation_date->format('Y/m/d')
+            ->get();
+
+        foreach ($exactMatches as $match) {
+            $results->push([
+                'id' => $match->id,
+                'name' => $match->last_name . $match->first_name,
+                'phone' => $match->phone ?: '(電話番号なし)',
+                'email' => $match->email ?: '(メールなし)',
+                'reservations_count' => $match->reservations_count,
+                'last_visit' => $match->reservations->first()
+                    ? $match->reservations->first()->reservation_date->format('Y/m/d')
+                    : '来店なし',
+                'completeness_score' => $this->calculateCompleteness($match),
+                'similarity_type' => '完全一致',
+                'confidence' => 100
+            ]);
+        }
+
+        // 2. 姓一致（名が異なる）
+        $lastNameMatches = Customer::where('last_name', $customer->last_name)
+            ->where('first_name', '!=', $customer->first_name)
+            ->where('id', '!=', $customer->id)
+            ->with(['reservations' => function($query) {
+                $query->latest('reservation_date')->limit(1);
+            }])
+            ->withCount('reservations')
+            ->get();
+
+        foreach ($lastNameMatches as $match) {
+            $results->push([
+                'id' => $match->id,
+                'name' => $match->last_name . $match->first_name,
+                'phone' => $match->phone ?: '(電話番号なし)',
+                'email' => $match->email ?: '(メールなし)',
+                'reservations_count' => $match->reservations_count,
+                'last_visit' => $match->reservations->first()
+                    ? $match->reservations->first()->reservation_date->format('Y/m/d')
+                    : '来店なし',
+                'completeness_score' => $this->calculateCompleteness($match),
+                'similarity_type' => '姓一致',
+                'confidence' => 70
+            ]);
+        }
+
+        // 3. 名一致（姓が異なる）
+        $firstNameMatches = Customer::where('first_name', $customer->first_name)
+            ->where('last_name', '!=', $customer->last_name)
+            ->where('id', '!=', $customer->id)
+            ->with(['reservations' => function($query) {
+                $query->latest('reservation_date')->limit(1);
+            }])
+            ->withCount('reservations')
+            ->get();
+
+        foreach ($firstNameMatches as $match) {
+            $results->push([
+                'id' => $match->id,
+                'name' => $match->last_name . $match->first_name,
+                'phone' => $match->phone ?: '(電話番号なし)',
+                'email' => $match->email ?: '(メールなし)',
+                'reservations_count' => $match->reservations_count,
+                'last_visit' => $match->reservations->first()
+                    ? $match->reservations->first()->reservation_date->format('Y/m/d')
+                    : '来店なし',
+                'completeness_score' => $this->calculateCompleteness($match),
+                'similarity_type' => '名一致',
+                'confidence' => 60
+            ]);
+        }
+
+        // 4. 電話番号一致（名前が異なる場合）
+        if ($customer->phone) {
+            $phoneMatches = Customer::where('phone', $customer->phone)
+                ->where('id', '!=', $customer->id)
+                ->where(function($query) use ($customer) {
+                    $query->where('last_name', '!=', $customer->last_name)
+                          ->orWhere('first_name', '!=', $customer->first_name);
+                })
+                ->with(['reservations' => function($query) {
+                    $query->latest('reservation_date')->limit(1);
+                }])
+                ->withCount('reservations')
+                ->get();
+
+            foreach ($phoneMatches as $match) {
+                $results->push([
+                    'id' => $match->id,
+                    'name' => $match->last_name . $match->first_name,
+                    'phone' => $match->phone ?: '(電話番号なし)',
+                    'email' => $match->email ?: '(メールなし)',
+                    'reservations_count' => $match->reservations_count,
+                    'last_visit' => $match->reservations->first()
+                        ? $match->reservations->first()->reservation_date->format('Y/m/d')
                         : '来店なし',
-                    'completeness_score' => $this->calculateCompleteness($similarCustomer)
-                ];
-            })
+                    'completeness_score' => $this->calculateCompleteness($match),
+                    'similarity_type' => '電話番号一致',
+                    'confidence' => 90
+                ]);
+            }
+        }
+
+        // 重複除去と並び替え（信頼度順）
+        return $results->unique('id')
+            ->sortByDesc('confidence')
+            ->values()
             ->toArray();
     }
 
