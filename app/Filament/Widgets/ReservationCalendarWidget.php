@@ -55,18 +55,24 @@ class ReservationCalendarWidget extends FullCalendarWidget
 
     public function mount(): void
     {
-        // 親ページから店舗IDを受け取る、または初期値を設定
-        if (!$this->selectedStoreId) {
-            $user = auth()->user();
+        $user = auth()->user();
 
-            if ($user->hasRole('super_admin')) {
-                // スーパーアドミンの場合、最初の店舗を選択
-                $firstStore = Store::first();
-                $this->selectedStoreId = $firstStore?->id;
+        // ユーザーの権限に応じてデフォルト店舗を設定
+        if ($user->hasRole('super_admin')) {
+            // スーパーアドミンの場合、本番環境では浜松町店をデフォルトに
+            if (config('app.env') === 'production') {
+                $this->selectedStoreId = 1;
             } else {
-                // 店舗管理者の場合、自分の店舗IDを設定
-                $this->selectedStoreId = $user->store_id;
+                $firstStore = Store::where('is_active', true)->first();
+                $this->selectedStoreId = $firstStore?->id;
             }
+        } elseif ($user->hasRole('owner')) {
+            // オーナーは管理可能な最初の店舗をデフォルトに
+            $firstStore = $user->manageableStores()->where('is_active', true)->first();
+            $this->selectedStoreId = $firstStore?->id;
+        } else {
+            // 店長・スタッフは所属店舗をデフォルトに
+            $this->selectedStoreId = $user->store_id;
         }
     }
 
@@ -74,9 +80,8 @@ class ReservationCalendarWidget extends FullCalendarWidget
     public function updateStoreId($storeId, $date = null): void
     {
         $this->selectedStoreId = $storeId;
-        // FullCalendarのイベントを再取得
-        // $this->refreshRecords(); // このメソッドは存在しない可能性がある
-        $this->dispatch('refreshCalendar'); // 代わりにイベントを発火
+        // カレンダーを再レンダリング（FullCalendarが自動的にfetchEventsを呼び出す）
+        $this->dispatch('filament-fullcalendar--refresh');
     }
 
     protected function getBaseQuery()

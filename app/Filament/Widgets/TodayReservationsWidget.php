@@ -34,6 +34,7 @@ class TodayReservationsWidget extends BaseWidget
     public function updateStore($storeId): void
     {
         $this->storeFilter = $storeId;
+        $this->resetTable();
     }
 
     public function updateDate($date): void

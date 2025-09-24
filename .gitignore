@@ -40,3 +40,4 @@ config/aws.php
 /tmp/*.sh
 credentials.json
 secrets.json
+current/

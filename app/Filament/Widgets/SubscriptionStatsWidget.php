@@ -5,20 +5,49 @@ namespace App\Filament\Widgets;
 use App\Models\CustomerSubscription;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Livewire\Attributes\On;
 
 class SubscriptionStatsWidget extends BaseWidget
 {
     protected static ?string $pollingInterval = '30s';
-    
+
     protected static ?int $sort = 50;
+
+    public ?int $selectedStoreId = null;
+
+    public function mount(): void
+    {
+        $user = auth()->user();
+
+        // 初期店舗設定
+        if ($user->hasRole('super_admin')) {
+            $firstStore = \App\Models\Store::first();
+            $this->selectedStoreId = $firstStore?->id;
+        } else {
+            $this->selectedStoreId = $user->store_id;
+        }
+    }
+
+    #[On('store-changed')]
+    public function updateStore($storeId, $date = null): void
+    {
+        $this->selectedStoreId = $storeId;
+    }
 
     protected function getStats(): array
     {
-        $activeCount = CustomerSubscription::where('status', 'active')->count();
-        $expiringCount = CustomerSubscription::where('status', 'active')
+        $query = CustomerSubscription::query();
+
+        // 店舗フィルタリング（store_idで直接フィルタリング）
+        if ($this->selectedStoreId) {
+            $query->where('store_id', $this->selectedStoreId);
+        }
+
+        $activeCount = $query->where('status', 'active')->count();
+        $expiringCount = $query->where('status', 'active')
             ->whereDate('end_date', '<=', now()->addDays(30))
             ->count();
-        $monthlyRevenue = CustomerSubscription::where('status', 'active')
+        $monthlyRevenue = $query->where('status', 'active')
             ->sum('monthly_price');
         
         return [
