@@ -23,9 +23,11 @@ class OtpService
      */
     public function sendOtp(string $phone): bool
     {
-        // 既存の未使用OTPを無効化
+        // 既存の未使用OTPを無効化（古いものだけ削除）
+        // 1分以内のものは残す（レート制限の判定用）
         OtpVerification::where('phone', $phone)
             ->whereNull('verified_at')
+            ->where('created_at', '<', Carbon::now()->subMinutes(1))
             ->delete();
         
         // 新しいOTPを生成

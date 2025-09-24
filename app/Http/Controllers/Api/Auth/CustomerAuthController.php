@@ -38,7 +38,9 @@ class CustomerAuthController extends Controller
             ], 422);
         }
         
-        // 再送信チェック
+        // 再送信チェック（デモ期間中は制限を緩和）
+        // TODO: 本番運用時はコメントアウトを外して有効化
+        /*
         if (!$this->otpService->canResend($request->phone)) {
             return response()->json([
                 'success' => false,
@@ -48,6 +50,7 @@ class CustomerAuthController extends Controller
                 ],
             ], 429);
         }
+        */
         
         // OTP送信
         if (!$this->otpService->sendOtp($request->phone)) {
