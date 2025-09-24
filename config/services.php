@@ -40,6 +40,8 @@ return [
         'secret' => env('AWS_SECRET_ACCESS_KEY'),
         'region' => env('AWS_DEFAULT_REGION', 'ap-northeast-1'),
         'sender_id' => env('SMS_FROM_NAME', 'METORE'),
+        'enabled' => env('SMS_ENABLED', true),
+        'use_test_otp' => env('SMS_USE_TEST_OTP', false),
     ],
 
     'line' => [

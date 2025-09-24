@@ -101,12 +101,12 @@ class OtpService
      */
     private function generateOtp(): string
     {
-        // テスト環境では固定OTP
-        if (config('app.env') === 'local' || config('app.env') === 'testing') {
+        // テスト用固定OTPを使用するかどうか
+        if (config('services.sns.use_test_otp', false)) {
             return '123456';
         }
-        
-        // 本番用ランダムOTP生成
-        return str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+        // 本番用ランダムOTP生成（6桁の数字）
+        return str_pad(random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
     }
 }

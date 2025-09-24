@@ -55,19 +55,26 @@ class SmsService
             $phone = $this->formatPhoneNumber($phone);
             
             // 本番環境でSMS送信
+            $messageAttributes = [
+                'AWS.SNS.SMS.SMSType' => [
+                    'DataType' => 'String',
+                    'StringValue' => 'Transactional',
+                ],
+            ];
+
+            // Sender IDが設定されている場合のみ追加（日本では使わない方が良い場合がある）
+            $senderId = config('services.sns.sender_id');
+            if ($senderId && $senderId !== 'NONE') {
+                $messageAttributes['AWS.SNS.SMS.SenderID'] = [
+                    'DataType' => 'String',
+                    'StringValue' => $senderId,
+                ];
+            }
+
             $result = $this->snsClient->publish([
                 'Message' => $message,
                 'PhoneNumber' => $phone,
-                'MessageAttributes' => [
-                    'AWS.SNS.SMS.SenderID' => [
-                        'DataType' => 'String',
-                        'StringValue' => config('services.sns.sender_id', 'METORE'),
-                    ],
-                    'AWS.SNS.SMS.SMSType' => [
-                        'DataType' => 'String',
-                        'StringValue' => 'Transactional',
-                    ],
-                ],
+                'MessageAttributes' => $messageAttributes,
             ]);
             
             Log::info('SMS送信成功', [
@@ -96,32 +103,44 @@ class SmsService
      */
     public function sendOtp(string $phone, string $otp): bool
     {
-        // テスト環境の場合は実際にSMS送信せず成功扱い
-        if (config('app.env') === 'local' || config('app.env') === 'testing') {
-            Log::info('テスト環境のため、SMS送信をスキップ', [
+        // SMS送信が無効化されている場合
+        if (!config('services.sns.enabled', true)) {
+            Log::info('SMS送信が無効化されています', [
                 'phone' => $phone,
                 'otp' => $otp,
-                'env' => config('app.env'),
             ]);
             return true;
         }
-        
+
         // AWS認証情報がない場合
         if (!$this->snsClient) {
-            Log::error('AWS SNS認証情報が設定されていません', [
+            // ローカル環境では警告、本番環境ではエラー
+            $logLevel = (config('app.env') === 'production') ? 'error' : 'warning';
+            Log::$logLevel('AWS SNS認証情報が設定されていません', [
                 'phone' => $phone,
+                'env' => config('app.env'),
                 'key_exists' => config('services.sns.key') !== null,
                 'secret_exists' => config('services.sns.secret') !== null,
             ]);
+
+            // ローカル環境では成功扱い（開発を妨げない）
+            if (config('app.env') === 'local' || config('app.env') === 'testing') {
+                Log::info('開発環境のため、SMS送信をスキップしました', [
+                    'phone' => $phone,
+                    'otp' => $otp,
+                ]);
+                return true;
+            }
+
             return false;
         }
-        
+
         $message = sprintf(
             "【%s】認証コード: %s\n有効期限: 5分",
             config('app.name'),
             $otp
         );
-        
+
         return $this->sendSms($phone, $message);
     }
     
@@ -133,19 +152,44 @@ class SmsService
      */
     private function formatPhoneNumber(string $phone): string
     {
-        // ハイフン、スペースを除去
-        $phone = preg_replace('/[\s\-]/', '', $phone);
-        
-        // 0から始まる場合は+81に変換
+        // ハイフン、スペース、その他の記号を除去
+        $phone = preg_replace('/[^0-9+]/', '', $phone);
+
+        // すでに+81で始まる場合はそのまま
+        if (strpos($phone, '+81') === 0) {
+            return $phone;
+        }
+
+        // 日本の携帯電話番号（080, 090, 070）の正しいE.164変換
+        if (preg_match('/^0[789]0\d{8}$/', $phone)) {
+            // 最初の0を削除して+81を追加
+            // 例: 08033372305 → +818033372305 (正しい)
+            return '+81' . substr($phone, 1);
+        }
+
+        // その他の0から始まる番号
         if (strpos($phone, '0') === 0) {
             $phone = '+81' . substr($phone, 1);
+            return $phone;
         }
-        
+
+        // 81で始まる場合
+        if (strpos($phone, '81') === 0) {
+            $phone = '+' . $phone;
+            return $phone;
+        }
+
+        // それ以外（80, 90などで始まる場合）
+        if (preg_match('/^[789]0/', $phone)) {
+            $phone = '+81' . $phone;
+            return $phone;
+        }
+
         // +がない場合は追加
         if (strpos($phone, '+') !== 0) {
             $phone = '+' . $phone;
         }
-        
+
         return $phone;
     }
 }
