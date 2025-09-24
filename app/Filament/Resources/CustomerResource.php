@@ -28,6 +28,11 @@ class CustomerResource extends Resource
     
     protected static ?int $navigationSort = 7;
 
+    /**
+     * グローバル検索の対象カラムを定義
+     */
+    protected static ?array $globallySearchableAttributes = ['last_name', 'first_name', 'phone', 'email'];
+
     public static function form(Form $form): Form
     {
         return $form
@@ -435,30 +440,7 @@ class CustomerResource extends Resource
                         }
                         return $name;
                     })
-                    ->searchable(query: function ($query, $search) {
-                        // 検索語をスペースで分割
-                        $searchTerms = preg_split('/[\s　]+/', trim($search));
-
-                        return $query->where(function ($q) use ($searchTerms) {
-                            foreach ($searchTerms as $term) {
-                                if (empty($term)) continue;
-
-                                $q->orWhere(function ($subQuery) use ($term) {
-                                    // 姓・名の部分一致検索（OR条件）
-                                    $subQuery->where('last_name', 'LIKE', "%{$term}%")
-                                             ->orWhere('first_name', 'LIKE', "%{$term}%")
-                                             ->orWhere('last_name_kana', 'LIKE', "%{$term}%")
-                                             ->orWhere('first_name_kana', 'LIKE', "%{$term}%");
-
-                                    // フルネーム検索（スペースありなし両対応）
-                                    $subQuery->orWhereRaw("CONCAT(last_name, ' ', first_name) LIKE ?", ["%{$term}%"])
-                                             ->orWhereRaw("CONCAT(last_name, first_name) LIKE ?", ["%{$term}%"])
-                                             ->orWhereRaw("CONCAT(last_name_kana, ' ', first_name_kana) LIKE ?", ["%{$term}%"])
-                                             ->orWhereRaw("CONCAT(last_name_kana, first_name_kana) LIKE ?", ["%{$term}%"]);
-                                });
-                            }
-                        });
-                    })
+                    ->searchable()
                     ->tooltip(function ($record) {
                         if (!$record->isHighRisk()) {
                             return null;
@@ -480,20 +462,7 @@ class CustomerResource extends Resource
                     }),
                 Tables\Columns\TextColumn::make('phone')
                     ->label('電話番号')
-                    ->searchable(query: function ($query, $search) {
-                        // 電話番号検索：ハイフンや空白を無視して検索
-                        $cleanSearch = preg_replace('/[-\s　()（）]/', '', $search);
-
-                        return $query->where(function ($q) use ($search, $cleanSearch) {
-                            // 元の検索語での部分一致
-                            $q->where('phone', 'LIKE', "%{$search}%");
-
-                            // クリーンにした検索語での部分一致
-                            if ($cleanSearch !== $search) {
-                                $q->orWhereRaw("REPLACE(REPLACE(REPLACE(REPLACE(phone, '-', ''), ' ', ''), '　', ''), '(', '') LIKE ?", ["%{$cleanSearch}%"]);
-                            }
-                        });
-                    }),
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('email')
                     ->label('メールアドレス')
                     ->searchable(),
