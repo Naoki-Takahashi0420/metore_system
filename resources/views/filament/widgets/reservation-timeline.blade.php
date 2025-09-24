@@ -431,7 +431,7 @@
                                     @endphp
                                     <td class="time-cell {{ $isBlocked ? 'blocked-cell' : '' }} {{ $hasNoStaff ? 'no-staff-cell' : '' }} {{ $isClickable ? 'empty-slot' : '' }}"
                                         @if($isClickable)
-                                            wire:click="openNewReservationFromSlot({{ json_encode($key) }}, {{ json_encode($slot) }})"
+                                            wire:click="openNewReservationFromSlot('{{ addslashes($key) }}', '{{ addslashes($slot) }}')"
                                             style="cursor: pointer; position: relative;"
                                             onmouseover="this.style.backgroundColor='#e3f2fd'"
                                             onmouseout="this.style.backgroundColor=''"
