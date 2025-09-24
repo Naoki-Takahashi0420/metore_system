@@ -431,9 +431,9 @@
                                     @endphp
                                     <td class="time-cell {{ $isBlocked ? 'blocked-cell' : '' }} {{ $hasNoStaff ? 'no-staff-cell' : '' }} {{ $isClickable ? 'empty-slot' : '' }}"
                                         @if($isClickable)
-                                            wire:click="openNewReservationFromSlot('{{ $key }}', '{{ $slot }}')"
+                                            wire:click="openNewReservationFromSlot({{ json_encode($key) }}, {{ json_encode($slot) }})"
                                             style="cursor: pointer; position: relative;"
-                                            onmouseover="this.style.backgroundColor='#e3f2fd'" 
+                                            onmouseover="this.style.backgroundColor='#e3f2fd'"
                                             onmouseout="this.style.backgroundColor=''"
                                             title="クリックして予約を作成"
                                         @endif>
