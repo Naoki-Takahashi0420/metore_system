@@ -1,4 +1,64 @@
 <x-filament-widgets::widget>
+    <!-- スロットクリックハンドラー（最初に定義） -->
+    <script>
+        window.handleSlotClick = function(seatKey, timeSlot) {
+            console.log('🎯 Slot clicked:', { seatKey, timeSlot });
+
+            // デバッグ：Livewireの状態を確認
+            console.log('Livewire available:', !!window.Livewire);
+            console.log('Livewire.find available:', !!(window.Livewire && window.Livewire.find));
+
+            try {
+                // $wireを直接使う（Livewire 3の新しい方法）
+                if (window.$wire) {
+                    console.log('✅ Using $wire directly');
+                    window.$wire.call('openNewReservationFromSlot', seatKey, timeSlot);
+                    return;
+                }
+
+                // Alpine.jsの$wireを探す
+                const alpineElement = document.querySelector('[x-data]');
+                if (alpineElement && alpineElement._x_dataStack) {
+                    console.log('🔍 Looking for Alpine $wire');
+                    const alpineData = Alpine.$data(alpineElement);
+                    if (alpineData.$wire) {
+                        console.log('✅ Found Alpine $wire');
+                        alpineData.$wire.call('openNewReservationFromSlot', seatKey, timeSlot);
+                        return;
+                    }
+                }
+
+                // Livewire 3のコンポーネントを取得
+                const wireElements = document.querySelectorAll('[wire\\:id]');
+                console.log('📊 Found wire:id elements:', wireElements.length);
+
+                for (const wireElement of wireElements) {
+                    const wireId = wireElement.getAttribute('wire:id');
+                    console.log('📍 Trying wire:id:', wireId);
+
+                    if (window.Livewire && window.Livewire.find) {
+                        const component = window.Livewire.find(wireId);
+                        if (component) {
+                            console.log('✅ Found component, calling method');
+                            component.call('openNewReservationFromSlot', seatKey, timeSlot);
+                            return;
+                        }
+                    }
+                }
+
+                console.error('❌ Could not find a way to call Livewire method');
+
+            } catch (error) {
+                console.error('❌ Error in handleSlotClick:', error);
+            }
+        }
+
+        // グローバルに確実に登録
+        if (typeof window.handleSlotClick === 'undefined') {
+            console.log('⚠️ handleSlotClick was not defined, defining now');
+        }
+    </script>
+
     <x-filament::card>
         <!-- Tom Select CSS -->
         <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
@@ -15,39 +75,51 @@
                 position: absolute;
                 top: 40px;  /* ヘッダーの高さ分下げる */
                 bottom: 0;
-                width: 3px;
-                background-color: #ef4444;
+                width: 4px;
+                background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
                 z-index: 100;
                 pointer-events: none;
-                box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+                box-shadow: 0 0 15px rgba(239, 68, 68, 0.8), 0 0 5px rgba(239, 68, 68, 0.5);
+                animation: pulse 2s ease-in-out infinite;
+            }
+
+            @keyframes pulse {
+                0%, 100% {
+                    opacity: 1;
+                }
+                50% {
+                    opacity: 0.7;
+                }
             }
 
             .current-time-indicator::before {
                 content: '';
                 position: absolute;
-                top: -5px;
-                left: -6px;
+                top: -8px;
+                left: -7px;
                 width: 0;
                 height: 0;
-                border-left: 8px solid transparent;
-                border-right: 8px solid transparent;
-                border-bottom: 10px solid #ef4444;
+                border-left: 9px solid transparent;
+                border-right: 9px solid transparent;
+                border-bottom: 12px solid #ef4444;
+                filter: drop-shadow(0 -2px 2px rgba(239, 68, 68, 0.3));
             }
 
             .current-time-text {
                 position: absolute;
-                top: -25px;
+                top: -30px;
                 left: 50%;
                 transform: translateX(-50%);
                 color: #ef4444;
-                font-size: 12px;
+                font-size: 13px;
                 font-weight: bold;
                 background: white;
-                padding: 2px 6px;
-                border: 1px solid #ef4444;
-                border-radius: 4px;
+                padding: 3px 8px;
+                border: 2px solid #ef4444;
+                border-radius: 6px;
                 white-space: nowrap;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+                z-index: 101;
             }
             
             .timeline-table th,
@@ -208,6 +280,16 @@
                 transform: translate(-50%, -50%);
                 font-size: 12px;
                 opacity: 0.7;
+            }
+
+            .past-time-cell {
+                background: #e5e7eb !important;
+                cursor: not-allowed !important;
+                opacity: 0.6;
+            }
+
+            .past-time-cell:hover {
+                background: #d1d5db !important;
             }
             
             .conflicting-reservation {
@@ -403,9 +485,9 @@
                                             }
                                         }
                                         
-                                        // 過去の時間帯かチェック（現在時刻から30分前まで許可）
+                                        // 過去の時間帯かチェック（現在時刻から1時間前まで許可）
                                         $slotDateTime = \Carbon\Carbon::parse($selectedDate . ' ' . $slot);
-                                        $minimumTime = \Carbon\Carbon::now()->subMinutes(30);
+                                        $minimumTime = \Carbon\Carbon::now()->subHours(1);
                                         $isPast = $slotDateTime->lt($minimumTime);
 
                                         // 営業時間チェック（最短メニュー60分を想定）
@@ -428,14 +510,19 @@
                                         }
 
                                         $isClickable = !$hasReservation && !$isBlocked && !$isPast && !$hasNoStaff && $isWithinBusinessHours;
+                                        $isPastClickable = !$hasReservation && !$isBlocked && $isPast && !$hasNoStaff;
                                     @endphp
-                                    <td class="time-cell {{ $isBlocked ? 'blocked-cell' : '' }} {{ $hasNoStaff ? 'no-staff-cell' : '' }} {{ $isClickable ? 'empty-slot' : '' }}"
+                                    <td class="time-cell {{ $isBlocked ? 'blocked-cell' : '' }} {{ $hasNoStaff ? 'no-staff-cell' : '' }} {{ $isPast ? 'past-time-cell' : '' }} {{ $isClickable ? 'empty-slot clickable-slot' : ($isPastClickable ? 'past-clickable' : '') }}"
                                         @if($isClickable)
-                                            wire:click="openNewReservationFromSlot('{{ addslashes($key) }}', '{{ addslashes($slot) }}')"
+                                            wire:click="openNewReservationFromSlot('{{ $key }}', '{{ $slot }}')"
                                             style="cursor: pointer; position: relative;"
                                             onmouseover="this.style.backgroundColor='#e3f2fd'"
                                             onmouseout="this.style.backgroundColor=''"
                                             title="クリックして予約を作成"
+                                        @elseif($isPastClickable)
+                                            onclick="alert('過去の時間帯です。\n予約は開始時刻の1時間前まで受け付けています。')"
+                                            style="cursor: not-allowed; position: relative;"
+                                            title="過去の時間帯です（予約開始1時間前まで受付）"
                                         @endif>
                                         @if($isBlocked)
                                             <div style="background: #9e9e9e; color: white; height: 100%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">
@@ -507,10 +594,9 @@
                 const startHour = 10;
                 const endHour = 20;
 
-                // 営業時間外の場合は確実に非表示
+                // 営業時間外の場合は非表示
                 if (currentHour < startHour || currentHour >= endHour) {
-                    indicator.style.display = 'none !important';
-                    console.log('営業時間外のため非表示:', currentHour + ':' + currentMinute);
+                    indicator.style.display = 'none';
                     return;
                 }
 
@@ -591,6 +677,7 @@
                     setTimeout(updateCurrentTimeIndicator, 100);
                 });
             });
+
         </script>
 
         <!-- Tom Select JavaScript -->
@@ -698,7 +785,7 @@
         <div 
             x-data="{ show: true }"
             x-show="show"
-            x-on:click="show = false; $wire.closeModal()"
+            x-on:click="show = false; $wire.set('selectedReservation', null)"
             class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
         >
             <div 
@@ -708,7 +795,7 @@
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-lg font-bold">予約詳細</h3>
                     <button 
-                        x-on:click="show = false; $wire.closeModal()"
+                        x-on:click="show = false; $wire.set('selectedReservation', null)"
                         class="text-gray-400 hover:text-gray-600"
                     >
                         ✕
@@ -866,16 +953,98 @@
     <!-- 新規予約作成モーダル -->
     @if($showNewReservationModal)
         <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" wire:click="closeNewReservationModal">
-            <div class="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" wire:click.stop>
+            <div class="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" @click.stop="">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-bold">新規予約作成</h2>
+                    <h2 class="text-xl font-bold">
+                        @if($modalMode === 'block')
+                            予約ブロック設定
+                        @else
+                            新規予約作成
+                        @endif
+                    </h2>
                     <button wire:click="closeNewReservationModal" class="text-gray-500 hover:text-gray-700">
                         <x-heroicon-s-x-mark class="w-6 h-6" />
                     </button>
                 </div>
-                
-                <!-- Step 1: 顧客選択 -->
-                @if($reservationStep === 1)
+
+                <!-- モード選択タブ -->
+                @php
+                    $user = auth()->user();
+                    $canCreateBlock = $user->hasRole(['super_admin', 'owner', 'manager']);
+                @endphp
+                @if($reservationStep === 1 || $modalMode === 'block')
+                    <div class="flex gap-2 mb-6 border-b border-gray-200">
+                        <button
+                            wire:click="$set('modalMode', 'reservation')"
+                            class="px-4 py-2 -mb-px {{ $modalMode === 'reservation' ? 'border-b-2 border-primary-600 text-primary-600 font-medium' : 'text-gray-600 hover:text-gray-900' }} transition">
+                            <x-heroicon-o-calendar class="w-5 h-5 inline mr-1" />
+                            予約作成
+                        </button>
+                        @if($canCreateBlock)
+                            <button
+                                wire:click="$set('modalMode', 'block')"
+                                class="px-4 py-2 -mb-px {{ $modalMode === 'block' ? 'border-b-2 border-red-600 text-red-600 font-medium' : 'text-gray-600 hover:text-gray-900' }} transition">
+                                <x-heroicon-o-no-symbol class="w-5 h-5 inline mr-1" />
+                                予約ブロック
+                            </button>
+                        @endif
+                    </div>
+                @endif
+
+                @if($modalMode === 'block')
+                    <!-- 予約ブロック設定フォーム -->
+                    <div class="space-y-4">
+                        <!-- 選択された時間と席の情報 -->
+                        <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+                            <div class="text-sm font-medium text-red-900">
+                                ブロック開始: {{ $blockSettings['date'] }} {{ $blockSettings['start_time'] }}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium mb-1">終了時間 <span class="text-red-500">*</span></label>
+                            <input
+                                type="time"
+                                wire:model="blockSettings.end_time"
+                                class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                                required>
+                            @if($blockSettings['end_time'] && $blockSettings['end_time'] <= $blockSettings['start_time'])
+                                <p class="text-red-500 text-sm mt-1">終了時間は開始時間より後に設定してください</p>
+                            @endif
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium mb-1">理由 <span class="text-red-500">*</span></label>
+                            <select
+                                wire:model="blockSettings.reason"
+                                class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500">
+                                <option value="休憩">休憩</option>
+                                <option value="清掃">清掃</option>
+                                <option value="メンテナンス">メンテナンス</option>
+                                <option value="研修">研修</option>
+                                <option value="その他">その他</option>
+                            </select>
+                        </div>
+
+                        <div class="border-t pt-4">
+                            <p class="text-sm text-gray-600 mb-2">
+                                <x-heroicon-o-information-circle class="w-4 h-4 inline" />
+                                設定した時間帯は予約を受け付けられなくなります
+                            </p>
+                        </div>
+
+                        <div class="flex gap-2">
+                            <button
+                                wire:click="createBlockedTime"
+                                class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium">
+                                ブロックを設定
+                            </button>
+                        </div>
+                    </div>
+                @else
+                    <!-- 予約作成モード -->
+                    @if($reservationStep === 1)
+                    <!-- Step 1: 顧客選択 -->
                     <div class="space-y-4">
                         <!-- 選択された時間と席の情報 -->
                         @if(!empty($newReservation['start_time']))
@@ -1304,6 +1473,7 @@
                             </button>
                         </div>
                     </div>
+                    @endif
                 @endif
             </div>
         </div>

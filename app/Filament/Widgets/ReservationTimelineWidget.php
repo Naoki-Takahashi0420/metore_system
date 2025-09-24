@@ -26,6 +26,7 @@ class ReservationTimelineWidget extends Widget
     
     // 新規予約作成用のプロパティ
     public $showNewReservationModal = false;
+    public $modalMode = 'reservation'; // 'reservation' or 'block'
     public $reservationStep = 1; // 1: 顧客検索, 2: 新規顧客登録, 3: 予約詳細
     public $customerSelectionMode = 'existing'; // 'existing' or 'new'
     public $phoneSearch = '';
@@ -47,6 +48,15 @@ class ReservationTimelineWidget extends Widget
         'line_type' => 'main',
         'line_number' => 1,
         'notes' => '電話予約'
+    ];
+    // 予約ブロック用のプロパティ
+    public $blockSettings = [
+        'date' => '',
+        'start_time' => '',
+        'end_time' => '',
+        'reason' => '休憩',
+        'apply_to_all_lines' => false,
+        'selected_lines' => []
     ];
     
     public function mount(): void
@@ -732,7 +742,7 @@ class ReservationTimelineWidget extends Widget
     public function openNewReservationFromSlot($seatKey, $timeSlot): void
     {
         \Log::info('Slot clicked:', ['seat' => $seatKey, 'time' => $timeSlot]);
-        
+
         // 席タイプとライン番号を解析
         if (strpos($seatKey, 'sub_') === 0) {
             $lineType = 'sub';
@@ -741,8 +751,9 @@ class ReservationTimelineWidget extends Widget
             $lineType = 'main';
             $lineNumber = intval(substr($seatKey, 5));
         }
-        
+
         $this->showNewReservationModal = true;
+        $this->modalMode = 'reservation'; // デフォルトは予約モード
         $this->reservationStep = 1;
         $this->phoneSearch = '';
         $this->menuSearch = '';  // メニュー検索をリセット
@@ -765,6 +776,15 @@ class ReservationTimelineWidget extends Widget
             'line_number' => $lineNumber,
             'notes' => '電話予約'
         ];
+        // 予約ブロック設定もリセット
+        $this->blockSettings = [
+            'date' => $this->selectedDate,
+            'start_time' => $timeSlot,
+            'end_time' => '',
+            'reason' => '休憩',
+            'apply_to_all_lines' => false,
+            'selected_lines' => [$seatKey]
+        ];
 
         // モーダルが開いたことをブラウザに通知
         $this->dispatch('modal-opened');
@@ -773,6 +793,61 @@ class ReservationTimelineWidget extends Widget
     public function closeNewReservationModal(): void
     {
         $this->showNewReservationModal = false;
+        $this->modalMode = 'reservation'; // モーダルモードをリセット
+        $this->reservationStep = 1; // ステップもリセット
+        $this->customerSelectionMode = 'existing'; // 顧客選択モードもリセット
+        $this->phoneSearch = ''; // 検索もクリア
+        $this->searchResults = [];
+        $this->selectedCustomer = null;
+    }
+
+    public function createBlockedTime(): void
+    {
+        // 権限チェック（スタッフは予約ブロックを作成できない）
+        $user = auth()->user();
+        if (!$user->hasRole(['super_admin', 'owner', 'manager'])) {
+            session()->flash('error', '予約ブロックを設定する権限がありません。');
+            return;
+        }
+
+        try {
+            // バリデーション
+            if (empty($this->blockSettings['end_time'])) {
+                session()->flash('error', '終了時間を入力してください。');
+                return;
+            }
+
+            // 終了時間が開始時間より後であることを確認
+            if ($this->blockSettings['end_time'] <= $this->blockSettings['start_time']) {
+                session()->flash('error', '終了時間は開始時間より後に設定してください。');
+                return;
+            }
+
+            // 予約ブロックを作成
+            \App\Models\BlockedTimePeriod::create([
+                'store_id' => $this->selectedStore,
+                'blocked_date' => $this->blockSettings['date'],
+                'start_time' => $this->blockSettings['start_time'],
+                'end_time' => $this->blockSettings['end_time'],
+                'is_all_day' => false,
+                'reason' => $this->blockSettings['reason'],
+                'is_recurring' => false,
+            ]);
+
+            // モーダルを閉じて、データをリロード
+            $this->closeNewReservationModal();
+            $this->loadTimelineData();
+
+            // 成功通知
+            session()->flash('success', '予約ブロックを設定しました。');
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to create blocked time:', [
+                'error' => $e->getMessage(),
+                'blockSettings' => $this->blockSettings
+            ]);
+            session()->flash('error', '予約ブロックの設定に失敗しました。');
+        }
     }
     
     public function updatedPhoneSearch(): void
