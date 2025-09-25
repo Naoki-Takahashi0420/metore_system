@@ -6,14 +6,14 @@ use App\Http\Controllers\Auth\PasswordResetController;
 // Basic認証ミドルウェアでサイト全体を保護（管理画面は除く）
 Route::middleware(['auth.basic'])->group(function () {
 
-// トップページの処理（環境変数で制御可能）
+// トップページは店舗選択画面へリダイレクト
 Route::get('/', function () {
-    // REDIRECT_TO_STORES=true の場合は店舗一覧にリダイレクト
-    if (env('REDIRECT_TO_STORES', true)) {
-        return redirect('/stores');
+    // 環境変数で切り替え可能
+    if (env('SHOW_WELCOME_PAGE', false)) {
+        return view('welcome');
     }
-    // それ以外はウェルカムページを表示
-    return view('welcome');
+    // デフォルトは店舗選択画面へリダイレクト
+    return redirect('/stores');
 });
 
 // オリジナルのウェルカムページを別URLで保持
@@ -32,6 +32,16 @@ Route::get('/health', function () {
 
 // Store routes
 Route::get('/stores', function () {
+    // カルテから来た場合は従来の店舗選択画面を表示
+    if (session()->has('from_medical_record')) {
+        return view('stores.index');
+    }
+
+    // それ以外の場合は、セッションをクリアしてから店舗選択画面を表示
+    // （代理予約などを考慮）
+    session()->forget(['selectedCustomer', 'phoneSearch', 'newCustomer', 'newReservation']);
+
+    // 店舗選択画面を表示（ただしキャッシュはクリアされた状態）
     return view('stores.index');
 });
 

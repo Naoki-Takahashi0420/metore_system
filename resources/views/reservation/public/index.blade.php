@@ -307,30 +307,30 @@
             </table>
         </div>
 
-        <!-- エラーメッセージ表示 -->
+        <!-- エラーメッセージ表示（UX改善：シンプルな通知） -->
         @if(session('error'))
-            <div id="existingCustomerModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div class="bg-white rounded-lg p-8 max-w-md mx-4 shadow-xl">
-                    <div class="text-center mb-6">
-                        <div class="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <svg class="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 15.5c-.77.833.192 2.5 1.732 2.5z" />
-                            </svg>
-                        </div>
-                        <h3 class="text-xl font-bold text-gray-900 mb-2">既にご予約があります</h3>
-                        <p class="text-gray-600 mb-6">{{ session('error') }}</p>
+            <div class="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50 max-w-md" role="alert">
+                <div class="flex">
+                    <div class="py-1">
+                        <svg class="fill-current h-6 w-6 text-red-500 mr-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                            <path d="M2.93 17.07A10 10 0 1 1 17.07 2.93 10 10 0 0 1 2.93 17.07zm12.73-1.41A8 8 0 1 0 4.34 4.34a8 8 0 0 0 11.32 11.32zM9 11V9h2v6H9v-4zm0-6h2v2H9V5z"/>
+                        </svg>
                     </div>
-                    
-                    <div class="space-y-3">
-                        <a href="{{ url('/customer/login') }}" class="block w-full bg-blue-600 text-white text-center py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
-                            電話番号でログイン（予約変更・確認）
-                        </a>
-                        <button onclick="closeExistingCustomerModal()" class="block w-full bg-gray-200 text-gray-700 text-center py-3 px-4 rounded-lg font-semibold hover:bg-gray-300 transition-colors">
-                            閉じる
-                        </button>
+                    <div>
+                        <p class="font-bold">エラーが発生しました</p>
+                        <p class="text-sm">{{ session('error') }}</p>
                     </div>
                 </div>
             </div>
+            <script>
+                // 5秒後に自動で消す
+                setTimeout(() => {
+                    const errorMsg = document.querySelector('[role="alert"]');
+                    if (errorMsg) {
+                        errorMsg.style.display = 'none';
+                    }
+                }, 5000);
+            </script>
         @endif
         
         @if($errors->any())
@@ -832,26 +832,6 @@
             document.getElementById('reservationForm').classList.add('hidden');
         }
         
-        function closeExistingCustomerModal() {
-            const modal = document.getElementById('existingCustomerModal');
-            if (modal) {
-                modal.style.display = 'none';
-            }
-        }
-        
-        // ESCキーでモーダルを閉じる
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                closeExistingCustomerModal();
-            }
-        });
-        
-        // モーダル外クリックで閉じる
-        document.getElementById('existingCustomerModal')?.addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeExistingCustomerModal();
-            }
-        });
     </script>
 </body>
 </html>

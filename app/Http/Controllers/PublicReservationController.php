@@ -84,7 +84,13 @@ class PublicReservationController extends Controller
         // マイページからの予約かチェック
         $fromMypage = $request->get('from_mypage', false);
         $existingCustomerId = $request->get('existing_customer_id');
-        
+
+        // マイページ情報をセッションに保存（後のステップで使用）
+        if ($fromMypage) {
+            Session::put('from_mypage', true);
+            Session::put('mypage_customer_id', $existingCustomerId);
+        }
+
         // 既存顧客の判定
         $isExistingCustomer = $fromMypage || $existingCustomerId;
         
@@ -116,23 +122,42 @@ class PublicReservationController extends Controller
         $validated = $request->validate([
             'category_id' => 'required|exists:menu_categories,id'
         ]);
-        
+
         Session::put('selected_category_id', $validated['category_id']);
-        
+
         $storeId = Session::get('selected_store_id');
         $store = Store::find($storeId);
         $category = MenuCategory::find($validated['category_id']);
-        
+
         // カルテからの予約かチェック
         $isFromMedicalRecord = $request->get('from_medical_record', false);
         $customerId = $request->get('customer_id');
-        
-        // マイページから予約の場合（JavaScriptでsessionStorageに保存されたデータを使用）
-        $fromMypage = $request->get('from_mypage', false);
-        if (!$customerId && $fromMypage) {
-            $customerId = $request->get('existing_customer_id');
+
+        // カルテからの予約の場合、セッションに保存
+        if ($isFromMedicalRecord) {
+            session()->put('from_medical_record', true);
         }
-        
+
+        // マイページから予約の場合（POSTパラメータまたはセッションから取得）
+        $fromMypage = $request->get('from_mypage', Session::get('from_mypage', false));
+        $existingCustomerId = $request->get('existing_customer_id', Session::get('mypage_customer_id'));
+
+        if (!$customerId && $fromMypage && $existingCustomerId) {
+            $customerId = $existingCustomerId;
+        }
+
+        // デバッグログ追加
+        \Log::info('[selectTime] マイページからの予約チェック', [
+            'from_mypage_request' => $request->get('from_mypage'),
+            'from_mypage_session' => Session::get('from_mypage'),
+            'from_mypage_final' => $fromMypage,
+            'existing_customer_id_request' => $request->get('existing_customer_id'),
+            'existing_customer_id_session' => Session::get('mypage_customer_id'),
+            'existing_customer_id_final' => $existingCustomerId,
+            'customer_id' => $customerId,
+            'from_medical_record' => $isFromMedicalRecord
+        ]);
+
         // 顧客のサブスクリプション状態を確認
         $hasSubscription = false;
         if ($customerId) {
@@ -174,14 +199,33 @@ class PublicReservationController extends Controller
         }
         
         // 顧客タイプ制限の適用
-        if ($isNewCustomer) {
-            $menusQuery->whereIn('customer_type_restriction', ['all', 'new_only']);
+        // マイページから = 既存顧客として扱い、新規窓口専用メニューは表示しない
+        if ($isNewCustomer && !$fromMypage) {
+            // 新規顧客かつマイページからではない = 新規窓口からの予約
+            $menusQuery->whereIn('customer_type_restriction', ['all', 'new', 'new_only']);
         } else {
+            // 既存顧客またはマイページから = カルテ/マイページからの予約
             $menusQuery->whereIn('customer_type_restriction', ['all', 'existing']);
         }
-        
+
+        // medical_record_onlyフィールドのフィルタリングも追加
+        if (session()->has('from_medical_record')) {
+            // カルテからの予約の場合は医療記録専用メニューも表示
+            // medical_record_only の制限なし
+        } else {
+            // 一般予約の場合は医療記録専用メニューを除外
+            $menusQuery->where('medical_record_only', 0);
+        }
+
+        // デバッグログ
+        \Log::info('[selectTime] 顧客タイプ判定結果', [
+            'is_new_customer' => $isNewCustomer,
+            'from_mypage' => $fromMypage,
+            'applied_restriction' => ($isNewCustomer && !$fromMypage) ? 'new_only + all' : 'existing + all'
+        ]);
+
         // medical_record_only機能は削除済み - customer_type_restrictionで代替
-        
+
         // SQLクエリをログに出力
         $sql = $menusQuery->toSql();
         $bindings = $menusQuery->getBindings();
@@ -230,7 +274,12 @@ class PublicReservationController extends Controller
         // カルテからの予約かチェック
         $isFromMedicalRecord = $request->get('from_medical_record', false);
         $customerId = $request->get('customer_id');
-        
+
+        // カルテからの予約の場合、セッションに保存
+        if ($isFromMedicalRecord) {
+            session()->put('from_medical_record', true);
+        }
+
         // 顧客が新規か既存かを判定
         $isNewCustomer = true;
         if ($customerId) {
@@ -903,24 +952,44 @@ class PublicReservationController extends Controller
                         return $slotTime->gte($shiftStart) && $slotEnd->lte($shiftEnd);
                     })->count();
 
-                    // シフトモード：min(席数, スタッフ数×設備台数) でキャパシティを決定
-                    $seatsCapacity = $store->main_lines_count ?? 1;  // 席数
-                    $equipmentCapacity = $store->shift_based_capacity ?? 1;  // 1スタッフあたりの設備台数
-                    $staffCapacity = $availableStaffCount * $equipmentCapacity;  // スタッフ×設備台数
-                    $maxConcurrent = min($seatsCapacity, $staffCapacity);
+                    // 指名スタッフがいる場合
+                    if ($selectedStaffId) {
+                        // 指名スタッフのシフトがある場合のみ1、なければ0
+                        $maxConcurrent = $availableStaffCount > 0 ? 1 : 0;
 
-                    if ($maxConcurrent <= 0) {
-                        $availability[$dateStr][$slot] = false;
-                        continue;
+
+                        if ($maxConcurrent <= 0) {
+                            $availability[$dateStr][$slot] = false;
+                            continue;
+                        }
+                    } else {
+                        // シフトモード：min(席数, スタッフ数×設備台数) でキャパシティを決定
+                        $seatsCapacity = $store->main_lines_count ?? 1;  // 席数
+                        $equipmentCapacity = $store->shift_based_capacity ?? 1;  // 1スタッフあたりの設備台数
+                        $staffCapacity = $availableStaffCount * $equipmentCapacity;  // スタッフ×設備台数
+                        $maxConcurrent = min($seatsCapacity, $staffCapacity);
+
+                        if ($maxConcurrent <= 0) {
+                            $availability[$dateStr][$slot] = false;
+                            continue;
+                        }
                     }
                 }
                 // 営業時間ベースの場合はシフトチェックをスキップ
                 
-                // 予約が重複していないかチェック（メインラインのみカウント、サブラインは除外）
-                $overlappingCount = $dayReservations->filter(function ($reservation) use ($slotTime, $slotEnd) {
-                    // サブラインの予約は除外（line_typeがsubまたはis_subがtrueの場合）
-                    if ($reservation->line_type === 'sub' || $reservation->is_sub == true) {
-                        return false;
+                // 予約が重複していないかチェック
+                $overlappingCount = $dayReservations->filter(function ($reservation) use ($slotTime, $slotEnd, $selectedStaffId) {
+                    // 指名スタッフがいる場合は、そのスタッフの予約のみをカウント
+                    if ($selectedStaffId) {
+                        // 指名スタッフの予約以外は除外
+                        if ($reservation->staff_id != $selectedStaffId) {
+                            return false;
+                        }
+                    } else {
+                        // 指名スタッフがいない場合は従来通り（サブラインを除外）
+                        if ($reservation->line_type === 'sub' || $reservation->is_sub == true) {
+                            return false;
+                        }
                     }
 
                     // 時間をH:i形式に統一して比較
@@ -1243,18 +1312,34 @@ class PublicReservationController extends Controller
         
         DB::beginTransaction();
         try {
-            // 顧客を作成または取得
-            $customer = Customer::firstOrCreate(
-                ['phone' => $validated['phone']],
-                [
+            // まず電話番号で既存顧客を検索
+            $customer = Customer::where('phone', $validated['phone'])->first();
+
+            if (!$customer) {
+                // 電話番号で見つからない場合、メールアドレスでも検索
+                $customer = Customer::where('email', $validated['email'])->first();
+            }
+
+            if ($customer) {
+                // 既存顧客が見つかった場合、情報を更新
+                $customer->update([
+                    'last_name' => $validated['last_name'],
+                    'first_name' => $validated['first_name'],
+                    'phone' => $validated['phone'],
+                    'email' => $validated['email'],
+                ]);
+            } else {
+                // 新規顧客として作成
+                $customer = Customer::create([
+                    'phone' => $validated['phone'],
                     'last_name' => $validated['last_name'],
                     'first_name' => $validated['first_name'],
                     'last_name_kana' => '', // カナは空文字で保存
                     'first_name_kana' => '', // カナは空文字で保存
                     'email' => $validated['email'],
                     'customer_number' => Customer::generateCustomerNumber(),
-                ]
-            );
+                ]);
+            }
             
             // メニュー情報を取得
             $menu = Menu::find($validated['menu_id']);
