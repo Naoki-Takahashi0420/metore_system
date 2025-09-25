@@ -92,9 +92,24 @@
 <script>
 
 document.addEventListener('DOMContentLoaded', async function() {
+    // セッションからカルテ経由かどうかチェック
+    const isFromMedicalRecord = sessionStorage.getItem('from_medical_record') === 'true';
+
+    // カルテから来ていない場合はキャッシュをクリア
+    if (!isFromMedicalRecord) {
+        // 予約関連のキャッシュをすべてクリア
+        localStorage.removeItem('last_selected_store_id');
+        localStorage.removeItem('last_selected_store_name');
+        localStorage.removeItem('selectedCustomer');
+        localStorage.removeItem('lastPhoneSearch');
+        sessionStorage.clear();
+
+        console.log('Cache cleared - not from medical record');
+    }
+
     // 優先順位：
     // 1. URLパラメータ（LP流入）
-    // 2. ローカルストレージ（直前の選択）
+    // 2. ローカルストレージ（直前の選択 - カルテからの場合のみ）
     // 3. 通常の店舗一覧表示
 
     // URLパラメータによる自動選択を最初に試みる
@@ -103,11 +118,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         return; // URLパラメータで選択済み
     }
 
-    // ローカルストレージから最後に選択した店舗を確認
-    const lastStoreId = localStorage.getItem('last_selected_store_id');
-    const lastStoreName = localStorage.getItem('last_selected_store_name');
+    // ローカルストレージから最後に選択した店舗を確認（カルテからの場合のみ）
+    const lastStoreId = isFromMedicalRecord ? localStorage.getItem('last_selected_store_id') : null;
+    const lastStoreName = isFromMedicalRecord ? localStorage.getItem('last_selected_store_name') : null;
 
-    if (lastStoreId && lastStoreName) {
+    if (isFromMedicalRecord && lastStoreId && lastStoreName) {
         // 確認メッセージを表示
         const confirmMessage = document.createElement('div');
         confirmMessage.className = 'bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded mb-4 mx-4 text-center';

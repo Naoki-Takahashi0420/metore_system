@@ -199,13 +199,19 @@ class PublicReservationController extends Controller
         }
         
         // 顧客タイプ制限の適用
-        // マイページから = 既存顧客として扱い、新規窓口専用メニューは表示しない
-        if ($isNewCustomer && !$fromMypage) {
+        // カルテからの予約を最優先で判定
+        if ($isFromMedicalRecord) {
+            // カルテからの場合は既存顧客メニューのみ（新規メニューは絶対に表示しない）
+            $menusQuery->whereIn('customer_type_restriction', ['all', 'existing']);
+            \Log::info('[selectTime] カルテからの予約 - 既存顧客メニューのみ表示');
+        } elseif ($isNewCustomer && !$fromMypage) {
             // 新規顧客かつマイページからではない = 新規窓口からの予約
             $menusQuery->whereIn('customer_type_restriction', ['all', 'new', 'new_only']);
+            \Log::info('[selectTime] 新規顧客 - 新規向けメニュー表示');
         } else {
             // 既存顧客またはマイページから = カルテ/マイページからの予約
             $menusQuery->whereIn('customer_type_restriction', ['all', 'existing']);
+            \Log::info('[selectTime] 既存顧客/マイページ - 既存顧客メニュー表示');
         }
 
         // medical_record_onlyフィールドのフィルタリングも追加

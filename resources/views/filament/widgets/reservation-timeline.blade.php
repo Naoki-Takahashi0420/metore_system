@@ -165,12 +165,42 @@
                 background: #f8f8f8;
                 text-align: center;
                 font-size: 14px;
-                padding: 0 10px;
+                padding: 8px 12px;
+                min-width: 120px;
+                font-weight: 600;
+                white-space: nowrap;
+                position: sticky;
+                left: 0;
+                z-index: 10;
+                border-right: 2px solid #d0d0d0 !important;
+                box-shadow: 2px 0 4px rgba(0,0,0,0.05);
             }
             
             .sub-time-label {
                 background: #e8f4f8;
                 font-weight: bold;
+            }
+
+            /* スタッフベースモード用スタイル */
+            .staff-unassigned-label {
+                background: linear-gradient(90deg, #fef3c7 0%, #fef3c7 95%, transparent 100%);
+                border-left: 4px solid #f59e0b;
+                font-weight: bold;
+                color: #92400e;
+            }
+
+            .staff-assigned-label {
+                background: linear-gradient(90deg, #d1fae5 0%, #d1fae5 95%, transparent 100%);
+                border-left: 4px solid #10b981;
+                font-weight: bold;
+                color: #065f46;
+            }
+
+            .staff-no-shift {
+                background: linear-gradient(90deg, #f3f4f6 0%, #f3f4f6 95%, transparent 100%);
+                border-left: 4px solid #9ca3af;
+                color: #6b7280;
+                font-style: italic;
             }
             
             .booking-block {
@@ -310,11 +340,63 @@
                 width: 1px;
                 background: #f0f0f0;
             }
+
+            /* クリック可能なスロットの視覚効果 */
+            .clickable-slot {
+                transition: all 0.2s ease;
+                position: relative;
+            }
+
+            .clickable-slot:hover {
+                box-shadow: inset 0 0 0 2px #2563eb;
+                z-index: 10;
+            }
+
+            /* 予約不可スロットの視覚効果 */
+            .time-cell[style*="cursor: not-allowed"]:not(.blocked-cell):not(.past-time-cell):not(.no-staff-cell) {
+                background: repeating-linear-gradient(
+                    45deg,
+                    transparent,
+                    transparent 10px,
+                    rgba(0,0,0,0.02) 10px,
+                    rgba(0,0,0,0.02) 20px
+                );
+            }
+
+            /* ホバー時の追加ボタン表示 */
+            .clickable-slot::before {
+                content: "+";
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                font-size: 20px;
+                color: #2563eb;
+                opacity: 0;
+                transition: opacity 0.2s ease;
+                pointer-events: none;
+                z-index: 5;
+            }
+
+            .clickable-slot:hover::before {
+                opacity: 0.3;
+            }
         </style>
         
+        @php
+            // タイムラインデータから動的に判定
+            $useStaffAssignment = $timelineData['useStaffAssignment'] ?? false;
+            $shiftBasedCapacity = $timelineData['shiftBasedCapacity'] ?? 1;
+        @endphp
+
         <!-- 操作説明 -->
         <div class="bg-blue-50 border border-blue-200 rounded p-2 mb-4 text-sm">
-            💡 <strong>席の移動方法:</strong> 予約ブロックをクリックすると詳細画面が開き、通常席⇔サブ枠の移動ができます
+            💡 <strong>操作方法:</strong>
+            @if($useStaffAssignment)
+                スタッフ別モード - 空きスロットをクリックで予約作成、予約ブロッククリックで詳細表示
+            @else
+                予約ブロックをクリックすると詳細画面が開き、通常席⇔サブ枠の移動ができます
+            @endif
         </div>
         
         <!-- 競合警告 -->
@@ -405,7 +487,7 @@
             <div class="flex items-center gap-2 px-3 py-1 rounded-lg text-sm {{ $useStaffAssignment ? 'bg-blue-50 text-blue-700' : 'bg-gray-50 text-gray-700' }}">
                 @if($useStaffAssignment)
                     <x-heroicon-m-user-group class="w-4 h-4" />
-                    <span>シフトベース</span>
+                    <span>シフトベース（スタッフ別）</span>
                     <span class="font-medium">（最大{{ $shiftBasedCapacity }}席）</span>
                 @else
                     <x-heroicon-m-clock class="w-4 h-4" />
@@ -443,7 +525,7 @@
                 <table class="timeline-table">
                     <thead>
                         <tr>
-                            <th style="vertical-align: middle;">席数</th>
+                            <th style="vertical-align: middle;">{{ $useStaffAssignment ? 'スタッフ/ライン' : '席数' }}</th>
                             @php
                                 $hourGroups = [];
                                 foreach($timelineData['slots'] as $index => $slot) {
@@ -460,10 +542,32 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($timelineData['timeline'] as $key => $seat)
+                        @php
+                            // シフトベースモードの場合はソート順を変更
+                            $sortedTimeline = $timelineData['timeline'];
+                            if ($useStaffAssignment) {
+                                $sortedTimeline = collect($timelineData['timeline'])->sortBy(function($seat, $key) {
+                                    // 未指定を最初に、その後スタッフをアルファベット順
+                                    if ($seat['type'] === 'unassigned') return '0';
+                                    if ($seat['type'] === 'staff') return '1_' . $seat['label'];
+                                    return '2_' . $key;
+                                })->toArray();
+                            }
+                        @endphp
+                        @foreach($sortedTimeline as $key => $seat)
                             <tr>
-                                <td class="seat-label {{ $seat['type'] === 'sub' ? 'sub-time-label' : '' }}">
-                                    {{ $seat['label'] }}
+                                <td class="seat-label {{ $seat['type'] === 'sub' ? 'sub-time-label' : '' }} {{ $seat['type'] === 'unassigned' ? 'bg-yellow-50 border-yellow-200' : '' }} {{ $seat['type'] === 'staff' ? (($seat['has_shift'] ?? false) ? 'bg-green-50 border-green-200' : 'bg-gray-100 border-gray-300') : '' }}">
+                                    @if($seat['type'] === 'unassigned')
+                                        <span class="text-yellow-700 font-medium">{{ $seat['label'] }}</span>
+                                    @elseif($seat['type'] === 'staff')
+                                        @if($seat['has_shift'] ?? false)
+                                            <span class="text-green-700 font-medium">👤 {{ $seat['label'] }}</span>
+                                        @else
+                                            <span class="text-gray-500">👤 {{ $seat['label'] }}<br><small class="text-xs">シフトなし</small></span>
+                                        @endif
+                                    @else
+                                        {{ $seat['label'] }}
+                                    @endif
                                 </td>
                                 @foreach($timelineData['slots'] as $index => $slot)
                                     @php
@@ -475,14 +579,49 @@
                                             }
                                         }
                                         $isBlocked = in_array($index, $timelineData['blockedSlots']);
-                                        
+
+                                        // 予約可否の詳細情報を取得
+                                        $availabilityResult = null;
+                                        $tooltipMessage = '';
+                                        if (!$hasReservation && !$isBlocked && isset($currentStore)) {
+                                            $endTime = \Carbon\Carbon::parse($slot)->addMinutes($currentStore->reservation_slot_duration ?? 30)->format('H:i');
+                                            $availabilityResult = $this->canReserveAtTimeSlot($slot, $endTime, $currentStore, \Carbon\Carbon::parse($selectedDate));
+
+                                            if (!$availabilityResult['can_reserve']) {
+                                                $tooltipMessage = $availabilityResult['reason'] ?: '予約不可';
+                                            } else {
+                                                $tooltipMessage = "予約可能（空き: {$availabilityResult['available_slots']}/{$availabilityResult['total_capacity']}席）";
+                                            }
+                                        }
+
                                         // シフトベースモードでスタッフ不在チェック
                                         $hasNoStaff = false;
                                         if (isset($timelineData['useStaffAssignment']) && $timelineData['useStaffAssignment']) {
-                                            $availableSeats = $timelineData['shiftBasedAvailability'][$index] ?? 0;
-                                            if ($availableSeats == 0 && $seat['type'] === 'main') {
-                                                $hasNoStaff = true;
+                                            // スタッフラインの場合
+                                            if ($seat['type'] === 'staff') {
+                                                if (!isset($seat['has_shift']) || !$seat['has_shift']) {
+                                                    // シフトがないスタッフは全時間帯不可
+                                                    $hasNoStaff = true;
+                                                } elseif (isset($seat['shift'])) {
+                                                    $shift = $seat['shift'];
+                                                    $slotTime = \Carbon\Carbon::parse($selectedDate . ' ' . $slot);
+                                                    $shiftStart = \Carbon\Carbon::parse($shift->start_time);
+                                                    $shiftEnd = \Carbon\Carbon::parse($shift->end_time);
+
+                                                    // シフト時間外は不可
+                                                    if (!$slotTime->between($shiftStart, $shiftEnd)) {
+                                                        $hasNoStaff = true;
+                                                    }
+                                                }
                                             }
+                                            // 未指定ラインの場合、availabilityResultで判定（スタッフがいない時間は不可）
+                                            elseif ($seat['type'] === 'unassigned' && $availabilityResult && !$availabilityResult['can_reserve']) {
+                                                // canReserveAtTimeSlotがfalseなら、スタッフ不在として扱う
+                                                if (strpos($availabilityResult['reason'] ?? '', 'スタッフ') !== false) {
+                                                    $hasNoStaff = true;
+                                                }
+                                            }
+                                            // サブラインは独立して利用可能
                                         }
                                         
                                         // 過去の時間帯かチェック（現在時刻から1時間前まで許可）
@@ -490,39 +629,63 @@
                                         $minimumTime = \Carbon\Carbon::now()->subHours(1);
                                         $isPast = $slotDateTime->lt($minimumTime);
 
-                                        // 営業時間チェック（最短メニュー60分を想定）
-                                        $isWithinBusinessHours = true;
-                                        $store = $currentStore;
-                                        if ($store) {
-                                            $dayOfWeek = $slotDateTime->format('l');
-                                            $closingTime = '20:00'; // デフォルト
+                                        // 統合的な予約可能性判定を使用（容量制限も考慮）
+                                        $isClickable = false;
 
-                                            if (isset($store->business_hours[$dayOfWeek])) {
-                                                $closingTime = $store->business_hours[$dayOfWeek]['close'] ?? '20:00';
-                                            } elseif (isset($store->business_hours['close'])) {
-                                                $closingTime = $store->business_hours['close'];
+                                        if (!$hasReservation && !$isBlocked && !$isPast) {
+                                            // スタッフシフトモードでは、availabilityResultの判定を優先
+                                            if (isset($timelineData['useStaffAssignment']) && $timelineData['useStaffAssignment']) {
+                                                if ($availabilityResult) {
+                                                    $isClickable = $availabilityResult['can_reserve'] ?? false;
+                                                    // スタッフ不在の場合は、どのラインもクリック不可
+                                                    if (!$isClickable && strpos($availabilityResult['reason'] ?? '', 'スタッフ') !== false) {
+                                                        $hasNoStaff = true;
+                                                    }
+                                                }
+                                            } else {
+                                                // 営業時間ベースモードの判定
+                                                try {
+                                                    if ($availabilityResult) {
+                                                        $isClickable = $availabilityResult['can_reserve'] ?? false;
+                                                    }
+                                                } catch (\Exception $e) {
+                                                    // エラーの場合は従来の個別判定にフォールバック
+                                                    $isWithinBusinessHours = true;
+                                                    $store = $currentStore;
+                                                    if ($store) {
+                                                        $dayOfWeek = $slotDateTime->format('l');
+                                                        $closingTime = '20:00'; // デフォルト
+
+                                                        if (isset($store->business_hours[$dayOfWeek])) {
+                                                            $closingTime = $store->business_hours[$dayOfWeek]['close'] ?? '20:00';
+                                                        } elseif (isset($store->business_hours['close'])) {
+                                                            $closingTime = $store->business_hours['close'];
+                                                        }
+
+                                                        $closingDateTime = \Carbon\Carbon::parse($selectedDate . ' ' . $closingTime);
+                                                        $minEndTime = $slotDateTime->copy()->addMinutes(60);
+                                                        $isWithinBusinessHours = $minEndTime->lte($closingDateTime);
+                                                    }
+                                                    $isClickable = !$hasNoStaff && $isWithinBusinessHours;
+                                                }
                                             }
-
-                                            $closingDateTime = \Carbon\Carbon::parse($selectedDate . ' ' . $closingTime);
-                                            // 最短メニュー（60分）でも営業時間内に終わるかチェック
-                                            $minEndTime = $slotDateTime->copy()->addMinutes(60);
-                                            $isWithinBusinessHours = $minEndTime->lte($closingDateTime);
                                         }
-
-                                        $isClickable = !$hasReservation && !$isBlocked && !$isPast && !$hasNoStaff && $isWithinBusinessHours;
                                         $isPastClickable = !$hasReservation && !$isBlocked && $isPast && !$hasNoStaff;
                                     @endphp
                                     <td class="time-cell {{ $isBlocked ? 'blocked-cell' : '' }} {{ $hasNoStaff ? 'no-staff-cell' : '' }} {{ $isPast ? 'past-time-cell' : '' }} {{ $isClickable ? 'empty-slot clickable-slot' : ($isPastClickable ? 'past-clickable' : '') }}"
                                         @if($isClickable)
                                             wire:click="openNewReservationFromSlot('{{ $key }}', '{{ $slot }}')"
                                             style="cursor: pointer; position: relative;"
-                                            onmouseover="this.style.backgroundColor='#e3f2fd'"
+                                            onmouseover="this.style.backgroundColor='{{ $seat['type'] === 'unassigned' ? '#fef3c7' : ($seat['type'] === 'staff' ? '#d1fae5' : '#e3f2fd') }}'"
                                             onmouseout="this.style.backgroundColor=''"
-                                            title="クリックして予約を作成"
+                                            title="{{ $tooltipMessage ?: 'クリックして予約を作成' }}{{ $seat['type'] === 'staff' ? ' (' . $seat['label'] . ')' : '' }}"
                                         @elseif($isPastClickable)
                                             onclick="alert('過去の時間帯です。\n予約は開始時刻の1時間前まで受け付けています。')"
                                             style="cursor: not-allowed; position: relative;"
                                             title="過去の時間帯です（予約開始1時間前まで受付）"
+                                        @elseif(!$hasReservation && !$isBlocked)
+                                            style="cursor: not-allowed; position: relative; opacity: 0.6;"
+                                            title="{{ $tooltipMessage ?: ($hasNoStaff ? 'スタッフのシフトがありません' : '予約不可') }}"
                                         @endif>
                                         @if($isBlocked)
                                             <div style="background: #9e9e9e; color: white; height: 100%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">
@@ -672,11 +835,16 @@
             });
 
             // Livewire更新時にも実行
-            document.addEventListener('livewire:load', function() {
-                Livewire.hook('message.processed', () => {
-                    setTimeout(updateCurrentTimeIndicator, 100);
+            if (typeof Livewire !== 'undefined') {
+                document.addEventListener('livewire:load', function() {
+                    Livewire.hook('message.processed', () => {
+                        // タイムラインコンテナが存在する場合のみ更新
+                        if (document.querySelector('.timeline-container')) {
+                            setTimeout(updateCurrentTimeIndicator, 100);
+                        }
+                    });
                 });
-            });
+            }
 
         </script>
 
@@ -732,8 +900,9 @@
             });
 
             // Livewireイベント
-            document.addEventListener('livewire:load', function() {
-                console.log('Livewire loaded');
+            if (typeof Livewire !== 'undefined') {
+                document.addEventListener('livewire:load', function() {
+                    console.log('Livewire loaded');
 
                 // modal-openedイベントをリッスン
                 window.Livewire.on('modal-opened', () => {
@@ -778,14 +947,90 @@
             // 手動初期化用のグローバル関数
             window.initMenuSelect = initializeMenuSelect;
         </script>
+
+        <!-- Alpine.jsコンテキストの分離 -->
+        <script>
+            document.addEventListener('alpine:init', () => {
+                // タイムラインウィジェット専用のAlpineコンポーネントを定義
+                Alpine.data('timelineWidget', () => ({
+                    init() {
+                        // タイムラインウィジェットの初期化
+                        console.log('Timeline widget initialized');
+                    },
+                    // Filamentテーブルコンポーネントの関数をダミーで定義（エラー回避）
+                    isRecordSelected: () => false,
+                    isGroupCollapsed: () => false,
+                    table: null
+                }));
+            });
+
+            // グローバルにもダミー関数を定義（フォールバック）
+            if (typeof window.isRecordSelected === 'undefined') {
+                window.isRecordSelected = () => false;
+            }
+            if (typeof window.isGroupCollapsed === 'undefined') {
+                window.isGroupCollapsed = () => false;
+            }
+
+            // 予約データクリアイベント
+            window.addEventListener('clear-reservation-data', () => {
+                console.log('Clearing reservation data from session/local storage');
+                // セッションストレージをクリア
+                sessionStorage.removeItem('selectedCustomer');
+                sessionStorage.removeItem('phoneSearch');
+                sessionStorage.removeItem('reservationStep');
+                sessionStorage.removeItem('newCustomer');
+                sessionStorage.removeItem('newReservation');
+
+                // ローカルストレージもクリア
+                localStorage.removeItem('lastSelectedCustomer');
+                localStorage.removeItem('lastPhoneSearch');
+            });
+
+            // モーダル開閉イベントのリスナー
+            window.addEventListener('modal-opened', () => {
+                console.log('Modal opened event received');
+                // Alpine.jsコンポーネントを再初期化
+                if (typeof Alpine !== 'undefined') {
+                    Alpine.nextTick(() => {
+                        console.log('Alpine components refreshed');
+                    });
+                }
+            });
+
+            window.addEventListener('modal-closed', () => {
+                console.log('Modal closed event received');
+                // モーダルが閉じた後のクリーンアップ
+                setTimeout(() => {
+                    // Tom Selectの再初期化が必要な場合
+                    if (typeof initMenuSelect !== 'undefined') {
+                        initMenuSelect();
+                    }
+                }, 100);
+            });
+        </script>
     </x-filament::card>
     
     <!-- 予約詳細パネル -->
     @if($selectedReservation)
-        <div 
-            x-data="{ show: true }"
+        <div
+            x-data="{
+                show: true,
+                close() {
+                    this.show = false;
+                    setTimeout(() => {
+                        @this.closeReservationDetailModal();
+                    }, 300);
+                }
+            }"
             x-show="show"
-            x-on:click="show = false; $wire.set('selectedReservation', null)"
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            x-on:click="close()"
             class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
         >
             <div 
@@ -794,8 +1039,8 @@
             >
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-lg font-bold">予約詳細</h3>
-                    <button 
-                        x-on:click="show = false; $wire.set('selectedReservation', null)"
+                    <button
+                        x-on:click="close()"
                         class="text-gray-400 hover:text-gray-600"
                     >
                         ✕
@@ -868,89 +1113,14 @@
                         </div>
                     </div>
 
-                    <div class="border-t pt-4">
-                        @php
-                            $reservationDateTime = \Carbon\Carbon::parse($selectedReservation->reservation_date->format('Y-m-d') . ' ' . $selectedReservation->start_time);
-                            $isPastReservation = $reservationDateTime->isPast();
-                        @endphp
-                        @if($isPastReservation)
-                            <p class="text-sm text-gray-500 mb-3">⚠️ 過去の予約のため座席移動はできません</p>
-                        @else
-                            <p class="text-sm font-medium mb-3">座席を移動</p>
-                        @endif
-                        @if(!$isPastReservation)
-                        <div class="flex gap-2 flex-wrap">
-                            @if($selectedReservation->is_sub)
-                                @php
-                                    // 予約の店舗を使用（選択中の店舗ではなく）
-                                    $reservationStore = \App\Models\Store::find($selectedReservation->store_id);
-                                    $maxSeats = $reservationStore->main_lines_count ?? 1;
-                                @endphp
-                                @for($i = 1; $i <= $maxSeats; $i++)
-                                    @if($this->canMoveToMain($selectedReservation->id, $i))
-                                        <button 
-                                            type="button"
-                                            wire:click="moveToMain({{ $selectedReservation->id }}, {{ $i }})"
-                                            wire:loading.attr="disabled"
-                                            wire:loading.class="opacity-50"
-                                            style="background-color: #3b82f6 !important; color: white !important; padding: 8px 12px; border-radius: 6px; font-size: 14px; border: none; cursor: pointer;"
-                                            onmouseover="this.style.backgroundColor='#2563eb'"
-                                            onmouseout="this.style.backgroundColor='#3b82f6'"
-                                        >
-                                            <span wire:loading.remove wire:target="moveToMain">席{{ $i }}へ</span>
-                                            <span wire:loading wire:target="moveToMain">処理中...</span>
-                                        </button>
-                                    @else
-                                        <button 
-                                            type="button"
-                                            disabled
-                                            style="background-color: #d1d5db !important; color: #6b7280 !important; padding: 8px 12px; border-radius: 6px; font-size: 14px; border: none; cursor: not-allowed;"
-                                        >
-                                            席{{ $i }}（利用不可）
-                                        </button>
-                                    @endif
-                                @endfor
-                            @else
-                                @php
-                                    // 予約の店舗を使用（選択中の店舗ではなく）
-                                    $reservationStore = \App\Models\Store::find($selectedReservation->store_id);
-                                    $hasSubSeats = ($reservationStore->sub_lines_count ?? 0) > 0;
-                                    \Log::info('Blade check for sub move button:', [
-                                        'reservation_store_id' => $selectedReservation->store_id,
-                                        'store_id' => $reservationStore ? $reservationStore->id : null,
-                                        'sub_lines_count' => $reservationStore ? $reservationStore->sub_lines_count : null,
-                                        'hasSubSeats' => $hasSubSeats,
-                                        'reservation_id' => $selectedReservation->id
-                                    ]);
-                                @endphp
-                                @if($hasSubSeats && $this->canMoveToSub($selectedReservation->id))
-                                    <button 
-                                        type="button"
-                                        wire:click="moveToSub({{ $selectedReservation->id }})"
-                                        wire:loading.attr="disabled"
-                                        wire:loading.class="opacity-50"
-                                        style="background-color: #9333ea !important; color: white !important; padding: 8px 16px; border-radius: 6px; font-size: 14px; border: none; cursor: pointer;"
-                                        onmouseover="this.style.backgroundColor='#7c3aed'"
-                                        onmouseout="this.style.backgroundColor='#9333ea'"
-                                    >
-                                        <span wire:loading.remove wire:target="moveToSub">サブ枠へ移動</span>
-                                        <span wire:loading wire:target="moveToSub">処理中...</span>
-                                    </button>
-                                @else
-                                    <div class="text-sm text-gray-500">
-                                        サブ枠は既に予約が入っているため移動できません
-                                    </div>
-                                @endif
-                            @endif
-                        </div>
-                        @endif
-                    </div>
+                    {{-- 座席移動セクション --}}
+                    @include('filament.widgets.reservation-detail-modal-movement')
                 </div>
             </div>
         </div>
     @endif
-    
-    <!-- 新規予約作成モーダル -->
+
+    {{-- 新規予約モーダル --}}
     @if($showNewReservationModal)
         <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" wire:click="closeNewReservationModal">
             <div class="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" @click.stop="">
@@ -1051,10 +1221,21 @@
                             <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
                                 <div class="text-sm font-medium text-blue-900">
                                     予約時間: {{ $newReservation['date'] }} {{ $newReservation['start_time'] }}
-                                    @if($newReservation['line_type'] === 'main')
-                                        （席{{ $newReservation['line_number'] }}）
+                                    @if($useStaffAssignment)
+                                        @if($newReservation['line_type'] === 'staff')
+                                            @php
+                                                $selectedStaff = \App\Models\User::find($newReservation['staff_id']);
+                                            @endphp
+                                            （👤 {{ $selectedStaff ? $selectedStaff->name : 'スタッフ' }}）
+                                        @elseif($newReservation['line_type'] === 'unassigned')
+                                            （未指定ライン）
+                                        @endif
                                     @else
-                                        （サブライン）
+                                        @if($newReservation['line_type'] === 'main')
+                                            （席{{ $newReservation['line_number'] }}）
+                                        @else
+                                            （サブライン）
+                                        @endif
                                     @endif
                                 </div>
                             </div>
@@ -1428,27 +1609,48 @@
                             @endif
                         </div>
 
-                        <div>
-                            <label class="block text-sm font-medium mb-1">ライン（席）</label>
-                            <select 
-                                wire:model="newReservation.line_type"
-                                class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
-                                <option value="main">メインライン</option>
-                                <option value="sub">サブライン</option>
-                            </select>
-                        </div>
-                        
-                        @if($newReservation['line_type'] === 'main')
+                        <!-- スタッフ選択（シフトベースモードの場合のみ） -->
+                        @if($useStaffAssignment)
                             <div>
-                                <label class="block text-sm font-medium mb-1">席番号</label>
-                                <select 
-                                    wire:model="newReservation.line_number"
+                                <label class="block text-sm font-medium mb-1">担当スタッフ</label>
+                                @php
+                                    $availableStaff = $this->getAvailableStaff();
+                                @endphp
+                                <select
+                                    wire:model="newReservation.staff_id"
                                     class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
-                                    @for($i = 1; $i <= 3; $i++)
-                                        <option value="{{ $i }}">席{{ $i }}</option>
-                                    @endfor
+                                    <option value="">未指定</option>
+                                    @foreach($availableStaff as $staff)
+                                        <option value="{{ $staff['id'] }}">
+                                            👤 {{ $staff['name'] }} ({{ \Carbon\Carbon::parse($staff['start_time'])->format('H:i') }}-{{ \Carbon\Carbon::parse($staff['end_time'])->format('H:i') }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <p class="text-xs text-gray-500 mt-1">※ 未指定の場合、「未指定」ラインに配置されます</p>
+                            </div>
+                        @else
+                            <div>
+                                <label class="block text-sm font-medium mb-1">ライン（席）</label>
+                                <select
+                                    wire:model="newReservation.line_type"
+                                    class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                    <option value="main">メインライン</option>
+                                    <option value="sub">サブライン</option>
                                 </select>
                             </div>
+
+                            @if($newReservation['line_type'] === 'main')
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">席番号</label>
+                                    <select
+                                        wire:model="newReservation.line_number"
+                                        class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                        @for($i = 1; $i <= 3; $i++)
+                                            <option value="{{ $i }}">席{{ $i }}</option>
+                                        @endfor
+                                    </select>
+                                </div>
+                            @endif
                         @endif
                         
                         <div>

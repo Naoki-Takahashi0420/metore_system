@@ -69,18 +69,21 @@ function goToReservation() {
             const customer = JSON.parse(customerData);
             const customerId = customer.id;
 
-            // 顧客IDがある場合は、URLパラメータ付きで遷移
+            // カルテからの予約フラグを保存
+            sessionStorage.setItem('from_medical_record', 'true');
+
+            // 顧客IDがある場合は、カルテからの予約パラメータ付きで遷移
             if (customerId) {
-                window.location.href = `/reservation/store?customer_id=${customerId}`;
+                window.location.href = `/stores?customer_id=${customerId}&from_medical_record=1`;
             } else {
-                window.location.href = '/reservation/store';
+                window.location.href = '/stores?from_medical_record=1';
             }
         } catch (e) {
             console.error('Error parsing customer data:', e);
-            window.location.href = '/reservation/store';
+            window.location.href = '/stores?from_medical_record=1';
         }
     } else {
-        window.location.href = '/reservation/store';
+        window.location.href = '/stores?from_medical_record=1';
     }
 }
 
