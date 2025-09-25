@@ -1,4 +1,4 @@
-<div>
+<x-filament::widget>
     <x-filament::card>
         <div class="mb-4">
             <h2 class="text-xl font-bold text-gray-900 dark:text-white">
@@ -97,9 +97,8 @@
             </div>
         </div>
     </x-filament::card>
-</div>
 
-@push('scripts')
+    @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // 顧客セグメントチャート
@@ -175,4 +174,5 @@
             });
         });
     </script>
-@endpush
+    @endpush
+</x-filament::widget>
