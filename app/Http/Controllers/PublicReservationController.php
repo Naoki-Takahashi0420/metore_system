@@ -176,8 +176,8 @@ class PublicReservationController extends Controller
             $isNewCustomer = $existingReservations === 0;
         }
         
-        // マイページからの場合は必ず既存顧客として扱う
-        if ($fromMypage) {
+        // マイページまたはカルテからの場合は必ず既存顧客として扱う
+        if ($fromMypage || $isFromMedicalRecord) {
             $isNewCustomer = false;
         }
         
@@ -221,7 +221,10 @@ class PublicReservationController extends Controller
         \Log::info('[selectTime] 顧客タイプ判定結果', [
             'is_new_customer' => $isNewCustomer,
             'from_mypage' => $fromMypage,
-            'applied_restriction' => ($isNewCustomer && !$fromMypage) ? 'new_only + all' : 'existing + all'
+            'from_medical_record' => $isFromMedicalRecord,
+            'session_has_medical_record' => session()->has('from_medical_record'),
+            'applied_restriction' => ($isNewCustomer && !$fromMypage) ? 'new_only + all' : 'existing + all',
+            'medical_record_only_filter' => session()->has('from_medical_record') ? 'なし（カルテ専用も表示）' : 'あり（一般のみ）'
         ]);
 
         // medical_record_only機能は削除済み - customer_type_restrictionで代替
@@ -288,12 +291,17 @@ class PublicReservationController extends Controller
                 ->count();
             $isNewCustomer = $existingReservations === 0;
         }
-        
+
+        // カルテからの場合は必ず既存顧客として扱う
+        if ($isFromMedicalRecord) {
+            $isNewCustomer = false;
+        }
+
         // 適切なメニューを取得
         $menusQuery = Menu::where('store_id', $storeId)
             ->where('is_available', true)
             ->where('show_in_upsell', false);  // メインメニューのみ
-            
+
         // forCustomerTypeスコープが存在する場合のみ適用
         if (method_exists(Menu::class, 'scopeForCustomerType')) {
             $menusQuery->forCustomerType($isNewCustomer, $isFromMedicalRecord);
