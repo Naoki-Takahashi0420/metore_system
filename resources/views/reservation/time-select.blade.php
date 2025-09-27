@@ -128,7 +128,7 @@
 
         @if($hasSubscription)
             <div class="mb-6 bg-green-50 border-2 border-green-300 rounded-lg p-4 text-center">
-                <span class="text-green-700 font-bold text-lg">✨ サブスクリプション会員様限定メニューも表示されています</span>
+                <span class="text-green-700 font-bold text-lg">サブスクリプション会員様限定メニューも表示されています</span>
             </div>
         @endif
 
@@ -332,6 +332,13 @@
     @csrf
     <input type="hidden" name="menu_id" id="selectedMenuId">
     <input type="hidden" name="option_ids" id="selectedOptionIds">
+    {{-- パラメータを引き継ぐ --}}
+    @if(isset($source))
+        <input type="hidden" name="source" value="{{ $source }}">
+    @endif
+    @if(isset($customer_id))
+        <input type="hidden" name="customer_id" value="{{ $customer_id }}">
+    @endif
 </form>
 
 <script>

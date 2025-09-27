@@ -53,8 +53,13 @@
                 <form action="{{ route('reservation.select-time') }}" method="POST" class="category-form">
                     @csrf
                     <input type="hidden" name="category_id" value="{{ $category->id }}">
-                    <input type="hidden" name="from_mypage" class="from-mypage-input" value="">
-                    <input type="hidden" name="existing_customer_id" class="existing-customer-id-input" value="">
+                    {{-- パラメータを引き継ぐ --}}
+                    @if(isset($source))
+                        <input type="hidden" name="source" value="{{ $source }}">
+                    @endif
+                    @if(isset($customer_id))
+                        <input type="hidden" name="customer_id" value="{{ $customer_id }}">
+                    @endif
                     
                     <button type="submit" class="w-full text-left group hover:shadow-xl transition-all duration-300">
                         <div class="border-2 border-gray-200 rounded-lg overflow-hidden group-hover:border-blue-500 transition-all">
@@ -159,27 +164,3 @@
 </div>
 @endsection
 
-@section('scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // sessionStorageからマイページ情報を取得
-    const fromMypage = sessionStorage.getItem('from_mypage');
-    const existingCustomerId = sessionStorage.getItem('existing_customer_id');
-    
-    // 各フォームにhidden inputとして追加
-    if (fromMypage || existingCustomerId) {
-        document.querySelectorAll('.category-form').forEach(form => {
-            if (fromMypage) {
-                form.querySelector('.from-mypage-input').value = fromMypage;
-            }
-            if (existingCustomerId) {
-                form.querySelector('.existing-customer-id-input').value = existingCustomerId;
-            }
-        });
-        
-        console.log('マイページからの予約:', fromMypage);
-        console.log('既存顧客ID:', existingCustomerId);
-    }
-});
-</script>
-@endsection

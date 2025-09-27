@@ -7,13 +7,16 @@ use App\Http\Controllers\Auth\PasswordResetController;
 Route::middleware(['auth.basic'])->group(function () {
 
 // トップページは店舗選択画面へリダイレクト
-Route::get('/', function () {
+Route::get('/', function (\Illuminate\Http\Request $request) {
     // 環境変数で切り替え可能
     if (env('SHOW_WELCOME_PAGE', false)) {
         return view('welcome');
     }
-    // デフォルトは店舗選択画面へリダイレクト
-    return redirect('/stores');
+    // パラメータを引き継いでリダイレクト
+    $params = [];
+    if ($request->has('source')) $params['source'] = $request->get('source');
+    if ($request->has('customer_id')) $params['customer_id'] = $request->get('customer_id');
+    return redirect()->route('stores', $params);
 });
 
 // オリジナルのウェルカムページを別URLで保持
@@ -32,18 +35,34 @@ Route::get('/health', function () {
 
 // Store routes
 Route::get('/stores', function () {
-    // カルテから来た場合は従来の店舗選択画面を表示
-    if (session()->has('from_medical_record')) {
-        return view('stores.index');
-    }
+    // シンプル：sourceパラメータだけチェック
+    $source = request()->get('source'); // 'medical', 'mypage', または null
+    $customerId = request()->get('customer_id');
 
-    // それ以外の場合は、セッションをクリアしてから店舗選択画面を表示
-    // （代理予約などを考慮）
-    session()->forget(['selectedCustomer', 'phoneSearch', 'newCustomer', 'newReservation']);
+    // セッションはstore_idだけ使う（これは必要）
+    // それ以外のセッションは全部クリア
+    session()->forget([
+        'from_medical_record',
+        'medical_record_customer_id',
+        'from_mypage',
+        'mypage_customer_id',
+        'selectedCustomer',
+        'phoneSearch',
+        'newCustomer',
+        'newReservation'
+    ]);
 
-    // 店舗選択画面を表示（ただしキャッシュはクリアされた状態）
-    return view('stores.index');
-});
+    \Log::info('[/stores] アクセス', [
+        'source' => $source,
+        'customer_id' => $customerId
+    ]);
+
+    // sourceとcustomer_idはビューに渡す（URLパラメータで引き継ぐため）
+    return view('stores.index', [
+        'source' => $source,
+        'customer_id' => $customerId
+    ]);
+})->name('stores');
 
 // 古い予約フローのルートを削除済み（2025-08-27）
 // 現在は○×形式のカレンダー（/reservation/calendar）を使用
@@ -68,8 +87,11 @@ Route::get('/reservation/menu', [App\Http\Controllers\PublicReservationControlle
 Route::get('/reservation/menu/{store_id}', [App\Http\Controllers\PublicReservationController::class, 'selectMenuWithStore'])->name('reservation.menu-with-store');
 Route::post('/reservation/select-menu', [App\Http\Controllers\PublicReservationController::class, 'storeMenu'])->name('reservation.select-menu');
 // 予約トップページは店舗選択にリダイレクト
-Route::get('/reservation', function () {
-    return redirect('/stores');
+Route::get('/reservation', function (\Illuminate\Http\Request $request) {
+    $params = [];
+    if ($request->has('source')) $params['source'] = $request->get('source');
+    if ($request->has('customer_id')) $params['customer_id'] = $request->get('customer_id');
+    return redirect()->route('stores', $params);
 });
 
 // 不足していたルート追加

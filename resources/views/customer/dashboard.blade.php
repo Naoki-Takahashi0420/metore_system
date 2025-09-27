@@ -826,7 +826,7 @@ async function goToReservation() {
                 // 店舗IDをセッションストレージに保存
                 sessionStorage.setItem('selected_store_id', data.store_id);
                 // 直接カテゴリ選択ページへ遷移
-                window.location.href = `/reservation/category?store_id=${data.store_id}&from_mypage=true&existing_customer_id=${customer.id}`;
+                window.location.href = `/reservation/category?store_id=${data.store_id}&source=mypage&customer_id=${customer.id}`;
                 return;
             }
         } catch (error) {
