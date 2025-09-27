@@ -129,16 +129,41 @@ class ReservationCalendarWidget extends FullCalendarWidget
             $query->where('store_id', $this->selectedStoreId);
         }
 
-        // 日付別にグループ化して件数を集計
-        $reservationsByDate = $query
-            ->selectRaw('reservation_date, COUNT(*) as count,
-                        SUM(CASE WHEN status = "cancelled" THEN 1 ELSE 0 END) as cancelled_count')
-            ->groupBy('reservation_date')
+        // 実際の予約データを顧客情報と共に取得
+        $reservations = $query
+            ->with(['customer:id,last_name,first_name', 'menu:id,name'])
             ->get();
 
-        return $reservationsByDate->map(function ($group) {
-            $date = Carbon::parse($group->reservation_date);
-            $activeCount = $group->count - $group->cancelled_count;
+        // 日付別にグループ化（PHPで処理）
+        $reservationsByDate = $reservations->groupBy(function($reservation) {
+            return $reservation->reservation_date->format('Y-m-d');
+        });
+
+        return $reservationsByDate->map(function ($reservations, $dateKey) {
+            $date = Carbon::parse($dateKey);
+
+            // キャンセルを除いた予約と、キャンセルされた予約を分ける
+            $activeReservations = $reservations->filter(function($r) {
+                return !in_array($r->status, ['cancelled', 'canceled']);
+            });
+            $cancelledCount = $reservations->filter(function($r) {
+                return in_array($r->status, ['cancelled', 'canceled']);
+            })->count();
+
+            $activeCount = $activeReservations->count();
+            $totalCount = $reservations->count();
+
+            // 顧客名を収集（時間付き、最大5名まで表示）
+            $customerNames = $activeReservations->sortBy('start_time')->take(5)->map(function($reservation) {
+                $time = Carbon::parse($reservation->start_time)->format('H:i');
+                if ($reservation->customer) {
+                    return $time . ' ' . $reservation->customer->last_name . '様';
+                }
+                return $time . ' 顧客情報なし';
+            })->values()->toArray();
+
+            // 残り人数がある場合
+            $remainingCount = max(0, $activeCount - 5);
 
             // ヒートマップスタイルの色分け（緑→黄→オレンジ→赤）
             $backgroundColor = '#f3f4f6'; // デフォルトグレー
@@ -174,10 +199,27 @@ class ReservationCalendarWidget extends FullCalendarWidget
                 $statusEmoji = '🔥 ';
             }
 
-            // タイトルに件数を表示（絵文字付き）
+            // タイトルに件数と顧客名を表示（絵文字付き）
             $title = $statusEmoji . $activeCount . '件';
-            if ($group->cancelled_count > 0) {
-                $title .= "\n(ｷｬﾝｾﾙ" . $group->cancelled_count . ')';
+
+            // 顧客名を追加
+            if (count($customerNames) > 0) {
+                $title .= "\n";
+                if (count($customerNames) <= 3) {
+                    // 3名以下なら全員表示
+                    $title .= implode('、', $customerNames);
+                } else {
+                    // 4名以上なら最初の3名＋他○名
+                    $firstThree = array_slice($customerNames, 0, 3);
+                    $title .= implode('、', $firstThree);
+                    if ($remainingCount > 0) {
+                        $title .= ' 他' . $remainingCount . '名';
+                    }
+                }
+            }
+
+            if ($cancelledCount > 0) {
+                $title .= "\n(ｷｬﾝｾﾙ" . $cancelledCount . ')';
             }
 
             // URLを生成（ここが重要！）
@@ -201,10 +243,12 @@ class ReservationCalendarWidget extends FullCalendarWidget
                 'className' => 'reservation-heat-' . min($activeCount, 10), // CSSクラス追加
                 'extendedProps' => [
                     'date' => $date->format('Y年m月d日'),
-                    'totalCount' => $group->count,
+                    'totalCount' => $totalCount,
                     'activeCount' => $activeCount,
-                    'cancelledCount' => $group->cancelled_count,
+                    'cancelledCount' => $cancelledCount,
                     'statusEmoji' => $statusEmoji,
+                    'customerNames' => $customerNames,
+                    'remainingCount' => $remainingCount,
                 ],
             ];
         })->toArray();
