@@ -69,6 +69,33 @@ class Customer extends Model
     protected $appends = ['full_name', 'full_name_kana'];
 
     /**
+     * グローバル検索用スコープ
+     */
+    public function scopeSearch($query, $search)
+    {
+        return $query->where(function ($q) use ($search) {
+            // 名前での検索
+            $q->where('last_name', 'like', "%{$search}%")
+              ->orWhere('first_name', 'like', "%{$search}%")
+              ->orWhere('last_name_kana', 'like', "%{$search}%")
+              ->orWhere('first_name_kana', 'like', "%{$search}%")
+              ->orWhereRaw("CONCAT(last_name, ' ', first_name) LIKE ?", ["%{$search}%"])
+              ->orWhereRaw("CONCAT(last_name_kana, ' ', first_name_kana) LIKE ?", ["%{$search}%"]);
+
+            // 電話番号での検索（ハイフンありなし両方対応）
+            $searchPlain = preg_replace('/[^0-9]/', '', $search);
+            if ($searchPlain) {
+                $q->orWhere('phone', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$searchPlain}%")
+                  ->orWhereRaw("REPLACE(phone, '-', '') LIKE ?", ["%{$searchPlain}%"]);
+            }
+
+            // メールアドレスでの検索
+            $q->orWhere('email', 'like', "%{$search}%");
+        });
+    }
+
+    /**
      * フルネーム取得
      */
     public function getFullNameAttribute(): string

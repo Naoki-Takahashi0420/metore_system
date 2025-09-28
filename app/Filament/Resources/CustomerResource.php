@@ -33,6 +33,27 @@ class CustomerResource extends Resource
      */
     protected static ?array $globallySearchableAttributes = ['last_name', 'first_name', 'phone', 'email'];
 
+    public static function getGlobalSearchEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return parent::getGlobalSearchEloquentQuery()->with(['reservations' => function ($query) {
+            $query->with('store');
+        }]);
+    }
+
+    public static function getGlobalSearchResultTitle(\Illuminate\Database\Eloquent\Model $record): string
+    {
+        return $record->last_name . ' ' . $record->first_name;
+    }
+
+    public static function getGlobalSearchResultDetails(\Illuminate\Database\Eloquent\Model $record): array
+    {
+        return [
+            '電話番号' => $record->phone,
+            'メール' => $record->email ?? '-',
+            '予約数' => $record->reservations->count() . '件',
+        ];
+    }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -462,7 +483,15 @@ class CustomerResource extends Resource
                     }),
                 Tables\Columns\TextColumn::make('phone')
                     ->label('電話番号')
-                    ->searchable(),
+                    ->searchable()
+                    ->searchable(query: function ($query, $search) {
+                        return $query->where(function ($q) use ($search) {
+                            // ハイフンありなしの両方で検索
+                            $searchPlain = preg_replace('/[^0-9]/', '', $search);
+                            $q->where('phone', 'like', "%{$search}%")
+                              ->orWhere('phone', 'like', "%{$searchPlain}%");
+                        });
+                    }),
                 Tables\Columns\TextColumn::make('email')
                     ->label('メールアドレス')
                     ->searchable(),
