@@ -253,9 +253,15 @@ function goToReservation() {
 document.addEventListener('DOMContentLoaded', async function() {
     const token = localStorage.getItem('customer_token');
     const customerData = localStorage.getItem('customer_data');
-    
-    // トークンがない場合はログインページにリダイレクト
-    if (!token) {
+    const tokenExpiry = localStorage.getItem('token_expiry');
+
+    // トークンの有効期限をチェック
+    if (!token || (tokenExpiry && new Date(tokenExpiry) < new Date())) {
+        // トークンがないか、有効期限切れの場合
+        localStorage.removeItem('customer_token');
+        localStorage.removeItem('customer_data');
+        localStorage.removeItem('token_expiry');
+        localStorage.removeItem('remember_me');
         window.location.href = '/customer/login';
         return;
     }
