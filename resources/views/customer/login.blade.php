@@ -140,6 +140,29 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // 既存のトークンをチェック
+    const existingToken = localStorage.getItem('customer_token');
+    const tokenExpiry = localStorage.getItem('token_expiry');
+
+    if (existingToken && tokenExpiry) {
+        const expiryDate = new Date(tokenExpiry);
+        const now = new Date();
+
+        // トークンが有効期限内の場合、ダッシュボードへリダイレクト
+        if (expiryDate > now) {
+            console.log('Valid token found, redirecting to dashboard');
+            window.location.href = '/customer/dashboard';
+            return;
+        } else {
+            // 期限切れの場合はクリア
+            console.log('Token expired, clearing localStorage');
+            localStorage.removeItem('customer_token');
+            localStorage.removeItem('customer_data');
+            localStorage.removeItem('token_expiry');
+            localStorage.removeItem('remember_me');
+        }
+    }
+
     const form = document.getElementById('login-form');
     const otpModal = document.getElementById('otp-modal');
     const verifyButton = document.getElementById('verify-otp');
