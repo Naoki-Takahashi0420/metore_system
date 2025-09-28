@@ -13,7 +13,7 @@ trait HasShiftPermissions
     public function canAccessShiftManagement(): bool
     {
         // staffはアクセス不可
-        return in_array($this->role, ['superadmin', 'admin', 'manager']);
+        return in_array($this->role, ['super_admin', 'admin', 'manager']);
     }
     
     /**
@@ -21,8 +21,8 @@ trait HasShiftPermissions
      */
     public function canCreateShift(Store $store): bool
     {
-        // superadmin/adminは全店舗OK
-        if (in_array($this->role, ['superadmin', 'admin'])) {
+        // super_admin/adminは全店舗OK
+        if (in_array($this->role, ['super_admin', 'admin'])) {
             return true;
         }
         
@@ -45,8 +45,8 @@ trait HasShiftPermissions
      */
     public function canEditShift(Shift $shift): bool
     {
-        // superadmin/adminは全て編集可
-        if (in_array($this->role, ['superadmin', 'admin'])) {
+        // super_admin/adminは全て編集可
+        if (in_array($this->role, ['super_admin', 'admin'])) {
             return true;
         }
         
@@ -69,8 +69,8 @@ trait HasShiftPermissions
      */
     public function canDeleteShift(Shift $shift): bool
     {
-        // superadmin/adminとmanagerのみ削除可
-        if (in_array($this->role, ['superadmin', 'admin'])) {
+        // super_admin/adminとmanagerのみ削除可
+        if (in_array($this->role, ['super_admin', 'admin'])) {
             return true;
         }
         
@@ -87,8 +87,8 @@ trait HasShiftPermissions
      */
     public function getAccessibleStores()
     {
-        // superadmin/adminは全店舗
-        if (in_array($this->role, ['superadmin', 'admin'])) {
+        // super_admin/adminは全店舗
+        if (in_array($this->role, ['super_admin', 'admin'])) {
             return Store::where('is_active', true);
         }
         
@@ -112,8 +112,8 @@ trait HasShiftPermissions
      */
     public function getEditableStaff(Store $store)
     {
-        // superadmin/admin/managerは店舗の全スタッフ
-        if (in_array($this->role, ['superadmin', 'admin', 'manager'])) {
+        // super_admin/admin/managerは店舗の全スタッフ
+        if (in_array($this->role, ['super_admin', 'admin', 'manager'])) {
             return $store->users()->where('is_active_staff', true);
         }
         

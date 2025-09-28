@@ -424,26 +424,7 @@ class SimpleShiftManagement extends Page implements HasForms
             return;
         }
         
-        // 権限チェック：スタッフは先月のシフトを編集不可（毎月5日以降）
-        $user = Auth::user();
-        $shiftDate = Carbon::parse($this->editingShift->shift_date);
-        $now = now();
-        
-        if ($user->hasRole(['staff', 'manager'])) {
-            // 今日が5日以降で、シフトが先月以前の場合
-            if ($now->day >= 5) {
-                $lastMonth = $now->copy()->subMonth();
-                if ($shiftDate->year < $now->year || 
-                    ($shiftDate->year == $now->year && $shiftDate->month < $now->month)) {
-                    Notification::make()
-                        ->title('編集不可')
-                        ->body('毎月5日以降は先月以前のシフトは編集できません')
-                        ->warning()
-                        ->send();
-                    return;
-                }
-            }
-        }
+        // 権限チェックは canEditShift で実施済み
         
         // 既存の休憩時間を読み込み
         $this->editingBreaks = [];
@@ -793,24 +774,7 @@ class SimpleShiftManagement extends Page implements HasForms
             return;
         }
         
-        // スタッフは先月のシフトを削除不可（毎月5日以降）
-        $user = Auth::user();
-        $shiftDate = Carbon::parse($shift->shift_date);
-        $now = now();
-        
-        if ($user->hasRole(['staff', 'manager'])) {
-            if ($now->day >= 5) {
-                if ($shiftDate->year < $now->year || 
-                    ($shiftDate->year == $now->year && $shiftDate->month < $now->month)) {
-                    Notification::make()
-                        ->title('削除不可')
-                        ->body('毎月5日以降は先月以前のシフトは削除できません')
-                        ->warning()
-                        ->send();
-                    return;
-                }
-            }
-        }
+        // 権限チェックは canDeleteShift で実施済み
         
         $shift->delete();
         
