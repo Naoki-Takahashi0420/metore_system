@@ -128,7 +128,7 @@
                    class="inline-block px-6 py-3 bg-gray-500 text-white rounded-md hover:bg-gray-600 text-center">
                     トップページへ戻る
                 </a>
-                <a href="/customer/dashboard" 
+                <a href="/customer/login"
                    id="mypage-button"
                    class="inline-block px-6 py-3 bg-green-500 text-white rounded-md hover:bg-green-600 text-center">
                     マイページへ
