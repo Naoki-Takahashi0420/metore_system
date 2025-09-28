@@ -1518,17 +1518,8 @@ class PublicReservationController extends Controller
                     ->orderBy('start_time', 'desc')
                     ->first();
                     
-                // 5日間の制限チェック（予約日が送信されている場合のみ）
-                if ($latestReservation && isset($validated['date'])) {
-                    $lastVisitDate = Carbon::parse($latestReservation->reservation_date);
-                    $requestedDate = Carbon::parse($validated['date']);
-                    $daysDiff = $lastVisitDate->diffInDays($requestedDate, false);
-                    
-                    if ($daysDiff < 5) {
-                        $nextAvailableDate = $lastVisitDate->addDays(5)->format('Y年m月d日');
-                        return back()->with('error', "前回のご予約から最低5日間空ける必要があります。次回予約可能日: {$nextAvailableDate}以降");
-                    }
-                }
+                // 5日間の制限チェックを削除（新規予約ルートでは適用しない）
+                // ユーザー要求：「新規のルートではこのアラートが出てしまうのは問題なので、最後に電話番号で弾いて、マイページに誘導の流れだけでいい」
                 
                 // 既存の未来予約チェック（重複防止）
                 $futureReservations = Reservation::where('customer_id', $existingCustomerByPhone->id)
