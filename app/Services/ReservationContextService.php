@@ -15,7 +15,7 @@ class ReservationContextService
     {
         // タイムスタンプを追加（有効期限チェック用）
         $context['created_at'] = Carbon::now()->timestamp;
-        $context['expires_at'] = Carbon::now()->addHours(2)->timestamp; // 2時間有効
+        $context['expires_at'] = Carbon::now()->addHours(24)->timestamp; // 24時間有効（予約完了まで十分な時間）
 
         return Crypt::encryptString(json_encode($context));
     }
