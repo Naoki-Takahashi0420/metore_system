@@ -779,7 +779,7 @@
         <script>
             console.log('タイムラインインジケータースクリプト読み込み開始');
 
-            // 🚨 EMERGENCY: 営業時間外の強制削除
+            // 🚨 EMERGENCY: 営業時間外の強制削除（完全版）
             function emergencyRemoveIndicator() {
                 const now = new Date().toLocaleString("en-US", {timeZone: "Asia/Tokyo"});
                 const jstDate = new Date(now);
@@ -789,11 +789,25 @@
 
                 if (currentHour < 10 || currentHour >= 22) {
                     console.log('🚨 EMERGENCY: 営業時間外で強制削除実行');
-                    const indicators = document.querySelectorAll('#current-time-indicator, .current-time-indicator');
-                    indicators.forEach(el => {
-                        console.log('🚨 要素削除:', el);
-                        el.remove();
+                    // より包括的な削除
+                    const selectors = [
+                        '#current-time-indicator',
+                        '.current-time-indicator',
+                        '[class*="current-time"]',
+                        '[style*="background: #ef4444"]',
+                        '[style*="background:#ef4444"]',
+                        'div[style*="position: absolute"][style*="width: 2px"]'
+                    ];
+
+                    selectors.forEach(selector => {
+                        const elements = document.querySelectorAll(selector);
+                        elements.forEach(el => {
+                            console.log('🚨 要素削除:', selector, el);
+                            el.remove();
+                        });
                     });
+                } else {
+                    console.log('✅ EMERGENCY CHECK: 営業時間内のため削除しない');
                 }
             }
 
@@ -980,16 +994,44 @@
 
             // 実行
             document.addEventListener('DOMContentLoaded', function() {
-                console.log('DOMContentLoaded - インジケーター作成開始');
+                console.log('DOMContentLoaded - 営業時間チェック後にインジケーター作成開始');
+
+                // 営業時間チェック
+                const now = new Date().toLocaleString("en-US", {timeZone: "Asia/Tokyo"});
+                const jstDate = new Date(now);
+                const currentHour = jstDate.getHours();
+
+                console.log('🕒 DOMContentLoaded: JST現在時刻=' + currentHour + '時');
+
+                if (currentHour < 10 || currentHour >= 22) {
+                    console.log('🚫 DOMContentLoaded: 営業時間外のため作成しない');
+                    return;
+                }
+
+                console.log('✅ DOMContentLoaded: 営業時間内のためインジケーター作成');
                 setTimeout(createTimeIndicator, 1000);
 
                 // 1分ごとにリアルタイム更新
                 setInterval(updateTimeIndicator, 60000);
             });
 
-            // 即座にも実行
+            // 即座にも実行（営業時間チェック付き）
             setTimeout(function() {
-                console.log('即座実行 - インジケーター作成');
+                console.log('即座実行 - 営業時間チェック後にインジケーター作成');
+
+                // 営業時間チェック
+                const now = new Date().toLocaleString("en-US", {timeZone: "Asia/Tokyo"});
+                const jstDate = new Date(now);
+                const currentHour = jstDate.getHours();
+
+                console.log('🕒 即座実行: JST現在時刻=' + currentHour + '時');
+
+                if (currentHour < 10 || currentHour >= 22) {
+                    console.log('🚫 即座実行: 営業時間外のため作成しない');
+                    return;
+                }
+
+                console.log('✅ 即座実行: 営業時間内のためインジケーター作成');
                 createTimeIndicator();
             }, 2000);
 
