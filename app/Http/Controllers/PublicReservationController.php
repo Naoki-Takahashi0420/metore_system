@@ -1510,28 +1510,39 @@ class PublicReservationController extends Controller
 
         $validated = $request->validate($rules);
         
-        // 既存顧客のサブスク予約の場合のみ、5日間隔制限をチェック
-        // 新規顧客の場合は完全にスキップ
-        $isExistingCustomer = isset($customer) && $customer;
-        if ($isExistingCustomer && Session::has('is_subscription_booking') && Session::get('is_subscription_booking') === true) {
-            $customerId = Session::get('customer_id');
-            \Log::info('既存顧客のサブスク予約での5日間隔チェック開始', [
-                'customer_id' => $customerId,
-                'target_date' => $validated['date'],
-                'is_subscription_booking' => Session::get('is_subscription_booking'),
-                'is_existing_customer' => true
-            ]);
+        // 既存顧客の5日間隔制限チェック
+        // コンテキストまたはセッションから既存顧客情報を取得
+        $existingCustomerId = null;
 
-            if ($customerId) {
-                $this->validateFiveDayInterval($customerId, $validated['date']);
-            } else {
-                \Log::warning('サブスク予約なのにcustomer_idがセッションに設定されていません');
-            }
+        // マイページまたはカルテからの予約の場合
+        if ($isExistingCustomer && isset($existingCustomer) && $existingCustomer) {
+            $existingCustomerId = $existingCustomer->id;
+            \Log::info('既存顧客（コンテキスト経由）の5日間隔制限チェック', [
+                'customer_id' => $existingCustomerId,
+                'source' => $context['source'] ?? 'unknown',
+                'is_from_mypage' => $isFromMyPage
+            ]);
+        }
+        // サブスク予約の場合（セッション経由）
+        else if (Session::has('is_subscription_booking') && Session::get('is_subscription_booking') === true) {
+            $existingCustomerId = Session::get('customer_id');
+            \Log::info('既存顧客（サブスク予約）の5日間隔制限チェック', [
+                'customer_id' => $existingCustomerId,
+                'is_subscription_booking' => true
+            ]);
+        }
+
+        // 既存顧客IDが取得できた場合は5日間隔制限をチェック
+        if ($existingCustomerId) {
+            \Log::info('5日間隔制限チェック開始', [
+                'customer_id' => $existingCustomerId,
+                'target_date' => $validated['date']
+            ]);
+            $this->validateFiveDayInterval($existingCustomerId, $validated['date']);
         } else {
-            \Log::info('5日間隔制限をスキップ', [
-                'is_subscription_booking' => Session::get('is_subscription_booking'),
+            \Log::info('5日間隔制限をスキップ（新規顧客または顧客情報なし）', [
                 'is_existing_customer' => $isExistingCustomer,
-                'reason' => $isExistingCustomer ? '通常予約' : '新規顧客'
+                'has_session_booking' => Session::has('is_subscription_booking')
             ]);
         }
         
@@ -1593,14 +1604,7 @@ class PublicReservationController extends Controller
             ]);
 
             // 既存顧客の場合、複雑なチェックをスキップして直接予約作成へ
-            // マイページからの予約の場合は常に5日間隔制限をチェック
-            if ($isFromMyPage) {
-                \Log::info('マイページからの予約: 5日間隔制限をチェック', [
-                    'customer_id' => $customer->id,
-                    'date' => $validated['date']
-                ]);
-                $this->validateFiveDayInterval($customer->id, $validated['date']);
-            }
+            // 5日間隔制限チェックは既に上部で実行済み
 
             // 直接予約作成処理へ進む（customerは設定済み）
             // 既存顧客処理をスキップして予約作成へ
