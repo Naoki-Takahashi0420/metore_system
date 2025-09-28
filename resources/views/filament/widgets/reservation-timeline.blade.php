@@ -842,6 +842,12 @@
                 const currentHour = jstDate.getHours();
                 const currentMinute = jstDate.getMinutes();
 
+                // 🚨 緊急停止: 営業時間外は何もしない
+                if (currentHour < 10 || currentHour >= 22) {
+                    console.log('🚫 createTimeIndicator: 営業時間外のため処理停止');
+                    return;
+                }
+
                 console.log(`🕒 JST現在時刻: ${currentHour}:${String(currentMinute).padStart(2, '0')}`);
                 console.log(`🕒 ローカル時刻（参考）: ${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2, '0')}`);
                 console.log(`📋 営業時間判定: 10時以前？${currentHour < 10} / 22時以降？${currentHour >= 22}`);
