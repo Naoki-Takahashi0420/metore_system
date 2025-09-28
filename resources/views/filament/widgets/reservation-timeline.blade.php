@@ -775,9 +775,11 @@
             function createTimeIndicator() {
                 console.log('createTimeIndicator 実行開始');
 
-                const now = new Date();
-                const currentHour = now.getHours();
-                const currentMinute = now.getMinutes();
+                // 日本時間で現在時刻を取得
+                const now = new Date().toLocaleString("en-US", {timeZone: "Asia/Tokyo"});
+                const jstDate = new Date(now);
+                const currentHour = jstDate.getHours();
+                const currentMinute = jstDate.getMinutes();
 
                 console.log(`現在時刻: ${currentHour}:${currentMinute}`);
 
@@ -886,9 +888,11 @@
 
             // リアルタイム更新用の関数
             function updateTimeIndicator() {
-                const now = new Date();
-                const currentHour = now.getHours();
-                const currentMinute = now.getMinutes();
+                // 日本時間で現在時刻を取得
+                const now = new Date().toLocaleString("en-US", {timeZone: "Asia/Tokyo"});
+                const jstDate = new Date(now);
+                const currentHour = jstDate.getHours();
+                const currentMinute = jstDate.getMinutes();
 
                 // 営業時間外の場合はインジケーターを削除
                 if (currentHour < 10 || currentHour >= 22) {
