@@ -207,21 +207,33 @@ class PublicReservationController extends Controller
     /**
      * 時間・料金選択
      */
-    public function selectTime(Request $request)
+    public function selectTime(Request $request, ReservationContextService $contextService)
     {
         $validated = $request->validate([
-            'category_id' => 'required|exists:menu_categories,id'
+            'category_id' => 'required|exists:menu_categories,id',
+            'ctx' => 'required|string'
         ]);
 
-        Session::put('selected_category_id', $validated['category_id']);
+        // コンテキストを復号化
+        $context = $contextService->decryptContext($validated['ctx']);
+        if (!$context) {
+            return redirect()->route('stores')->withErrors(['error' => '予約情報が見つかりません']);
+        }
 
-        $storeId = Session::get('selected_store_id');
+        // 店舗IDとカテゴリIDをコンテキストに追加
+        $context['category_id'] = $validated['category_id'];
+
+        $storeId = $context['store_id'] ?? null;
+        if (!$storeId) {
+            return redirect()->route('stores')->withErrors(['error' => '店舗が選択されていません']);
+        }
+
         $store = Store::find($storeId);
         $category = MenuCategory::find($validated['category_id']);
 
-        // シンプルに1つのパラメータで判定
-        $source = $request->get('source'); // 'medical', 'mypage', または null
-        $customerId = $request->get('customer_id');
+        // コンテキストから情報を取得
+        $source = $context['source'] ?? null;
+        $customerId = $context['customer_id'] ?? null;
 
         // デバッグログ
         \Log::info('[selectTime] 予約ソース確認', [
@@ -239,10 +251,14 @@ class PublicReservationController extends Controller
             }
         }
         
-        // 新規・既存判定（シンプル版）
+        // 新規・既存判定（パラメータベース）
         $isNewCustomer = true;
-        if ($source === 'medical' || $source === 'mypage') {
-            // カルテまたはマイページからは必ず既存顧客
+
+        // コンテキストに既存顧客フラグがある場合はそれを使用
+        if (isset($context['is_existing_customer'])) {
+            $isNewCustomer = !$context['is_existing_customer'];
+        } elseif ($context['type'] === 'medical_record' || $source === 'medical_record') {
+            // カルテからは必ず既存顧客
             $isNewCustomer = false;
         } elseif ($customerId) {
             // customer_idがある場合は既存予約をチェック
@@ -269,12 +285,12 @@ class PublicReservationController extends Controller
             $menusQuery->where('is_subscription_only', false);
         }
         
-        // メニューフィルタリング（超シンプル版）
-        if ($source === 'medical' || $source === 'mypage') {
-            // カルテ・マイページから: 既存向け＋カルテ専用OK
+        // メニューフィルタリング（パラメータベース）
+        if ($context['type'] === 'medical_record' || $source === 'medical_record') {
+            // カルテから: 既存向け＋カルテ専用OK
             $menusQuery->whereIn('customer_type_restriction', ['all', 'existing']);
             // medical_record_onlyの制限なし（カルテ専用メニューも表示）
-            \Log::info('[selectTime] カルテ/マイページからの予約');
+            \Log::info('[selectTime] カルテからの予約');
         } elseif ($isNewCustomer) {
             // 新規顧客: 新規向けのみ
             $menusQuery->whereIn('customer_type_restriction', ['all', 'new', 'new_only']);
@@ -310,6 +326,9 @@ class PublicReservationController extends Controller
         // 互換性のため、時間別グループ化も残す（ただし表示はsortedMenusを使う）
         $menusByDuration = $sortedMenus->groupBy('duration_minutes')->sortKeys();
 
+        // コンテキストを暗号化してビューに渡す
+        $encryptedContext = $contextService->encryptContext($context);
+
         return view('reservation.time-select', [
             'menusByDuration' => $menusByDuration,
             'sortedMenus' => $sortedMenus,
@@ -317,7 +336,8 @@ class PublicReservationController extends Controller
             'category' => $category,
             'hasSubscription' => $hasSubscription,
             'source' => $source,
-            'customer_id' => $customerId
+            'customer_id' => $customerId,
+            'encryptedContext' => $encryptedContext
         ]);
     }
     
