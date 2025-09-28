@@ -166,8 +166,11 @@ class TodayReservationsWidget extends BaseWidget
                     }),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make()
-                    ->label('詳細'),
+                Tables\Actions\Action::make('view')
+                    ->label('詳細')
+                    ->icon('heroicon-o-eye')
+                    ->color('gray')
+                    ->url(fn ($record) => "/admin/reservations/{$record->id}"),
 
                 Tables\Actions\Action::make('reschedule')
                     ->label('日程変更')
