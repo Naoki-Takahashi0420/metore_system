@@ -547,6 +547,9 @@
                     <div id="current-time-indicator" class="current-time-indicator" style="left: {{ $leftPosition }}px;">
                         <span class="current-time-text">{{ $now->format('H:i') }}</span>
                     </div>
+                @else
+                    <!-- 営業時間外：PHPで非表示確認用コメント -->
+                    <!-- 現在: {{ $now->format('H:i') }} - 営業時間外のため非表示 -->
                 @endif
             @endif
 
@@ -775,6 +778,30 @@
         <!-- JavaScript for Current Time Indicator -->
         <script>
             console.log('タイムラインインジケータースクリプト読み込み開始');
+
+            // 🚨 EMERGENCY: 営業時間外の強制削除
+            function emergencyRemoveIndicator() {
+                const now = new Date().toLocaleString("en-US", {timeZone: "Asia/Tokyo"});
+                const jstDate = new Date(now);
+                const currentHour = jstDate.getHours();
+
+                console.log('🚨 EMERGENCY CHECK: JST時刻=' + currentHour + '時');
+
+                if (currentHour < 10 || currentHour >= 22) {
+                    console.log('🚨 EMERGENCY: 営業時間外で強制削除実行');
+                    const indicators = document.querySelectorAll('#current-time-indicator, .current-time-indicator');
+                    indicators.forEach(el => {
+                        console.log('🚨 要素削除:', el);
+                        el.remove();
+                    });
+                }
+            }
+
+            // 即座に実行
+            emergencyRemoveIndicator();
+
+            // 定期実行
+            setInterval(emergencyRemoveIndicator, 5000);
 
             function createTimeIndicator() {
                 console.log('createTimeIndicator 実行開始');
