@@ -180,12 +180,6 @@ class TodayReservationsWidget extends BaseWidget
                     ->openUrlInNewTab(false)
                     ->visible(fn ($record) => $record->status === 'booked'),
 
-                Tables\Actions\Action::make('edit')
-                    ->label('編集')
-                    ->icon('heroicon-o-pencil')
-                    ->color('warning')
-                    ->url(fn ($record) => "/admin/reservations/{$record->id}/edit"),
-
                 Tables\Actions\Action::make('complete')
                     ->label('完了')
                     ->icon('heroicon-o-check-circle')

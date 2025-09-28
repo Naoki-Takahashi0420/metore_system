@@ -13,7 +13,7 @@ class ViewReservation extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\EditAction::make(),
+            // 編集ボタンを削除（日程変更など個別のアクションで対応）
         ];
     }
 

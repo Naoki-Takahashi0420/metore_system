@@ -736,14 +736,6 @@ class ReservationResource extends Resource
                     ->url(fn ($record) => route('admin.reservations.reschedule', $record))
                     ->openUrlInNewTab(false)
                     ->visible(fn ($record) => $record->status === 'booked'),
-                Tables\Actions\Action::make('edit')
-                    ->label('編集')
-                    ->icon('heroicon-o-pencil')
-                    ->color('warning')
-                    ->action(function ($record) {
-                        // JavaScriptでページ遷移
-                        return redirect("/admin/reservations/{$record->id}/edit");
-                    }),
                 Tables\Actions\Action::make('complete')
                     ->label('完了')
                     ->icon('heroicon-o-check-circle')
