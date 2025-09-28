@@ -1557,6 +1557,9 @@ class PublicReservationController extends Controller
                 $startTime = Carbon::parse($validated['date'] . ' ' . $validated['time']);
                 $endTime = $startTime->copy()->addMinutes($menu->duration ?? 60);
                 
+                // 変更前の予約情報を保持
+                $oldReservation = $existingReservation->replicate();
+
                 $existingReservation->update([
                     'reservation_date' => $validated['date'],
                     'start_time' => $validated['time'],
@@ -1564,13 +1567,16 @@ class PublicReservationController extends Controller
                     'store_id' => $validated['store_id'],
                     'menu_id' => $validated['menu_id'],
                 ]);
-                
+
+                // 日程変更通知を送信（顧客と管理者の両方に）
+                event(new \App\Events\ReservationChanged($oldReservation, $existingReservation));
+
                 // セッションをクリア
                 Session::forget('change_reservation_id');
                 Session::forget('is_reservation_change');
                 Session::forget('original_reservation_date');
                 Session::forget('original_reservation_time');
-                
+
                 // 予約変更完了ページへ
                 return redirect()->route('reservation.complete', $existingReservation->reservation_number)
                     ->with('success', '予約日時を変更しました');

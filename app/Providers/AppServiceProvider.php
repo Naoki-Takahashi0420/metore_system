@@ -17,6 +17,7 @@ use App\Events\ReservationCancelled;
 use App\Events\ReservationChanged;
 use App\Listeners\AdminNotificationListener;
 use App\Listeners\SendCustomerReservationNotification;
+use App\Listeners\SendCustomerReservationChangeNotification;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -60,6 +61,12 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(
             ReservationCreated::class,
             SendCustomerReservationNotification::class
+        );
+
+        // 日程変更時の顧客通知リスナーを登録
+        Event::listen(
+            ReservationChanged::class,
+            SendCustomerReservationChangeNotification::class
         );
     }
 }
