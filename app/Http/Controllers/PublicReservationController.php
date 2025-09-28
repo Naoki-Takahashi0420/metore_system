@@ -1694,8 +1694,25 @@ class PublicReservationController extends Controller
         try {
             // $customerが設定されていない場合（新規顧客作成）
             if (!$customer) {
-                // 新規顧客情報が必要
-                if (!isset($validated['phone']) || !isset($validated['last_name']) || !isset($validated['first_name'])) {
+                // マイページからの予約で顧客が見つからない場合
+                if ($isFromMyPage && $context && isset($context['customer_id'])) {
+                    // データベースから再度取得を試みる
+                    $customer = Customer::where('id', $context['customer_id'])->first();
+                    if (!$customer) {
+                        \Log::error('マイページからの予約で顧客が見つかりません', [
+                            'customer_id' => $context['customer_id'],
+                            'context' => $context
+                        ]);
+                        throw new \Exception('顧客情報が見つかりません。マイページから再度お試しください。');
+                    }
+                    // 顧客情報をvalidatedに設定
+                    $validated['last_name'] = $customer->last_name;
+                    $validated['first_name'] = $customer->first_name;
+                    $validated['phone'] = $customer->phone;
+                    $validated['email'] = $customer->email;
+                }
+                // 新規顧客の場合
+                else if (!isset($validated['phone']) || !isset($validated['last_name']) || !isset($validated['first_name'])) {
                     \Log::error('顧客情報不足', [
                         'has_phone' => isset($validated['phone']),
                         'has_last_name' => isset($validated['last_name']),
@@ -1706,33 +1723,36 @@ class PublicReservationController extends Controller
                     throw new \Exception('顧客情報が不足しています');
                 }
 
-                // まず電話番号で既存顧客を検索
-                $customer = Customer::where('phone', $validated['phone'])->first();
+                // 新規顧客の場合のみ処理
+                if (!$isFromMyPage) {
+                    // まず電話番号で既存顧客を検索
+                    $customer = Customer::where('phone', $validated['phone'])->first();
 
-                if (!$customer && isset($validated['email'])) {
-                    // 電話番号で見つからない場合、メールアドレスでも検索
-                    $customer = Customer::where('email', $validated['email'])->first();
-                }
+                    if (!$customer && isset($validated['email'])) {
+                        // 電話番号で見つからない場合、メールアドレスでも検索
+                        $customer = Customer::where('email', $validated['email'])->first();
+                    }
 
-                if ($customer) {
-                    // 既存顧客が見つかった場合、情報を更新
-                    $customer->update([
-                        'last_name' => $validated['last_name'],
-                        'first_name' => $validated['first_name'],
-                        'phone' => $validated['phone'],
-                        'email' => $validated['email'] ?? null,
-                    ]);
-                } else {
-                    // 新規顧客として作成
-                    $customer = Customer::create([
-                        'phone' => $validated['phone'],
-                        'last_name' => $validated['last_name'],
-                        'first_name' => $validated['first_name'],
-                        'last_name_kana' => '', // カナは空文字で保存
-                        'first_name_kana' => '', // カナは空文字で保存
-                        'email' => $validated['email'] ?? null,
-                        'customer_number' => Customer::generateCustomerNumber(),
-                    ]);
+                    if ($customer) {
+                        // 既存顧客が見つかった場合、情報を更新
+                        $customer->update([
+                            'last_name' => $validated['last_name'],
+                            'first_name' => $validated['first_name'],
+                            'phone' => $validated['phone'],
+                            'email' => $validated['email'] ?? null,
+                        ]);
+                    } else {
+                        // 新規顧客として作成
+                        $customer = Customer::create([
+                            'phone' => $validated['phone'],
+                            'last_name' => $validated['last_name'],
+                            'first_name' => $validated['first_name'],
+                            'last_name_kana' => '', // カナは空文字で保存
+                            'first_name_kana' => '', // カナは空文字で保存
+                            'email' => $validated['email'] ?? null,
+                            'customer_number' => Customer::generateCustomerNumber(),
+                        ]);
+                    }
                 }
             }
             
