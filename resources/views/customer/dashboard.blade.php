@@ -254,10 +254,27 @@ document.addEventListener('DOMContentLoaded', async function() {
     const token = localStorage.getItem('customer_token');
     const customerData = localStorage.getItem('customer_data');
     const tokenExpiry = localStorage.getItem('token_expiry');
+    const rememberMe = localStorage.getItem('remember_me');
 
-    // トークンの有効期限をチェック
-    if (!token || (tokenExpiry && new Date(tokenExpiry) < new Date())) {
-        // トークンがないか、有効期限切れの場合
+    // デバッグ情報をコンソールに出力
+    console.log('=== Customer Login Debug Info ===');
+    console.log('Token exists:', !!token);
+    console.log('Token length:', token ? token.length : 0);
+    console.log('Token expiry:', tokenExpiry);
+    console.log('Remember me:', rememberMe);
+    console.log('Current time:', new Date().toISOString());
+
+    if (tokenExpiry) {
+        const expiryDate = new Date(tokenExpiry);
+        const now = new Date();
+        console.log('Expiry date:', expiryDate.toISOString());
+        console.log('Is expired:', expiryDate < now);
+        console.log('Time until expiry:', Math.round((expiryDate - now) / (1000 * 60 * 60)), 'hours');
+    }
+
+    // トークンの存在チェック（有効期限はサーバー側で検証）
+    if (!token) {
+        console.log('=== No token found - redirecting to login ===');
         localStorage.removeItem('customer_token');
         localStorage.removeItem('customer_data');
         localStorage.removeItem('token_expiry');
@@ -265,6 +282,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         window.location.href = '/customer/login';
         return;
     }
+
+    console.log('=== Token valid - proceeding with dashboard load ===');
     
     // 顧客情報を表示
     if (customerData) {

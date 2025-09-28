@@ -141,14 +141,15 @@ class CustomerAuthController extends Controller
             'phone_verified_at' => now(),
             'last_visit_at' => now(),
         ]);
-        
+
         // トークン生成（Remember Meオプションに応じて有効期限を設定）
         $rememberMe = $request->boolean('remember_me', false);
 
-        // Sanctumトークンは設定ファイルで有効期限を管理するため、
-        // トークン名で区別して、フロントエンドで有効期限を管理
+        // Remember Me設定に応じてトークンの有効期限を設定
         $tokenName = $rememberMe ? 'customer-auth-remember' : 'customer-auth';
-        $token = $customer->createToken($tokenName)->plainTextToken;
+        $expiresAt = $rememberMe ? now()->addDays(30) : now()->addHours(2);
+
+        $token = $customer->createToken($tokenName, ['*'], $expiresAt)->plainTextToken;
         
         return response()->json([
             'success' => true,
@@ -226,14 +227,15 @@ class CustomerAuthController extends Controller
         
         // セッションクリア
         session()->forget('temp_customer_' . $request->temp_token);
-        
+
         // トークン生成（Remember Meオプションに応じて有効期限を設定）
         $rememberMe = $request->boolean('remember_me', false);
 
-        // Sanctumトークンは設定ファイルで有効期限を管理するため、
-        // トークン名で区別して、フロントエンドで有効期限を管理
+        // Remember Me設定に応じてトークンの有効期限を設定
         $tokenName = $rememberMe ? 'customer-auth-remember' : 'customer-auth';
-        $token = $customer->createToken($tokenName)->plainTextToken;
+        $expiresAt = $rememberMe ? now()->addDays(30) : now()->addHours(2);
+
+        $token = $customer->createToken($tokenName, ['*'], $expiresAt)->plainTextToken;
         
         return response()->json([
             'success' => true,
