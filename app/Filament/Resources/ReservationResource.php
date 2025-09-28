@@ -9,6 +9,8 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Filament\Infolists;
+use Filament\Infolists\Infolist;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Notifications\Notification;
 use Carbon\Carbon;
@@ -526,6 +528,79 @@ class ReservationResource extends Resource
                             ->label('キャンセル理由')
                             ->columnSpanFull(),
                     ]),
+            ]);
+    }
+
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist
+            ->schema([
+                Infolists\Components\Section::make('基本情報')
+                    ->schema([
+                        Infolists\Components\TextEntry::make('reservation_number')
+                            ->label('予約番号'),
+                        Infolists\Components\TextEntry::make('store.name')
+                            ->label('店舗'),
+                        Infolists\Components\TextEntry::make('customer.full_name')
+                            ->label('顧客名')
+                            ->getStateUsing(fn ($record) =>
+                                $record->customer ?
+                                $record->customer->last_name . ' ' . $record->customer->first_name :
+                                '未設定'
+                            ),
+                        Infolists\Components\TextEntry::make('customer.phone')
+                            ->label('電話番号'),
+                        Infolists\Components\TextEntry::make('menu.name')
+                            ->label('メニュー'),
+                        Infolists\Components\TextEntry::make('staff.name')
+                            ->label('担当スタッフ')
+                            ->placeholder('未定'),
+                    ])
+                    ->columns(2),
+
+                Infolists\Components\Section::make('予約詳細')
+                    ->schema([
+                        Infolists\Components\TextEntry::make('reservation_date')
+                            ->label('予約日')
+                            ->dateTime('Y年m月d日'),
+                        Infolists\Components\TextEntry::make('start_time')
+                            ->label('開始時刻')
+                            ->getStateUsing(fn ($record) =>
+                                Carbon::parse($record->start_time)->format('H:i')
+                            ),
+                        Infolists\Components\TextEntry::make('end_time')
+                            ->label('終了時刻')
+                            ->getStateUsing(fn ($record) =>
+                                Carbon::parse($record->end_time)->format('H:i')
+                            ),
+                        Infolists\Components\TextEntry::make('status')
+                            ->label('ステータス')
+                            ->badge()
+                            ->color(fn (string $state): string => match ($state) {
+                                'booked' => 'primary',
+                                'completed' => 'success',
+                                'no_show' => 'warning',
+                                'cancelled' => 'danger',
+                                default => 'gray',
+                            })
+                            ->formatStateUsing(fn (string $state): string => match ($state) {
+                                'booked' => '予約済み',
+                                'completed' => '完了',
+                                'no_show' => '来店なし',
+                                'cancelled' => 'キャンセル',
+                                default => $state,
+                            }),
+                    ])
+                    ->columns(2),
+
+                Infolists\Components\Section::make('備考')
+                    ->schema([
+                        Infolists\Components\TextEntry::make('notes')
+                            ->label('備考')
+                            ->placeholder('なし')
+                            ->columnSpanFull(),
+                    ])
+                    ->visible(fn ($record) => !empty($record->notes)),
             ]);
     }
 
