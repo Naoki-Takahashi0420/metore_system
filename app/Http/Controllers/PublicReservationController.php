@@ -1427,6 +1427,16 @@ class PublicReservationController extends Controller
 
         // マイページまたはカルテからの予約は既存顧客として扱う
         if (($isFromMyPage || $isFromMedicalRecord) && $context && isset($context['customer_id'])) {
+            // デバッグ: 全顧客数を確認
+            $totalCustomers = Customer::count();
+            $customerIds = Customer::pluck('id')->take(10)->toArray();
+            \Log::info('顧客データベース状態', [
+                'total_customers' => $totalCustomers,
+                'sample_ids' => $customerIds,
+                'looking_for_id' => $context['customer_id'],
+                'id_type' => gettype($context['customer_id'])
+            ]);
+
             $existingCustomer = Customer::find($context['customer_id']);
             if ($existingCustomer) {
                 $isExistingCustomer = true;
@@ -1436,8 +1446,12 @@ class PublicReservationController extends Controller
                     'source' => $context['source']
                 ]);
             } else {
+                // 直接SQLでも確認
+                $directCheck = DB::table('customers')->where('id', $context['customer_id'])->first();
                 \Log::error('顧客IDから顧客が見つかりません', [
-                    'customer_id' => $context['customer_id']
+                    'customer_id' => $context['customer_id'],
+                    'direct_sql_check' => $directCheck ? 'found' : 'not_found',
+                    'direct_data' => $directCheck ? json_encode($directCheck) : null
                 ]);
             }
         }
