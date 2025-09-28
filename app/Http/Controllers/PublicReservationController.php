@@ -1413,12 +1413,22 @@ class PublicReservationController extends Controller
         \Log::info('コンテキスト取得結果', [
             'context' => $context,
             'has_customer_id' => isset($context['customer_id']),
-            'is_existing_customer' => $context['is_existing_customer'] ?? 'not_set'
+            'is_existing_customer' => $context['is_existing_customer'] ?? 'not_set',
+            'source' => $context['source'] ?? 'not_set',
+            'type' => $context['type'] ?? 'not_set'
         ]);
 
         // 既存顧客の場合（カルテまたはマイページからの予約）
         $isExistingCustomer = false;
         $existingCustomer = null;
+        $isFromMyPage = $context && isset($context['source']) && $context['source'] === 'mypage';
+        $isFromMedicalRecord = $context && isset($context['source']) && in_array($context['source'], ['medical_record', 'medical_record_legacy']);
+
+        \Log::info('予約ソースの判定', [
+            'is_from_mypage' => $isFromMyPage,
+            'is_from_medical_record' => $isFromMedicalRecord,
+            'source' => $context['source'] ?? null
+        ]);
 
         // 新規顧客の場合は5日間制限に関連するセッションを完全クリア
         if (!$context || !isset($context['customer_id']) || !isset($context['is_existing_customer']) || $context['is_existing_customer'] !== true) {
@@ -1591,11 +1601,17 @@ class PublicReservationController extends Controller
                     ->whereIn('status', ['completed', 'pending', 'confirmed', 'booked'])
                     ->count();
 
-                if ($pastReservations > 0) {
+                // マイページまたはカルテからの予約の場合はモーダルを出さない
+                $isFromMyPageOrMedical = $context && isset($context['source']) &&
+                    in_array($context['source'], ['mypage', 'medical_record', 'medical_record_legacy']);
+
+                if ($pastReservations > 0 && !$isFromMyPageOrMedical) {
                     \Log::info('過去の予約履歴あり、マイページへ誘導', [
                         'customer_id' => $existingCustomerByPhone->id,
                         'past_reservations' => $pastReservations,
-                        'phone' => $existingCustomerByPhone->phone
+                        'phone' => $existingCustomerByPhone->phone,
+                        'context' => $context,
+                        'is_existing_from_context' => $context && isset($context['is_existing_customer']) ? $context['is_existing_customer'] : false
                     ]);
                     return back()->with([
                         'show_mypage_modal' => true,

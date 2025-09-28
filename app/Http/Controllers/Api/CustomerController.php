@@ -82,7 +82,8 @@ class CustomerController extends Controller
         $customer = $request->user();
 
         $validator = Validator::make($request->all(), [
-            'store_id' => 'nullable|exists:stores,id'
+            'store_id' => 'nullable|exists:stores,id',
+            'source' => 'nullable|string|in:mypage,medical_record'
         ]);
 
         if ($validator->fails()) {
@@ -93,6 +94,7 @@ class CustomerController extends Controller
         }
 
         $storeId = $request->input('store_id');
+        $source = $request->input('source', 'mypage'); // デフォルトはmypage
         $lastReservation = null;
 
         // 店舗IDが指定されていない場合は、最後に予約した店舗を取得
@@ -137,14 +139,22 @@ class CustomerController extends Controller
                 ], 404);
             }
 
-            $encryptedContext = $contextService->createMedicalRecordContext($customer->id, $storeId);
+            // sourceパラメータを追加して呼び出し
+            $context = [
+                'type' => 'medical_record',
+                'customer_id' => $customer->id,
+                'store_id' => $storeId,
+                'is_existing_customer' => true,
+                'source' => $source
+            ];
+            $encryptedContext = $contextService->encryptContext($context);
         } else {
             // 店舗が見つからない場合は、通常の新規予約コンテキストを生成
             $context = [
                 'type' => 'medical_record',
                 'customer_id' => $customer->id,
                 'is_existing_customer' => true,
-                'source' => 'medical_record'
+                'source' => $source
             ];
             $encryptedContext = $contextService->encryptContext($context);
         }

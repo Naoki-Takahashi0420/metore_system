@@ -818,13 +818,16 @@ async function goToReservation() {
     }
 
     try {
-        // カルテからの予約用コンテキストを生成（直近の店舗が自動選択される）
+        // マイページからの予約用コンテキストを生成（直近の店舗が自動選択される）
         const response = await fetch('/api/customer/reservation-context/medical-record', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
-            }
+            },
+            body: JSON.stringify({
+                source: 'mypage'  // マイページからの予約であることを明示
+            })
         });
 
         if (!response.ok) {
