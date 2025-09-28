@@ -302,7 +302,7 @@
 </div>
 
 {{-- アップセルモーダル --}}
-<div id="upsellModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+<div id="upsellModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50 flex items-center justify-center p-4" onclick="closeModalOnBackdrop(event)">
     <div class="bg-white w-full max-w-lg rounded-lg shadow-lg relative">
             {{-- ヘッダー --}}
             <div class="border-b p-5">
@@ -317,7 +317,7 @@
             
             {{-- フッター --}}
             <div class="border-t p-5">
-                <button onclick="confirmWithOptions()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg mb-2">
+                <button id="confirmOptionsBtn" onclick="confirmWithOptions()" class="w-full bg-gray-400 text-gray-600 font-bold py-3 rounded-lg mb-2 cursor-not-allowed" disabled>
                     追加して次へ
                 </button>
                 <button onclick="skipOptions()" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-lg">
@@ -399,13 +399,7 @@
                             <div class="w-full mb-3">
                                 <img src="/storage/${menu.image_path}" alt="${menu.name}" class="w-full aspect-video object-cover rounded">
                             </div>
-                        ` : `
-                            <div class="w-full bg-gray-200 rounded aspect-video flex items-center justify-center mb-3">
-                                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                            </div>
-                        `}
+                        ` : ''}
                         <div class="flex-1 flex flex-col">
                             <div class="font-medium text-base mb-1">${menu.name}</div>
                             ${menu.upsell_description ? `<div class="text-sm text-gray-600 line-clamp-2 mb-2">${menu.upsell_description}</div>` : menu.description ? `<div class="text-sm text-gray-600 line-clamp-2 mb-2">${menu.description}</div>` : ''}
@@ -426,13 +420,7 @@
                             <div class="w-32 flex-shrink-0">
                                 <img src="/storage/${menu.image_path}" alt="${menu.name}" class="w-full aspect-video object-cover rounded">
                             </div>
-                        ` : `
-                            <div class="w-32 flex-shrink-0 bg-gray-200 rounded aspect-video flex items-center justify-center">
-                                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                            </div>
-                        `}
+                        ` : ''}
                         <div class="flex-1 min-w-0">
                             <div class="font-medium text-base mb-1">${menu.name}</div>
                             ${menu.upsell_description ? `<div class="text-sm text-gray-600 line-clamp-2 mb-2">${menu.upsell_description}</div>` : menu.description ? `<div class="text-sm text-gray-600 line-clamp-2 mb-2">${menu.description}</div>` : ''}
@@ -452,6 +440,7 @@
         });
         
         document.getElementById('upsellModal').classList.remove('hidden');
+        updateConfirmButton();
     }
 
     function toggleOption(optionId) {
@@ -460,6 +449,24 @@
             selectedOptions.splice(index, 1);
         } else {
             selectedOptions.push(optionId);
+        }
+        updateConfirmButton();
+    }
+
+    function updateConfirmButton() {
+        const confirmBtn = document.getElementById('confirmOptionsBtn');
+        if (selectedOptions.length > 0) {
+            confirmBtn.disabled = false;
+            confirmBtn.className = 'w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg mb-2 cursor-pointer';
+        } else {
+            confirmBtn.disabled = true;
+            confirmBtn.className = 'w-full bg-gray-400 text-gray-600 font-bold py-3 rounded-lg mb-2 cursor-not-allowed';
+        }
+    }
+
+    function closeModalOnBackdrop(event) {
+        if (event.target.id === 'upsellModal') {
+            skipOptions();
         }
     }
 
