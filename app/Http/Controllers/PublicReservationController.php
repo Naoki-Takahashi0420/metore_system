@@ -1582,7 +1582,7 @@ class PublicReservationController extends Controller
         }
 
         // 新規顧客の場合の処理（マイページからの予約の場合はこの部分をスキップ）
-        if (!$isExistingCustomer && isset($validated['phone'])) {
+        else if (!$isExistingCustomer && isset($validated['phone'])) {
             \Log::info('新規顧客ルート: 電話番号による既存顧客チェック開始', [
                 'is_existing_customer' => $isExistingCustomer,
                 'phone' => $validated['phone']
