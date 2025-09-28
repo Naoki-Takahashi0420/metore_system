@@ -76,9 +76,20 @@
                                 店舗名
                             </th>
                             @foreach($timeSlots as $slot)
+                                @php
+                                    // 営業時間内かチェック（全店舗の営業時間を考慮）
+                                    $isWithinAnyStoreHours = false;
+                                    foreach($stores as $store) {
+                                        $storeHours = $this->getStoreBusinessHours($store);
+                                        if($storeHours['is_open'] && $slot >= $storeHours['open'] && $slot < $storeHours['close']) {
+                                            $isWithinAnyStoreHours = true;
+                                            break;
+                                        }
+                                    }
+                                @endphp
                                 <th class="border border-gray-600 px-1 py-2 text-center text-xs font-bold text-gray-900" style="width: 50px;">
                                     {{ $slot }}
-                                    @if($isToday && $slot <= $currentTime && $currentTime < ($timeSlots[$loop->index + 1] ?? '23:59'))
+                                    @if($isToday && $isWithinAnyStoreHours && $slot <= $currentTime && $currentTime < ($timeSlots[$loop->index + 1] ?? '23:59'))
                                         <div class="w-full h-1 bg-red-600 mt-1"></div>
                                     @endif
                                 </th>
@@ -154,7 +165,8 @@
                                         // このライン用の予約を取得（予約ライン別配置）
                                         $reservation = $slotReservations->skip($lineIndex)->first();
                                         $isBusinessHour = $businessHours['is_open'] && ($slot >= $businessHours['open'] && $slot < $businessHours['close']);
-                                        $isCurrentTimeSlot = ($isToday && $slot <= $currentTime && $currentTime < ($timeSlots[$slotIndex + 1] ?? '23:59'));
+                                        // 営業時間内の場合のみ現在時刻スロットを表示
+                                        $isCurrentTimeSlot = ($isToday && $isBusinessHour && $slot <= $currentTime && $currentTime < ($timeSlots[$slotIndex + 1] ?? '23:59'));
                                         
                                         // セル結合の計算
                                         $colspan = 1;
