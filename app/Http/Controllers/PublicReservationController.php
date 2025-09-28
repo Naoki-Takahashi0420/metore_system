@@ -1564,8 +1564,12 @@ class PublicReservationController extends Controller
             ]);
 
             // 既存顧客の場合、複雑なチェックをスキップして直接予約作成へ
-            // サブスク予約の場合のみ、5日間隔制限をチェック
-            if (Session::has('is_subscription_booking') && Session::get('is_subscription_booking') === true) {
+            // マイページからの予約の場合は常に5日間隔制限をチェック
+            if ($isFromMyPage) {
+                \Log::info('マイページからの予約: 5日間隔制限をチェック', [
+                    'customer_id' => $customer->id,
+                    'date' => $validated['date']
+                ]);
                 $this->validateFiveDayInterval($customer->id, $validated['date']);
             }
 
