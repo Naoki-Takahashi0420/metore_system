@@ -50,7 +50,10 @@ class CustomerSubscriptionResource extends Resource
                                 if (!$storeId) {
                                     return [];
                                 }
-                                return \App\Models\Customer::where('store_id', $storeId)
+                                // 指定店舗で予約履歴がある顧客を取得
+                                return \App\Models\Customer::whereHas('reservations', function ($query) use ($storeId) {
+                                        $query->where('store_id', $storeId);
+                                    })
                                     ->orderBy('last_name')
                                     ->orderBy('first_name')
                                     ->get()
@@ -67,11 +70,49 @@ class CustomerSubscriptionResource extends Resource
                                     ->toArray();
                             })
                             ->searchable()
+                            ->getSearchResultsUsing(function (string $search, callable $get) {
+                                $storeId = $get('store_id');
+                                if (!$storeId) {
+                                    return [];
+                                }
+
+                                // 店舗での予約履歴がある顧客を検索
+                                return \App\Models\Customer::whereHas('reservations', function ($query) use ($storeId) {
+                                        $query->where('store_id', $storeId);
+                                    })
+                                    ->search($search)
+                                    ->limit(50)
+                                    ->get()
+                                    ->mapWithKeys(function ($customer) {
+                                        $label = $customer->last_name . ' ' . $customer->first_name;
+                                        if ($customer->last_name_kana || $customer->first_name_kana) {
+                                            $label .= ' (' . $customer->last_name_kana . ' ' . $customer->first_name_kana . ')';
+                                        }
+                                        if ($customer->phone) {
+                                            $label .= ' - ' . $customer->phone;
+                                        }
+                                        return [$customer->id => $label];
+                                    })
+                                    ->toArray();
+                            })
+                            ->getOptionLabelUsing(function ($value) {
+                                $customer = \App\Models\Customer::find($value);
+                                if (!$customer) return '';
+
+                                $label = $customer->last_name . ' ' . $customer->first_name;
+                                if ($customer->last_name_kana || $customer->first_name_kana) {
+                                    $label .= ' (' . $customer->last_name_kana . ' ' . $customer->first_name_kana . ')';
+                                }
+                                if ($customer->phone) {
+                                    $label .= ' - ' . $customer->phone;
+                                }
+                                return $label;
+                            })
                             ->default(fn () => request()->has('customer_id') ? request('customer_id') : null)
                             ->disabled(fn ($operation) => $operation === 'edit')
                             ->required()
                             ->reactive()
-                            ->helperText(fn ($operation) => $operation === 'edit' ? '顧客の変更はできません' : '店舗を選択後、顧客を選択してください'),
+                            ->helperText(fn ($operation) => $operation === 'edit' ? '顧客の変更はできません' : '店舗を選択後、その店舗で予約履歴がある顧客を検索できます'),
 
                         
                         Forms\Components\Select::make('menu_id')
