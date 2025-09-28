@@ -53,7 +53,11 @@
                 <form action="{{ route('reservation.select-time') }}" method="POST" class="category-form">
                     @csrf
                     <input type="hidden" name="category_id" value="{{ $category->id }}">
-                    {{-- パラメータを引き継ぐ --}}
+                    {{-- コンテキストパラメータを必ず引き継ぐ --}}
+                    @if(isset($encryptedContext))
+                        <input type="hidden" name="ctx" value="{{ $encryptedContext }}">
+                    @endif
+                    {{-- レガシーパラメータも一時的に保持（後方互換性） --}}
                     @if(isset($source))
                         <input type="hidden" name="source" value="{{ $source }}">
                     @endif
