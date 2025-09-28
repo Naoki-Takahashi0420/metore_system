@@ -90,7 +90,7 @@
                             ->first();
                         $monthlyPrice = $subscription ? $subscription->monthly_price : 0;
                     @endphp
-                    <p class="text-sm text-gray-600">{{ $selectedMenu->duration }}分 / <span class="text-blue-600 font-medium">{{ number_format($monthlyPrice) }}円/月</span></p>
+                    <p class="text-sm text-gray-600">{{ $selectedMenu->duration_minutes }}分 / <span class="text-blue-600 font-medium">{{ number_format($monthlyPrice) }}円/月</span></p>
                 </div>
                 <div class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-medium">
                     サブスク
@@ -103,7 +103,7 @@
                 <div>
                     <p class="text-sm text-blue-600 mb-1">選択中のメニュー</p>
                     <p class="text-lg font-semibold text-gray-800">{{ $selectedMenu->name }}</p>
-                    <p class="text-sm text-gray-600">{{ $selectedMenu->duration }}分 / ¥{{ number_format($selectedMenu->price) }}</p>
+                    <p class="text-sm text-gray-600">{{ $selectedMenu->duration_minutes }}分 / ¥{{ number_format($selectedMenu->price) }}</p>
                 </div>
                 @if(!Session::has('is_reservation_change'))
                 <a href="{{ route('reservation.menu') }}" class="text-blue-500 hover:text-blue-700 text-sm underline">
@@ -372,7 +372,7 @@
                 <div class="mb-4 p-4 bg-gray-50 rounded">
                     <p class="text-sm text-gray-600 mb-1">メニュー</p>
                     <p class="text-lg font-semibold">{{ $selectedMenu->name }}</p>
-                    <p class="text-sm text-gray-600">{{ $selectedMenu->duration }}分 / ¥{{ number_format($selectedMenu->price) }}</p>
+                    <p class="text-sm text-gray-600">{{ $selectedMenu->duration_minutes }}分 / ¥{{ number_format($selectedMenu->price) }}</p>
 
                     @if(Session::has('selected_staff_id'))
                         @php
