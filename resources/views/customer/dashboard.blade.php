@@ -982,8 +982,11 @@ function goToSubscriptionBooking() {
             console.log('Response data:', data);
             if (data.success) {
                 console.log('セッション設定完了、カレンダーへ遷移');
-                // サブスク予約用のパラメータを付与
-                window.location.href = '/reservation/calendar?type=subscription';
+                // 顧客データから電話番号を取得
+                const customerData = JSON.parse(localStorage.getItem('customer_data'));
+                const phone = customerData ? customerData.phone : '';
+                // サブスク予約用のパラメータを付与（電話番号も含める）
+                window.location.href = '/reservation/calendar?type=subscription' + (phone ? '&phone=' + encodeURIComponent(phone) : '');
             } else {
                 throw new Error(data.message || 'セッション設定に失敗');
             }
