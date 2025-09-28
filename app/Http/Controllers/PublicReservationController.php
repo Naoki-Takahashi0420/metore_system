@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Store;
 use App\Models\Menu;
 use App\Models\MenuCategory;
+use App\Models\MenuOption;
 use App\Models\Reservation;
 use App\Models\Customer;
 use App\Models\CustomerSubscription;
@@ -623,7 +624,7 @@ class PublicReservationController extends Controller
             $selectedStoreId = $context['store_id'] ?? null;
             $selectedMenu = isset($context['menu_id']) ? Menu::find($context['menu_id']) : null;
             $selectedOptions = isset($context['option_ids']) ?
-                Menu::whereIn('id', $context['option_ids'])->get() :
+                MenuOption::whereIn('id', $context['option_ids'])->get() :
                 collect();
 
             // セッションにも保存（レガシー互換性）
@@ -1857,7 +1858,7 @@ class PublicReservationController extends Controller
             foreach ($selectedOptions as $option) {
                 $reservation->optionMenus()->attach($option->id, [
                     'price' => $option->price,
-                    'duration' => $option->duration,
+                    'duration' => $option->duration_minutes ?? 0,
                 ]);
             }
             
