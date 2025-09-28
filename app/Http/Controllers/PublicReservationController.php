@@ -1372,6 +1372,12 @@ class PublicReservationController extends Controller
         // パラメータベースでコンテキストを取得
         $context = $contextService->extractContextFromRequest($request);
 
+        \Log::info('コンテキスト取得結果', [
+            'context' => $context,
+            'has_customer_id' => isset($context['customer_id']),
+            'is_existing_customer' => $context['is_existing_customer'] ?? 'not_set'
+        ]);
+
         // 既存顧客の場合（カルテまたはマイページからの予約）
         $isExistingCustomer = false;
         $existingCustomer = null;
