@@ -87,7 +87,9 @@ class ReservationCalendarWidget extends FullCalendarWidget
     protected function getBaseQuery()
     {
         $query = Reservation::query();
-        $user = auth()->user();
+
+        // Filament内での認証ユーザー取得
+        $user = filament()->auth()->user() ?? auth()->user();
 
         if (!$user) {
             return $query->whereRaw('1 = 0');
@@ -251,7 +253,7 @@ class ReservationCalendarWidget extends FullCalendarWidget
                     'remainingCount' => $remainingCount,
                 ],
             ];
-        })->toArray();
+        })->values()->toArray();
         } catch (\Exception $e) {
             // エラーが発生した場合は空の配列を返す
             \Log::error('ReservationCalendarWidget fetchEvents error: ' . $e->getMessage());
