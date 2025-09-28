@@ -19,9 +19,12 @@ class ViewReservation extends ViewRecord
 
     public function mount(int | string $record): void
     {
-        parent::mount($record);
+        // Eager load all necessary relationships
+        $this->record = static::getResource()::getEloquentQuery()
+            ->with(['customer', 'menu', 'store', 'staff', 'optionMenus'])
+            ->findOrFail($record);
 
-        // 権限チェック
+        // Authorization check
         $user = auth()->user();
         if (!$user) {
             abort(403);
@@ -31,6 +34,9 @@ class ViewReservation extends ViewRecord
 
         // スーパーアドミンは全予約を閲覧可能
         if ($user->hasRole('super_admin')) {
+            // Continue with mount
+            static::authorizeResourceAccess();
+            $this->fillForm();
             return;
         }
 
@@ -40,6 +46,8 @@ class ViewReservation extends ViewRecord
             if (!in_array($reservation->store_id, $manageableStoreIds)) {
                 abort(403);
             }
+            static::authorizeResourceAccess();
+            $this->fillForm();
             return;
         }
 
@@ -48,6 +56,8 @@ class ViewReservation extends ViewRecord
             if ($user->store_id !== $reservation->store_id) {
                 abort(403);
             }
+            static::authorizeResourceAccess();
+            $this->fillForm();
             return;
         }
 
