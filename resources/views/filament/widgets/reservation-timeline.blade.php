@@ -522,10 +522,14 @@
             @endphp
             @if($isToday)
                 @php
-                    $now = \Carbon\Carbon::now();
+                    // 明示的に日本時間を取得
+                    $now = \Carbon\Carbon::now('Asia/Tokyo');
                     $currentHour = $now->hour;
                     $currentMinute = $now->minute;
                     $shouldShowIndicator = false;
+
+                    // デバッグ情報をJavaScriptコンソールに出力
+                    echo "<script>console.log('🐘 PHP: JST現在時刻: {$currentHour}:{$currentMinute} - 営業時間内？" . ($currentHour >= 10 && $currentHour < 22 ? 'YES' : 'NO') . "');</script>";
 
                     // 営業時間内の場合のみ位置計算（10:00 - 22:00）
                     $leftPosition = 0;
@@ -781,18 +785,25 @@
                 const currentHour = jstDate.getHours();
                 const currentMinute = jstDate.getMinutes();
 
-                console.log(`現在時刻: ${currentHour}:${currentMinute}`);
+                console.log(`🕒 JST現在時刻: ${currentHour}:${String(currentMinute).padStart(2, '0')}`);
+                console.log(`🕒 ローカル時刻（参考）: ${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2, '0')}`);
+                console.log(`📋 営業時間判定: 10時以前？${currentHour < 10} / 22時以降？${currentHour >= 22}`);
 
                 // 営業時間チェック（22:00以降は表示しない）
                 if (currentHour < 10 || currentHour >= 22) {
-                    console.log('営業時間外のため終了');
+                    console.log('🚫 営業時間外のためインジケーター削除');
                     // 既存のインジケーターを削除
                     const existing = document.getElementById('current-time-indicator');
                     if (existing) {
+                        console.log('🗑️ 既存インジケーター削除実行');
                         existing.remove();
+                    } else {
+                        console.log('ℹ️ 削除対象のインジケーターが見つからない');
                     }
                     return;
                 }
+
+                console.log('✅ 営業時間内のためインジケーター表示処理を続行');
 
                 // 要素を探す
                 const table = document.querySelector('.timeline-table');
@@ -894,10 +905,15 @@
                 const currentHour = jstDate.getHours();
                 const currentMinute = jstDate.getMinutes();
 
+                console.log(`🔄 updateTimeIndicator: JST現在時刻: ${currentHour}:${String(currentMinute).padStart(2, '0')}`);
+                console.log(`🔄 updateTimeIndicator: 営業時間判定: 10時以前？${currentHour < 10} / 22時以降？${currentHour >= 22}`);
+
                 // 営業時間外の場合はインジケーターを削除
                 if (currentHour < 10 || currentHour >= 22) {
+                    console.log('🔄 🚫 updateTimeIndicator: 営業時間外のためインジケーター削除');
                     const existing = document.getElementById('current-time-indicator');
                     if (existing) {
+                        console.log('🔄 🗑️ updateTimeIndicator: 既存インジケーター削除実行');
                         existing.remove();
                     }
                     return;
