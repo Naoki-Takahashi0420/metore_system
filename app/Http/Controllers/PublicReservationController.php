@@ -2340,8 +2340,15 @@ class PublicReservationController extends Controller
         $capacity = $store->main_lines_count ?? 1;
         $available = $overlappingReservations < $capacity;
 
-        // サブスク予約の5日間制限チェック
-        if ($available && $customerId && $menu->is_subscription) {
+        // サブスク予約の詳細チェック
+        $subscriptionInfo = [
+            'is_subscription' => $menu->is_subscription,
+            'within_five_days' => false,
+            'same_menu_booked' => false,
+            'other_menu_booked' => false
+        ];
+
+        if ($customerId && $menu->is_subscription) {
             $customer = Customer::find($customerId);
             if ($customer) {
                 // 顧客の既存予約を取得
@@ -2350,26 +2357,34 @@ class PublicReservationController extends Controller
                     ->whereDate('reservation_date', '!=', $validated['date'])
                     ->get();
 
+                // 同日の既存予約をチェック
+                $sameDayReservations = $customer->reservations()
+                    ->whereNotIn('status', ['cancelled', 'canceled'])
+                    ->whereDate('reservation_date', $validated['date'])
+                    ->get();
+
+                foreach ($sameDayReservations as $reservation) {
+                    if ($reservation->menu_id == $menu->id) {
+                        $subscriptionInfo['same_menu_booked'] = true;
+                    } else {
+                        $subscriptionInfo['other_menu_booked'] = true;
+                    }
+                }
+
                 // 5日間隔制限のチェック
                 foreach ($existingReservations as $reservation) {
                     $existingDate = Carbon::parse($reservation->reservation_date);
                     $daysDiff = $existingDate->diffInDays($date, false);
 
                     if (abs($daysDiff) < 6) {
-                        \Log::info('5日間隔制限により予約不可 (checkAvailability)', [
+                        $subscriptionInfo['within_five_days'] = true;
+                        \Log::info('5日間隔制限検出 (checkAvailability)', [
                             'customer_id' => $customerId,
                             'check_date' => $validated['date'],
                             'existing_date' => $reservation->reservation_date,
                             'days_diff' => abs($daysDiff)
                         ]);
-
-                        return response()->json([
-                            'available' => false,
-                            'reason' => '5days_restriction',
-                            'message' => '前後の予約から5日以上空ける必要があります',
-                            'existing_date' => $reservation->reservation_date,
-                            'days_diff' => abs($daysDiff)
-                        ]);
+                        break;
                     }
                 }
             }
@@ -2379,7 +2394,8 @@ class PublicReservationController extends Controller
             'available' => $available,
             'reason' => $available ? null : 'fully_booked',
             'capacity' => $capacity,
-            'current_bookings' => $overlappingReservations
+            'current_bookings' => $overlappingReservations,
+            'subscription' => $subscriptionInfo
         ]);
     }
 }

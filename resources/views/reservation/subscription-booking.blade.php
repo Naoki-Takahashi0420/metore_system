@@ -36,6 +36,29 @@
             </div>
         </div>
 
+        {{-- 判例説明 --}}
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <h3 class="text-sm font-semibold text-blue-800 mb-2">予約状況の見方</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                <div class="flex items-center">
+                    <span class="text-green-500 text-lg font-bold mr-2">○</span>
+                    <span class="text-gray-700">予約可能</span>
+                </div>
+                <div class="flex items-center">
+                    <span class="text-red-500 text-lg font-bold mr-2">×</span>
+                    <span class="text-gray-700">予約不可</span>
+                </div>
+                <div class="flex items-center">
+                    <span class="text-yellow-500 text-lg font-bold mr-2">△</span>
+                    <span class="text-gray-700">他メニューで予約済み</span>
+                </div>
+                <div class="flex items-center">
+                    <span class="text-yellow-500 text-lg font-bold mr-2">△</span>
+                    <span class="text-gray-700">前回予約から5日以内</span>
+                </div>
+            </div>
+        </div>
+
         {{-- 週間カレンダー --}}
         <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
             {{-- 週間ナビゲーション --}}
@@ -351,8 +374,38 @@ async function checkSlotAvailability(date, time, td) {
             const data = await response.json();
             console.log(`📥 API Response for ${date} ${time}:`, data);
 
-            if (data.available) {
-                // 予約可能な場合は○を表示
+            if (data.available && data.subscription) {
+                const sub = data.subscription;
+
+                if (sub.same_menu_booked) {
+                    // 同じメニューで予約済み
+                    console.log(`❌ ${date} ${time} - Same menu already booked`);
+                    td.innerHTML = '<span class="text-red-500 text-xl font-bold">×</span>';
+                    td.title = '同じメニューで予約済み';
+                } else if (sub.other_menu_booked) {
+                    // 他メニューで予約済み
+                    console.log(`⚠️ ${date} ${time} - Other menu already booked`);
+                    td.innerHTML = '<span class="text-yellow-500 text-xl font-bold">△</span>';
+                    td.title = '他メニューで予約済み';
+                } else if (sub.within_five_days) {
+                    // 前回予約から5日以内（予約不可）
+                    console.log(`⚠️ ${date} ${time} - Within 5 days restriction`);
+                    td.innerHTML = '<span class="text-yellow-500 text-xl font-bold">△</span>';
+                    td.title = '前回予約から5日以内（予約不可）';
+                } else {
+                    // 予約可能
+                    console.log(`✅ ${date} ${time} is AVAILABLE`);
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'time-slot w-8 h-8 rounded-full bg-green-500 text-white font-bold hover:bg-green-600';
+                    button.innerHTML = '○';
+                    button.dataset.date = date;
+                    button.dataset.time = time;
+                    button.onclick = function() { selectTimeSlot(this); };
+                    td.appendChild(button);
+                }
+            } else if (data.available) {
+                // 通常の予約可能（サブスクでない場合）
                 console.log(`✅ ${date} ${time} is AVAILABLE`);
                 const button = document.createElement('button');
                 button.type = 'button';
@@ -364,14 +417,33 @@ async function checkSlotAvailability(date, time, td) {
                 td.appendChild(button);
             } else {
                 console.log(`❌ ${date} ${time} is NOT available - reason: ${data.reason}`);
-                td.innerHTML = '<span class="text-gray-400 text-xl">×</span>';
+                td.innerHTML = '<span class="text-red-500 text-xl font-bold">×</span>';
+
+                // 理由に応じてツールチップを設定
+                switch(data.reason) {
+                    case 'fully_booked':
+                        td.title = '予約満員';
+                        break;
+                    case 'closed':
+                        td.title = '営業時間外';
+                        break;
+                    case 'outside_hours':
+                        td.title = '営業時間外';
+                        break;
+                    case '5days_restriction':
+                        td.title = '前回予約から5日以内（予約不可）';
+                        break;
+                    default:
+                        td.title = '予約不可';
+                }
             }
         } else {
             // APIエラーの場合は×を表示
             console.error('API error response:', response.status, response.statusText);
             const errorText = await response.text();
             console.error('Error details:', errorText);
-            td.innerHTML = '<span class="text-gray-400 text-xl">×</span>';
+            td.innerHTML = '<span class="text-red-500 text-xl font-bold">×</span>';
+            td.title = 'システムエラー';
         }
     } catch (error) {
         console.error('Availability check failed:', error);
