@@ -1666,10 +1666,15 @@ class PublicReservationController extends Controller
         try {
             // $customerが設定されていない場合（新規顧客作成）
             if (!$customer) {
+                // 新規顧客情報が必要
+                if (!isset($validated['phone']) || !isset($validated['last_name']) || !isset($validated['first_name'])) {
+                    throw new \Exception('顧客情報が不足しています');
+                }
+
                 // まず電話番号で既存顧客を検索
                 $customer = Customer::where('phone', $validated['phone'])->first();
 
-                if (!$customer) {
+                if (!$customer && isset($validated['email'])) {
                     // 電話番号で見つからない場合、メールアドレスでも検索
                     $customer = Customer::where('email', $validated['email'])->first();
                 }
@@ -1680,7 +1685,7 @@ class PublicReservationController extends Controller
                         'last_name' => $validated['last_name'],
                         'first_name' => $validated['first_name'],
                         'phone' => $validated['phone'],
-                        'email' => $validated['email'],
+                        'email' => $validated['email'] ?? null,
                     ]);
                 } else {
                     // 新規顧客として作成
@@ -1690,7 +1695,7 @@ class PublicReservationController extends Controller
                         'first_name' => $validated['first_name'],
                         'last_name_kana' => '', // カナは空文字で保存
                         'first_name_kana' => '', // カナは空文字で保存
-                        'email' => $validated['email'],
+                        'email' => $validated['email'] ?? null,
                         'customer_number' => Customer::generateCustomerNumber(),
                     ]);
                 }
