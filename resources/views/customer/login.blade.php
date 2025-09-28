@@ -86,6 +86,13 @@
             <p class="mt-1 text-sm text-gray-500">コピー&ペーストで入力できます</p>
         </div>
         
+        <div class="mb-4">
+            <label class="flex items-center">
+                <input type="checkbox" id="remember-me" class="rounded border-gray-300 text-primary-600 shadow-sm focus:border-primary-300 focus:ring focus:ring-primary-200 focus:ring-opacity-50">
+                <span class="ml-2 text-sm text-gray-600">ログイン状態を保持する（30日間）</span>
+            </label>
+        </div>
+
         <div class="flex space-x-3">
             <button id="verify-otp" class="flex-1 bg-primary-600 text-white py-2 px-4 rounded hover:bg-primary-700 transition-colors">
                 認証
@@ -233,6 +240,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Verify OTP
     verifyButton.addEventListener('click', async function() {
         const otp = otpInput.value;
+        const rememberMe = document.getElementById('remember-me').checked;
+
         if (otp.length !== 6) {
             otpError.classList.remove('hidden');
             otpError.textContent = '6桁の認証コードを入力してください';
@@ -248,7 +257,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: JSON.stringify({
                     phone: currentPhone,
-                    otp_code: otp
+                    otp_code: otp,
+                    remember_me: rememberMe
                 })
             });
             
@@ -263,6 +273,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Existing customer - save token and redirect
                     localStorage.setItem('customer_token', data.data.token);
                     localStorage.setItem('customer_data', JSON.stringify(data.data.customer));
+
+                    // Remember Me設定を保存
+                    if (rememberMe) {
+                        localStorage.setItem('remember_me', 'true');
+                        localStorage.setItem('token_expiry', new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString());
+                    } else {
+                        localStorage.setItem('remember_me', 'false');
+                        localStorage.setItem('token_expiry', new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString());
+                    }
+
                     console.log('Login successful, token saved:', data.data.token);
                     window.location.href = '/customer/dashboard';
                 }

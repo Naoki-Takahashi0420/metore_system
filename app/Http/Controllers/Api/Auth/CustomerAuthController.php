@@ -79,6 +79,7 @@ class CustomerAuthController extends Controller
         $validator = Validator::make($request->all(), [
             'phone' => ['required', 'string', 'regex:/^[0-9\-]+$/'],
             'otp_code' => ['required', 'string', 'size:6'],
+            'remember_me' => ['boolean'],
         ]);
         
         if ($validator->fails()) {
@@ -141,8 +142,13 @@ class CustomerAuthController extends Controller
             'last_visit_at' => now(),
         ]);
         
-        // トークン生成
-        $token = $customer->createToken('customer-auth')->plainTextToken;
+        // トークン生成（Remember Meオプションに応じて有効期限を設定）
+        $rememberMe = $request->boolean('remember_me', false);
+
+        // Sanctumトークンは設定ファイルで有効期限を管理するため、
+        // トークン名で区別して、フロントエンドで有効期限を管理
+        $tokenName = $rememberMe ? 'customer-auth-remember' : 'customer-auth';
+        $token = $customer->createToken($tokenName)->plainTextToken;
         
         return response()->json([
             'success' => true,
@@ -221,8 +227,13 @@ class CustomerAuthController extends Controller
         // セッションクリア
         session()->forget('temp_customer_' . $request->temp_token);
         
-        // トークン生成
-        $token = $customer->createToken('customer-auth')->plainTextToken;
+        // トークン生成（Remember Meオプションに応じて有効期限を設定）
+        $rememberMe = $request->boolean('remember_me', false);
+
+        // Sanctumトークンは設定ファイルで有効期限を管理するため、
+        // トークン名で区別して、フロントエンドで有効期限を管理
+        $tokenName = $rememberMe ? 'customer-auth-remember' : 'customer-auth';
+        $token = $customer->createToken($tokenName)->plainTextToken;
         
         return response()->json([
             'success' => true,
