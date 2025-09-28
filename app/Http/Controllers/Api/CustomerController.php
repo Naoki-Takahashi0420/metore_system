@@ -94,16 +94,28 @@ class CustomerController extends Controller
 
         $storeId = $request->input('store_id');
 
-        // 店舗IDが指定されていない場合は、通常の新規予約コンテキストを生成
+        // 店舗IDが指定されていない場合は、最後に訪問した店舗を取得
         if (!$storeId) {
-            $context = [
-                'type' => 'medical_record',
-                'customer_id' => $customer->id,
-                'is_existing_customer' => true,
-                'source' => 'medical_record'
-            ];
-            $encryptedContext = $contextService->encryptContext($context);
-        } else {
+            // 最新の予約から店舗IDを取得
+            $lastReservation = $customer->reservations()
+                ->whereNotIn('status', ['cancelled', 'canceled'])
+                ->orderBy('reservation_date', 'desc')
+                ->orderBy('start_time', 'desc')
+                ->first();
+
+            if ($lastReservation) {
+                $storeId = $lastReservation->store_id;
+            } else {
+                // 予約履歴がない場合は、デフォルトの店舗を取得
+                $defaultStore = Store::where('is_active', true)->first();
+                if ($defaultStore) {
+                    $storeId = $defaultStore->id;
+                }
+            }
+        }
+
+        // 店舗IDが取得できた場合は、店舗選択済みのコンテキストを生成
+        if ($storeId) {
             // 店舗IDが指定されている場合は、店舗選択済みのコンテキストを生成
             $store = Store::find($storeId);
             if (!$store || !$store->is_active) {
@@ -113,6 +125,15 @@ class CustomerController extends Controller
             }
 
             $encryptedContext = $contextService->createMedicalRecordContext($customer->id, $storeId);
+        } else {
+            // 店舗が見つからない場合は、通常の新規予約コンテキストを生成
+            $context = [
+                'type' => 'medical_record',
+                'customer_id' => $customer->id,
+                'is_existing_customer' => true,
+                'source' => 'medical_record'
+            ];
+            $encryptedContext = $contextService->encryptContext($context);
         }
 
         return response()->json([
