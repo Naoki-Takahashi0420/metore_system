@@ -173,8 +173,20 @@ class ReservationRescheduleController extends Controller
 
             DB::commit();
 
-            return redirect('/admin/reservations')
-                ->with('success', '予約日程を変更しました');
+            // 変更後の予約情報を含めた詳細なメッセージ
+            $customer = $reservation->customer;
+            $newDate = Carbon::parse($validated['reservation_date'])->format('Y年n月j日');
+            $newTime = Carbon::parse($validated['start_time'])->format('H:i');
+
+            $message = "予約日程を変更しました\n";
+            $message .= "【顧客名】{$customer->last_name} {$customer->first_name} 様\n";
+            $message .= "【新日時】{$newDate} {$newTime}〜\n";
+            $message .= "【メニュー】{$menu->name}";
+
+            return redirect('/admin')
+                ->with('success', $message)
+                ->with('reservation_updated', true)
+                ->with('reservation_id', $reservation->id);
 
         } catch (\Exception $e) {
             DB::rollBack();
