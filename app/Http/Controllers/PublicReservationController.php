@@ -1534,21 +1534,18 @@ class PublicReservationController extends Controller
                 // 5日間の制限チェックを削除（新規予約ルートでは適用しない）
                 // ユーザー要求：「新規のルートではこのアラートが出てしまうのは問題なので、最後に電話番号で弾いて、マイページに誘導の流れだけでいい」
                 
-                // 既存の未来予約チェック（重複防止）
-                $futureReservations = Reservation::where('customer_id', $existingCustomerByPhone->id)
-                    ->whereIn('status', ['pending', 'confirmed', 'booked'])
-                    ->where('reservation_date', '>=', today())
-                    ->orderBy('reservation_date')
-                    ->orderBy('start_time')
-                    ->with(['store', 'menu'])
-                    ->get();
-                    
-                if ($futureReservations->isNotEmpty()) {
-                    \Log::warning('既存の未来予約がありますが、テストのため続行', [
+                // 過去の予約履歴チェック（一度でも予約したことがある顧客）
+                $pastReservations = Reservation::where('customer_id', $existingCustomerByPhone->id)
+                    ->whereIn('status', ['completed', 'pending', 'confirmed', 'booked'])
+                    ->count();
+
+                if ($pastReservations > 0) {
+                    \Log::info('過去の予約履歴あり、マイページへ誘導', [
                         'customer_id' => $existingCustomerByPhone->id,
-                        'future_reservations' => $futureReservations->count()
+                        'past_reservations' => $pastReservations,
+                        'phone' => $existingCustomerByPhone->phone
                     ]);
-                    // return back()->with('error', 'この電話番号で既にご予約があります。2回目以降のお客様は、管理画面から予約の変更・追加を行ってください。');
+                    return back()->with('error', 'この電話番号で過去にご予約履歴があります。2回目以降のお客様は、マイページから予約の変更・追加を行ってください。');
                 }
             } else {
                 // サブスク会員の場合、月の利用回数をチェック
