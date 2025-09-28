@@ -725,7 +725,15 @@ class PublicReservationController extends Controller
             ]);
         }
         $availability = $this->getAvailability($selectedStoreId, $selectedStore, $startDate, $dates, $totalDuration, $customerId);
-        
+
+        // 既存顧客情報を取得
+        $existingCustomer = null;
+        $isExistingCustomer = false;
+        if ($context && isset($context['customer_id'])) {
+            $existingCustomer = Customer::find($context['customer_id']);
+            $isExistingCustomer = true;
+        }
+
         return view('reservation.public.index', compact(
             'stores',
             'selectedMenu',
@@ -735,7 +743,9 @@ class PublicReservationController extends Controller
             'timeSlots',
             'availability',
             'weekOffset',
-            'maxWeeks'
+            'maxWeeks',
+            'existingCustomer',
+            'isExistingCustomer'
         ));
     }
     

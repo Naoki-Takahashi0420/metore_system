@@ -74,6 +74,7 @@ Route::get('/reservation/select-store', function () {
 // ○×形式のカレンダー表示（PublicReservationControllerのindexメソッド）
 Route::get('/reservation/calendar', [App\Http\Controllers\PublicReservationController::class, 'index'])->name('reservation.index');
 
+
 // サブスク予約準備（セッションに店舗とメニューを設定してカレンダーへ）
 Route::post('/reservation/subscription-prepare', [App\Http\Controllers\PublicReservationController::class, 'prepareSubscriptionReservation'])->name('reservation.subscription-prepare');
 

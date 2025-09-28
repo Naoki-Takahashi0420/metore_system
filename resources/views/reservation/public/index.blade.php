@@ -407,26 +407,61 @@
                 @endif
                 
                 <!-- お客様情報 -->
-                <div class="grid grid-cols-2 gap-4 mb-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">姓 <span class="text-red-500">*</span></label>
-                        <input type="text" name="last_name" required class="w-full border border-gray-300 rounded-md px-4 py-2" placeholder="山田">
+                @if($isExistingCustomer && $existingCustomer)
+                    {{-- 既存顧客の場合：情報を表示のみ --}}
+                    <div class="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <h4 class="text-sm font-medium text-green-800 mb-3 flex items-center">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                            </svg>
+                            登録済みお客様情報
+                        </h4>
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <span class="text-gray-600">お名前:</span>
+                                <span class="font-medium ml-2">{{ $existingCustomer->last_name }} {{ $existingCustomer->first_name }}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-600">電話番号:</span>
+                                <span class="font-medium ml-2">{{ $existingCustomer->phone }}</span>
+                            </div>
+                            @if($existingCustomer->email)
+                            <div class="col-span-2">
+                                <span class="text-gray-600">メールアドレス:</span>
+                                <span class="font-medium ml-2">{{ $existingCustomer->email }}</span>
+                            </div>
+                            @endif
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">名 <span class="text-red-500">*</span></label>
-                        <input type="text" name="first_name" required class="w-full border border-gray-300 rounded-md px-4 py-2" placeholder="太郎">
+                    {{-- 隠しフィールドで顧客情報を送信 --}}
+                    <input type="hidden" name="customer_id" value="{{ $existingCustomer->id }}">
+                    <input type="hidden" name="last_name" value="{{ $existingCustomer->last_name }}">
+                    <input type="hidden" name="first_name" value="{{ $existingCustomer->first_name }}">
+                    <input type="hidden" name="phone" value="{{ $existingCustomer->phone }}">
+                    <input type="hidden" name="email" value="{{ $existingCustomer->email }}">
+                @else
+                    {{-- 新規顧客の場合：通常の入力フォーム --}}
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">姓 <span class="text-red-500">*</span></label>
+                            <input type="text" name="last_name" required class="w-full border border-gray-300 rounded-md px-4 py-2" placeholder="山田">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">名 <span class="text-red-500">*</span></label>
+                            <input type="text" name="first_name" required class="w-full border border-gray-300 rounded-md px-4 py-2" placeholder="太郎">
+                        </div>
                     </div>
-                </div>
-                
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">電話番号 <span class="text-red-500">*</span></label>
-                    <input type="tel" name="phone" required class="w-full border border-gray-300 rounded-md px-4 py-2" placeholder="090-1234-5678">
-                </div>
-                
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">メールアドレス</label>
-                    <input type="email" name="email" class="w-full border border-gray-300 rounded-md px-4 py-2" placeholder="example@email.com">
-                </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">電話番号 <span class="text-red-500">*</span></label>
+                        <input type="tel" name="phone" required class="w-full border border-gray-300 rounded-md px-4 py-2" placeholder="090-1234-5678">
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">メールアドレス</label>
+                        <input type="email" name="email" class="w-full border border-gray-300 rounded-md px-4 py-2" placeholder="example@email.com">
+                    </div>
+                @endif
                 
                 <div class="mb-6">
                     <label class="block text-sm font-medium text-gray-700 mb-2">備考</label>
