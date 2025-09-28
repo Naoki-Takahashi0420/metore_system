@@ -1545,7 +1545,10 @@ class PublicReservationController extends Controller
                         'past_reservations' => $pastReservations,
                         'phone' => $existingCustomerByPhone->phone
                     ]);
-                    return back()->with('error', 'この電話番号で過去にご予約履歴があります。2回目以降のお客様は、マイページから予約の変更・追加を行ってください。');
+                    return back()->with([
+                        'show_mypage_modal' => true,
+                        'customer_phone' => $existingCustomerByPhone->phone
+                    ]);
                 }
             } else {
                 // サブスク会員の場合、月の利用回数をチェック

@@ -866,7 +866,49 @@
             document.getElementById('noSelection').classList.remove('hidden');
             document.getElementById('reservationForm').classList.add('hidden');
         }
-        
+
     </script>
+
+    {{-- マイページ誘導モーダル --}}
+    @if(session('show_mypage_modal'))
+    <div id="mypageModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 max-w-md mx-4">
+            <div class="text-center">
+                <div class="mb-4">
+                    <svg class="mx-auto h-12 w-12 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">既存のお客様です</h3>
+                <p class="text-sm text-gray-600 mb-6">
+                    この電話番号（{{ session('customer_phone') }}）で過去にご予約履歴があります。<br>
+                    2回目以降のお客様は、マイページから予約の変更・追加を行ってください。
+                </p>
+                <div class="flex space-x-3 justify-center">
+                    <button onclick="closeModal()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200">
+                        閉じる
+                    </button>
+                    <a href="/customer/dashboard" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700">
+                        マイページへ
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function closeModal() {
+            document.getElementById('mypageModal').style.display = 'none';
+        }
+
+        // モーダル外をクリックした時も閉じる
+        document.getElementById('mypageModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+    </script>
+    @endif
+
 </body>
 </html>
