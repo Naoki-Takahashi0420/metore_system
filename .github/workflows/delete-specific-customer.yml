@@ -1,0 +1,38 @@
+name: Delete Specific Customer
+
+on:
+  workflow_dispatch:
+    inputs:
+      phone_number:
+        description: 'Phone number of customer to delete'
+        required: true
+        default: ''
+      confirm:
+        description: 'Type "DELETE" to confirm'
+        required: true
+        default: ''
+
+jobs:
+  delete-customer:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'DELETE' && github.event.inputs.phone_number != ''
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ap-northeast-1
+
+    - name: Delete specific customer from production server
+      run: |
+        aws ssm send-command \
+          --instance-ids "i-061a146fcb1cc54ae" \
+          --document-name "AWS-RunShellScript" \
+          --parameters 'commands=["cd /var/www/html && php artisan tinker --execute=\"\$customer = \\App\\Models\\Customer::where('phone', '\''${{ github.event.inputs.phone_number }}\'')->first(); if (\$customer) { echo 'Deleting customer: ' . \$customer->name . ' (ID: ' . \$customer->id . ')'; \$reservations = \$customer->reservations; foreach (\$reservations as \$reservation) { \$reservation->delete(); echo 'Deleted reservation ID: ' . \$reservation->id; } \$medicalRecords = \$customer->medicalRecords; foreach (\$medicalRecords as \$record) { \$record->delete(); echo 'Deleted medical record ID: ' . \$record->id; } \$customer->delete(); echo 'Customer deleted successfully'; } else { echo 'Customer not found with phone: ${{ github.event.inputs.phone_number }}'; }\""]' \
+          --region ap-northeast-1 \
+          --output table
