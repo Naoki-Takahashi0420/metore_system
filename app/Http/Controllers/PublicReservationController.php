@@ -1362,9 +1362,25 @@ class PublicReservationController extends Controller
         Session::put('from_mypage', true);
         
         \Log::info('サブスク予約準備完了、カレンダーへリダイレクト');
-        
-        // サブスク予約では店舗・メニューが確定しているので、直接カレンダーページへ
-        return redirect('/reservation/calendar');
+
+        // マイページからの予約用コンテキストを生成
+        $contextService = new \App\Services\ReservationContextService();
+        $customer = \App\Models\Customer::find($validated['customer_id']);
+
+        $contextData = [
+            'customer_id' => $customer->id,
+            'is_existing_customer' => true,
+            'type' => 'subscription',
+            'source' => 'mypage',
+            'store_id' => $validated['store_id'],
+            'menu_id' => $validated['menu_id'],
+            'subscription_id' => $subscription->id
+        ];
+
+        $encryptedContext = $contextService->encryptContext($contextData);
+
+        // サブスク予約では店舗・メニューが確定しているので、コンテキスト付きでカレンダーページへ
+        return redirect('/reservation/calendar?ctx=' . urlencode($encryptedContext));
     }
     
     public function store(Request $request, ReservationContextService $contextService)
