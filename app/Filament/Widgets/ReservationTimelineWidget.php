@@ -1241,10 +1241,10 @@ class ReservationTimelineWidget extends Widget
     public function updatedPhoneSearch(): void
     {
         if (strlen($this->phoneSearch) >= 2) {
-            // 電話番号、名前、カナで顧客を検索（選択中の店舗に来店履歴がある顧客のみ）
+            // 電話番号、名前、カナで顧客を検索（全ての顧客が対象）
             $search = $this->phoneSearch;
             $storeId = $this->selectedStore;
-            
+
             $this->searchResults = \App\Models\Customer::where(function($query) use ($search) {
                     $query->where('phone', 'LIKE', '%' . $search . '%')
                           ->orWhere('last_name', 'LIKE', '%' . $search . '%')
@@ -1252,16 +1252,13 @@ class ReservationTimelineWidget extends Widget
                           ->orWhere('last_name_kana', 'LIKE', '%' . $search . '%')
                           ->orWhere('first_name_kana', 'LIKE', '%' . $search . '%');
                 })
-                ->whereHas('reservations', function($query) use ($storeId) {
-                    // この店舗での予約履歴がある顧客のみ
-                    $query->where('store_id', $storeId);
-                })
+                // whereHas を削除して、全ての顧客を検索対象に
                 ->withCount(['reservations' => function($query) use ($storeId) {
-                    // この店舗での予約回数をカウント
+                    // この店舗での予約回数をカウント（0件でもOK）
                     $query->where('store_id', $storeId);
                 }])
                 ->with(['reservations' => function($query) use ($storeId) {
-                    // この店舗での最新予約を取得
+                    // この店舗での最新予約を取得（なくてもOK）
                     $query->where('store_id', $storeId)
                           ->latest('reservation_date')
                           ->first();
