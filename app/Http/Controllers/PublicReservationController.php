@@ -1295,20 +1295,36 @@ class PublicReservationController extends Controller
         return redirect('/reservation/calendar');
     }
     
-    public function store(Request $request)
+    public function store(Request $request, ReservationContextService $contextService)
     {
-        // 基本バリデーションルール
+        // パラメータベースでコンテキストを取得
+        $context = $contextService->extractContextFromRequest($request);
+
+        // 既存顧客の場合（カルテまたはマイページからの予約）
+        $isExistingCustomer = false;
+        $existingCustomer = null;
+
+        if ($context && isset($context['customer_id'])) {
+            $existingCustomer = Customer::find($context['customer_id']);
+            $isExistingCustomer = true;
+        }
+
+        // バリデーションルール（既存顧客の場合は顧客情報を除外）
         $rules = [
             'store_id' => 'required|exists:stores,id',
             'menu_id' => 'required|exists:menus,id',
             'date' => 'required|date',
             'time' => 'required',
-            'last_name' => 'required|string|max:50',
-            'first_name' => 'required|string|max:50',
-            'phone' => 'required|string|max:20',
-            'email' => 'nullable|email|max:255',
             'notes' => 'nullable|string|max:500',
         ];
+
+        // 新規顧客の場合のみ顧客情報を必須にする
+        if (!$isExistingCustomer) {
+            $rules['last_name'] = 'required|string|max:50';
+            $rules['first_name'] = 'required|string|max:50';
+            $rules['phone'] = 'required|string|max:20';
+            $rules['email'] = 'nullable|email|max:255';
+        }
 
         // スタッフ指名が必要な場合の追加バリデーション
         $store = Store::find($request->store_id);
@@ -1376,11 +1392,42 @@ class PublicReservationController extends Controller
             }
         }
         
-        // まず最初に電話番号で既存予約をチェック（新規顧客作成前）
-        $existingCustomerByPhone = Customer::where('phone', $validated['phone'])->first();
-        if ($existingCustomerByPhone) {
-            // サブスクリプション会員かチェック
-            $hasActiveSubscription = $existingCustomerByPhone->hasActiveSubscription();
+        // 顧客情報の処理
+        $customer = null;
+
+        if ($isExistingCustomer && $existingCustomer) {
+            // 既存顧客の場合（マイページからの予約）
+            $customer = $existingCustomer;
+
+            // バリデーション済みデータに顧客情報を追加（レガシー互換性のため）
+            $validated['last_name'] = $customer->last_name;
+            $validated['first_name'] = $customer->first_name;
+            $validated['phone'] = $customer->phone;
+            $validated['email'] = $customer->email;
+
+            \Log::info('既存顧客による予約', [
+                'customer_id' => $customer->id,
+                'customer_name' => $customer->full_name,
+                'phone' => $customer->phone
+            ]);
+
+            // 既存顧客の場合、複雑なチェックをスキップして直接予約作成へ
+            // サブスク予約の場合のみ、5日間隔制限をチェック
+            if (Session::has('is_subscription_booking') && Session::get('is_subscription_booking') === true) {
+                $this->validateFiveDayInterval($customer->id, $validated['date']);
+            }
+
+            // 直接予約作成処理へ進む（customerは設定済み）
+            // 既存顧客処理をスキップして予約作成へ
+        }
+
+        // 新規顧客の場合の処理（既存顧客の場合はこの部分をスキップ）
+        if (!$isExistingCustomer) {
+            // 新規顧客の場合、電話番号で既存顧客をチェック
+            $existingCustomerByPhone = Customer::where('phone', $validated['phone'])->first();
+            if ($existingCustomerByPhone) {
+                // サブスクリプション会員かチェック
+                $hasActiveSubscription = $existingCustomerByPhone->hasActiveSubscription();
             
             // デバッグログ
             \Log::info('Subscription check for customer', [
@@ -1442,37 +1489,43 @@ class PublicReservationController extends Controller
                     }
                 }
             }
+            $customer = $existingCustomerByPhone;
         }
-        
+        }
+
+        // 予約作成処理（既存顧客・新規顧客共通）
         DB::beginTransaction();
         try {
-            // まず電話番号で既存顧客を検索
-            $customer = Customer::where('phone', $validated['phone'])->first();
-
+            // $customerが設定されていない場合（新規顧客作成）
             if (!$customer) {
-                // 電話番号で見つからない場合、メールアドレスでも検索
-                $customer = Customer::where('email', $validated['email'])->first();
-            }
+                // まず電話番号で既存顧客を検索
+                $customer = Customer::where('phone', $validated['phone'])->first();
 
-            if ($customer) {
-                // 既存顧客が見つかった場合、情報を更新
-                $customer->update([
-                    'last_name' => $validated['last_name'],
-                    'first_name' => $validated['first_name'],
-                    'phone' => $validated['phone'],
-                    'email' => $validated['email'],
-                ]);
-            } else {
-                // 新規顧客として作成
-                $customer = Customer::create([
-                    'phone' => $validated['phone'],
-                    'last_name' => $validated['last_name'],
-                    'first_name' => $validated['first_name'],
-                    'last_name_kana' => '', // カナは空文字で保存
-                    'first_name_kana' => '', // カナは空文字で保存
-                    'email' => $validated['email'],
-                    'customer_number' => Customer::generateCustomerNumber(),
-                ]);
+                if (!$customer) {
+                    // 電話番号で見つからない場合、メールアドレスでも検索
+                    $customer = Customer::where('email', $validated['email'])->first();
+                }
+
+                if ($customer) {
+                    // 既存顧客が見つかった場合、情報を更新
+                    $customer->update([
+                        'last_name' => $validated['last_name'],
+                        'first_name' => $validated['first_name'],
+                        'phone' => $validated['phone'],
+                        'email' => $validated['email'],
+                    ]);
+                } else {
+                    // 新規顧客として作成
+                    $customer = Customer::create([
+                        'phone' => $validated['phone'],
+                        'last_name' => $validated['last_name'],
+                        'first_name' => $validated['first_name'],
+                        'last_name_kana' => '', // カナは空文字で保存
+                        'first_name_kana' => '', // カナは空文字で保存
+                        'email' => $validated['email'],
+                        'customer_number' => Customer::generateCustomerNumber(),
+                    ]);
+                }
             }
             
             // メニュー情報を取得
