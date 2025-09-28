@@ -69,14 +69,11 @@ function goToReservation() {
             const customer = JSON.parse(customerData);
             const customerId = customer.id;
 
-            // カルテからの予約フラグを保存
-            sessionStorage.setItem('from_medical_record', 'true');
-
-            // 顧客IDがある場合は、カルテからの予約パラメータ付きで遷移
+            // シンプルにsourceパラメータで管理
             if (customerId) {
-                window.location.href = `/stores?customer_id=${customerId}&from_medical_record=1`;
+                window.location.href = `/stores?source=medical&customer_id=${customerId}`;
             } else {
-                window.location.href = '/stores?from_medical_record=1';
+                window.location.href = '/stores?source=medical';
             }
         } catch (e) {
             console.error('Error parsing customer data:', e);

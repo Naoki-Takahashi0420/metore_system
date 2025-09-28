@@ -141,7 +141,10 @@ class ReservationCalendarWidget extends FullCalendarWidget
             return $reservation->reservation_date->format('Y-m-d');
         });
 
-        return $reservationsByDate->map(function ($reservations, $dateKey) {
+        // 日付ごとに複数のイベントを作成（件数と各顧客名を別々のイベントとして）
+        $allEvents = [];
+
+        foreach ($reservationsByDate as $dateKey => $reservations) {
             $date = Carbon::parse($dateKey);
 
             // キャンセルを除いた予約と、キャンセルされた予約を分ける
@@ -201,59 +204,67 @@ class ReservationCalendarWidget extends FullCalendarWidget
                 $statusEmoji = '🔥 ';
             }
 
-            // タイトルに件数と顧客名を表示（絵文字付き）
-            $title = $statusEmoji . $activeCount . '件';
-
-            // 顧客名を追加
-            if (count($customerNames) > 0) {
-                $title .= "\n";
-                if (count($customerNames) <= 3) {
-                    // 3名以下なら全員表示
-                    $title .= implode('、', $customerNames);
-                } else {
-                    // 4名以上なら最初の3名＋他○名
-                    $firstThree = array_slice($customerNames, 0, 3);
-                    $title .= implode('、', $firstThree);
-                    if ($remainingCount > 0) {
-                        $title .= ' 他' . $remainingCount . '名';
-                    }
-                }
-            }
-
-            if ($cancelledCount > 0) {
-                $title .= "\n(ｷｬﾝｾﾙ" . $cancelledCount . ')';
-            }
-
-            // URLを生成（ここが重要！）
+            // URLを生成
             $baseUrl = \App\Filament\Resources\ReservationResource::getUrl('index');
             $eventUrl = $baseUrl . '?tableFilters[reservation_date][from]=' . $date->format('Y-m-d') . '&tableFilters[reservation_date][to]=' . $date->format('Y-m-d');
 
-            \Log::info('📅 Event URL created in fetchEvents:', [
-                'date' => $date->format('Y-m-d'),
-                'url' => $eventUrl
-            ]);
-
-            return [
+            // メインイベント（件数表示）
+            $allEvents[] = [
                 'id' => 'count_' . $date->format('Y-m-d'),
-                'title' => $title,
+                'title' => $statusEmoji . $activeCount . '件',
                 'start' => $date->format('Y-m-d'),
-                'allDay' => true, // 終日イベントとして表示
-                'url' => $eventUrl, // ← ここにURLを追加！
+                'allDay' => true,
+                'url' => $eventUrl,
                 'backgroundColor' => $backgroundColor,
                 'borderColor' => $backgroundColor,
                 'textColor' => $textColor,
-                'className' => 'reservation-heat-' . min($activeCount, 10), // CSSクラス追加
+                'display' => 'block',
+                'className' => 'fc-event-main reservation-heat-' . min($activeCount, 10),
                 'extendedProps' => [
+                    'type' => 'count',
                     'date' => $date->format('Y年m月d日'),
-                    'totalCount' => $totalCount,
-                    'activeCount' => $activeCount,
-                    'cancelledCount' => $cancelledCount,
-                    'statusEmoji' => $statusEmoji,
-                    'customerNames' => $customerNames,
-                    'remainingCount' => $remainingCount,
                 ],
             ];
-        })->values()->toArray();
+
+            // 顧客名イベント（各顧客を個別のイベントとして追加）
+            $displayNames = array_slice($customerNames, 0, 3);
+            foreach ($displayNames as $index => $name) {
+                $allEvents[] = [
+                    'id' => 'customer_' . $date->format('Y-m-d') . '_' . $index,
+                    'title' => $name,
+                    'start' => $date->format('Y-m-d'),
+                    'allDay' => true,
+                    'url' => $eventUrl,
+                    'backgroundColor' => 'transparent',
+                    'borderColor' => 'transparent',
+                    'textColor' => $textColor,
+                    'display' => 'block',
+                    'className' => 'fc-event-customer',
+                    'extendedProps' => [
+                        'type' => 'customer',
+                        'index' => $index,
+                    ],
+                ];
+            }
+
+            // 残り人数がある場合
+            if ($remainingCount > 0) {
+                $allEvents[] = [
+                    'id' => 'remaining_' . $date->format('Y-m-d'),
+                    'title' => '他' . $remainingCount . '名',
+                    'start' => $date->format('Y-m-d'),
+                    'allDay' => true,
+                    'url' => $eventUrl,
+                    'backgroundColor' => 'transparent',
+                    'borderColor' => 'transparent',
+                    'textColor' => $textColor,
+                    'display' => 'block',
+                    'className' => 'fc-event-customer',
+                ];
+            }
+        }
+
+        return $allEvents;
         } catch (\Exception $e) {
             // エラーが発生した場合は空の配列を返す
             \Log::error('ReservationCalendarWidget fetchEvents error: ' . $e->getMessage());
@@ -380,13 +391,13 @@ class ReservationCalendarWidget extends FullCalendarWidget
             ],
             'displayEventTime' => false, // 時間表示を無効化（件数のみ表示）
             'displayEventEnd' => false,
+            'eventDisplay' => 'block', // ブロック表示で改行を有効に
 
             // 月表示での設定
             'dayMaxEventRows' => false, // 制限なし
             'moreLinkClick' => 'popover', // 「+more」クリック時にポップオーバー表示
 
             // イベントの文字サイズ調整
-            'eventDisplay' => 'block',
             'eventTextColor' => '#ffffff',
 
             'buttonText' => [
@@ -451,6 +462,20 @@ class ReservationCalendarWidget extends FullCalendarWidget
 
                 info.el.setAttribute("title", tooltip);
                 info.el.style.cursor = "pointer";
+
+                // FullCalendarのイベントタイトルの改行を有効にするCSS
+                var eventTitle = info.el.querySelector(".fc-event-title");
+                if (eventTitle) {
+                    eventTitle.style.whiteSpace = "pre-line";
+                    eventTitle.style.lineHeight = "1.3";
+                }
+
+                // fc-event-mainにも適用
+                var eventMain = info.el.querySelector(".fc-event-main");
+                if (eventMain) {
+                    eventMain.style.whiteSpace = "pre-line";
+                    eventMain.style.lineHeight = "1.3";
+                }
 
                 // ホバー効果を追加
                 info.el.addEventListener("mouseenter", function() {

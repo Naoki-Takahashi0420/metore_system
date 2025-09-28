@@ -381,6 +381,27 @@ function selectStore(storeId, storeName) {
     storeInput.value = storeId;
     form.appendChild(storeInput);
 
+    // URLパラメータからsourceとcustomer_idを引き継ぐ
+    const urlParams = new URLSearchParams(window.location.search);
+    const source = urlParams.get('source');
+    const customerId = urlParams.get('customer_id');
+
+    if (source) {
+        const sourceInput = document.createElement('input');
+        sourceInput.type = 'hidden';
+        sourceInput.name = 'source';
+        sourceInput.value = source;
+        form.appendChild(sourceInput);
+    }
+
+    if (customerId) {
+        const customerInput = document.createElement('input');
+        customerInput.type = 'hidden';
+        customerInput.name = 'customer_id';
+        customerInput.value = customerId;
+        form.appendChild(customerInput);
+    }
+
     document.body.appendChild(form);
     form.submit();
 }

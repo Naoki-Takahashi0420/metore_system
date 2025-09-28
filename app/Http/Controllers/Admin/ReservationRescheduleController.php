@@ -84,7 +84,7 @@ class ReservationRescheduleController extends Controller
         }
 
         // 営業時間から時間スロットを生成
-        $timeSlots = $this->generateTimeSlots();
+        $timeSlots = $this->generateTimeSlots($selectedStore);
 
         // 空き状況を取得
         $availability = $this->getAvailability(
@@ -182,11 +182,47 @@ class ReservationRescheduleController extends Controller
         }
     }
 
-    private function generateTimeSlots()
+    private function generateTimeSlots($store)
     {
         $slots = [];
-        $start = Carbon::createFromTimeString('09:00');
-        $end = Carbon::createFromTimeString('21:00');
+
+        // 店舗の営業時間を取得（デフォルト値も設定）
+        $openTime = '09:00';
+        $closeTime = '21:00';
+
+        if ($store && $store->business_hours) {
+            $businessHours = is_string($store->business_hours)
+                ? json_decode($store->business_hours, true)
+                : $store->business_hours;
+
+            if (is_array($businessHours) && !empty($businessHours)) {
+                // 営業時間の最小開始時間と最大終了時間を取得
+                $earliestOpen = null;
+                $latestClose = null;
+
+                foreach ($businessHours as $dayHours) {
+                    if (!isset($dayHours['is_closed']) || !$dayHours['is_closed']) {
+                        $dayOpen = substr($dayHours['open_time'] ?? '09:00', 0, 5);
+                        $dayClose = substr($dayHours['close_time'] ?? '21:00', 0, 5);
+
+                        if ($earliestOpen === null || $dayOpen < $earliestOpen) {
+                            $earliestOpen = $dayOpen;
+                        }
+                        if ($latestClose === null || $dayClose > $latestClose) {
+                            $latestClose = $dayClose;
+                        }
+                    }
+                }
+
+                if ($earliestOpen && $latestClose) {
+                    $openTime = $earliestOpen;
+                    $closeTime = $latestClose;
+                }
+            }
+        }
+
+        $start = Carbon::createFromTimeString($openTime);
+        $end = Carbon::createFromTimeString($closeTime);
 
         while ($start < $end) {
             $slots[] = $start->format('H:i');

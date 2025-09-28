@@ -1,5 +1,43 @@
 <x-filament-widgets::widget>
-    <x-filament::section>
+    <div x-data="{
+        init() {
+            // カレンダーの縦書き処理を実行
+            const processCalendar = () => {
+                document.querySelectorAll('.fc-event-title').forEach(titleEl => {
+                    if (titleEl.getAttribute('data-vertical') === 'true') return;
+
+                    const text = titleEl.textContent;
+                    if (text && text.includes('\n')) {
+                        const lines = text.split('\n');
+                        let html = '';
+                        lines.forEach((line, index) => {
+                            if (line.trim()) {
+                                if (index === 0) {
+                                    html += '<div style=\'font-weight: bold; margin-bottom: 2px;\'>' + line + '</div>';
+                                } else {
+                                    html += '<div style=\'font-size: 0.9em; line-height: 1.2;\'>' + line + '</div>';
+                                }
+                            }
+                        });
+                        titleEl.innerHTML = html;
+                        titleEl.setAttribute('data-vertical', 'true');
+                    }
+                });
+            };
+
+            // 複数回実行
+            setTimeout(processCalendar, 100);
+            setTimeout(processCalendar, 500);
+            setTimeout(processCalendar, 1000);
+            setTimeout(processCalendar, 2000);
+
+            // クリックイベントでも実行
+            document.addEventListener('click', () => {
+                setTimeout(processCalendar, 100);
+            });
+        }
+    }">
+        <x-filament::section>
         <x-slot name="heading">
             <div class="flex items-center justify-between w-full">
                 <span>{{ $this->getHeading() }}</span>
@@ -31,6 +69,44 @@
                 font-size: 13px !important;
                 box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
                 transition: all 0.2s ease !important;
+            }
+
+            /* 顧客名イベントのスタイル */
+            .fc-event-customer {
+                background-color: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0 6px !important;
+                font-size: 11px !important;
+                font-weight: normal !important;
+                margin-top: -4px !important;
+            }
+
+            /* メインイベント（件数）のマージン調整 */
+            .fc-event-main {
+                margin-bottom: 2px !important;
+            }
+
+            /* イベントタイトルの改行を有効にする */
+            .fc-event-title,
+            .fc-event-main,
+            .fc-event-title-container,
+            .fc-daygrid-event-harness .fc-event {
+                white-space: pre-line !important;
+                line-height: 1.3 !important;
+            }
+
+            /* より強力な改行強制 */
+            .fc-event-title.fc-sticky {
+                white-space: pre-wrap !important;
+                word-break: break-word !important;
+                display: block !important;
+            }
+
+            .fc-daygrid-block-event .fc-event-title {
+                white-space: pre-wrap !important;
+                overflow: visible !important;
+                text-overflow: initial !important;
             }
 
             .fc-event:hover {
@@ -70,4 +146,75 @@
             }
         </style>
     </x-filament::section>
+    </div>
+
+    <script>
+        // カレンダーイベントのタイトルを縦書き表示に変換する関数
+        function processCalendarTitles() {
+            document.querySelectorAll('.fc-event-title').forEach(function(titleEl) {
+                // すでに処理済みの場合はスキップ
+                if (titleEl.getAttribute('data-processed') === 'true') {
+                    return;
+                }
+
+                const text = titleEl.textContent;
+                if (text && text.includes('\n')) {
+                    // テキストを改行で分割
+                    const lines = text.split('\n');
+
+                    // 新しいHTML構造を作成
+                    let html = '';
+                    lines.forEach(function(line, index) {
+                        if (index === 0) {
+                            // 最初の行（件数）は太字
+                            html += '<div style="font-weight: bold; margin-bottom: 2px;">' + line + '</div>';
+                        } else if (line.trim() !== '') {
+                            // その他の行（顧客名）
+                            html += '<div style="font-size: 0.9em; line-height: 1.2;">' + line + '</div>';
+                        }
+                    });
+
+                    // HTMLを設定
+                    titleEl.innerHTML = html;
+                    titleEl.setAttribute('data-processed', 'true');
+                }
+            });
+        }
+
+        // 複数のタイミングで実行を試みる
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初回実行
+            setTimeout(processCalendarTitles, 500);
+            setTimeout(processCalendarTitles, 1000);
+            setTimeout(processCalendarTitles, 2000);
+
+            // MutationObserverでカレンダーの変更を監視
+            const observer = new MutationObserver(function(mutations) {
+                processCalendarTitles();
+            });
+
+            // カレンダーコンテナを監視
+            setTimeout(function() {
+                const calendarContainer = document.querySelector('.fc');
+                if (calendarContainer) {
+                    observer.observe(calendarContainer, {
+                        childList: true,
+                        subtree: true
+                    });
+                }
+            }, 100);
+        });
+
+        // Livewireの更新時にも実行
+        if (typeof Livewire !== 'undefined') {
+            Livewire.hook('message.processed', (message, component) => {
+                setTimeout(processCalendarTitles, 100);
+            });
+        }
+
+        // Alpineの初期化後にも実行
+        document.addEventListener('alpine:init', () => {
+            setTimeout(processCalendarTitles, 100);
+        });
+    </script>
 </x-filament-widgets::widget>
