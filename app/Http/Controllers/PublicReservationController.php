@@ -215,17 +215,19 @@ class PublicReservationController extends Controller
             'store_id' => $storeId
         ]);
 
-        // アクティブなカテゴリーを取得
+        // アクティブなカテゴリーを取得（サブスクプランを除いた通常メニューがあるカテゴリーのみ）
         $categoriesQuery = MenuCategory::where('store_id', $storeId)
-            ->where('is_active', true);
-
-        // 既存顧客の場合、new_onlyメニューを持つカテゴリーを除外
-        if ($isExistingCustomer) {
-            $categoriesQuery->whereHas('menus', function($query) {
+            ->where('is_active', true)
+            ->whereHas('menus', function($query) use ($isExistingCustomer) {
                 $query->where('is_available', true)
-                      ->where('customer_type_restriction', '!=', 'new_only');
+                      ->where('is_visible_to_customer', true)
+                      ->where('is_subscription', false);  // サブスクプラン自体は除外
+
+                // 既存顧客の場合、new_onlyメニューを除外
+                if ($isExistingCustomer) {
+                    $query->where('customer_type_restriction', '!=', 'new_only');
+                }
             });
-        }
 
         $categories = $categoriesQuery
             ->orderBy('sort_order')
