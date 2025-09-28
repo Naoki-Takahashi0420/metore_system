@@ -262,9 +262,15 @@ class ReservationResource extends Resource
                                 if (!$record || !$record->optionMenus->count()) {
                                     return 'なし';
                                 }
-                                
+
                                 return $record->optionMenus->map(function ($option) {
-                                    return $option->name . ' (+¥' . number_format($option->pivot->price) . ', +' . $option->pivot->duration . '分)';
+                                    try {
+                                        $price = $option->pivot->price ?? 0;
+                                        $duration = $option->pivot->duration ?? 0;
+                                        return $option->name . ' (+¥' . number_format($price) . ', +' . $duration . '分)';
+                                    } catch (\Exception $e) {
+                                        return $option->name . ' (価格・時間情報なし)';
+                                    }
                                 })->join("\n");
                             })
                             ->columnSpanFull(),
@@ -315,30 +321,35 @@ class ReservationResource extends Resource
                                 if (!$customerId) {
                                     return '顧客を選択してください';
                                 }
-                                
-                                $latestRecord = \App\Models\MedicalRecord::where('customer_id', $customerId)
-                                    ->whereNotNull('next_visit_date')
-                                    ->where('reservation_status', 'pending')
-                                    ->orderBy('record_date', 'desc')
-                                    ->first();
-                                
-                                if ($latestRecord) {
-                                    $recommendedDate = \Carbon\Carbon::parse($latestRecord->next_visit_date);
-                                    $recordDate = \Carbon\Carbon::parse($latestRecord->record_date);
-                                    $daysFromNow = \Carbon\Carbon::now()->diffInDays($recommendedDate, false);
-                                    
-                                    $urgency = '';
-                                    if ($daysFromNow < 0) {
-                                        $urgency = '⚠️ 推奨日を過ぎています';
-                                    } elseif ($daysFromNow <= 7) {
-                                        $urgency = '🔥 推奨日が近づいています';
-                                    } else {
-                                        $urgency = '📅 推奨日まで余裕があります';
+
+                                try {
+                                    $latestRecord = \App\Models\MedicalRecord::where('customer_id', $customerId)
+                                        ->whereNotNull('next_visit_date')
+                                        ->where('reservation_status', 'pending')
+                                        ->orderBy('record_date', 'desc')
+                                        ->first();
+
+                                    if ($latestRecord) {
+                                        $recommendedDate = \Carbon\Carbon::parse($latestRecord->next_visit_date);
+                                        $recordDate = \Carbon\Carbon::parse($latestRecord->record_date);
+                                        $daysFromNow = \Carbon\Carbon::now()->diffInDays($recommendedDate, false);
+
+                                        $urgency = '';
+                                        if ($daysFromNow < 0) {
+                                            $urgency = '⚠️ 推奨日を過ぎています';
+                                        } elseif ($daysFromNow <= 7) {
+                                            $urgency = '🔥 推奨日が近づいています';
+                                        } else {
+                                            $urgency = '📅 推奨日まで余裕があります';
+                                        }
+
+                                        return "💡 推奨日: {$recommendedDate->format('Y年m月d日')} (約{$daysFromNow}日後)\n📝 記録日: {$recordDate->format('Y年m月d日')}\n{$urgency}";
                                     }
-                                    
-                                    return "💡 推奨日: {$recommendedDate->format('Y年m月d日')} (約{$daysFromNow}日後)\n📝 記録日: {$recordDate->format('Y年m月d日')}\n{$urgency}";
+                                } catch (\Exception $e) {
+                                    \Log::error('推奨来院情報の取得でエラー: ' . $e->getMessage());
+                                    return '⚠️ 推奨日情報の取得でエラーが発生しました';
                                 }
-                                
+
                                 return '⚪ この顧客の推奨日情報はありません';
                             })
                             ->columnSpanFull(),
@@ -421,19 +432,24 @@ class ReservationResource extends Resource
                                 if (!$customerId) {
                                     return '顧客を選択すると推奨日が表示されます';
                                 }
-                                
-                                $latestRecord = \App\Models\MedicalRecord::where('customer_id', $customerId)
-                                    ->whereNotNull('next_visit_date')
-                                    ->where('reservation_status', 'pending')
-                                    ->orderBy('record_date', 'desc')
-                                    ->first();
-                                
-                                if ($latestRecord) {
-                                    $recommendedDate = \Carbon\Carbon::parse($latestRecord->next_visit_date);
-                                    $recordDate = \Carbon\Carbon::parse($latestRecord->record_date);
-                                    return "💡 推奨日: {$recommendedDate->format('Y年m月d日')} ({$recordDate->format('m/d')}のカルテより)";
+
+                                try {
+                                    $latestRecord = \App\Models\MedicalRecord::where('customer_id', $customerId)
+                                        ->whereNotNull('next_visit_date')
+                                        ->where('reservation_status', 'pending')
+                                        ->orderBy('record_date', 'desc')
+                                        ->first();
+
+                                    if ($latestRecord) {
+                                        $recommendedDate = \Carbon\Carbon::parse($latestRecord->next_visit_date);
+                                        $recordDate = \Carbon\Carbon::parse($latestRecord->record_date);
+                                        return "💡 推奨日: {$recommendedDate->format('Y年m月d日')} ({$recordDate->format('m/d')}のカルテより)";
+                                    }
+                                } catch (\Exception $e) {
+                                    \Log::error('日付ヘルパーテキストの取得でエラー: ' . $e->getMessage());
+                                    return 'ヘルパーテキストの読み込みでエラーが発生しました';
                                 }
-                                
+
                                 return 'この顧客の推奨日情報はありません';
                             }),
                         Forms\Components\TimePicker::make('start_time')
@@ -635,7 +651,12 @@ class ReservationResource extends Resource
                             return 'なし';
                         }
                         return $options->map(function ($option) {
-                            return $option->name . ' (+¥' . number_format($option->pivot->price) . ')';
+                            try {
+                                $price = $option->pivot->price ?? 0;
+                                return $option->name . ' (+¥' . number_format($price) . ')';
+                            } catch (\Exception $e) {
+                                return $option->name . ' (価格情報なし)';
+                            }
                         })->join(', ');
                     })
                     ->toggleable(isToggledHiddenByDefault: true),
