@@ -361,6 +361,8 @@ function selectStore(storeId, storeName) {
     localStorage.setItem('last_selected_store_id', storeId);
     localStorage.setItem('last_selected_store_name', storeName);
 
+    console.log('店舗選択開始:', { storeId, storeName });
+
     // Store selection via form POST to maintain PHP session
     const form = document.createElement('form');
     form.method = 'POST';
@@ -373,6 +375,9 @@ function selectStore(storeId, storeName) {
         tokenInput.name = '_token';
         tokenInput.value = csrfToken.content;
         form.appendChild(tokenInput);
+        console.log('CSRFトークン設定済み');
+    } else {
+        console.error('CSRFトークンが見つかりません');
     }
 
     const storeInput = document.createElement('input');
@@ -381,10 +386,23 @@ function selectStore(storeId, storeName) {
     storeInput.value = storeId;
     form.appendChild(storeInput);
 
-    // URLパラメータからsourceとcustomer_idを引き継ぐ
+    // URLパラメータからctx、source、customer_idを引き継ぐ
     const urlParams = new URLSearchParams(window.location.search);
+    const ctx = urlParams.get('ctx');
     const source = urlParams.get('source');
     const customerId = urlParams.get('customer_id');
+
+    console.log('URLパラメータ:', { ctx: ctx ? 'あり' : 'なし', source, customerId });
+
+    // 既存顧客のcontextパラメータを引き継ぐ
+    if (ctx) {
+        const ctxInput = document.createElement('input');
+        ctxInput.type = 'hidden';
+        ctxInput.name = 'ctx';
+        ctxInput.value = ctx;
+        form.appendChild(ctxInput);
+        console.log('ctxパラメータを引き継ぎました');
+    }
 
     if (source) {
         const sourceInput = document.createElement('input');
@@ -402,6 +420,7 @@ function selectStore(storeId, storeName) {
         form.appendChild(customerInput);
     }
 
+    console.log('フォーム送信実行中...');
     document.body.appendChild(form);
     form.submit();
 }
