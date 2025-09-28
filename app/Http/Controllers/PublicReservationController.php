@@ -955,7 +955,7 @@ class PublicReservationController extends Controller
         $existingReservationDates = [];
         $isSubscriptionBooking = Session::get('is_subscription_booking', false);
 
-        // 新規顧客（customer_idがnull）の場合はサブスク予約として扱わない
+        // 新規顧客の場合は5日間制限を完全に無効化
         if ($isSubscriptionBooking && $customerId) {
             \Log::info('既存予約取得開始', [
                 'customer_id' => $customerId,

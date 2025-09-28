@@ -636,8 +636,8 @@
                         reservedDiv.title = `他の予約あり: ${existingReservation.menu?.name || 'メニュー'}`;
                         td.appendChild(reservedDiv);
                     }
-                } else if (isWithinFiveDays && isSubscriptionBooking) {
-                    // サブスク予約で既存予約から5日以内で予約不可
+                } else if (isWithinFiveDays && isSubscriptionBooking && @json($isExistingCustomer ?? false)) {
+                    // 既存顧客のサブスク予約でのみ5日制限を適用
                     console.log(`5日制限適用: ${dateStr} ${timeStr} - blocked by reservations:`, reservationDates);
 
                     const td = button.parentElement;
