@@ -1415,19 +1415,37 @@ class PublicReservationController extends Controller
             'has_customer_id' => isset($context['customer_id']),
             'is_existing_customer' => $context['is_existing_customer'] ?? 'not_set',
             'source' => $context['source'] ?? 'not_set',
-            'type' => $context['type'] ?? 'not_set'
+            'type' => $context['type'] ?? 'not_set',
+            'raw_ctx' => $request->get('ctx')
         ]);
 
-        // 既存顧客の場合（カルテまたはマイページからの予約）
+        // 既存顧客の判定（カルテまたはマイページからの予約）
         $isExistingCustomer = false;
         $existingCustomer = null;
         $isFromMyPage = $context && isset($context['source']) && $context['source'] === 'mypage';
         $isFromMedicalRecord = $context && isset($context['source']) && in_array($context['source'], ['medical_record', 'medical_record_legacy']);
 
+        // マイページまたはカルテからの予約は既存顧客として扱う
+        if (($isFromMyPage || $isFromMedicalRecord) && $context && isset($context['customer_id'])) {
+            $existingCustomer = Customer::find($context['customer_id']);
+            $isExistingCustomer = true;
+            \Log::info('マイページ/カルテからの予約として既存顧客設定', [
+                'customer_id' => $context['customer_id'],
+                'source' => $context['source']
+            ]);
+        }
+        // それ以外のコンテキストから顧客IDがある場合
+        else if ($context && isset($context['customer_id'])) {
+            $existingCustomer = Customer::find($context['customer_id']);
+            $isExistingCustomer = true;
+        }
+
         \Log::info('予約ソースの判定', [
             'is_from_mypage' => $isFromMyPage,
             'is_from_medical_record' => $isFromMedicalRecord,
-            'source' => $context['source'] ?? null
+            'source' => $context['source'] ?? null,
+            'is_existing_customer' => $isExistingCustomer,
+            'customer_id' => $context['customer_id'] ?? null
         ]);
 
         // 新規顧客の場合は5日間制限に関連するセッションを完全クリア
@@ -1436,11 +1454,6 @@ class PublicReservationController extends Controller
             Session::forget('customer_id');
             Session::forget('existing_customer_id');
             \Log::info('新規顧客のためサブスク関連セッションを完全クリア');
-        }
-
-        if ($context && isset($context['customer_id'])) {
-            $existingCustomer = Customer::find($context['customer_id']);
-            $isExistingCustomer = true;
         }
 
         // バリデーションルール（既存顧客の場合は顧客情報を除外）
@@ -1604,6 +1617,13 @@ class PublicReservationController extends Controller
                 // マイページまたはカルテからの予約の場合はモーダルを出さない
                 $isFromMyPageOrMedical = $context && isset($context['source']) &&
                     in_array($context['source'], ['mypage', 'medical_record', 'medical_record_legacy']);
+
+                \Log::info('モーダル表示判定', [
+                    'past_reservations' => $pastReservations,
+                    'isFromMyPageOrMedical' => $isFromMyPageOrMedical,
+                    'context_source' => $context['source'] ?? 'none',
+                    'will_show_modal' => ($pastReservations > 0 && !$isFromMyPageOrMedical)
+                ]);
 
                 if ($pastReservations > 0 && !$isFromMyPageOrMedical) {
                     \Log::info('過去の予約履歴あり、マイページへ誘導', [
