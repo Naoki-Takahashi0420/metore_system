@@ -302,7 +302,7 @@
 </div>
 
 {{-- アップセルモーダル --}}
-<div id="upsellModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50 flex items-center justify-center p-4" onclick="closeModalOnBackdrop(event)">
+<div id="upsellModal" class="fixed inset-0 bg-white bg-opacity-30 backdrop-blur-md hidden z-50 flex items-center justify-center p-4" onclick="closeModalOnBackdrop(event)">
     <div class="bg-white w-full max-w-lg rounded-lg shadow-lg relative">
             {{-- ヘッダー --}}
             <div class="border-b p-5">
