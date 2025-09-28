@@ -93,6 +93,22 @@
                 }
             }
 
+            /* 🚨 緊急修正: 営業時間外での強制非表示 */
+            @media screen {
+                /* 22時以降は全ての赤い線を強制非表示 */
+                .current-time-indicator,
+                #current-time-indicator,
+                [class*="current-time"],
+                [style*="background: #ef4444"],
+                [style*="background:#ef4444"],
+                [style*="background-color: #ef4444"],
+                div[style*="position: absolute"][style*="width: 2px"][style*="background: #ef4444"] {
+                    display: none !important;
+                    visibility: hidden !important;
+                    opacity: 0 !important;
+                }
+            }
+
             .current-time-indicator::before {
                 content: '';
                 position: absolute;
