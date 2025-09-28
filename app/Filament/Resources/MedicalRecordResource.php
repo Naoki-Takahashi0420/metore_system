@@ -331,21 +331,29 @@ class MedicalRecordResource extends Resource
                                                     ->placeholder('1-50')
                                                     ->helperText('1（弱）〜 50（強）'),
                                                 
-                                                Forms\Components\TextInput::make('duration')
+                                                Forms\Components\Select::make('duration')
                                                     ->label('時間（分）')
-                                                    ->numeric()
+                                                    ->options([
+                                                        30 => '30分',
+                                                        50 => '50分',
+                                                        80 => '80分'
+                                                    ])
                                                     ->default(function ($get) {
                                                         // 予約からメニュー情報を取得して時間を自動設定
                                                         $reservationId = $get('../../reservation_id');
                                                         if ($reservationId) {
                                                             $reservation = Reservation::with(['menu'])->find($reservationId);
                                                             if ($reservation && $reservation->menu && $reservation->menu->duration_minutes) {
-                                                                return $reservation->menu->duration_minutes;
+                                                                $duration = $reservation->menu->duration_minutes;
+                                                                // 最も近い選択肢を選ぶ
+                                                                if ($duration <= 30) return 30;
+                                                                if ($duration <= 50) return 50;
+                                                                return 80;
                                                             }
                                                         }
-                                                        return 60; // デフォルト60分
+                                                        return 50; // デフォルト50分
                                                     })
-                                                    ->suffix('分'),
+                                                    ->required(),
                                             ]),
                                         
                                         // 施術前視力（1回目：裸眼）
