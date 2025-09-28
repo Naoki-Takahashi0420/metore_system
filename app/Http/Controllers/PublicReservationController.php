@@ -764,7 +764,11 @@ class PublicReservationController extends Controller
                     'context_type' => $context['type'] ?? 'unknown'
                 ]);
             } else {
-                \Log::info('パラメータベース：新規顧客のため顧客IDなし', [
+                // 新規顧客の場合はサブスク関連セッションをクリア
+                Session::forget('is_subscription_booking');
+                Session::forget('customer_id');
+                Session::forget('existing_customer_id');
+                \Log::info('パラメータベース：新規顧客のためセッションクリア', [
                     'is_existing_customer' => $context['is_existing_customer'] ?? 'not_set',
                     'context_type' => $context['type'] ?? 'unknown'
                 ]);
@@ -951,6 +955,7 @@ class PublicReservationController extends Controller
         $existingReservationDates = [];
         $isSubscriptionBooking = Session::get('is_subscription_booking', false);
 
+        // 新規顧客（customer_idがnull）の場合はサブスク予約として扱わない
         if ($isSubscriptionBooking && $customerId) {
             \Log::info('既存予約取得開始', [
                 'customer_id' => $customerId,
