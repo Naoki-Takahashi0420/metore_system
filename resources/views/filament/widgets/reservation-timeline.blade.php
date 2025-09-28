@@ -524,10 +524,12 @@
                     $now = \Carbon\Carbon::now();
                     $currentHour = $now->hour;
                     $currentMinute = $now->minute;
+                    $shouldShowIndicator = false;
 
-                    // 営業時間内の場合のみ位置計算
+                    // 営業時間内の場合のみ位置計算（10:00 - 22:00）
                     $leftPosition = 0;
-                    if ($currentHour >= 10 && $currentHour <= 21) {
+                    if ($currentHour >= 10 && $currentHour < 22) { // 22:00以降は表示しない
+                        $shouldShowIndicator = true;
                         $minutesFromStart = ($currentHour - 10) * 60 + $currentMinute;
                         $cellIndex = floor($minutesFromStart / 30);
                         $percentageIntoCell = ($minutesFromStart % 30) / 30;
@@ -536,9 +538,11 @@
                         $leftPosition = $firstCellWidth + ($cellIndex * $cellWidth) + ($percentageIntoCell * $cellWidth);
                     }
                 @endphp
-                <div id="current-time-indicator" class="current-time-indicator" style="left: {{ $leftPosition }}px;">
-                    <span class="current-time-text">{{ $now->format('H:i') }}</span>
-                </div>
+                @if($shouldShowIndicator)
+                    <div id="current-time-indicator" class="current-time-indicator" style="left: {{ $leftPosition }}px;">
+                        <span class="current-time-text">{{ $now->format('H:i') }}</span>
+                    </div>
+                @endif
             @endif
 
             @if(!empty($timelineData))
@@ -776,9 +780,14 @@
 
                 console.log(`現在時刻: ${currentHour}:${currentMinute}`);
 
-                // 営業時間チェック
-                if (currentHour < 10 || currentHour > 21) {
+                // 営業時間チェック（22:00以降は表示しない）
+                if (currentHour < 10 || currentHour >= 22) {
                     console.log('営業時間外のため終了');
+                    // 既存のインジケーターを削除
+                    const existing = document.getElementById('current-time-indicator');
+                    if (existing) {
+                        existing.remove();
+                    }
                     return;
                 }
 
@@ -861,16 +870,73 @@
                     console.log(`計算結果: 左位置=${leftPosition}px, セルインデックス=${cellIndex}`);
 
                     indicator.style.left = leftPosition + 'px';
+
+                    // 時刻テキストも更新
+                    const timeText = indicator.querySelector('.current-time-text');
+                    if (timeText) {
+                        timeText.textContent = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
+                    }
+
                     console.log('インジケーター位置更新完了');
                 }, 200);
 
                 console.log('インジケーター作成完了');
             }
 
+            // リアルタイム更新用の関数
+            function updateTimeIndicator() {
+                const now = new Date();
+                const currentHour = now.getHours();
+                const currentMinute = now.getMinutes();
+
+                // 営業時間外の場合はインジケーターを削除
+                if (currentHour < 10 || currentHour >= 22) {
+                    const existing = document.getElementById('current-time-indicator');
+                    if (existing) {
+                        existing.remove();
+                    }
+                    return;
+                }
+
+                // 既存のインジケーターがある場合は位置と時刻を更新
+                const indicator = document.getElementById('current-time-indicator');
+                if (indicator) {
+                    const table = document.querySelector('.timeline-table');
+                    if (table) {
+                        const firstRow = table.querySelector('tbody tr');
+                        if (firstRow) {
+                            const cells = firstRow.querySelectorAll('td');
+                            if (cells.length >= 2) {
+                                const firstCellWidth = cells[0].offsetWidth || 36;
+                                const cellWidth = cells[1].offsetWidth || 48;
+
+                                const minutesFromStart = (currentHour - 10) * 60 + currentMinute;
+                                const cellIndex = Math.floor(minutesFromStart / 30);
+                                const percentageIntoCell = (minutesFromStart % 30) / 30;
+                                const leftPosition = firstCellWidth + (cellIndex * cellWidth) + (percentageIntoCell * cellWidth);
+
+                                indicator.style.left = leftPosition + 'px';
+
+                                const timeText = indicator.querySelector('.current-time-text');
+                                if (timeText) {
+                                    timeText.textContent = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // インジケーターがない場合は作成
+                    createTimeIndicator();
+                }
+            }
+
             // 実行
             document.addEventListener('DOMContentLoaded', function() {
                 console.log('DOMContentLoaded - インジケーター作成開始');
                 setTimeout(createTimeIndicator, 1000);
+
+                // 1分ごとにリアルタイム更新
+                setInterval(updateTimeIndicator, 60000);
             });
 
             // 即座にも実行
@@ -881,6 +947,7 @@
 
             // グローバルに公開
             window.createTimeIndicator = createTimeIndicator;
+            window.updateTimeIndicator = updateTimeIndicator;
 
         </script>
 
