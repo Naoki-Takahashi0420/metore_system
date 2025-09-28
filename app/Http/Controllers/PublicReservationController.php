@@ -751,13 +751,31 @@ class PublicReservationController extends Controller
         }
         
         // 各日の営業時間を取得して予約状況を生成
-        // サブスク予約の場合は顧客IDを渡す
+        // 顧客IDの設定
         $customerId = null;
-        if (Session::get('is_subscription_booking')) {
+
+        // パラメータベース：コンテキストから顧客IDを取得
+        if ($context) {
+            // 既存顧客の場合のみ顧客IDを設定
+            if (isset($context['is_existing_customer']) && $context['is_existing_customer'] === true) {
+                $customerId = $context['customer_id'] ?? null;
+                \Log::info('パラメータベース：既存顧客の顧客ID設定', [
+                    'customer_id' => $customerId,
+                    'context_type' => $context['type'] ?? 'unknown'
+                ]);
+            } else {
+                \Log::info('パラメータベース：新規顧客のため顧客IDなし', [
+                    'is_existing_customer' => $context['is_existing_customer'] ?? 'not_set',
+                    'context_type' => $context['type'] ?? 'unknown'
+                ]);
+            }
+        }
+        // レガシー：セッションベース（サブスク予約の場合のみ）
+        else if (Session::get('is_subscription_booking')) {
             // existing_customer_id または customer_id を取得
             $customerId = Session::get('existing_customer_id') ?? Session::get('customer_id');
 
-            \Log::info('サブスク予約の顧客ID確認', [
+            \Log::info('レガシー：サブスク予約の顧客ID確認', [
                 'existing_customer_id' => Session::get('existing_customer_id'),
                 'customer_id' => Session::get('customer_id'),
                 'final_customer_id' => $customerId
