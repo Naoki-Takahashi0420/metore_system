@@ -310,11 +310,11 @@ class Reservation extends Model
             $overlappingQuery = clone $overlappingReservations;
             $overlappingQuery = $overlappingQuery->where(function($q) use ($reservation) {
                     // サブ枠の予約のみをチェック
-                    $q->where('is_sub', true)
-                      ->orWhere(function($sub) use ($reservation) {
-                          $sub->where('line_type', 'sub')
-                              ->where('line_number', $reservation->line_number ?? 1);
-                      });
+                    $q->where('is_sub', true);
+                    $q->orWhere(function($sub) use ($reservation) {
+                        $sub->where('line_type', 'sub')
+                            ->where('line_number', $reservation->line_number ?? 1);
+                    });
                 });
 
             \Log::info('checkAvailability for sub:', [
@@ -399,9 +399,9 @@ class Reservation extends Model
             $seatCheckQuery = clone $overlappingReservations;
             $seatTaken = $seatCheckQuery->where('seat_number', $seatNum)
                 ->where(function($q) {
-                    $q->where('is_sub', false)
-                      ->orWhere('line_type', 'main')
-                      ->orWhereNull('line_type');
+                    $q->where('is_sub', false);
+                    $q->orWhere('line_type', 'main');
+                    $q->orWhereNull('line_type');
                 })
                 ->exists();
 
