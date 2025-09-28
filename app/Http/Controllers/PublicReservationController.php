@@ -248,19 +248,35 @@ class PublicReservationController extends Controller
      */
     public function selectTime(Request $request, ReservationContextService $contextService)
     {
-        $validated = $request->validate([
-            'category_id' => 'required|exists:menu_categories,id',
-            'ctx' => 'required|string'
-        ]);
+        // GETリクエストの場合とPOSTリクエストの場合で処理を分ける
+        if ($request->isMethod('get')) {
+            // GETリクエスト: コンテキストからカテゴリIDを取得
+            $validated = $request->validate([
+                'ctx' => 'required|string'
+            ]);
 
-        // コンテキストを復号化
-        $context = $contextService->decryptContext($validated['ctx']);
-        if (!$context) {
-            return redirect()->route('stores')->withErrors(['error' => '予約情報が見つかりません']);
+            $context = $contextService->decryptContext($validated['ctx']);
+            if (!$context || !isset($context['category_id'])) {
+                return redirect()->route('stores')->withErrors(['error' => '予約情報が見つかりません']);
+            }
+
+            $categoryId = $context['category_id'];
+        } else {
+            // POSTリクエスト: フォームからカテゴリIDを取得
+            $validated = $request->validate([
+                'category_id' => 'required|exists:menu_categories,id',
+                'ctx' => 'required|string'
+            ]);
+
+            $context = $contextService->decryptContext($validated['ctx']);
+            if (!$context) {
+                return redirect()->route('stores')->withErrors(['error' => '予約情報が見つかりません']);
+            }
+
+            // カテゴリIDをコンテキストに追加
+            $context['category_id'] = $validated['category_id'];
+            $categoryId = $validated['category_id'];
         }
-
-        // 店舗IDとカテゴリIDをコンテキストに追加
-        $context['category_id'] = $validated['category_id'];
 
         $storeId = $context['store_id'] ?? null;
         if (!$storeId) {
@@ -268,7 +284,7 @@ class PublicReservationController extends Controller
         }
 
         $store = Store::find($storeId);
-        $category = MenuCategory::find($validated['category_id']);
+        $category = MenuCategory::find($categoryId);
 
         // コンテキストから情報を取得
         $source = $context['source'] ?? null;
@@ -309,13 +325,13 @@ class PublicReservationController extends Controller
         
         // カテゴリーに属するメニューを時間別に取得
         \Log::info('Fetching menus', [
-            'store_id' => $storeId, 
-            'category_id' => $validated['category_id'],
+            'store_id' => $storeId,
+            'category_id' => $categoryId,
             'category_name' => $category->name ?? 'Unknown'
         ]);
-        
+
         $menusQuery = Menu::where('store_id', $storeId)
-            ->where('category_id', $validated['category_id'])
+            ->where('category_id', $categoryId)
             ->where('is_available', true)
             ->where('is_visible_to_customer', true);
             
@@ -365,9 +381,15 @@ class PublicReservationController extends Controller
         // 互換性のため、時間別グループ化も残す（ただし表示はsortedMenusを使う）
         $menusByDuration = $sortedMenus->groupBy('duration_minutes')->sortKeys();
 
-        // コンテキストを暗号化してビューに渡す
+        // コンテキストを暗号化
         $encryptedContext = $contextService->encryptContext($context);
 
+        // POSTリクエストの場合、GETリダイレクトしてURLにコンテキストを表示
+        if ($request->isMethod('post')) {
+            return redirect()->route('reservation.select-time', ['ctx' => $encryptedContext]);
+        }
+
+        // GETリクエストの場合、ビューを表示
         return view('reservation.time-select', [
             'menusByDuration' => $menusByDuration,
             'sortedMenus' => $sortedMenus,

@@ -45,7 +45,7 @@ Route::post('/reservation/store-selection', [App\Http\Controllers\PublicReservat
 
 // 新しい予約フロー
 Route::get('/reservation/category', [App\Http\Controllers\PublicReservationController::class, 'selectCategory'])->name('reservation.select-category');
-Route::post('/reservation/time', [App\Http\Controllers\PublicReservationController::class, 'selectTime'])->name('reservation.select-time');
+Route::match(['get', 'post'], '/reservation/time', [App\Http\Controllers\PublicReservationController::class, 'selectTime'])->name('reservation.select-time');
 Route::get('/reservation/options/{menu}', [App\Http\Controllers\PublicReservationController::class, 'selectOptions'])->name('reservation.select-options');
 Route::post('/reservation/store-options', [App\Http\Controllers\PublicReservationController::class, 'storeOptions'])->name('reservation.store-options');
 Route::post('/reservation/store-menu', [App\Http\Controllers\PublicReservationController::class, 'storeMenu'])->name('reservation.store-menu');
