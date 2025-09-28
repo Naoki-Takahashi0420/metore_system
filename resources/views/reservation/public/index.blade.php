@@ -883,7 +883,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                 </div>
-                <h3 class="text-lg font-medium text-gray-900 mb-2">既存のお客様です</h3>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">すでに予約があります</h3>
                 <p class="text-sm text-gray-600 mb-6">
                     この電話番号（{{ session('customer_phone') }}）で過去にご予約履歴があります。<br>
                     2回目以降のお客様は、マイページから予約の変更・追加を行ってください。
