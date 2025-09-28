@@ -28,7 +28,7 @@
                     <a href="/customer/reservations" class="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm">
                         予約履歴
                     </a>
-                    <a href="/stores" class="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-800 transition-colors">
+                    <a href="#" onclick="goToReservation(); return false;" class="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-800 transition-colors">
                         新規予約
                     </a>
                 </div>
@@ -60,26 +60,45 @@
 </div>
 
 <script>
-function goToReservation() {
-    // ローカルストレージから顧客情報を取得
-    const customerData = localStorage.getItem('customer_data');
+async function goToReservation() {
+    const token = localStorage.getItem('customer_token');
 
-    if (customerData) {
-        try {
-            const customer = JSON.parse(customerData);
-            const customerId = customer.id;
+    if (!token) {
+        // トークンがない場合はログインページにリダイレクト
+        window.location.href = '/customer/login';
+        return;
+    }
 
-            // シンプルにsourceパラメータで管理
-            if (customerId) {
-                window.location.href = `/stores?source=medical&customer_id=${customerId}`;
-            } else {
-                window.location.href = '/stores?source=medical';
+    try {
+        // カルテからの予約用コンテキストを生成
+        const response = await fetch('/api/customer/reservation-context/medical-record', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
             }
-        } catch (e) {
-            console.error('Error parsing customer data:', e);
-            window.location.href = '/stores?from_medical_record=1';
+        });
+
+        if (!response.ok) {
+            if (response.status === 401) {
+                // トークンが無効
+                localStorage.removeItem('customer_token');
+                localStorage.removeItem('customer_data');
+                window.location.href = '/customer/login';
+                return;
+            }
+            throw new Error('Failed to create reservation context');
         }
-    } else {
+
+        const data = await response.json();
+        const encryptedContext = data.data.encrypted_context;
+
+        // 新しいパラメータベースシステムを使用
+        window.location.href = `/stores?ctx=${encodeURIComponent(encryptedContext)}`;
+
+    } catch (error) {
+        console.error('Error creating reservation context:', error);
+        // フォールバック: 従来の方式
         window.location.href = '/stores?from_medical_record=1';
     }
 }

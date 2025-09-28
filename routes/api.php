@@ -64,6 +64,7 @@ Route::middleware('auth:sanctum')->prefix('customer')->group(function () {
     Route::put('profile', [CustomerController::class, 'update']);
     // カルテ管理
     Route::get('medical-records', [CustomerController::class, 'getMedicalRecords']);
+    Route::post('reservation-context/medical-record', [CustomerController::class, 'createMedicalRecordContext']);
     // 通知設定
     Route::get('notification-preferences', [NotificationPreferenceController::class, 'show']);
     Route::put('notification-preferences', [NotificationPreferenceController::class, 'update']);
