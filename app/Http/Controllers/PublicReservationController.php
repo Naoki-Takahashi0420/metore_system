@@ -1428,11 +1428,18 @@ class PublicReservationController extends Controller
         // マイページまたはカルテからの予約は既存顧客として扱う
         if (($isFromMyPage || $isFromMedicalRecord) && $context && isset($context['customer_id'])) {
             $existingCustomer = Customer::find($context['customer_id']);
-            $isExistingCustomer = true;
-            \Log::info('マイページ/カルテからの予約として既存顧客設定', [
-                'customer_id' => $context['customer_id'],
-                'source' => $context['source']
-            ]);
+            if ($existingCustomer) {
+                $isExistingCustomer = true;
+                \Log::info('マイページ/カルテからの予約として既存顧客設定', [
+                    'customer_id' => $context['customer_id'],
+                    'customer_name' => $existingCustomer->full_name,
+                    'source' => $context['source']
+                ]);
+            } else {
+                \Log::error('顧客IDから顧客が見つかりません', [
+                    'customer_id' => $context['customer_id']
+                ]);
+            }
         }
         // それ以外のコンテキストから顧客IDがある場合
         else if ($context && isset($context['customer_id'])) {
@@ -1547,7 +1554,14 @@ class PublicReservationController extends Controller
         // 顧客情報の処理
         $customer = null;
 
-        if ($isExistingCustomer && $existingCustomer) {
+        if ($isExistingCustomer) {
+            if (!$existingCustomer) {
+                // 顧客IDから顧客が見つからない場合のエラーハンドリング
+                \Log::error('既存顧客として処理中ですが、顧客データが見つかりません', [
+                    'customer_id' => $context['customer_id'] ?? 'unknown'
+                ]);
+                throw new \Exception('顧客情報が見つかりません。マイページから再度お試しください。');
+            }
             // 既存顧客の場合（マイページからの予約）
             $customer = $existingCustomer;
 
@@ -1668,6 +1682,13 @@ class PublicReservationController extends Controller
             if (!$customer) {
                 // 新規顧客情報が必要
                 if (!isset($validated['phone']) || !isset($validated['last_name']) || !isset($validated['first_name'])) {
+                    \Log::error('顧客情報不足', [
+                        'has_phone' => isset($validated['phone']),
+                        'has_last_name' => isset($validated['last_name']),
+                        'has_first_name' => isset($validated['first_name']),
+                        'is_existing_customer' => $isExistingCustomer,
+                        'context' => $context
+                    ]);
                     throw new \Exception('顧客情報が不足しています');
                 }
 
