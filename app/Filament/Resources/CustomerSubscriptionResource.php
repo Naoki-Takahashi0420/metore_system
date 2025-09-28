@@ -77,13 +77,32 @@ class CustomerSubscriptionResource extends Resource
                                 }
 
                                 // 店舗での予約履歴がある顧客を検索
-                                return \App\Models\Customer::whereHas('reservations', function ($query) use ($storeId) {
+                                $customers = \App\Models\Customer::whereHas('reservations', function ($query) use ($storeId) {
                                         $query->where('store_id', $storeId);
                                     })
-                                    ->search($search)
+                                    ->where(function ($q) use ($search) {
+                                        // 名前での検索
+                                        $q->where('last_name', 'like', "%{$search}%")
+                                          ->orWhere('first_name', 'like', "%{$search}%")
+                                          ->orWhere('last_name_kana', 'like', "%{$search}%")
+                                          ->orWhere('first_name_kana', 'like', "%{$search}%")
+                                          ->orWhereRaw("CONCAT(last_name, ' ', first_name) LIKE ?", ["%{$search}%"]);
+
+                                        // 電話番号での検索（ハイフンありなし両方対応）
+                                        $searchPlain = preg_replace('/[^0-9]/', '', $search);
+                                        if ($searchPlain) {
+                                            $q->orWhere('phone', 'like', "%{$search}%")
+                                              ->orWhere('phone', 'like', "%{$searchPlain}%")
+                                              ->orWhereRaw("REPLACE(phone, '-', '') LIKE ?", ["%{$searchPlain}%"]);
+                                        }
+
+                                        // メールアドレスでの検索
+                                        $q->orWhere('email', 'like', "%{$search}%");
+                                    })
                                     ->limit(50)
-                                    ->get()
-                                    ->mapWithKeys(function ($customer) {
+                                    ->get();
+
+                                return $customers->mapWithKeys(function ($customer) {
                                         $label = $customer->last_name . ' ' . $customer->first_name;
                                         if ($customer->last_name_kana || $customer->first_name_kana) {
                                             $label .= ' (' . $customer->last_name_kana . ' ' . $customer->first_name_kana . ')';

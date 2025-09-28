@@ -12,6 +12,9 @@ use Carbon\Carbon;
 class TodayReservationsWidget extends BaseWidget
 {
     protected static ?int $sort = 20;
+
+    // リアルタイム更新のためのポーリング間隔（30秒）
+    protected static ?string $pollingInterval = '30s';
     
     protected int | string | array $columnSpan = 'full';
     

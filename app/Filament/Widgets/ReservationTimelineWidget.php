@@ -12,10 +12,13 @@ use Livewire\Attributes\On;
 class ReservationTimelineWidget extends Widget
 {
     protected static string $view = 'filament.widgets.reservation-timeline';
-    
+
     protected int|string|array $columnSpan = 'full';
-    
+
     protected static ?int $sort = 10;
+
+    // リアルタイム更新のためのポーリング間隔（30秒）
+    protected static ?string $pollingInterval = '30s';
     
     public $selectedStore = null;
     public $selectedDate = null;

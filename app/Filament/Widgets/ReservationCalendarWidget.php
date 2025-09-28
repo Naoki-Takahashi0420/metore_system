@@ -25,6 +25,9 @@ class ReservationCalendarWidget extends FullCalendarWidget
 
     protected static ?string $heading = '予約カレンダー';
 
+    // リアルタイム更新のためのポーリング間隔（30秒）
+    protected static ?string $pollingInterval = '30s';
+
     protected function getHeading(): ?string
     {
         $legend = '
