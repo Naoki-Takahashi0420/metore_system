@@ -50,88 +50,36 @@ class CustomerSubscriptionResource extends Resource
                                 if (!$storeId) {
                                     return [];
                                 }
-                                // 指定店舗で予約履歴がある顧客を取得
-                                return \App\Models\Customer::whereHas('reservations', function ($query) use ($storeId) {
-                                        $query->where('store_id', $storeId);
-                                    })
-                                    ->orderBy('last_name')
-                                    ->orderBy('first_name')
-                                    ->get()
-                                    ->mapWithKeys(function ($customer) {
+
+                                try {
+                                    // 指定店舗で予約履歴がある顧客を取得
+                                    $customers = \App\Models\Customer::whereHas('reservations', function ($query) use ($storeId) {
+                                            $query->where('store_id', $storeId);
+                                        })
+                                        ->orderBy('last_name')
+                                        ->orderBy('first_name')
+                                        ->get();
+
+                                    $options = [];
+                                    foreach ($customers as $customer) {
                                         $label = $customer->last_name . ' ' . $customer->first_name;
-                                        if ($customer->last_name_kana || $customer->first_name_kana) {
-                                            $label .= ' (' . $customer->last_name_kana . ' ' . $customer->first_name_kana . ')';
-                                        }
                                         if ($customer->phone) {
                                             $label .= ' - ' . $customer->phone;
                                         }
-                                        return [$customer->id => $label];
-                                    })
-                                    ->toArray();
-                            })
-                            ->searchable()
-                            ->getSearchResultsUsing(function (string $search, callable $get) {
-                                $storeId = $get('store_id');
-                                if (!$storeId) {
+                                        $options[$customer->id] = $label;
+                                    }
+                                    return $options;
+                                } catch (\Exception $e) {
+                                    \Log::error('Customer selection error: ' . $e->getMessage());
                                     return [];
                                 }
-
-                                // 店舗での予約履歴がある顧客を検索
-                                $customers = \App\Models\Customer::whereHas('reservations', function ($query) use ($storeId) {
-                                        $query->where('store_id', $storeId);
-                                    })
-                                    ->where(function ($q) use ($search) {
-                                        // 名前での検索
-                                        $q->where('last_name', 'like', "%{$search}%")
-                                          ->orWhere('first_name', 'like', "%{$search}%")
-                                          ->orWhere('last_name_kana', 'like', "%{$search}%")
-                                          ->orWhere('first_name_kana', 'like', "%{$search}%")
-                                          ->orWhereRaw("CONCAT(last_name, ' ', first_name) LIKE ?", ["%{$search}%"]);
-
-                                        // 電話番号での検索（ハイフンありなし両方対応）
-                                        $searchPlain = preg_replace('/[^0-9]/', '', $search);
-                                        if ($searchPlain) {
-                                            $q->orWhere('phone', 'like', "%{$search}%")
-                                              ->orWhere('phone', 'like', "%{$searchPlain}%")
-                                              ->orWhereRaw("REPLACE(phone, '-', '') LIKE ?", ["%{$searchPlain}%"]);
-                                        }
-
-                                        // メールアドレスでの検索
-                                        $q->orWhere('email', 'like', "%{$search}%");
-                                    })
-                                    ->limit(50)
-                                    ->get();
-
-                                return $customers->mapWithKeys(function ($customer) {
-                                        $label = $customer->last_name . ' ' . $customer->first_name;
-                                        if ($customer->last_name_kana || $customer->first_name_kana) {
-                                            $label .= ' (' . $customer->last_name_kana . ' ' . $customer->first_name_kana . ')';
-                                        }
-                                        if ($customer->phone) {
-                                            $label .= ' - ' . $customer->phone;
-                                        }
-                                        return [$customer->id => $label];
-                                    })
-                                    ->toArray();
                             })
-                            ->getOptionLabelUsing(function ($value) {
-                                $customer = \App\Models\Customer::find($value);
-                                if (!$customer) return '';
-
-                                $label = $customer->last_name . ' ' . $customer->first_name;
-                                if ($customer->last_name_kana || $customer->first_name_kana) {
-                                    $label .= ' (' . $customer->last_name_kana . ' ' . $customer->first_name_kana . ')';
-                                }
-                                if ($customer->phone) {
-                                    $label .= ' - ' . $customer->phone;
-                                }
-                                return $label;
-                            })
+                            ->searchable()
                             ->default(fn () => request()->has('customer_id') ? request('customer_id') : null)
                             ->disabled(fn ($operation) => $operation === 'edit')
                             ->required()
                             ->reactive()
-                            ->helperText(fn ($operation) => $operation === 'edit' ? '顧客の変更はできません' : '店舗を選択後、その店舗で予約履歴がある顧客を検索できます'),
+                            ->helperText(fn ($operation) => $operation === 'edit' ? '顧客の変更はできません' : '店舗を選択後、その店舗で予約履歴がある顧客を選択できます'),
 
                         
                         Forms\Components\Select::make('menu_id')
