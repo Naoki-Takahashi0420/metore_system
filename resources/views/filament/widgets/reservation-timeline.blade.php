@@ -559,13 +559,13 @@
                         $leftPosition = $firstCellWidth + ($cellIndex * $cellWidth) + ($percentageIntoCell * $cellWidth);
                     }
                 @endphp
-                @if($shouldShowIndicator)
+                @if($shouldShowIndicator && $currentHour >= 10 && $currentHour < 22)
                     <div id="current-time-indicator" class="current-time-indicator" style="left: {{ $leftPosition }}px;">
                         <span class="current-time-text">{{ $now->format('H:i') }}</span>
                     </div>
                 @else
                     <!-- 営業時間外：PHPで非表示確認用コメント -->
-                    <!-- 現在: {{ $now->format('H:i') }} - 営業時間外のため非表示 -->
+                    <!-- 現在: {{ $now->format('H:i') }} - 営業時間外のため非表示 (shouldShow: {{ $shouldShowIndicator ? 'true' : 'false' }}, hour: {{ $currentHour }}) -->
                 @endif
             @endif
 
