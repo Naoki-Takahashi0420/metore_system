@@ -354,6 +354,10 @@
             
             <form action="{{ route('reservation.store') }}" method="POST">
                 @csrf
+                {{-- コンテキストをフォームに含める --}}
+                @if(request()->has('ctx'))
+                    <input type="hidden" name="ctx" value="{{ request('ctx') }}">
+                @endif
                 <input type="hidden" name="store_id" value="{{ $selectedStore->id }}">
                 <input type="hidden" name="menu_id" value="{{ $selectedMenu->id }}">
                 <input type="hidden" id="selectedDate" name="date">
