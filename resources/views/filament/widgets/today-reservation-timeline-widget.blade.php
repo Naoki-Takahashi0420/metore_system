@@ -89,7 +89,7 @@
                                 @endphp
                                 <th class="border border-gray-600 px-1 py-2 text-center text-xs font-bold text-gray-900" style="width: 50px;">
                                     {{ $slot }}
-                                    @if($isToday && $isWithinAnyStoreHours && $slot <= $currentTime && $currentTime < ($timeSlots[$loop->index + 1] ?? '23:59'))
+                                    @if($isToday && $isWithinAnyStoreHours && $slot <= $currentTime && $currentTime < ($timeSlots[$loop->index + 1] ?? '23:59') && now('Asia/Tokyo')->hour >= 10 && now('Asia/Tokyo')->hour < 22)
                                         <div class="w-full h-1 bg-red-600 mt-1"></div>
                                     @endif
                                 </th>
