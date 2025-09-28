@@ -334,8 +334,9 @@ class PublicReservationController extends Controller
         $menusQuery = Menu::where('store_id', $storeId)
             ->where('category_id', $categoryId)
             ->where('is_available', true)
-            ->where('is_visible_to_customer', true);
-            
+            ->where('is_visible_to_customer', true)
+            ->where('is_subscription', false);  // サブスクプラン自体は予約画面に表示しない
+
         // サブスク限定メニューのフィルタリング
         if (!$hasSubscription) {
             $menusQuery->where('is_subscription_only', false);
