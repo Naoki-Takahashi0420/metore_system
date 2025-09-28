@@ -512,7 +512,8 @@
                 </div>
             </div>
         </div>
-        
+
+
         <!-- タイムライン -->
         <div class="overflow-x-auto" style="position: relative;">
             <!-- 現在時刻インジケーター -->

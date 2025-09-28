@@ -552,4 +552,48 @@ class TodayReservationTimelineWidget extends Widget
             return ($time >= $startTime && $time < $endTime);
         });
     }
+
+    /**
+     * 現在時刻が営業時間内かチェック
+     */
+    public function isCurrentlyWithinBusinessHours(): bool
+    {
+        $now = Carbon::now('Asia/Tokyo');
+        $currentTime = $now->format('H:i');
+        $dayOfWeek = strtolower($now->format('l'));
+
+        foreach ($this->stores as $store) {
+            $businessHours = $this->getStoreBusinessHours($store);
+
+            if ($businessHours['is_open'] &&
+                $currentTime >= $businessHours['open'] &&
+                $currentTime < $businessHours['close']) {
+                return true;
+            }
+        }
+
+        // デフォルト営業時間（10:00-22:00）でチェック
+        return $currentTime >= '10:00' && $currentTime < '22:00';
+    }
+
+    /**
+     * タイムライン表示可否の判定
+     */
+    public function shouldShowTimeline(): bool
+    {
+        $selectedDate = Carbon::parse($this->selectedDate);
+
+        // 過去日は常に表示（履歴として）
+        if ($selectedDate->isPast() && !$selectedDate->isToday()) {
+            return true;
+        }
+
+        // 今日の場合は営業時間で判定
+        if ($selectedDate->isToday()) {
+            return $this->isCurrentlyWithinBusinessHours();
+        }
+
+        // 未来日は常に表示
+        return true;
+    }
 }

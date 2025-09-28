@@ -1790,4 +1790,66 @@ class ReservationTimelineWidget extends Widget
         return $slotInfo;
     }
 
+    /**
+     * 現在時刻が営業時間内かチェック
+     */
+    public function isCurrentlyWithinBusinessHours(): bool
+    {
+        if (!$this->selectedStore) {
+            return true; // 店舗未選択時はデフォルト表示
+        }
+
+        $store = Store::find($this->selectedStore);
+        if (!$store) {
+            return true;
+        }
+
+        $now = Carbon::now('Asia/Tokyo');
+        $currentTime = $now->format('H:i');
+        $dayOfWeek = strtolower($now->format('l'));
+
+        $businessHours = $store->business_hours ?? [];
+
+        if (!is_array($businessHours)) {
+            return true; // デフォルト表示
+        }
+
+        foreach ($businessHours as $hours) {
+            if (isset($hours['day']) && $hours['day'] === $dayOfWeek) {
+                if (isset($hours['is_closed']) && $hours['is_closed']) {
+                    return false; // 定休日
+                }
+
+                $openTime = $hours['open_time'] ?? '10:00';
+                $closeTime = $hours['close_time'] ?? '22:00';
+
+                return $currentTime >= $openTime && $currentTime < $closeTime;
+            }
+        }
+
+        // デフォルト営業時間（10:00-22:00）でチェック
+        return $currentTime >= '10:00' && $currentTime < '22:00';
+    }
+
+    /**
+     * タイムライン表示可否の判定
+     */
+    public function shouldShowTimeline(): bool
+    {
+        $selectedDate = Carbon::parse($this->selectedDate);
+
+        // 過去日は常に表示（履歴として）
+        if ($selectedDate->isPast() && !$selectedDate->isToday()) {
+            return true;
+        }
+
+        // 今日の場合は営業時間で判定
+        if ($selectedDate->isToday()) {
+            return $this->isCurrentlyWithinBusinessHours();
+        }
+
+        // 未来日は常に表示
+        return true;
+    }
+
 }
