@@ -110,21 +110,31 @@ class PublicReservationController extends Controller
     {
         $validated = $request->validate([
             'store_id' => 'required|exists:stores,id',
-            'ctx' => 'required|string'
+            'ctx' => 'nullable|string'
         ]);
 
-        // コンテキストを復号化
-        $context = $contextService->decryptContext($validated['ctx']);
-        if (!$context) {
-            return redirect()->route('stores')->withErrors(['error' => '不正なリクエストです']);
+        // コンテキストがある場合は既存のフローを継続
+        if (isset($validated['ctx']) && !empty($validated['ctx'])) {
+            $context = $contextService->decryptContext($validated['ctx']);
+            if (!$context) {
+                return redirect()->route('stores')->withErrors(['error' => '不正なリクエストです']);
+            }
+            // 店舗IDをコンテキストに追加
+            $context['store_id'] = $validated['store_id'];
+            // 新しいコンテキストを暗号化してリダイレクト
+            $encryptedContext = $contextService->encryptContext($context);
+            return redirect()->route('reservation.select-category', ['ctx' => $encryptedContext]);
         }
 
-        // 店舗IDをコンテキストに追加
-        $context['store_id'] = $validated['store_id'];
+        // 新規顧客の場合：新しいコンテキストを作成
+        $context = [
+            'type' => 'new_reservation',
+            'store_id' => $validated['store_id'],
+            'is_existing_customer' => false,
+            'source' => 'public'
+        ];
 
-        // 新しいコンテキストを暗号化してリダイレクト
         $encryptedContext = $contextService->encryptContext($context);
-
         return redirect()->route('reservation.select-category', ['ctx' => $encryptedContext]);
     }
     
