@@ -308,21 +308,24 @@
             window.location.href = `{{ route('admin.reservations.reschedule', $reservation) }}?week=${newWeek}`;
         }
 
-        // メニュー選択時の処理
-        document.getElementById('menu-select').addEventListener('change', function() {
-            const selected = this.options[this.selectedIndex];
-            const duration = selected.dataset.duration;
-            const price = selected.dataset.price;
+        // メニュー選択時の処理（reschedule画面では不要だが、エラー回避のため条件付きで実行）
+        const menuSelect = document.getElementById('menu-select');
+        if (menuSelect) {
+            menuSelect.addEventListener('change', function() {
+                const selected = this.options[this.selectedIndex];
+                const duration = selected.dataset.duration;
+                const price = selected.dataset.price;
 
-            console.log('選択されたメニュー:', {
-                id: this.value,
-                duration: duration,
-                price: price
+                console.log('選択されたメニュー:', {
+                    id: this.value,
+                    duration: duration,
+                    price: price
+                });
+
+                // カレンダーを再読み込みする場合はここで実装
+                // 現在は簡易版のため省略
             });
-
-            // カレンダーを再読み込みする場合はここで実装
-            // 現在は簡易版のため省略
-        });
+        }
 
         // フォーム送信時のデバッグ
         document.getElementById('reschedule-form').addEventListener('submit', function(e) {
@@ -332,11 +335,15 @@
                 console.log(key + ': ' + value);
             }
 
-            const menuId = document.getElementById('menu-select').value;
-            if (!menuId) {
-                e.preventDefault();
-                alert('メニューを選択してください');
-                return false;
+            // メニュー選択チェック（reschedule画面では不要）
+            const menuSelect = document.getElementById('menu-select');
+            if (menuSelect) {
+                const menuId = menuSelect.value;
+                if (!menuId) {
+                    e.preventDefault();
+                    alert('メニューを選択してください');
+                    return false;
+                }
             }
 
             const selectedDate = document.getElementById('selected-date').value;
