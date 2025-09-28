@@ -2091,9 +2091,16 @@ class PublicReservationController extends Controller
                     'target_date' => $targetDateTime->format('Y-m-d'),
                     'days_diff' => $daysDiff
                 ]);
-                
+
+                // 次回予約可能日を計算（前回の予約から6日後）
+                $nextAvailableDate = $reservationDate->copy()->addDays(6);
+
                 throw \Illuminate\Validation\ValidationException::withMessages([
-                    'date' => '前回の予約から5日以内のため、この日は予約できません。最後の予約日: ' . $reservationDate->format('Y年m月d日')
+                    'date' => sprintf(
+                        '前回の予約（%s）から5日以内のため予約できません。次回予約可能日: %s以降',
+                        $reservationDate->format('Y年m月d日'),
+                        $nextAvailableDate->format('Y年m月d日')
+                    )
                 ]);
             }
         }

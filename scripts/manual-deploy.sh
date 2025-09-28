@@ -17,7 +17,7 @@ echo "$EC2_KEY" > key.pem
 chmod 600 key.pem
 
 # Connect to EC2 and run fix
-ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i key.pem ubuntu@13.115.38.179 << 'EOF'
+ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i key.pem ubuntu@54.64.54.226 << 'EOF'
 cd /var/www/html/current
 
 echo "=== Drop all tables first ==="
