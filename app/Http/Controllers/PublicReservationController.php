@@ -16,6 +16,7 @@ use App\Events\ReservationCreated;
 use App\Events\ReservationCancelled;
 use App\Events\ReservationChanged;
 use App\Jobs\SendReservationConfirmationWithFallback;
+use App\Services\ReservationContextService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,81 +24,115 @@ use Illuminate\Support\Facades\Session;
 
 class PublicReservationController extends Controller
 {
-    public function selectStore(Request $request)
+    public function selectStore(Request $request, ReservationContextService $contextService)
     {
-        // トークンがある場合の処理
+        // パラメータベース: 暗号化されたコンテキストを取得
+        $context = $contextService->extractContextFromRequest($request);
+
+        // レガシートークン処理（後方互換性のため残しておく）
         if ($token = $request->get('token')) {
             $accessToken = CustomerAccessToken::where('token', $token)
                 ->with(['customer', 'store'])
                 ->first();
-                
+
             if ($accessToken && $accessToken->isValid()) {
+                // トークンを使用してコンテキストを生成
+                $context = [
+                    'type' => 'medical_record',
+                    'customer_id' => $accessToken->customer_id,
+                    'store_id' => $accessToken->store_id,
+                    'is_existing_customer' => true,
+                    'source' => 'medical_record_legacy'
+                ];
+
                 // トークン使用を記録
                 $accessToken->recordUsage();
-                
-                // 顧客情報をセッションに保存
-                Session::put('customer_id', $accessToken->customer_id);
-                Session::put('is_existing_customer', true);
-                Session::put('access_token_id', $accessToken->id);
-                
+
                 // 店舗が指定されている場合は直接カテゴリー選択へ
                 if ($accessToken->store_id) {
-                    Session::put('selected_store_id', $accessToken->store_id);
-                    return redirect()->route('reservation.select-category');
+                    $encryptedContext = $contextService->encryptContext($context);
+                    return redirect()->route('reservation.select-category', ['ctx' => $encryptedContext]);
                 }
             }
         }
-        
+
+        // 新規予約の場合、デフォルトコンテキストを作成
+        if (!$context) {
+            $context = [
+                'type' => 'new_reservation',
+                'is_existing_customer' => false,
+                'source' => 'public'
+            ];
+        }
+
         $stores = Store::where('is_active', true)->get();
-        return view('reservation.store-select', compact('stores'));
-    }
-    
-    public function storeStoreSelection(Request $request)
-    {
-        $validated = $request->validate([
-            'store_id' => 'required|exists:stores,id'
+        $encryptedContext = $contextService->encryptContext($context);
+
+        // レガシーサポート: 古いパラメータ形式も一時的にサポート
+        $source = null;
+        $customerId = null;
+
+        if (isset($context['source'])) {
+            $source = $context['source'] === 'medical_record' ? 'medical' : $context['source'];
+        }
+
+        if (isset($context['customer_id'])) {
+            $customerId = $context['customer_id'];
+        }
+
+        \Log::info('[/stores] パラメータベースアクセス', [
+            'context_type' => $context['type'] ?? null,
+            'source' => $source,
+            'customer_id' => $customerId,
+            'encrypted_context' => $encryptedContext
         ]);
 
-        Session::put('selected_store_id', $validated['store_id']);
+        return view('stores.index', compact('stores', 'encryptedContext', 'source', 'customerId'));
+    }
+    
+    public function storeStoreSelection(Request $request, ReservationContextService $contextService)
+    {
+        $validated = $request->validate([
+            'store_id' => 'required|exists:stores,id',
+            'ctx' => 'required|string'
+        ]);
 
-        // パラメータを引き継いでカテゴリー選択へ
-        $params = ['store_id' => $validated['store_id']];
-        if ($request->has('source')) {
-            $params['source'] = $request->get('source');
-        }
-        if ($request->has('customer_id')) {
-            $params['customer_id'] = $request->get('customer_id');
+        // コンテキストを復号化
+        $context = $contextService->decryptContext($validated['ctx']);
+        if (!$context) {
+            return redirect()->route('stores')->withErrors(['error' => '不正なリクエストです']);
         }
 
-        return redirect()->route('reservation.select-category', $params);
+        // 店舗IDをコンテキストに追加
+        $context['store_id'] = $validated['store_id'];
+
+        // 新しいコンテキストを暗号化してリダイレクト
+        $encryptedContext = $contextService->encryptContext($context);
+
+        return redirect()->route('reservation.select-category', ['ctx' => $encryptedContext]);
     }
     
     /**
      * メニューカテゴリー選択
      */
-    public function selectCategory(Request $request)
+    public function selectCategory(Request $request, ReservationContextService $contextService)
     {
-        // パラメータベースで処理
-        $storeId = $request->get('store_id');
-        $source = $request->get('source'); // 'medical', 'mypage', null
-        $customerId = $request->get('customer_id');
+        // パラメータベース: 暗号化されたコンテキストを取得
+        $context = $contextService->extractContextFromRequest($request);
 
-        // 店舗IDをセッションに保存（これは必要）
-        if ($storeId) {
-            Session::put('selected_store_id', $storeId);
-        } else {
-            $storeId = Session::get('selected_store_id');
+        if (!$context) {
+            // コンテキストがない場合は店舗選択へ
+            return redirect()->route('stores')->withErrors(['error' => '予約情報が見つかりません']);
         }
 
-        // 店舗が選択されていない場合は店舗選択へ
-        if (!$storeId) {
-            $params = [];
-            if ($source) $params['source'] = $source;
-            if ($customerId) $params['customer_id'] = $customerId;
-            return redirect()->route('stores', $params);
+        // 店舗IDが設定されているかチェック
+        if (!isset($context['store_id'])) {
+            // 店舗が選択されていない場合は店舗選択へ
+            $encryptedContext = $contextService->encryptContext($context);
+            return redirect()->route('stores', ['ctx' => $encryptedContext]);
         }
 
-        $store = Store::find($storeId);
+        $store = Store::find($context['store_id']);
 
         // sourceに基づいて既存顧客かどうか判定
         $isExistingCustomer = ($source === 'medical' || $source === 'mypage');

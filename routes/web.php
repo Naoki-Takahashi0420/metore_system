@@ -33,36 +33,8 @@ Route::get('/health', function () {
     ]);
 });
 
-// Store routes
-Route::get('/stores', function () {
-    // シンプル：sourceパラメータだけチェック
-    $source = request()->get('source'); // 'medical', 'mypage', または null
-    $customerId = request()->get('customer_id');
-
-    // セッションはstore_idだけ使う（これは必要）
-    // それ以外のセッションは全部クリア
-    session()->forget([
-        'from_medical_record',
-        'medical_record_customer_id',
-        'from_mypage',
-        'mypage_customer_id',
-        'selectedCustomer',
-        'phoneSearch',
-        'newCustomer',
-        'newReservation'
-    ]);
-
-    \Log::info('[/stores] アクセス', [
-        'source' => $source,
-        'customer_id' => $customerId
-    ]);
-
-    // sourceとcustomer_idはビューに渡す（URLパラメータで引き継ぐため）
-    return view('stores.index', [
-        'source' => $source,
-        'customer_id' => $customerId
-    ]);
-})->name('stores');
+// Store routes - パラメータベース対応
+Route::get('/stores', [App\Http\Controllers\PublicReservationController::class, 'selectStore'])->name('stores');
 
 // 古い予約フローのルートを削除済み（2025-08-27）
 // 現在は○×形式のカレンダー（/reservation/calendar）を使用
