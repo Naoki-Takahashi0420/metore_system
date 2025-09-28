@@ -83,12 +83,15 @@ class SendReservationConfirmationWithFallback implements ShouldQueue
                 $confirmationService->markConfirmationSent($this->reservation, 'line');
                 return;
             }
-            
-            // LINE送信失敗時はSMSフォールバック
-            Log::info('reservation_confirmation_line_failed_fallback_to_sms', [
+
+            // LINE連携している顧客にはSMSフォールバックは行わない
+            Log::warning('reservation_confirmation_line_failed_no_fallback', [
                 'reservation_id' => $this->reservation->id,
-                'customer_id' => $customer->id
+                'customer_id' => $customer->id,
+                'line_user_id' => $customer->line_user_id,
+                'reason' => 'line_connected_user_no_sms_fallback'
             ]);
+            return;
         }
         
         // 4. SMS送信（静穏時間チェック付き）
