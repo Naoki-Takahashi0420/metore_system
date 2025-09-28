@@ -809,32 +809,46 @@ function canCancel(reservation) {
 
 // マイページから既存顧客として予約
 async function goToReservation() {
-    // 顧客データを取得
-    const customerData = localStorage.getItem('customer_data');
-    if (customerData) {
-        const customer = JSON.parse(customerData);
-        // セッションストレージに既存顧客情報を保存
-        sessionStorage.setItem('existing_customer_id', customer.id);
-        sessionStorage.setItem('from_mypage', 'true');
+    const token = localStorage.getItem('customer_token');
 
-        try {
-            // 最後に訪問した店舗を取得
-            const response = await fetch(`/reservation/last-visited-store?customer_id=${customer.id}`);
-            const data = await response.json();
+    if (!token) {
+        // トークンがない場合はログインページにリダイレクト
+        window.location.href = '/customer/login';
+        return;
+    }
 
-            if (data.store_id) {
-                // 店舗IDをセッションストレージに保存
-                sessionStorage.setItem('selected_store_id', data.store_id);
-                // 直接カテゴリ選択ページへ遷移
-                window.location.href = `/reservation/category?store_id=${data.store_id}&source=mypage&customer_id=${customer.id}`;
+    try {
+        // カルテからの予約用コンテキストを生成（直近の店舗が自動選択される）
+        const response = await fetch('/api/customer/reservation-context/medical-record', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            if (response.status === 401) {
+                // トークンが無効
+                localStorage.removeItem('customer_token');
+                localStorage.removeItem('customer_data');
+                window.location.href = '/customer/login';
                 return;
             }
-        } catch (error) {
-            console.error('Failed to fetch last visited store:', error);
+            throw new Error('Failed to create reservation context');
         }
+
+        const data = await response.json();
+        const encryptedContext = data.data.encrypted_context;
+
+        // 新しいパラメータベースシステムを使用
+        window.location.href = `/stores?ctx=${encodeURIComponent(encryptedContext)}`;
+
+    } catch (error) {
+        console.error('Error creating reservation context:', error);
+        // エラー時はコンテキストなしで予約ページへ
+        window.location.href = '/stores';
     }
-    // 最後に訪問した店舗がない場合は店舗選択ページへ
-    window.location.href = '/stores';
 }
 
 // 予約重複チェック関数

@@ -511,10 +511,10 @@ class ReservationController extends Controller
         $duration = $reservation->menu->duration_minutes ?? 60;
         $newEndTime = $newStartTime->copy()->addMinutes($duration);
 
+        // 変更前の情報を保存（イベント用）
+        $oldReservation = $reservation->replicate();
+
         // 変更を保存
-        $oldDate = $reservation->reservation_date;
-        $oldTime = $reservation->start_time;
-        
         $reservation->update([
             'reservation_date' => $validated['new_date'],
             'start_time' => $validated['new_time'],
@@ -523,14 +523,9 @@ class ReservationController extends Controller
 
         // 顧客の変更回数を更新
         $customer->increment('change_count');
-        
-        // 変更通知を送信
-        event(new ReservationChanged($reservation, [
-            'old_date' => $oldDate,
-            'old_time' => $oldTime,
-            'new_date' => $validated['new_date'],
-            'new_time' => $validated['new_time']
-        ]));
+
+        // 変更通知を送信（正しい形式で）
+        event(new ReservationChanged($oldReservation, $reservation));
 
         return response()->json([
             'success' => true,
