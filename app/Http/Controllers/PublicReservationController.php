@@ -1376,6 +1376,14 @@ class PublicReservationController extends Controller
         $isExistingCustomer = false;
         $existingCustomer = null;
 
+        // 新規顧客の場合は5日間制限に関連するセッションを完全クリア
+        if (!$context || !isset($context['customer_id']) || !isset($context['is_existing_customer']) || $context['is_existing_customer'] !== true) {
+            Session::forget('is_subscription_booking');
+            Session::forget('customer_id');
+            Session::forget('existing_customer_id');
+            \Log::info('新規顧客のためサブスク関連セッションを完全クリア');
+        }
+
         if ($context && isset($context['customer_id'])) {
             $existingCustomer = Customer::find($context['customer_id']);
             $isExistingCustomer = true;
@@ -1413,23 +1421,28 @@ class PublicReservationController extends Controller
 
         $validated = $request->validate($rules);
         
-        // サブスク予約の場合のみ、5日間隔制限をチェック
-        if (Session::has('is_subscription_booking') && Session::get('is_subscription_booking') === true) {
+        // 既存顧客のサブスク予約の場合のみ、5日間隔制限をチェック
+        // 新規顧客の場合は完全にスキップ
+        $isExistingCustomer = isset($customer) && $customer;
+        if ($isExistingCustomer && Session::has('is_subscription_booking') && Session::get('is_subscription_booking') === true) {
             $customerId = Session::get('customer_id');
-            \Log::info('サブスク予約での5日間隔チェック開始', [
+            \Log::info('既存顧客のサブスク予約での5日間隔チェック開始', [
                 'customer_id' => $customerId,
                 'target_date' => $validated['date'],
-                'is_subscription_booking' => Session::get('is_subscription_booking')
+                'is_subscription_booking' => Session::get('is_subscription_booking'),
+                'is_existing_customer' => true
             ]);
-            
+
             if ($customerId) {
                 $this->validateFiveDayInterval($customerId, $validated['date']);
             } else {
                 \Log::warning('サブスク予約なのにcustomer_idがセッションに設定されていません');
             }
         } else {
-            \Log::info('通常予約のため5日間隔制限をスキップ', [
-                'is_subscription_booking' => Session::get('is_subscription_booking')
+            \Log::info('5日間隔制限をスキップ', [
+                'is_subscription_booking' => Session::get('is_subscription_booking'),
+                'is_existing_customer' => $isExistingCustomer,
+                'reason' => $isExistingCustomer ? '通常予約' : '新規顧客'
             ]);
         }
         
