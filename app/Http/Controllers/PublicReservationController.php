@@ -56,6 +56,22 @@ class PublicReservationController extends Controller
             }
         }
 
+        // デバッグ: コンテキストの内容を確認
+        \Log::info('[/stores] 受信したコンテキスト', [
+            'context' => $context,
+            'has_store_id' => isset($context['store_id']),
+            'store_id' => $context['store_id'] ?? null
+        ]);
+
+        // コンテキストにstore_idが含まれている場合は直接カテゴリ選択へリダイレクト
+        if ($context && isset($context['store_id'])) {
+            \Log::info('[/stores] 店舗選択をスキップしてカテゴリ選択へリダイレクト', [
+                'store_id' => $context['store_id']
+            ]);
+            $encryptedContext = $contextService->encryptContext($context);
+            return redirect()->route('reservation.select-category', ['ctx' => $encryptedContext]);
+        }
+
         // 新規予約の場合、デフォルトコンテキストを作成
         if (!$context) {
             $context = [

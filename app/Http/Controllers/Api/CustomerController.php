@@ -93,8 +93,9 @@ class CustomerController extends Controller
         }
 
         $storeId = $request->input('store_id');
+        $lastReservation = null;
 
-        // 店舗IDが指定されていない場合は、最後に訪問した店舗を取得
+        // 店舗IDが指定されていない場合は、最後に予約した店舗を取得
         if (!$storeId) {
             // 最新の予約から店舗IDを取得
             $lastReservation = $customer->reservations()
@@ -113,6 +114,18 @@ class CustomerController extends Controller
                 }
             }
         }
+
+        // ログ出力: 取得した店舗ID
+        \Log::info('[createMedicalRecordContext] 店舗ID取得結果', [
+            'customer_id' => $customer->id,
+            'store_id' => $storeId,
+            'last_reservation' => $lastReservation ? [
+                'id' => $lastReservation->id,
+                'store_id' => $lastReservation->store_id,
+                'reservation_date' => $lastReservation->reservation_date,
+                'status' => $lastReservation->status
+            ] : null
+        ]);
 
         // 店舗IDが取得できた場合は、店舗選択済みのコンテキストを生成
         if ($storeId) {
