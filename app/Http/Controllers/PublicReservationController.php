@@ -150,13 +150,29 @@ class PublicReservationController extends Controller
 
         $store = Store::find($context['store_id']);
 
+        if (!$store || !$store->is_active) {
+            return redirect()->route('stores')->withErrors(['error' => '指定された店舗が見つかりません']);
+        }
+
+        // コンテキストから必要な情報を取得
+        $source = $context['source'] ?? null;
+        $customerId = $context['customer_id'] ?? null;
+        $storeId = $context['store_id'];
+
         // sourceに基づいて既存顧客かどうか判定
-        $isExistingCustomer = ($source === 'medical' || $source === 'mypage');
+        $isExistingCustomer = isset($context['is_existing_customer']) ? $context['is_existing_customer'] : false;
+
+        // medical_recordソースの場合は既存顧客として扱う
+        if ($context['type'] === 'medical_record' || $source === 'medical_record') {
+            $isExistingCustomer = true;
+        }
 
         \Log::info('[selectCategory] 顧客タイプ判定', [
+            'context_type' => $context['type'] ?? null,
             'source' => $source,
             'customer_id' => $customerId,
-            'is_existing_customer' => $isExistingCustomer
+            'is_existing_customer' => $isExistingCustomer,
+            'store_id' => $storeId
         ]);
 
         // アクティブなカテゴリーを取得
@@ -176,11 +192,15 @@ class PublicReservationController extends Controller
             ->orderBy('name')
             ->get();
 
+        // ビューに必要なデータを渡す
+        $encryptedContext = $contextService->encryptContext($context);
+
         return view('reservation.category-select', [
             'categories' => $categories,
             'store' => $store,
             'source' => $source,
-            'customer_id' => $customerId
+            'customer_id' => $customerId,
+            'encryptedContext' => $encryptedContext
         ]);
     }
     
