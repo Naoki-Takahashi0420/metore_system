@@ -1337,8 +1337,8 @@
 
     {{-- 新規予約モーダル --}}
     @if($showNewReservationModal)
-        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" wire:click="closeNewReservationModal">
-            <div class="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" @click.stop="">
+        <div class="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto py-6 px-4" wire:click="closeNewReservationModal">
+            <div class="bg-white rounded-lg p-6 max-w-2xl mx-auto relative" @click.stop="" style="min-height: min-content;">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-bold">
                         @if($modalMode === 'block')
