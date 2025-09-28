@@ -1504,10 +1504,18 @@ class PublicReservationController extends Controller
 
             // 直接予約作成処理へ進む（customerは設定済み）
             // 既存顧客処理をスキップして予約作成へ
+            \Log::info('マイページからの予約: 既存顧客チェックをスキップして予約作成へ', [
+                'customer_id' => $customer->id,
+                'customer_name' => $customer->full_name
+            ]);
         }
 
-        // 新規顧客の場合の処理（既存顧客の場合はこの部分をスキップ）
+        // 新規顧客の場合の処理（マイページからの予約の場合はこの部分をスキップ）
         if (!$isExistingCustomer) {
+            \Log::info('新規顧客ルート: 電話番号による既存顧客チェック開始', [
+                'is_existing_customer' => $isExistingCustomer,
+                'phone' => $validated['phone']
+            ]);
             // 新規顧客の場合、電話番号で既存顧客をチェック
             $existingCustomerByPhone = Customer::where('phone', $validated['phone'])->first();
             if ($existingCustomerByPhone) {
