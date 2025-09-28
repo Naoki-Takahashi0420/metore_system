@@ -396,52 +396,65 @@ class PublicReservationController extends Controller
         return view('reservation.menu-select', compact('menus', 'store'));
     }
     
-    public function storeMenu(Request $request)
+    public function storeMenu(Request $request, ReservationContextService $contextService)
     {
         $validated = $request->validate([
             'menu_id' => 'required|exists:menus,id',
-            'option_ids' => 'nullable|string'
+            'option_ids' => 'nullable|string',
+            'ctx' => 'required|string'
         ]);
 
-        // パラメータを取得
-        $source = $request->get('source');
-        $customerId = $request->get('customer_id');
-
-        // メニュー情報をセッションに保存
-        $menu = Menu::find($validated['menu_id']);
-        Session::put('reservation_menu', $menu);
-
-        // オプション情報をセッションに保存
-        $selectedOptions = [];
-        if (!empty($validated['option_ids'])) {
-            // カンマ区切り文字列を配列に変換
-            $optionIds = array_filter(explode(',', $validated['option_ids']));
-            if (!empty($optionIds)) {
-                $selectedOptions = Menu::whereIn('id', $optionIds)
-                    ->where('is_available', true)
-                    ->where('show_in_upsell', true)
-                    ->get();
-            }
+        // コンテキストを復号化
+        $context = $contextService->decryptContext($validated['ctx']);
+        if (!$context) {
+            return redirect()->route('stores')->withErrors(['error' => '予約情報が見つかりません']);
         }
-        Session::put('reservation_options', $selectedOptions);
 
-        // スタッフ指定が必要かチェック
-        $storeId = Session::get('selected_store_id');
+        // メニュー情報をコンテキストに追加
+        $menu = Menu::find($validated['menu_id']);
+        $context['menu_id'] = $menu->id;
+
+        // オプション情報をコンテキストに追加
+        $optionIds = [];
+        if (!empty($validated['option_ids'])) {
+            $optionIds = array_filter(explode(',', $validated['option_ids']));
+            $context['option_ids'] = $optionIds;
+        }
+
+        // セッションにも一時保存（レガシー互換性のため）
+        Session::put('reservation_menu', $menu);
+        if (!empty($optionIds)) {
+            $selectedOptions = Menu::whereIn('id', $optionIds)
+                ->where('is_available', true)
+                ->where('show_in_upsell', true)
+                ->get();
+            Session::put('reservation_options', $selectedOptions);
+        }
+
+        // 店舗ID取得
+        $storeId = $context['store_id'] ?? Session::get('selected_store_id');
         $store = Store::find($storeId);
 
-        // パラメータを準備
-        $params = [];
-        if ($source) $params['source'] = $source;
-        if ($customerId) $params['customer_id'] = $customerId;
+        // コンテキストを暗号化
+        $encryptedContext = $contextService->encryptContext($context);
 
         if ($store && $store->use_staff_assignment && $menu->requires_staff) {
             // スタッフ指定が必要な場合はスタッフ選択ページへ
-            return redirect()->route('reservation.select-staff', $params);
+            return redirect()->route('reservation.select-staff', ['ctx' => $encryptedContext]);
         }
 
         // スタッフ指定が不要な場合はカレンダーページへ
         Session::forget('selected_staff_id');
-        return redirect()->route('reservation.index', $params);
+
+        // セッションも設定（レガシー互換性）
+        if (isset($context['store_id'])) {
+            Session::put('selected_store_id', $context['store_id']);
+        }
+        if (isset($context['category_id'])) {
+            Session::put('selected_category_id', $context['category_id']);
+        }
+
+        return redirect()->route('reservation.index', ['ctx' => $encryptedContext]);
     }
 
     /**
@@ -506,51 +519,73 @@ class PublicReservationController extends Controller
         return redirect()->route('reservation.index');
     }
 
-    public function index(Request $request)
+    public function index(Request $request, ReservationContextService $contextService)
     {
-        // URLパラメータでサブスク予約かチェック
-        $isSubscriptionFromUrl = $request->get('type') === 'subscription';
+        // パラメータベース：コンテキストを取得
+        $context = $contextService->extractContextFromRequest($request);
 
-        if ($isSubscriptionFromUrl) {
-            \Log::info('URLパラメータでサブスク予約を検知');
-            Session::put('is_subscription_booking', true);
+        // コンテキストがない場合はセッションからフォールバック（レガシー互換性）
+        if (!$context) {
+            // URLパラメータでサブスク予約かチェック
+            $isSubscriptionFromUrl = $request->get('type') === 'subscription';
 
-            // 電話番号から顧客IDを取得
-            $phone = $request->get('phone');
-            if ($phone) {
-                $customer = \App\Models\Customer::where('phone', $phone)->first();
-                if ($customer) {
-                    Session::put('customer_id', $customer->id);
-                    Session::put('existing_customer_id', $customer->id);
-                    \Log::info('電話番号から顧客情報を設定', [
-                        'phone' => $phone,
-                        'customer_id' => $customer->id,
-                        'customer_name' => $customer->full_name
-                    ]);
+            if ($isSubscriptionFromUrl) {
+                \Log::info('URLパラメータでサブスク予約を検知');
+                Session::put('is_subscription_booking', true);
+
+                // 電話番号から顧客IDを取得
+                $phone = $request->get('phone');
+                if ($phone) {
+                    $customer = \App\Models\Customer::where('phone', $phone)->first();
+                    if ($customer) {
+                        Session::put('customer_id', $customer->id);
+                        Session::put('existing_customer_id', $customer->id);
+                        \Log::info('電話番号から顧客情報を設定', [
+                            'phone' => $phone,
+                            'customer_id' => $customer->id,
+                            'customer_name' => $customer->full_name
+                        ]);
+                    }
                 }
             }
+
+            // セッションから情報を取得
+            $selectedMenu = Session::get('reservation_menu');
+            $selectedOptions = Session::get('reservation_options', collect());
+            $selectedStoreId = Session::get('selected_store_id');
+        } else {
+            // コンテキストから情報を取得
+            \Log::info('パラメータベース予約カレンダーアクセス', [
+                'context' => $context
+            ]);
+
+            $selectedStoreId = $context['store_id'] ?? null;
+            $selectedMenu = isset($context['menu_id']) ? Menu::find($context['menu_id']) : null;
+            $selectedOptions = isset($context['option_ids']) ?
+                Menu::whereIn('id', $context['option_ids'])->get() :
+                collect();
+
+            // セッションにも保存（レガシー互換性）
+            if ($selectedMenu) {
+                Session::put('reservation_menu', $selectedMenu);
+            }
+            if ($selectedOptions->isNotEmpty()) {
+                Session::put('reservation_options', $selectedOptions);
+            }
+            if ($selectedStoreId) {
+                Session::put('selected_store_id', $selectedStoreId);
+            }
+
+            // サブスク予約判定
+            $isSubscriptionFromUrl = isset($context['is_subscription']) && $context['is_subscription'];
         }
 
-        // 通常予約の場合、サブスク関連のセッション情報をクリア
-        if (!Session::get('is_subscription_booking') && !$isSubscriptionFromUrl) {
-            Session::forget(['customer_id', 'subscription_id', 'from_mypage']);
-            \Log::info('通常予約のため、サブスク関連セッション情報をクリア');
-        }
-
-        // セッション情報をデバッグログ
+        // 共通処理
         \Log::info('予約カレンダーアクセス', [
-            'is_subscription_booking' => Session::get('is_subscription_booking'),
-            'reservation_menu' => Session::get('reservation_menu'),
-            'selected_store_id' => Session::get('selected_store_id'),
-            'customer_id' => Session::get('customer_id'),
-            'subscription_id' => Session::get('subscription_id'),
-            'all_session' => Session::all()
+            'is_subscription_booking' => $isSubscriptionFromUrl,
+            'menu_id' => $selectedMenu ? $selectedMenu->id : null,
+            'store_id' => $selectedStoreId
         ]);
-
-        // セッションから情報を取得
-        $selectedMenu = Session::get('reservation_menu');
-        $selectedOptions = Session::get('reservation_options', collect());
-        $selectedStoreId = Session::get('selected_store_id');
 
         // サブスク予約の場合、必要な情報を設定
         if (Session::get('is_subscription_booking') || $isSubscriptionFromUrl) {

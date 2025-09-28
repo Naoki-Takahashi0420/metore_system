@@ -332,7 +332,11 @@
     @csrf
     <input type="hidden" name="menu_id" id="selectedMenuId">
     <input type="hidden" name="option_ids" id="selectedOptionIds">
-    {{-- パラメータを引き継ぐ --}}
+    {{-- コンテキストパラメータを必ず引き継ぐ --}}
+    @if(isset($encryptedContext))
+        <input type="hidden" name="ctx" value="{{ $encryptedContext }}">
+    @endif
+    {{-- レガシーパラメータも一時的に保持（後方互換性） --}}
     @if(isset($source))
         <input type="hidden" name="source" value="{{ $source }}">
     @endif
