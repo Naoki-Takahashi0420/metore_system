@@ -385,10 +385,9 @@ class Reservation extends Model
             $seatQuery = clone $overlappingReservations;
             $overlapping = $seatQuery->where('seat_number', $reservation->seat_number)
                 ->where(function($q) {
-                    $q->where('is_sub', false)
-                      ->orWhhere('line_type', 'main')
-                      ->orWhereNull('line_type');
-                })
+                    $q->where('is_sub', false);
+                    $q->orWhere('line_type', 'main');
+                    $q->orWhereNull('line_type');                })
                 ->exists();
 
             return !$overlapping;
