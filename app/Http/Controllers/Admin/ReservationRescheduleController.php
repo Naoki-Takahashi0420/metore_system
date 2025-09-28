@@ -373,10 +373,12 @@ class ReservationRescheduleController extends Controller
             $query->where(function($q) use ($startTime) {
                 $q->where('start_time', '<=', $startTime)
                   ->where('end_time', '>', $startTime);
-            })->orWhere(function($q) use ($endTime) {
+            });
+            $query->orWhere(function($q) use ($endTime) {
                 $q->where('start_time', '<', $endTime)
                   ->where('end_time', '>=', $endTime);
-            })->orWhere(function($q) use ($startTime, $endTime) {
+            });
+            $query->orWhere(function($q) use ($startTime, $endTime) {
                 $q->where('start_time', '>=', $startTime)
                   ->where('end_time', '<=', $endTime);
             });
