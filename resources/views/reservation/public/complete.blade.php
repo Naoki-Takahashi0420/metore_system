@@ -61,9 +61,49 @@
                     </div>
                     @endif
 
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">料金</span>
-                        <span class="font-semibold">¥{{ number_format($reservation->total_amount) }}</span>
+                    @php
+                        // optionMenusを安全に取得
+                        $optionMenus = collect([]);
+                        $optionPrice = 0;
+                        try {
+                            $optionMenus = $reservation->getOptionMenusSafely();
+                            $optionPrice = $reservation->getOptionsTotalPrice();
+                        } catch (\Exception $e) {
+                            \Log::error('Error displaying option menus in complete page', [
+                                'reservation_id' => $reservation->id,
+                                'error' => $e->getMessage()
+                            ]);
+                        }
+                    @endphp
+
+                    @if($optionMenus->count() > 0)
+                    <div class="mt-3 pl-4 border-l-2 border-gray-200">
+                        <div class="text-sm text-gray-600 mb-1">追加オプション:</div>
+                        @foreach($optionMenus as $option)
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-gray-600">• {{ $option->name }}</span>
+                            <span>+¥{{ number_format($option->pivot->price ?? 0) }}</span>
+                        </div>
+                        @endforeach
+                    </div>
+                    @endif
+
+                    <div class="pt-3 mt-3 border-t border-gray-200">
+                        @if($optionPrice > 0)
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-gray-600">基本料金</span>
+                            <span>¥{{ number_format($reservation->menu->price ?? 0) }}</span>
+                        </div>
+                        <div class="flex justify-between text-sm mb-2">
+                            <span class="text-gray-600">オプション料金</span>
+                            <span>+¥{{ number_format($optionPrice) }}</span>
+                        </div>
+                        @endif
+
+                        <div class="flex justify-between font-semibold">
+                            <span class="text-gray-700">{{ $optionPrice > 0 ? '合計金額' : '料金' }}</span>
+                            <span class="text-lg">¥{{ number_format($reservation->total_amount) }}</span>
+                        </div>
                     </div>
 
                     <div class="flex justify-between">
