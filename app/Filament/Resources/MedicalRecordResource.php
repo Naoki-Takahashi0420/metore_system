@@ -451,83 +451,63 @@ class MedicalRecordResource extends Resource
                                     ->rows(3),
                             ]),
                         
-                        // 予約履歴タブ（一時的にコメントアウト - 無限読み込み問題の原因調査のため）
-                        /*
+                        // 予約履歴タブ（修復版 - 無限読み込み問題を解決）
                         Forms\Components\Tabs\Tab::make('予約履歴')
                             ->schema([
                                 Forms\Components\Section::make('顧客の予約履歴')
+                                    ->description(fn ($record) =>
+                                        $record && $record->customer_id
+                                            ? '最新10件の予約履歴を表示'
+                                            : '顧客を選択してください'
+                                    )
                                     ->schema([
-                                        Forms\Components\Placeholder::make('reservation_history')
+                                        // ViewFieldを使用して静的レンダリングに変更
+                                        Forms\Components\ViewField::make('reservation_history_view')
                                             ->label('')
-                                            ->content(function ($record) {
-                                                if (!$record || !$record->customer) {
-                                                    return '顧客が選択されていません。';
+                                            ->view('filament.forms.components.reservation-history')
+                                            ->viewData(function ($record) {
+                                                // recordがない、またはcustomer_idがない場合は空配列を返す
+                                                if (!$record || !$record->customer_id) {
+                                                    return ['reservations' => collect()];
                                                 }
-                                                
-                                                $customer = $record->customer;
-                                                
-                                                // 最適化: 必要な列のみ選択し、10件に制限
-                                                $reservations = $customer->reservations()
-                                                    ->select([
-                                                        'id', 'reservation_date', 'start_time', 'end_time', 
-                                                        'status', 'total_amount', 'store_id', 'menu_id', 'staff_id'
-                                                    ])
-                                                    ->with([
-                                                        'store:id,name',
-                                                        'menu:id,name', 
-                                                        'staff:id,name'
-                                                    ])
-                                                    ->orderBy('reservation_date', 'desc')
-                                                    ->orderBy('start_time', 'desc')
-                                                    ->limit(10) // 10件に削減
-                                                    ->get();
-                                                
-                                                if ($reservations->isEmpty()) {
-                                                    return '予約履歴がありません。';
-                                                }
-                                                
-                                                // 簡素化: 複雑な分類を削除し、シンプルなリスト表示
-                                                $html = '<div class="space-y-3">';
-                                                $html .= '<div class="text-sm text-gray-600 mb-3">最新10件の予約履歴</div>';
-                                                
-                                                foreach ($reservations as $reservation) {
-                                                    // ステータス表示（日本語ラベル保持）
-                                                    $statusBadge = match($reservation->status) {
-                                                        'confirmed' => '<span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">確定</span>',
-                                                        'booked' => '<span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">予約済</span>',
-                                                        'completed' => '<span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">完了</span>',
-                                                        'pending' => '<span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs">保留</span>',
-                                                        'cancelled' => '<span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">キャンセル</span>',
-                                                        'canceled' => '<span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">キャンセル</span>',
-                                                        'no_show' => '<span class="px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs">無断キャンセル</span>',
-                                                        default => '<span class="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs">' . $reservation->status . '</span>'
-                                                    };
-                                                    
-                                                    $html .= '<div class="flex justify-between items-center p-3 bg-white border rounded">';
-                                                    $html .= '<div class="flex-1">';
-                                                    $html .= '<div class="font-medium">' . $reservation->reservation_date->format('Y/m/d') . ' ' . date('H:i', strtotime($reservation->start_time)) . '</div>';
-                                                    $html .= '<div class="text-sm text-gray-600">' . ($reservation->menu->name ?? '-') . ' / ' . ($reservation->store->name ?? '-') . '</div>';
-                                                    if ($reservation->staff) {
-                                                        $html .= '<div class="text-xs text-gray-500">担当: ' . $reservation->staff->name . '</div>';
-                                                    }
-                                                    $html .= '</div>';
-                                                    $html .= '<div class="text-right">';
-                                                    $html .= $statusBadge;
-                                                    if ($reservation->total_amount) {
-                                                        $html .= '<div class="text-sm mt-1">¥' . number_format($reservation->total_amount) . '</div>';
-                                                    }
-                                                    $html .= '</div>';
-                                                    $html .= '</div>';
-                                                }
-                                                
-                                                $html .= '</div>';
-                                                
-                                                return new \Illuminate\Support\HtmlString($html);
+
+                                                // キャッシュキーを作成（同じ顧客の重複読み込みを防ぐ）
+                                                $cacheKey = 'medical_record_reservations_' . $record->customer_id;
+
+                                                // 5秒間のキャッシュで重複読み込みを防ぐ
+                                                $reservations = cache()->remember($cacheKey, 5, function () use ($record) {
+                                                    return \App\Models\Reservation::where('customer_id', $record->customer_id)
+                                                        ->select([
+                                                            'id', 'reservation_date', 'start_time', 'end_time',
+                                                            'status', 'total_amount', 'store_id', 'menu_id', 'staff_id'
+                                                        ])
+                                                        ->with([
+                                                            'store:id,name',
+                                                            'menu:id,name',
+                                                            'staff:id,name'
+                                                        ])
+                                                        ->orderBy('reservation_date', 'desc')
+                                                        ->orderBy('start_time', 'desc')
+                                                        ->limit(10)
+                                                        ->get();
+                                                });
+
+                                                return ['reservations' => $reservations];
                                             })
-                                            ->columnSpanFull(),
-                                    ]),
-                            ]),
-                        */
+                                            ->columnSpanFull()
+                                            // 顧客が選択されている場合のみ表示
+                                            ->visible(fn ($record) => $record && $record->customer_id),
+
+                                        // 顧客未選択時のメッセージ
+                                        Forms\Components\Placeholder::make('no_customer_message')
+                                            ->label('')
+                                            ->content('顧客を選択すると予約履歴が表示されます。')
+                                            ->visible(fn ($record) => !$record || !$record->customer_id),
+                                    ])
+                                    // 遅延読み込みで初期ロードを軽減
+                                    ->collapsed(fn ($record) => !$record || !$record->customer_id)
+                                    ->collapsible(),
+                            ])
                     ]) // タブ終了
                     ->columnSpanFull(),
             ]);
