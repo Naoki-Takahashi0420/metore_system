@@ -1303,6 +1303,28 @@
                         <div>
                             <p class="text-xs text-gray-500 mb-1">メニュー</p>
                             <p class="text-sm font-medium">{{ $selectedReservation->menu->name ?? 'なし' }}</p>
+                            <div class="mt-2">
+                                <p class="text-xs text-gray-500 mb-1">追加オプション</p>
+                                @php
+                                    $hasOptions = false;
+                                    try {
+                                        $hasOptions = $selectedReservation && method_exists($selectedReservation, 'getOptionMenusSafely') && $selectedReservation->getOptionMenusSafely()->count() > 0;
+                                    } catch (\Exception $e) {
+                                        \Log::error('Error checking optionMenus in timeline modal', ['error' => $e->getMessage()]);
+                                    }
+                                @endphp
+                                @if($hasOptions)
+                                    <div class="flex flex-wrap gap-1">
+                                        @foreach($selectedReservation->getOptionMenusSafely() as $option)
+                                            <span class="inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                                                {{ $option->name ?? '' }} (+¥{{ number_format($option->pivot->price ?? 0) }})
+                                            </span>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <span class="inline-block px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">なし</span>
+                                @endif
+                            </div>
                         </div>
                         <div>
                             <p class="text-xs text-gray-500 mb-1">日時</p>

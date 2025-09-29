@@ -555,6 +555,15 @@ function displayNextReservation() {
         document.getElementById('next-reservation-details').innerHTML = `
             <div class="space-y-2">
                 <p class="text-2xl font-bold text-gray-900">${nextReservation.menu?.name || 'メニュー'}</p>
+                ${nextReservation.option_menus && nextReservation.option_menus.length > 0 ? `
+                    <div class="flex flex-wrap gap-2 mt-1">
+                        ${nextReservation.option_menus.map(option => `
+                            <span class="inline-block bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded">
+                                +${option.name}
+                            </span>
+                        `).join('')}
+                    </div>
+                ` : ''}
                 <div class="flex flex-wrap gap-4 text-gray-600">
                     <span class="flex items-center">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -574,6 +583,17 @@ function displayNextReservation() {
                         </svg>
                         ${nextReservation.store?.name || '店舗'}
                     </span>
+                </div>
+                <div class="text-lg font-semibold text-gray-900 mt-2">
+                    ${(() => {
+                        const hasOptions = nextReservation.option_menus && nextReservation.option_menus.length > 0;
+                        if (hasOptions) {
+                            const basePrice = nextReservation.menu?.price || 0;
+                            const optionTotal = nextReservation.option_menus.reduce((sum, opt) => sum + (opt.pivot?.price || 0), 0);
+                            return `合計: ¥${Math.floor(nextReservation.total_amount || 0).toLocaleString()}`;
+                        }
+                        return `¥${Math.floor(nextReservation.total_amount || 0).toLocaleString()}`;
+                    })()}
                 </div>
             </div>
         `;
@@ -697,7 +717,20 @@ function displayReservations() {
                     </div>
                     
                     <h3 class="font-semibold text-gray-900 mb-2 text-lg">${reservation.menu?.name || 'メニュー情報なし'}</h3>
-                    
+
+                    ${reservation.option_menus && reservation.option_menus.length > 0 ? `
+                        <div class="ml-4 mb-2">
+                            <div class="text-xs text-gray-600 mb-1">追加オプション:</div>
+                            <div class="flex flex-wrap gap-2">
+                                ${reservation.option_menus.map(option => `
+                                    <span class="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded">
+                                        ${option.name} (+¥${Math.floor(option.pivot.price).toLocaleString()})
+                                    </span>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-gray-600">
                         <div class="flex items-center">
                             <svg class="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -721,9 +754,26 @@ function displayReservations() {
                     
                     <div class="mt-3 flex items-center gap-4">
                         <div class="text-lg font-semibold ${isSubscription && reservation.total_amount == 0 ? 'text-purple-600' : 'text-gray-900'}">
-                            ${isSubscription && reservation.total_amount == 0 ? 
-                                '<span class="text-sm font-normal text-gray-600 line-through mr-1">通常料金</span>サブスク利用 ¥0' : 
-                                `¥${Math.floor(reservation.total_amount || 0).toLocaleString()}`
+                            ${isSubscription && reservation.total_amount == 0 ?
+                                '<span class="text-sm font-normal text-gray-600 line-through mr-1">通常料金</span>サブスク利用 ¥0' :
+                                (() => {
+                                    const hasOptions = reservation.option_menus && reservation.option_menus.length > 0;
+                                    const basePrice = reservation.menu?.price || 0;
+                                    const optionTotal = hasOptions ?
+                                        reservation.option_menus.reduce((sum, opt) => sum + (opt.pivot?.price || 0), 0) : 0;
+
+                                    if (hasOptions && optionTotal > 0) {
+                                        return `
+                                            <div class="flex items-baseline gap-2">
+                                                <span class="text-sm text-gray-500">基本 ¥${Math.floor(basePrice).toLocaleString()}</span>
+                                                <span class="text-sm text-gray-500">+ オプション ¥${Math.floor(optionTotal).toLocaleString()}</span>
+                                                <span>=</span>
+                                                <span>¥${Math.floor(reservation.total_amount || 0).toLocaleString()}</span>
+                                            </div>
+                                        `;
+                                    }
+                                    return `¥${Math.floor(reservation.total_amount || 0).toLocaleString()}`;
+                                })()
                             }
                         </div>
                         ${reservation.staff?.name ? `

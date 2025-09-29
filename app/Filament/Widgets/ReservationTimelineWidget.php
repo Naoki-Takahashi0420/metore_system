@@ -649,7 +649,19 @@ class ReservationTimelineWidget extends Widget
         // ログを追加して問題を追跡
         \Log::info('Opening reservation detail', ['reservation_id' => $reservationId]);
 
-        $this->selectedReservation = Reservation::with(['customer', 'menu', 'staff'])->find($reservationId);
+        try {
+            $this->selectedReservation = Reservation::with(['customer', 'menu', 'staff'])->find($reservationId);
+            // optionMenusを安全に読み込み
+            if ($this->selectedReservation) {
+                $this->selectedReservation->load('optionMenus');
+            }
+        } catch (\Exception $e) {
+            \Log::error('Error loading reservation detail in timeline', [
+                'reservation_id' => $reservationId,
+                'error' => $e->getMessage()
+            ]);
+            $this->selectedReservation = Reservation::with(['customer', 'menu', 'staff'])->find($reservationId);
+        }
 
         if ($this->selectedReservation && $this->selectedReservation->customer_id) {
             // 顧客の総訪問回数を取得
