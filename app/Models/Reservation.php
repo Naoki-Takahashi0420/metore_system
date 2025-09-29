@@ -214,6 +214,52 @@ class Reservation extends Model
     }
 
     /**
+     * optionMenusを安全に取得するヘルパーメソッド
+     */
+    public function getOptionMenusSafely()
+    {
+        try {
+            // テーブルの存在確認
+            if (!\Schema::hasTable('reservation_menu_options')) {
+                \Log::warning('reservation_menu_options table does not exist');
+                return collect([]);
+            }
+
+            // リレーションが読み込まれていない場合は読み込む
+            if (!$this->relationLoaded('optionMenus')) {
+                $this->load('optionMenus');
+            }
+
+            return $this->optionMenus ?? collect([]);
+        } catch (\Exception $e) {
+            \Log::error('Error loading optionMenus safely', [
+                'reservation_id' => $this->id,
+                'error' => $e->getMessage()
+            ]);
+            return collect([]);
+        }
+    }
+
+    /**
+     * optionMenusの合計価格を安全に取得
+     */
+    public function getOptionsTotalPrice()
+    {
+        try {
+            $options = $this->getOptionMenusSafely();
+            return $options->sum(function ($option) {
+                return $option->pivot->price ?? 0;
+            });
+        } catch (\Exception $e) {
+            \Log::error('Error calculating options total price', [
+                'reservation_id' => $this->id,
+                'error' => $e->getMessage()
+            ]);
+            return 0;
+        }
+    }
+
+    /**
      * スコープ: ステータス別
      */
     public function scopeByStatus($query, $status)

@@ -328,7 +328,28 @@ class ReservationController extends Controller
                 if ($reservation->reservation_date instanceof \Carbon\Carbon) {
                     $reservationArray['reservation_date'] = $reservation->reservation_date->format('Y-m-d H:i:s');
                 }
-                
+
+                // optionMenusを安全に追加
+                try {
+                    $optionMenus = $reservation->getOptionMenusSafely();
+                    $reservationArray['option_menus'] = $optionMenus->map(function ($option) {
+                        return [
+                            'id' => $option->id,
+                            'name' => $option->name,
+                            'pivot' => [
+                                'price' => $option->pivot->price ?? 0,
+                                'duration' => $option->pivot->duration ?? 0,
+                            ]
+                        ];
+                    })->toArray();
+                } catch (\Exception $e) {
+                    \Log::error('Error adding option_menus to API response', [
+                        'reservation_id' => $reservation->id,
+                        'error' => $e->getMessage()
+                    ]);
+                    $reservationArray['option_menus'] = [];
+                }
+
                 return (object) $reservationArray;
             });
 
@@ -356,9 +377,31 @@ class ReservationController extends Controller
             ], 404);
         }
 
+        // optionMenusを安全に追加
+        $reservationData = $reservation->toArray();
+        try {
+            $optionMenus = $reservation->getOptionMenusSafely();
+            $reservationData['option_menus'] = $optionMenus->map(function ($option) {
+                return [
+                    'id' => $option->id,
+                    'name' => $option->name,
+                    'pivot' => [
+                        'price' => $option->pivot->price ?? 0,
+                        'duration' => $option->pivot->duration ?? 0,
+                    ]
+                ];
+            })->toArray();
+        } catch (\Exception $e) {
+            \Log::error('Error adding option_menus to detail API response', [
+                'reservation_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            $reservationData['option_menus'] = [];
+        }
+
         return response()->json([
             'message' => '予約詳細を取得しました',
-            'data' => $reservation
+            'data' => $reservationData
         ]);
     }
 
