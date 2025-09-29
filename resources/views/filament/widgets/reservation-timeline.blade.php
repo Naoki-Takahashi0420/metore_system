@@ -93,20 +93,12 @@
                 }
             }
 
-            /* 🚨 緊急修正: 営業時間外での強制非表示 */
-            @media screen {
-                /* 22時以降は全ての赤い線を強制非表示 */
-                .current-time-indicator,
-                #current-time-indicator,
-                [class*="current-time"],
-                [style*="background: #ef4444"],
-                [style*="background:#ef4444"],
-                [style*="background-color: #ef4444"],
-                div[style*="position: absolute"][style*="width: 2px"][style*="background: #ef4444"] {
-                    display: none !important;
-                    visibility: hidden !important;
-                    opacity: 0 !important;
-                }
+            /* 営業時間外での非表示（JavaScriptで動的制御） */
+            .current-time-indicator.outside-business-hours,
+            #current-time-indicator.outside-business-hours {
+                display: none !important;
+                visibility: hidden !important;
+                opacity: 0 !important;
             }
 
             .current-time-indicator::before {
@@ -545,13 +537,14 @@
                     $shouldShowIndicator = false;
 
                     // デバッグ情報をJavaScriptコンソールに出力
-                    echo "<script>console.log('🐘 PHP: JST現在時刻: {$currentHour}:{$currentMinute} - 営業時間内？" . ($currentHour >= 10 && $currentHour < 22 ? 'YES' : 'NO') . "');</script>";
+                    echo "<script>console.log('🐘 PHP: JST現在時刻: {$currentHour}:{$currentMinute} - 営業時間内？" . ($currentHour >= 9 && $currentHour < 22 ? 'YES' : 'NO') . "');</script>";
+                    echo "<script>console.log('🐘 PHP Debug: shouldShow={$shouldShowIndicator}, isToday=" . ($isToday ? 'true' : 'false') . "');</script>";
 
-                    // 営業時間内の場合のみ位置計算（10:00 - 22:00）
+                    // 営業時間内の場合のみ位置計算（9:00 - 22:00）テスト用に9時から
                     $leftPosition = 0;
-                    if ($currentHour >= 10 && $currentHour < 22) { // 22:00以降は表示しない
+                    if ($currentHour >= 9 && $currentHour < 22) { // 22:00以降は表示しない
                         $shouldShowIndicator = true;
-                        $minutesFromStart = ($currentHour - 10) * 60 + $currentMinute;
+                        $minutesFromStart = ($currentHour - 9) * 60 + $currentMinute;
                         $cellIndex = floor($minutesFromStart / 30);
                         $percentageIntoCell = ($minutesFromStart % 30) / 30;
                         $firstCellWidth = 36; // 席ラベルの幅
@@ -559,14 +552,20 @@
                         $leftPosition = $firstCellWidth + ($cellIndex * $cellWidth) + ($percentageIntoCell * $cellWidth);
                     }
                 @endphp
-                @if($shouldShowIndicator && $currentHour >= 10 && $currentHour < 22)
-                    <div id="current-time-indicator" class="current-time-indicator" style="left: {{ $leftPosition }}px;">
-                        <span class="current-time-text">{{ $now->format('H:i') }}</span>
-                    </div>
-                @else
-                    <!-- 営業時間外：PHPで非表示確認用コメント -->
-                    <!-- 現在: {{ $now->format('H:i') }} - 営業時間外のため非表示 (shouldShow: {{ $shouldShowIndicator ? 'true' : 'false' }}, hour: {{ $currentHour }}) -->
-                @endif
+                @php
+                    // 営業時間に関係なく位置計算を行う（JSで制御）
+                    if (!$shouldShowIndicator) {
+                        $minutesFromStart = ($currentHour - 9) * 60 + $currentMinute;
+                        $cellIndex = floor($minutesFromStart / 30);
+                        $percentageIntoCell = ($minutesFromStart % 30) / 30;
+                        $firstCellWidth = 36;
+                        $cellWidth = 48;
+                        $leftPosition = $firstCellWidth + ($cellIndex * $cellWidth) + ($percentageIntoCell * $cellWidth);
+                    }
+                @endphp
+                <div id="current-time-indicator" class="current-time-indicator{{ ($currentHour < 9 || $currentHour >= 22) ? ' outside-business-hours' : '' }}" style="left: {{ $leftPosition }}px;">
+                    <span class="current-time-text">{{ $now->format('H:i') }}</span>
+                </div>
             @endif
 
             @if(!empty($timelineData))
@@ -1025,9 +1024,17 @@
 
                 console.log('🕒 DOMContentLoaded: JST現在時刻=' + currentHour + '時');
 
-                if (currentHour < 10 || currentHour >= 22) {
-                    console.log('🚫 DOMContentLoaded: 営業時間外のため作成しない');
-                    return;
+                // 営業時間外でもPHP側で作成されていればJavaScriptで制御
+                const indicator = document.getElementById('current-time-indicator');
+                if (indicator) {
+                    if (currentHour < 9 || currentHour >= 22) {
+                        console.log('❌ 営業時間外のため赤線を非表示');
+                        indicator.classList.add('outside-business-hours');
+                        return;
+                    } else {
+                        console.log('✅ 営業時間内のため赤線を表示');
+                        indicator.classList.remove('outside-business-hours');
+                    }
                 }
 
                 console.log('✅ DOMContentLoaded: 営業時間内のためインジケーター作成');
