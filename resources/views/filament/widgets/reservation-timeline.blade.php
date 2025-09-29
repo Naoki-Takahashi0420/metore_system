@@ -77,7 +77,7 @@
                 bottom: 0;
                 width: 2px;
                 background: #ef4444;
-                z-index: 100;
+                z-index: 150;  /* 予約ブロック(101)より上に表示 */
                 pointer-events: none;
                 box-shadow: 0 0 10px rgba(239, 68, 68, 0.8),
                             0 0 5px rgba(239, 68, 68, 0.6);
@@ -892,7 +892,7 @@
                     width: 2px;
                     height: calc(100% - 60px);
                     background: #ef4444;
-                    z-index: 1000;
+                    z-index: 150;  /* CSSと統一 */
                     pointer-events: none;
                     box-shadow: 0 0 10px rgba(239, 68, 68, 0.8);
                 `;
