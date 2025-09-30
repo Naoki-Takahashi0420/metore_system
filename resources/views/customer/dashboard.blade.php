@@ -978,8 +978,11 @@ function hasConflictingReservations() {
 
 // サブスク予約へ遷移（パラメータベース）
 async function goToSubscriptionBooking() {
+    console.log('=== goToSubscriptionBooking() 呼び出し ===');
+
     // 予約重複チェック
     if (hasConflictingReservations()) {
+        console.log('予約重複のため中止');
         return;
     }
 
@@ -988,6 +991,9 @@ async function goToSubscriptionBooking() {
     const activeSubscription = window.activeSubscription;
 
     console.log('=== サブスク予約開始（パラメータベース） ===');
+    console.log('customerData:', customerData ? 'あり' : 'なし');
+    console.log('token:', token ? 'あり (' + token.substring(0, 20) + '...)' : 'なし');
+    console.log('activeSubscription:', activeSubscription);
 
     if (!customerData || !activeSubscription || !token) {
         alert('サブスクリプション情報が見つかりません');
