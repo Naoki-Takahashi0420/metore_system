@@ -6,6 +6,17 @@ use Illuminate\Console\Command;
 use App\Models\CustomerSubscription;
 use Carbon\Carbon;
 
+/**
+ * @deprecated このコマンドは不要になりました
+ *
+ * current_month_visitsは予約データから動的計算されるため、
+ * リセット処理は不要です。削除予定。
+ *
+ * 理由:
+ * - service_start_date基準で期間を計算
+ * - 予約テーブルから実際の来店回数をカウント
+ * - 契約応当日が顧客ごとに異なるため、一括リセットは不適切
+ */
 class ResetMonthlySubscriptionVisits extends Command
 {
     /**
@@ -13,7 +24,7 @@ class ResetMonthlySubscriptionVisits extends Command
      *
      * @var string
      */
-    protected $signature = 'subscription:reset-monthly 
+    protected $signature = 'subscription:reset-monthly
                             {--dry-run : 実行せずに対象を表示するだけ}
                             {--force : 確認なしで実行}';
 
@@ -22,7 +33,7 @@ class ResetMonthlySubscriptionVisits extends Command
      *
      * @var string
      */
-    protected $description = 'サブスクリプションの月次利用回数をリセット';
+    protected $description = '[非推奨] サブスクリプションの月次利用回数をリセット（動的計算に変更されたため不要）';
 
     /**
      * Execute the console command.

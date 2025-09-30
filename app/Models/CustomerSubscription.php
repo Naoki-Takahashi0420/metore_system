@@ -201,6 +201,82 @@ class CustomerSubscription extends Model
     }
 
     /**
+     * 現在の周期の開始日を取得（サービス開始日基準）
+     * 例: service_start_date=2024-07-09, 今日=2025-02-15
+     * → 2025-02-09を返す（2/9-3/8が現在周期）
+     */
+    public function getCurrentPeriodStart(): ?Carbon
+    {
+        if (!$this->service_start_date) {
+            return null;
+        }
+
+        $startDate = Carbon::parse($this->service_start_date);
+        $today = Carbon::today();
+
+        // 契約開始日の日付（day）を取得
+        $startDay = $startDate->day;
+
+        // 今月の契約応当日を作成
+        // 注: 1/31契約で2月の場合、Carbonが自動的に2/28（または2/29）に調整
+        $currentPeriodStart = Carbon::create($today->year, $today->month, min($startDay, $today->daysInMonth));
+
+        // 今日がまだ応当日前なら、先月の応当日が周期開始
+        if ($today->lt($currentPeriodStart)) {
+            $currentPeriodStart->subMonth();
+            // 再度日数調整（例: 3/31 → 2/28）
+            if ($currentPeriodStart->day != $startDay) {
+                $currentPeriodStart->day = min($startDay, $currentPeriodStart->daysInMonth);
+            }
+        }
+
+        return $currentPeriodStart;
+    }
+
+    /**
+     * 現在の周期の終了日を取得（翌月の応当日の前日）
+     * 例: 周期開始=2025-02-09 → 終了=2025-03-08
+     */
+    public function getCurrentPeriodEnd(): ?Carbon
+    {
+        $periodStart = $this->getCurrentPeriodStart();
+
+        if (!$periodStart) {
+            return null;
+        }
+
+        return $periodStart->copy()->addMonth()->subDay();
+    }
+
+    /**
+     * 現在の周期内の実際の来店回数を取得（予約データから計算）
+     */
+    public function getCurrentPeriodVisitsCount(): int
+    {
+        $periodStart = $this->getCurrentPeriodStart();
+        $periodEnd = $this->getCurrentPeriodEnd();
+
+        if (!$periodStart || !$periodEnd) {
+            return 0;
+        }
+
+        return \App\Models\Reservation::where('customer_id', $this->customer_id)
+            ->whereIn('status', ['booked', 'confirmed', 'completed'])
+            ->whereBetween('reservation_date', [$periodStart, $periodEnd])
+            ->count();
+    }
+
+    /**
+     * current_month_visitsアクセサ（動的計算）
+     * データベースの値ではなく、常に予約データから計算
+     */
+    public function getCurrentMonthVisitsAttribute(): int
+    {
+        // attributesに値があってもそれは使わず、必ず再計算
+        return $this->getCurrentPeriodVisitsCount();
+    }
+
+    /**
      * 今月の残り回数を取得
      */
     public function getRemainingVisitsAttribute(): ?int
@@ -209,6 +285,7 @@ class CustomerSubscription extends Model
             return null; // 無制限
         }
 
+        // current_month_visitsアクセサが自動的に動的計算値を返す
         return max(0, $this->monthly_limit - $this->current_month_visits);
     }
 
@@ -221,15 +298,18 @@ class CustomerSubscription extends Model
             return false; // 無制限
         }
 
+        // current_month_visitsアクセサが自動的に動的計算値を返す
         return $this->current_month_visits >= $this->monthly_limit;
     }
 
     /**
      * 来店を記録
+     * @deprecated 予約データから自動計算されるため、current_month_visitsの更新は不要
      */
     public function recordVisit(): void
     {
-        $this->increment('current_month_visits');
+        // current_month_visitsは予約データから自動計算されるため、更新不要
+        // last_visit_dateのみ更新
         $this->update(['last_visit_date' => now()]);
     }
 

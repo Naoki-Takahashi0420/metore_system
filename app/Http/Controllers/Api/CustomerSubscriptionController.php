@@ -27,18 +27,10 @@ class CustomerSubscriptionController extends Controller
         
         return response()->json([
             'data' => $subscriptions->map(function ($sub) {
-                // 月末までの利用回数をリセット
-                $currentMonth = now()->format('Y-m');
-                $subMonth = $sub->updated_at ? $sub->updated_at->format('Y-m') : $currentMonth;
-                
-                // 月が変わった場合は利用回数をリセット
-                if ($currentMonth !== $subMonth && $sub->monthly_limit) {
-                    $sub->current_month_visits = 0;
-                    $sub->save();
-                }
-                
-                $remaining = $sub->monthly_limit ? 
-                    max(0, $sub->monthly_limit - $sub->current_month_visits) : 
+                // current_month_visitsは自動計算されるため、リセット処理不要
+
+                $remaining = $sub->monthly_limit ?
+                    max(0, $sub->monthly_limit - $sub->current_month_visits) :
                     ($sub->remaining_sessions ?? 0);
                     
                 // プランがない場合のメニューID取得
@@ -162,18 +154,10 @@ class CustomerSubscriptionController extends Controller
             
         return response()->json([
             'data' => $subscriptions->map(function ($sub) {
-                // 月末までの利用回数をリセット
-                $currentMonth = now()->format('Y-m');
-                $subMonth = $sub->updated_at ? $sub->updated_at->format('Y-m') : $currentMonth;
-                
-                // 月が変わった場合は利用回数をリセット
-                if ($currentMonth !== $subMonth && $sub->monthly_limit) {
-                    $sub->current_month_visits = 0;
-                    $sub->save();
-                }
-                
-                $remaining = $sub->monthly_limit ? 
-                    max(0, $sub->monthly_limit - $sub->current_month_visits) : 
+                // current_month_visitsは自動計算されるため、リセット処理不要
+
+                $remaining = $sub->monthly_limit ?
+                    max(0, $sub->monthly_limit - $sub->current_month_visits) :
                     ($sub->remaining_sessions ?? 0);
                     
                 // メニュー情報を取得
