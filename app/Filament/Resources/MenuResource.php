@@ -203,7 +203,10 @@ class MenuResource extends Resource
                         Forms\Components\Select::make('subscription_plan_ids')
                             ->label('対象サブスクプラン')
                             ->multiple()
-                            ->options(\App\Models\SubscriptionPlan::where('is_active', true)->pluck('name', 'id'))
+                            ->options(\App\Models\Menu::where('is_subscription', true)
+                                ->where('is_available', true)
+                                ->orderBy('name')
+                                ->pluck('name', 'id'))
                             ->helperText('このメニューを利用できるサブスクプラン')
                             ->visible(fn (Forms\Get $get) => $get('is_subscription_only') && !$get('is_subscription')),
                         Forms\Components\Toggle::make('requires_staff')
