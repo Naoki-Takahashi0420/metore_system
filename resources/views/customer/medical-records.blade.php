@@ -413,6 +413,78 @@ function displayMedicalRecords(records) {
                     </div>
                 `;
             }).join('') : ''}
+
+            ${record.presbyopia_before || record.presbyopia_after ? `
+                <div class="mt-4 pt-4 border-t border-gray-100">
+                    <h4 class="text-sm font-medium text-gray-900 mb-3">老眼詳細測定</h4>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead>
+                                <tr class="bg-gray-50">
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">状態</th>
+                                    <th class="px-3 py-2 text-center text-xs font-medium text-gray-500">A(95%)</th>
+                                    <th class="px-3 py-2 text-center text-xs font-medium text-gray-500">B(50%)</th>
+                                    <th class="px-3 py-2 text-center text-xs font-medium text-gray-500">C(25%)</th>
+                                    <th class="px-3 py-2 text-center text-xs font-medium text-gray-500">D(12%)</th>
+                                    <th class="px-3 py-2 text-center text-xs font-medium text-gray-500">E(6%)</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                ${record.presbyopia_before ? `
+                                    <tr>
+                                        <td class="px-3 py-2 text-xs font-medium text-gray-900">施術前</td>
+                                        <td class="px-3 py-2 text-center text-xs">
+                                            <div>左: ${record.presbyopia_before.a_95_left || '−'}</div>
+                                            <div>右: ${record.presbyopia_before.a_95_right || '−'}</div>
+                                        </td>
+                                        <td class="px-3 py-2 text-center text-xs">
+                                            <div>左: ${record.presbyopia_before.b_50_left || '−'}</div>
+                                            <div>右: ${record.presbyopia_before.b_50_right || '−'}</div>
+                                        </td>
+                                        <td class="px-3 py-2 text-center text-xs">
+                                            <div>左: ${record.presbyopia_before.c_25_left || '−'}</div>
+                                            <div>右: ${record.presbyopia_before.c_25_right || '−'}</div>
+                                        </td>
+                                        <td class="px-3 py-2 text-center text-xs">
+                                            <div>左: ${record.presbyopia_before.d_12_left || '−'}</div>
+                                            <div>右: ${record.presbyopia_before.d_12_right || '−'}</div>
+                                        </td>
+                                        <td class="px-3 py-2 text-center text-xs">
+                                            <div>左: ${record.presbyopia_before.e_6_left || '−'}</div>
+                                            <div>右: ${record.presbyopia_before.e_6_right || '−'}</div>
+                                        </td>
+                                    </tr>
+                                ` : ''}
+                                ${record.presbyopia_after ? `
+                                    <tr>
+                                        <td class="px-3 py-2 text-xs font-medium text-gray-900">施術後</td>
+                                        <td class="px-3 py-2 text-center text-xs">
+                                            <div>左: ${record.presbyopia_after.a_95_left || '−'}</div>
+                                            <div>右: ${record.presbyopia_after.a_95_right || '−'}</div>
+                                        </td>
+                                        <td class="px-3 py-2 text-center text-xs">
+                                            <div>左: ${record.presbyopia_after.b_50_left || '−'}</div>
+                                            <div>右: ${record.presbyopia_after.b_50_right || '−'}</div>
+                                        </td>
+                                        <td class="px-3 py-2 text-center text-xs">
+                                            <div>左: ${record.presbyopia_after.c_25_left || '−'}</div>
+                                            <div>右: ${record.presbyopia_after.c_25_right || '−'}</div>
+                                        </td>
+                                        <td class="px-3 py-2 text-center text-xs">
+                                            <div>左: ${record.presbyopia_after.d_12_left || '−'}</div>
+                                            <div>右: ${record.presbyopia_after.d_12_right || '−'}</div>
+                                        </td>
+                                        <td class="px-3 py-2 text-center text-xs">
+                                            <div>左: ${record.presbyopia_after.e_6_left || '−'}</div>
+                                            <div>右: ${record.presbyopia_after.e_6_right || '−'}</div>
+                                        </td>
+                                    </tr>
+                                ` : ''}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            ` : ''}
             
             ${record.next_visit_date ? `
                 <div class="mt-4 pt-4 border-t border-gray-100">
