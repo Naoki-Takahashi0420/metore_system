@@ -588,7 +588,9 @@ function displayNextReservation() {
                     ${(() => {
                         const hasOptions = nextReservation.option_menus && nextReservation.option_menus.length > 0;
                         if (hasOptions) {
-                            const basePrice = nextReservation.menu?.price || 0;
+                            const basePrice = nextReservation.menu?.is_subscription ?
+                                (nextReservation.menu?.subscription_monthly_price || 0) :
+                                (nextReservation.menu?.price || 0);
                             const optionTotal = nextReservation.option_menus.reduce((sum, opt) => sum + (opt.pivot?.price || 0), 0);
                             return `合計: ¥${Math.floor(nextReservation.total_amount || 0).toLocaleString()}`;
                         }
@@ -758,7 +760,9 @@ function displayReservations() {
                                 '<span class="text-sm font-normal text-gray-600 line-through mr-1">通常料金</span>サブスク利用 ¥0' :
                                 (() => {
                                     const hasOptions = reservation.option_menus && reservation.option_menus.length > 0;
-                                    const basePrice = reservation.menu?.price || 0;
+                                    const basePrice = reservation.menu?.is_subscription ?
+                                        (reservation.menu?.subscription_monthly_price || 0) :
+                                        (reservation.menu?.price || 0);
                                     const optionTotal = hasOptions ?
                                         reservation.option_menus.reduce((sum, opt) => sum + (opt.pivot?.price || 0), 0) : 0;
 
