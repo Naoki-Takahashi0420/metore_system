@@ -976,98 +976,69 @@ function hasConflictingReservations() {
     return false; // 重複なし
 }
 
-// サブスク予約へ遷移
-function goToSubscriptionBooking() {
+// サブスク予約へ遷移（パラメータベース）
+async function goToSubscriptionBooking() {
     // 予約重複チェック
     if (hasConflictingReservations()) {
-        return; // 重複がある場合は処理を停止
+        return;
     }
-    
-    // 顧客データとサブスク情報を取得
+
     const customerData = localStorage.getItem('customer_data');
+    const token = localStorage.getItem('customer_token');
     const activeSubscription = window.activeSubscription;
-    
-    console.log('=== サブスク予約開始 ===');
-    console.log('Customer Data:', customerData);
-    console.log('Active Subscription:', activeSubscription);
-    
-    if (customerData && activeSubscription) {
+
+    console.log('=== サブスク予約開始（パラメータベース） ===');
+
+    if (!customerData || !activeSubscription || !token) {
+        alert('サブスクリプション情報が見つかりません');
+        return;
+    }
+
+    try {
         const customer = JSON.parse(customerData);
-        
-        // store_idとstore_nameを正しく取得
         const storeId = activeSubscription.store_id || activeSubscription.store?.id;
-        const storeName = activeSubscription.store_name || activeSubscription.store?.name || '店舗名不明';
         const menuId = activeSubscription.menu_id || activeSubscription.plan?.menu_id;
-        const planName = activeSubscription.plan_name || activeSubscription.plan?.name || 'プラン名不明';
-        
-        console.log('送信データ:', {
+
+        console.log('サブスク予約コンテキスト生成リクエスト:', {
             customer_id: customer.id,
             subscription_id: activeSubscription.id,
             store_id: storeId,
-            menu_id: menuId,
-            store_name: storeName,
-            plan_name: planName
+            menu_id: menuId
         });
 
-        console.log('activeSubscription詳細:', activeSubscription);
-        console.log('storeId:', storeId, 'menuId:', menuId);
-        
-        // セッションストレージに必要な情報を保存
-        sessionStorage.setItem('existing_customer_id', customer.id);
-        sessionStorage.setItem('from_mypage', 'true');
-        sessionStorage.setItem('is_subscription_booking', 'true');
-        sessionStorage.setItem('subscription_store_id', storeId);
-        sessionStorage.setItem('subscription_store_name', storeName);
-        sessionStorage.setItem('subscription_menu_id', menuId);
-        sessionStorage.setItem('subscription_menu_name', activeSubscription.plan?.name || 'サブスクメニュー');
-        sessionStorage.setItem('subscription_data', JSON.stringify(activeSubscription));
-        
-        // サブスク予約用のセッション設定APIを呼んでからカレンダーへ
-        console.log('サブスク予約のセッション設定開始');
-        
-        fetch('/api/subscription/setup-session', {
+        // サブスク予約用の暗号化コンテキストを生成
+        const response = await fetch('/api/customer/reservation-context/subscription', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                customer_id: customer.id,
                 subscription_id: activeSubscription.id,
                 store_id: storeId,
                 menu_id: menuId
             })
-        })
-        .then(response => {
-            console.log('Response status:', response.status);
-            if (!response.ok) {
-                return response.text().then(text => {
-                    console.error('Error response:', text);
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                });
-            }
-            return response.json();
-        })
-        .then(data => {
-            console.log('Response data:', data);
-            if (data.success) {
-                console.log('セッション設定完了、カレンダーへ遷移');
-                // 顧客データから電話番号を取得
-                const customerData = JSON.parse(localStorage.getItem('customer_data'));
-                const phone = customerData ? customerData.phone : '';
-                // サブスク予約用のパラメータを付与（電話番号も含める）
-                window.location.href = '/reservation/calendar?type=subscription' + (phone ? '&phone=' + encodeURIComponent(phone) : '');
-            } else {
-                throw new Error(data.message || 'セッション設定に失敗');
-            }
-        })
-        .catch(error => {
-            console.error('詳細なエラー:', error);
-            console.error('エラーメッセージ:', error.message);
-            alert('サブスク予約の準備に失敗しました。再度お試しください。\nエラー: ' + error.message);
         });
-    } else {
-        alert('サブスクリプション情報が見つかりません');
+
+        if (!response.ok) {
+            if (response.status === 401) {
+                localStorage.removeItem('customer_token');
+                localStorage.removeItem('customer_data');
+                window.location.href = '/customer/login';
+                return;
+            }
+            throw new Error('コンテキスト生成に失敗しました');
+        }
+
+        const data = await response.json();
+        const encryptedContext = data.data.encrypted_context;
+
+        console.log('暗号化コンテキスト取得成功、カレンダーへ遷移');
+        window.location.href = `/stores?ctx=${encodeURIComponent(encryptedContext)}`;
+
+    } catch (error) {
+        console.error('サブスク予約エラー:', error);
+        alert('サブスク予約の準備に失敗しました。再度お試しください。');
     }
 }
 

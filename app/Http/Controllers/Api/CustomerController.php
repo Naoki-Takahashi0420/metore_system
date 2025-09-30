@@ -167,4 +167,65 @@ class CustomerController extends Controller
             ]
         ]);
     }
+
+    /**
+     * サブスク予約用のコンテキストを生成
+     */
+    public function createSubscriptionContext(Request $request, ReservationContextService $contextService)
+    {
+        $customer = $request->user();
+
+        $validator = Validator::make($request->all(), [
+            'subscription_id' => 'required|exists:customer_subscriptions,id',
+            'store_id' => 'required|exists:stores,id',
+            'menu_id' => 'required|exists:menus,id'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'バリデーションエラー',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        // サブスクリプションが顧客のものか確認
+        $subscription = $customer->subscriptions()
+            ->where('id', $request->input('subscription_id'))
+            ->where('status', 'active')
+            ->first();
+
+        if (!$subscription) {
+            return response()->json([
+                'message' => 'アクティブなサブスクリプションが見つかりません'
+            ], 404);
+        }
+
+        // サブスク予約用のコンテキストを生成
+        $context = [
+            'type' => 'subscription',
+            'customer_id' => $customer->id,
+            'subscription_id' => $subscription->id,
+            'store_id' => $request->input('store_id'),
+            'menu_id' => $request->input('menu_id'),
+            'is_subscription' => true,
+            'is_existing_customer' => true,
+            'source' => 'mypage_subscription'
+        ];
+
+        $encryptedContext = $contextService->encryptContext($context);
+
+        \Log::info('[createSubscriptionContext] サブスク予約コンテキスト生成', [
+            'customer_id' => $customer->id,
+            'subscription_id' => $subscription->id,
+            'store_id' => $request->input('store_id'),
+            'menu_id' => $request->input('menu_id')
+        ]);
+
+        return response()->json([
+            'message' => 'サブスク予約コンテキストを生成しました',
+            'data' => [
+                'encrypted_context' => $encryptedContext
+            ]
+        ]);
+    }
 }

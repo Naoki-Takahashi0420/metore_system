@@ -61,10 +61,25 @@ class PublicReservationController extends Controller
         \Log::info('[/stores] 受信したコンテキスト', [
             'context' => $context,
             'has_store_id' => isset($context['store_id']),
-            'store_id' => $context['store_id'] ?? null
+            'store_id' => $context['store_id'] ?? null,
+            'is_subscription' => $context['is_subscription'] ?? false,
+            'has_menu_id' => isset($context['menu_id'])
         ]);
 
-        // コンテキストにstore_idが含まれている場合は直接カテゴリ選択へリダイレクト
+        // サブスク予約の場合、店舗とメニューが両方指定されていれば直接カレンダーへ
+        if ($context && isset($context['is_subscription']) && $context['is_subscription']) {
+            if (isset($context['store_id']) && isset($context['menu_id'])) {
+                \Log::info('[/stores] サブスク予約: 店舗・メニュー選択をスキップして直接カレンダーへ', [
+                    'store_id' => $context['store_id'],
+                    'menu_id' => $context['menu_id'],
+                    'subscription_id' => $context['subscription_id'] ?? null
+                ]);
+                $encryptedContext = $contextService->encryptContext($context);
+                return redirect()->route('reservation.index', ['ctx' => $encryptedContext]);
+            }
+        }
+
+        // 通常の予約で店舗IDが含まれている場合はカテゴリ選択へリダイレクト
         if ($context && isset($context['store_id'])) {
             \Log::info('[/stores] 店舗選択をスキップしてカテゴリ選択へリダイレクト', [
                 'store_id' => $context['store_id']
@@ -641,8 +656,21 @@ class PublicReservationController extends Controller
                 Session::put('selected_store_id', $selectedStoreId);
             }
 
-            // サブスク予約判定
+            // サブスク予約判定とコンテキストからの情報取得
             $isSubscriptionFromUrl = isset($context['is_subscription']) && $context['is_subscription'];
+
+            // コンテキストにサブスク情報がある場合はセッションに保存
+            if ($isSubscriptionFromUrl) {
+                if (isset($context['customer_id'])) {
+                    Session::put('customer_id', $context['customer_id']);
+                    Session::put('existing_customer_id', $context['customer_id']);
+                }
+                if (isset($context['subscription_id'])) {
+                    Session::put('subscription_id', $context['subscription_id']);
+                }
+                Session::put('is_subscription_booking', true);
+                Session::put('from_mypage', true);
+            }
         }
 
         // 共通処理
