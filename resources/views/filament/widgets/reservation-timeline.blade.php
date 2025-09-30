@@ -1740,7 +1740,7 @@
                                                                         🔄 {{ $menu->name }}
                                                                     </div>
                                                                     <div class="text-sm text-gray-600">
-                                                                        {{ $menu->duration_minutes }}分 - サブスク
+                                                                        {{ $menu->duration_minutes }}分 - ¥{{ number_format($menu->subscription_monthly_price) }}<span class="text-xs">/月</span>
                                                                     </div>
                                                                 </div>
                                                                 @if($newReservation['menu_id'] == $menu->id)
@@ -1774,7 +1774,10 @@
                                                                         {{ $menu->name }}
                                                                     </div>
                                                                     <div class="text-sm text-gray-600">
-                                                                        {{ $menu->duration_minutes }}分 - ¥{{ number_format($menu->price) }}
+                                                                        {{ $menu->duration_minutes }}分 - ¥{{ number_format($menu->is_subscription ? $menu->subscription_monthly_price : $menu->price) }}
+                                                                        @if($menu->is_subscription)
+                                                                            <span class="text-xs">/月</span>
+                                                                        @endif
                                                                     </div>
                                                                 </div>
                                                                 @if($newReservation['menu_id'] == $menu->id)
@@ -1807,7 +1810,10 @@
                                             <div>
                                                 <div class="font-medium text-blue-900">{{ $selectedMenu->name }}</div>
                                                 <div class="text-sm text-blue-700">
-                                                    {{ $selectedMenu->duration_minutes }}分 - ¥{{ number_format($selectedMenu->price) }}
+                                                    {{ $selectedMenu->duration_minutes }}分 - ¥{{ number_format($selectedMenu->is_subscription ? $selectedMenu->subscription_monthly_price : $selectedMenu->price) }}
+                                                    @if($selectedMenu->is_subscription)
+                                                        <span class="text-xs">/月</span>
+                                                    @endif
                                                 </div>
                                             </div>
                                             <button
