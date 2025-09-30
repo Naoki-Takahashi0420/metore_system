@@ -191,7 +191,14 @@
                                                     </div>
                                                     <div class="flex items-center gap-4 mt-1 text-sm text-gray-600">
                                                         <span>{{ $menu['duration_minutes'] }}分</span>
-                                                        <span>¥{{ number_format($menu['price']) }}</span>
+                                                        <span>
+                                                            @if(isset($menu['is_subscription']) && $menu['is_subscription'] && isset($menu['subscription_monthly_price']) && $menu['subscription_monthly_price'])
+                                                                ¥{{ number_format($menu['subscription_monthly_price']) }}<span class="text-xs">/月</span>
+                                                            @else
+                                                                ¥{{ number_format($menu['price']) }}
+                                                            @endif
+                                                            <!-- デバッグ: {{ json_encode(['is_sub' => $menu['is_subscription'] ?? 'N', 'sub_price' => $menu['subscription_monthly_price'] ?? 'N']) }} -->
+                                                        </span>
                                                     </div>
                                                 </div>
                                             </div>
