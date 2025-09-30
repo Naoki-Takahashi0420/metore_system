@@ -189,8 +189,8 @@
                             
                             {{-- 価格とボタン --}}
                             <div class="flex items-center justify-between">
-                                <div class="price-display">¥{{ number_format($menu->price) }}</div>
-                                <button type="button" onclick="selectMenu({{ $menu->id }}, '{{ $menu->name }}', {{ $menu->price }})" 
+                                <div class="price-display">¥{{ number_format($menu->is_subscription ? $menu->subscription_monthly_price : $menu->price) }}@if($menu->is_subscription)<span class="text-xs">/月</span>@endif</div>
+                                <button type="button" onclick="selectMenu({{ $menu->id }}, '{{ $menu->name }}', {{ $menu->is_subscription ? $menu->subscription_monthly_price : $menu->price }})"
                                     class="reserve-button">
                                     予約する
                                 </button>
@@ -255,8 +255,8 @@
                                 
                                 {{-- 価格とボタン --}}
                                 <div class="flex items-center justify-between">
-                                    <div class="price-display">¥{{ number_format($menu->price) }}</div>
-                                    <button type="button" onclick="selectMenu({{ $menu->id }}, '{{ $menu->name }}', {{ $menu->price }})" 
+                                    <div class="price-display">¥{{ number_format($menu->is_subscription ? $menu->subscription_monthly_price : $menu->price) }}@if($menu->is_subscription)<span class="text-xs">/月</span>@endif</div>
+                                    <button type="button" onclick="selectMenu({{ $menu->id }}, '{{ $menu->name }}', {{ $menu->is_subscription ? $menu->subscription_monthly_price : $menu->price }})"
                                         class="reserve-button">
                                         予約する
                                     </button>

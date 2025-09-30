@@ -92,7 +92,7 @@
                         @if($optionPrice > 0)
                         <div class="flex justify-between text-sm mb-1">
                             <span class="text-gray-600">基本料金</span>
-                            <span>¥{{ number_format($reservation->menu->price ?? 0) }}</span>
+                            <span>¥{{ number_format($reservation->menu->is_subscription ? $reservation->menu->subscription_monthly_price : $reservation->menu->price ?? 0) }}@if($reservation->menu->is_subscription)<span class="text-xs">/月</span>@endif</span>
                         </div>
                         <div class="flex justify-between text-sm mb-2">
                             <span class="text-gray-600">オプション料金</span>

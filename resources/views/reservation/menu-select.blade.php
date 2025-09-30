@@ -335,7 +335,7 @@
         <div class="grid gap-4 fade-in" id="menuList">
             @forelse($menus as $menu)
                 <div class="bg-white rounded-lg shadow-sm hover:shadow-md transition cursor-pointer border-2 border-transparent hover:border-blue-500 overflow-hidden menu-item"
-                     data-menu-id="{{ $menu->id }}" data-menu-name="{{ $menu->name }}" data-menu-price="{{ $menu->price }}" data-menu-duration="{{ $menu->duration }}" data-store-id="{{ $menu->store_id }}"
+                     data-menu-id="{{ $menu->id }}" data-menu-name="{{ $menu->name }}" data-menu-price="{{ $menu->is_subscription ? $menu->subscription_monthly_price : $menu->price }}" data-menu-duration="{{ $menu->duration }}" data-store-id="{{ $menu->store_id }}"
                      onclick="selectMenu({{ $menu->id }})">
                     <div class="flex">
                         @if($menu->image_path)
@@ -380,7 +380,12 @@
                                     </div>
                                 </div>
                                 <div class="text-right ml-4">
-                                    <div class="text-2xl font-bold text-blue-600"><span class="text-sm">¥</span>{{ number_format($menu->price) }}</div>
+                                    <div class="text-2xl font-bold text-blue-600">
+                                        <span class="text-sm">¥</span>{{ number_format($menu->is_subscription ? $menu->subscription_monthly_price : $menu->price) }}
+                                        @if($menu->is_subscription)
+                                            <span class="text-xs">/月</span>
+                                        @endif
+                                    </div>
                                     <div class="text-xs text-gray-500 mt-1">税込</div>
                                 </div>
                             </div>

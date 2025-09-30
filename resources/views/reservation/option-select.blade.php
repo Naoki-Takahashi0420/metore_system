@@ -9,7 +9,7 @@
         <div class="flex justify-between items-center">
             <div>
                 <p class="text-lg">{{ $menu->name }}</p>
-                <p class="text-gray-600">{{ $menu->duration_minutes }}分 / ¥{{ number_format($menu->price) }}</p>
+                <p class="text-gray-600">{{ $menu->duration_minutes }}分 / ¥{{ number_format($menu->is_subscription ? $menu->subscription_monthly_price : $menu->price) }}@if($menu->is_subscription)<span class="text-xs">/月</span>@endif</p>
             </div>
         </div>
     </div>
@@ -128,7 +128,7 @@
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-lg font-semibold">合計</h3>
                 <div class="text-right">
-                    <p class="text-2xl font-bold" id="totalPrice">¥{{ number_format($menu->price) }}</p>
+                    <p class="text-2xl font-bold" id="totalPrice">¥{{ number_format($menu->is_subscription ? $menu->subscription_monthly_price : $menu->price) }}@if($menu->is_subscription)<span class="text-xs">/月</span>@endif</p>
                     <p class="text-gray-600" id="totalDuration">{{ $menu->duration_minutes }}分</p>
                 </div>
             </div>
@@ -147,7 +147,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const basePrice = {{ $menu->price }};
+    const basePrice = {{ $menu->is_subscription ? $menu->subscription_monthly_price : $menu->price }};
     const baseDuration = {{ $menu->duration_minutes }};
     let totalPrice = basePrice;
     let totalDuration = baseDuration;
