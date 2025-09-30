@@ -284,6 +284,75 @@
                 </tr>
             </tbody>
         </table>
+
+        @if($publicData['has_presbyopia_data'])
+        <h2 style="font-size: 18px; color: #333; margin-bottom: 15px; margin-top: 30px;">老眼詳細測定</h2>
+
+        <table class="vision-table">
+            <thead>
+                <tr>
+                    <th style="width: 100px;">状態</th>
+                    <th>A(95%)</th>
+                    <th>B(50%)</th>
+                    <th>C(25%)</th>
+                    <th>D(12%)</th>
+                    <th>E(6%)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if($publicData['presbyopia_before'])
+                <tr>
+                    <td class="row-header">施術前</td>
+                    <td>
+                        左: {{ $publicData['presbyopia_before']->a_95_left ?? '-' }}<br>
+                        右: {{ $publicData['presbyopia_before']->a_95_right ?? '-' }}
+                    </td>
+                    <td>
+                        左: {{ $publicData['presbyopia_before']->b_50_left ?? '-' }}<br>
+                        右: {{ $publicData['presbyopia_before']->b_50_right ?? '-' }}
+                    </td>
+                    <td>
+                        左: {{ $publicData['presbyopia_before']->c_25_left ?? '-' }}<br>
+                        右: {{ $publicData['presbyopia_before']->c_25_right ?? '-' }}
+                    </td>
+                    <td>
+                        左: {{ $publicData['presbyopia_before']->d_12_left ?? '-' }}<br>
+                        右: {{ $publicData['presbyopia_before']->d_12_right ?? '-' }}
+                    </td>
+                    <td>
+                        左: {{ $publicData['presbyopia_before']->e_6_left ?? '-' }}<br>
+                        右: {{ $publicData['presbyopia_before']->e_6_right ?? '-' }}
+                    </td>
+                </tr>
+                @endif
+                @if($publicData['presbyopia_after'])
+                <tr>
+                    <td class="row-header">施術後</td>
+                    <td>
+                        左: {{ $publicData['presbyopia_after']->a_95_left ?? '-' }}<br>
+                        右: {{ $publicData['presbyopia_after']->a_95_right ?? '-' }}
+                    </td>
+                    <td>
+                        左: {{ $publicData['presbyopia_after']->b_50_left ?? '-' }}<br>
+                        右: {{ $publicData['presbyopia_after']->b_50_right ?? '-' }}
+                    </td>
+                    <td>
+                        左: {{ $publicData['presbyopia_after']->c_25_left ?? '-' }}<br>
+                        右: {{ $publicData['presbyopia_after']->c_25_right ?? '-' }}
+                    </td>
+                    <td>
+                        左: {{ $publicData['presbyopia_after']->d_12_left ?? '-' }}<br>
+                        右: {{ $publicData['presbyopia_after']->d_12_right ?? '-' }}
+                    </td>
+                    <td>
+                        左: {{ $publicData['presbyopia_after']->e_6_left ?? '-' }}<br>
+                        右: {{ $publicData['presbyopia_after']->e_6_right ?? '-' }}
+                    </td>
+                </tr>
+                @endif
+            </tbody>
+        </table>
+        @endif
         
         @if(!empty($publicData['eye_condition']))
         <div class="info-section" style="margin-bottom: 30px;">

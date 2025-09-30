@@ -311,18 +311,18 @@ class MedicalRecordResource extends Resource
                                             ->schema([
                                                 Forms\Components\Hidden::make('session')
                                                     ->default(1),
-                                                
+
                                                 Forms\Components\TextInput::make('display_session')
                                                     ->label('回数')
                                                     ->default('自動設定')
                                                     ->disabled()
                                                     ->dehydrated(false),
-                                                
+
                                                 Forms\Components\DatePicker::make('date')
                                                     ->label('測定日')
                                                     ->default(now())
                                                     ->required(),
-                                                
+
                                                 Forms\Components\TextInput::make('intensity')
                                                     ->label('強度')
                                                     ->numeric()
@@ -330,7 +330,7 @@ class MedicalRecordResource extends Resource
                                                     ->maxValue(50)
                                                     ->placeholder('1-50')
                                                     ->helperText('1（弱）〜 50（強）'),
-                                                
+
                                                 Forms\Components\Select::make('duration')
                                                     ->label('時間（分）')
                                                     ->options([
@@ -355,7 +355,7 @@ class MedicalRecordResource extends Resource
                                                     })
                                                     ->required(),
                                             ]),
-                                        
+
                                         // 施術前視力（1回目：裸眼）
                                         Forms\Components\Section::make('施術前視力 - 裸眼')
                                             ->schema([
@@ -364,14 +364,14 @@ class MedicalRecordResource extends Resource
                                                         Forms\Components\TextInput::make('before_naked_left')
                                                             ->label('左眼')
                                                             ->placeholder('0.5'),
-                                                        
+
                                                         Forms\Components\TextInput::make('before_naked_right')
                                                             ->label('右眼')
                                                             ->placeholder('0.5'),
                                                     ]),
                                             ])
                                             ->collapsible(),
-                                        
+
                                         // 施術前視力（2回目：矯正）
                                         Forms\Components\Section::make('施術前視力 - 矯正（メガネ・コンタクト）')
                                             ->schema([
@@ -380,7 +380,7 @@ class MedicalRecordResource extends Resource
                                                         Forms\Components\TextInput::make('before_corrected_left')
                                                             ->label('左眼')
                                                             ->placeholder('1.0'),
-                                                        
+
                                                         Forms\Components\TextInput::make('before_corrected_right')
                                                             ->label('右眼')
                                                             ->placeholder('1.0'),
@@ -388,7 +388,7 @@ class MedicalRecordResource extends Resource
                                             ])
                                             ->collapsible()
                                             ->collapsed(),
-                                        
+
                                         // 施術後視力（1回目：裸眼）
                                         Forms\Components\Section::make('施術後視力 - 裸眼')
                                             ->schema([
@@ -397,14 +397,14 @@ class MedicalRecordResource extends Resource
                                                         Forms\Components\TextInput::make('after_naked_left')
                                                             ->label('左眼')
                                                             ->placeholder('0.8'),
-                                                        
+
                                                         Forms\Components\TextInput::make('after_naked_right')
                                                             ->label('右眼')
                                                             ->placeholder('0.8'),
                                                     ]),
                                             ])
                                             ->collapsible(),
-                                        
+
                                         // 施術後視力（2回目：矯正）
                                         Forms\Components\Section::make('施術後視力 - 矯正（メガネ・コンタクト）')
                                             ->schema([
@@ -413,7 +413,7 @@ class MedicalRecordResource extends Resource
                                                         Forms\Components\TextInput::make('after_corrected_left')
                                                             ->label('左眼')
                                                             ->placeholder('1.2'),
-                                                        
+
                                                         Forms\Components\TextInput::make('after_corrected_right')
                                                             ->label('右眼')
                                                             ->placeholder('1.2'),
@@ -421,7 +421,7 @@ class MedicalRecordResource extends Resource
                                             ])
                                             ->collapsible()
                                             ->collapsed(),
-                                        
+
                                         Forms\Components\Textarea::make('public_memo')
                                             ->label('メモ（顧客に表示）')
                                             ->placeholder('効果の実感など')
@@ -431,6 +431,137 @@ class MedicalRecordResource extends Resource
                                     ->addActionLabel('視力記録を追加')
                                     ->collapsible()
                                     ->cloneable(),
+
+                                // 老眼詳細測定表（オプション）
+                                Forms\Components\Section::make('老眼詳細測定')
+                                    ->description('老眼の詳細な測定結果を記録します（任意）')
+                                    ->schema([
+                                        Forms\Components\Grid::make(11)
+                                            ->schema([
+                                                // ヘッダー行
+                                                Forms\Components\Placeholder::make('header_empty')
+                                                    ->label('')
+                                                    ->content(''),
+
+                                                Forms\Components\Placeholder::make('header_a')
+                                                    ->label('')
+                                                    ->content(new \Illuminate\Support\HtmlString('<div class="text-center font-bold">A(95%)</div>'))
+                                                    ->columnSpan(2),
+
+                                                Forms\Components\Placeholder::make('header_b')
+                                                    ->label('')
+                                                    ->content(new \Illuminate\Support\HtmlString('<div class="text-center font-bold">B(50%)</div>'))
+                                                    ->columnSpan(2),
+
+                                                Forms\Components\Placeholder::make('header_c')
+                                                    ->label('')
+                                                    ->content(new \Illuminate\Support\HtmlString('<div class="text-center font-bold">C(25%)</div>'))
+                                                    ->columnSpan(2),
+
+                                                Forms\Components\Placeholder::make('header_d')
+                                                    ->label('')
+                                                    ->content(new \Illuminate\Support\HtmlString('<div class="text-center font-bold">D(12%)</div>'))
+                                                    ->columnSpan(2),
+
+                                                Forms\Components\Placeholder::make('header_e')
+                                                    ->label('')
+                                                    ->content(new \Illuminate\Support\HtmlString('<div class="text-center font-bold">E(6%)</div>'))
+                                                    ->columnSpan(2),
+
+                                                // 施術前の行
+                                                Forms\Components\Placeholder::make('before_label')
+                                                    ->label('')
+                                                    ->content(new \Illuminate\Support\HtmlString('<div class="font-bold">施術前</div>')),
+
+                                                Forms\Components\TextInput::make('presbyopiaMeasurements.before.a_95_left')
+                                                    ->label('左')
+                                                    ->placeholder('0.1'),
+
+                                                Forms\Components\TextInput::make('presbyopiaMeasurements.before.a_95_right')
+                                                    ->label('右')
+                                                    ->placeholder('0.1'),
+
+                                                Forms\Components\TextInput::make('presbyopiaMeasurements.before.b_50_left')
+                                                    ->label('左')
+                                                    ->placeholder('0.1'),
+
+                                                Forms\Components\TextInput::make('presbyopiaMeasurements.before.b_50_right')
+                                                    ->label('右')
+                                                    ->placeholder('0.1'),
+
+                                                Forms\Components\TextInput::make('presbyopiaMeasurements.before.c_25_left')
+                                                    ->label('左')
+                                                    ->placeholder('0.1'),
+
+                                                Forms\Components\TextInput::make('presbyopiaMeasurements.before.c_25_right')
+                                                    ->label('右')
+                                                    ->placeholder('0.1'),
+
+                                                Forms\Components\TextInput::make('presbyopiaMeasurements.before.d_12_left')
+                                                    ->label('左')
+                                                    ->placeholder('0.1'),
+
+                                                Forms\Components\TextInput::make('presbyopiaMeasurements.before.d_12_right')
+                                                    ->label('右')
+                                                    ->placeholder('0.1'),
+
+                                                Forms\Components\TextInput::make('presbyopiaMeasurements.before.e_6_left')
+                                                    ->label('左')
+                                                    ->placeholder('0.1'),
+
+                                                Forms\Components\TextInput::make('presbyopiaMeasurements.before.e_6_right')
+                                                    ->label('右')
+                                                    ->placeholder('0.1'),
+
+                                                // 施術後の行
+                                                Forms\Components\Placeholder::make('after_label')
+                                                    ->label('')
+                                                    ->content(new \Illuminate\Support\HtmlString('<div class="font-bold">施術後</div>')),
+
+                                                Forms\Components\TextInput::make('presbyopiaMeasurements.after.a_95_left')
+                                                    ->label('左')
+                                                    ->placeholder('0.1'),
+
+                                                Forms\Components\TextInput::make('presbyopiaMeasurements.after.a_95_right')
+                                                    ->label('右')
+                                                    ->placeholder('0.1'),
+
+                                                Forms\Components\TextInput::make('presbyopiaMeasurements.after.b_50_left')
+                                                    ->label('左')
+                                                    ->placeholder('0.1'),
+
+                                                Forms\Components\TextInput::make('presbyopiaMeasurements.after.b_50_right')
+                                                    ->label('右')
+                                                    ->placeholder('0.1'),
+
+                                                Forms\Components\TextInput::make('presbyopiaMeasurements.after.c_25_left')
+                                                    ->label('左')
+                                                    ->placeholder('0.1'),
+
+                                                Forms\Components\TextInput::make('presbyopiaMeasurements.after.c_25_right')
+                                                    ->label('右')
+                                                    ->placeholder('0.1'),
+
+                                                Forms\Components\TextInput::make('presbyopiaMeasurements.after.d_12_left')
+                                                    ->label('左')
+                                                    ->placeholder('0.1'),
+
+                                                Forms\Components\TextInput::make('presbyopiaMeasurements.after.d_12_right')
+                                                    ->label('右')
+                                                    ->placeholder('0.1'),
+
+                                                Forms\Components\TextInput::make('presbyopiaMeasurements.after.e_6_left')
+                                                    ->label('左')
+                                                    ->placeholder('0.1'),
+
+                                                Forms\Components\TextInput::make('presbyopiaMeasurements.after.e_6_right')
+                                                    ->label('右')
+                                                    ->placeholder('0.1'),
+                                            ])
+                                            ->columnSpanFull(),
+                                    ])
+                                    ->collapsible()
+                                    ->collapsed(),
                             ]),
                         
                         // 接客メモタブ（内部用）

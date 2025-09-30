@@ -60,15 +60,55 @@ class CreateMedicalRecord extends CreateRecord
             foreach ($data['vision_records'] as $index => &$record) {
                 $record['session'] = $index + 1;
             }
-            
+
             // session_numberを最新の回数に設定
             $data['session_number'] = count($data['vision_records']);
         }
-        
+
         // staff_idとcreated_byを現在のユーザーに設定
         $data['staff_id'] = auth()->id();
         $data['created_by'] = auth()->id();
-        
+
         return $data;
+    }
+
+    protected function afterCreate(): void
+    {
+        // 老眼詳細測定データの保存
+        $data = $this->form->getState();
+
+        if (isset($data['presbyopiaMeasurements'])) {
+            // 施術前のデータ
+            if (isset($data['presbyopiaMeasurements']['before'])) {
+                $beforeData = $data['presbyopiaMeasurements']['before'];
+                if ($this->hasAnyValue($beforeData)) {
+                    $this->record->presbyopiaMeasurements()->create(array_merge(
+                        ['status' => '施術前'],
+                        $beforeData
+                    ));
+                }
+            }
+
+            // 施術後のデータ
+            if (isset($data['presbyopiaMeasurements']['after'])) {
+                $afterData = $data['presbyopiaMeasurements']['after'];
+                if ($this->hasAnyValue($afterData)) {
+                    $this->record->presbyopiaMeasurements()->create(array_merge(
+                        ['status' => '施術後'],
+                        $afterData
+                    ));
+                }
+            }
+        }
+    }
+
+    private function hasAnyValue(array $data): bool
+    {
+        foreach ($data as $value) {
+            if (!empty($value)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

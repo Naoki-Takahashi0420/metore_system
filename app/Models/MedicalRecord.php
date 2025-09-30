@@ -111,6 +111,14 @@ class MedicalRecord extends Model
     }
 
     /**
+     * リレーション: 老眼詳細測定記録
+     */
+    public function presbyopiaMeasurements()
+    {
+        return $this->hasMany(PresbyopiaMeasurement::class)->orderBy('status', 'asc');
+    }
+
+    /**
      * スコープ: 日付範囲
      */
     public function scopeBetweenDates($query, $startDate, $endDate)
@@ -149,25 +157,34 @@ class MedicalRecord extends Model
     {
         // 視力記録から最新のデータを取得
         $latestVision = $this->getLatestVisionRecord();
-        
+
+        // 老眼詳細測定データを取得
+        $beforePresbyopia = $this->presbyopiaMeasurements()->where('status', '施術前')->first();
+        $afterPresbyopia = $this->presbyopiaMeasurements()->where('status', '施術後')->first();
+
         return [
             'session_number' => $this->session_number,
             'treatment_date' => $this->treatment_date,
             'examination_type' => $this->visit_purpose ?? '通常検査',
-            
+
             // 視力データ（最新の記録から）
             'unaided_vision_right' => $latestVision['before_naked_right'] ?? $this->unaided_vision_right ?? '-',
             'unaided_vision_left' => $latestVision['before_naked_left'] ?? $this->unaided_vision_left ?? '-',
             'unaided_vision_both' => $latestVision['before_naked_both'] ?? $this->unaided_vision_both ?? '-',
-            
+
             'corrected_vision_right' => $latestVision['before_corrected_right'] ?? $this->corrected_vision_right ?? '-',
             'corrected_vision_left' => $latestVision['before_corrected_left'] ?? $this->corrected_vision_left ?? '-',
             'corrected_vision_both' => $latestVision['before_corrected_both'] ?? $this->corrected_vision_both ?? '-',
-            
+
             'reading_vision_right' => $this->reading_vision_right ?? '-',
             'reading_vision_left' => $this->reading_vision_left ?? '-',
             'reading_vision_both' => $this->reading_vision_both ?? '-',
-            
+
+            // 老眼詳細測定データ
+            'presbyopia_before' => $beforePresbyopia,
+            'presbyopia_after' => $afterPresbyopia,
+            'has_presbyopia_data' => $beforePresbyopia || $afterPresbyopia,
+
             // その他の情報
             'eye_condition' => $this->eye_diseases ?? null,
             'symptoms' => $this->symptoms ?? null,
