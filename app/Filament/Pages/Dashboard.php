@@ -21,10 +21,11 @@ class Dashboard extends BaseDashboard
     {
         return [
             \App\Filament\Widgets\ReservationTimelineWidget::class,     // 1. 予約タイムラインテーブル
-            \App\Filament\Widgets\TodayReservationsWidget::class,       // 2. 予約一覧
-            \App\Filament\Widgets\ReservationCalendarWidget::class,     // 3. 予約カレンダー
-            \App\Filament\Widgets\ShiftManagementLinkWidget::class,     // 4. 本日のシフト状況
-            \App\Filament\Widgets\SubscriptionStatsWidget::class,       // 5. 統計情報
+            \App\Filament\Widgets\PaymentFailedAlertWidget::class,      // 2. 決済失敗アラート
+            \App\Filament\Widgets\TodayReservationsWidget::class,       // 3. 予約一覧
+            \App\Filament\Widgets\ReservationCalendarWidget::class,     // 4. 予約カレンダー
+            \App\Filament\Widgets\ShiftManagementLinkWidget::class,     // 5. 本日のシフト状況
+            \App\Filament\Widgets\SubscriptionStatsWidget::class,       // 6. 統計情報
         ];
     }
 }

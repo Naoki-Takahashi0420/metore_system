@@ -55,6 +55,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->widgets([
                 \App\Filament\Widgets\ReservationTimelineWidget::class,
+                \App\Filament\Widgets\PaymentFailedAlertWidget::class,
                 \App\Filament\Widgets\ReservationCalendarWidget::class,
                 \App\Filament\Widgets\TodayReservationsWidget::class,
                 \App\Filament\Widgets\ShiftManagementLinkWidget::class,

@@ -21,8 +21,9 @@ class RequiresAttentionCustomersWidget extends BaseWidget
         return $table
             ->query($this->getTableQuery())
             ->columns([
-                Tables\Columns\BadgeColumn::make('attention_type')
+                Tables\Columns\TextColumn::make('attention_type')
                     ->label('種類')
+                    ->badge()
                     ->getStateUsing(function ($record) {
                         if ($record->payment_failed) {
                             return '決済失敗';
@@ -35,12 +36,12 @@ class RequiresAttentionCustomersWidget extends BaseWidget
                         }
                         return 'その他';
                     })
-                    ->colors([
-                        'danger' => '決済失敗',
-                        'warning' => '休止中',
-                        'info' => '終了間近',
-                        'gray' => 'その他',
-                    ]),
+                    ->color(fn (string $state): string => match ($state) {
+                        '決済失敗' => 'danger',
+                        '休止中' => 'warning',
+                        '終了間近' => 'info',
+                        default => 'gray',
+                    }),
                     
                 Tables\Columns\TextColumn::make('customer.last_name')
                     ->label('顧客名')
