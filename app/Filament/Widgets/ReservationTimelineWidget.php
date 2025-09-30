@@ -1281,7 +1281,9 @@ class ReservationTimelineWidget extends Widget
                           ->orWhere('last_name', 'LIKE', '%' . $search . '%')
                           ->orWhere('first_name', 'LIKE', '%' . $search . '%')
                           ->orWhere('last_name_kana', 'LIKE', '%' . $search . '%')
-                          ->orWhere('first_name_kana', 'LIKE', '%' . $search . '%');
+                          ->orWhere('first_name_kana', 'LIKE', '%' . $search . '%')
+                          ->orWhereRaw('CONCAT(last_name, first_name) LIKE ?', ['%' . $search . '%'])
+                          ->orWhereRaw('CONCAT(last_name_kana, first_name_kana) LIKE ?', ['%' . $search . '%']);
                 })
                 // whereHas を削除して、全ての顧客を検索対象に
                 ->withCount(['reservations' => function($query) use ($storeId) {
