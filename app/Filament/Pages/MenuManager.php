@@ -50,7 +50,7 @@ class MenuManager extends Page implements HasForms, HasActions
 
         $this->categories = MenuCategory::where('store_id', $this->selectedStore)
             ->with(['menus' => function ($query) {
-                $query->orderBy('sort_order');
+                $query->select('*')->orderBy('sort_order');
             }])
             ->orderBy('sort_order')
             ->get()
