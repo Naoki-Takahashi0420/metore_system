@@ -170,12 +170,15 @@ document.addEventListener('DOMContentLoaded', async function() {
         `;
     }
     
-    // ログアウト処理
-    document.getElementById('logout-btn').addEventListener('click', function() {
-        localStorage.removeItem('customer_token');
-        localStorage.removeItem('customer_data');
-        window.location.href = '/customer/login';
-    });
+    // ログアウト処理（ボタンが存在する場合のみ）
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function() {
+            localStorage.removeItem('customer_token');
+            localStorage.removeItem('customer_data');
+            window.location.href = '/customer/login';
+        });
+    }
 });
 
 function displayMedicalRecords(records) {
