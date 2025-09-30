@@ -128,7 +128,11 @@ class MedicalRecord extends Model
      */
     public function getPresbyopiaBeforeAttribute()
     {
-        return $this->presbyopiaMeasurements->where('status', '施術前')->first();
+        // リレーションがロードされているか確認
+        if (!$this->relationLoaded('presbyopiaMeasurements')) {
+            $this->load('presbyopiaMeasurements');
+        }
+        return $this->presbyopiaMeasurements->firstWhere('status', '施術前');
     }
 
     /**
@@ -136,7 +140,11 @@ class MedicalRecord extends Model
      */
     public function getPresbyopiaAfterAttribute()
     {
-        return $this->presbyopiaMeasurements->where('status', '施術後')->first();
+        // リレーションがロードされているか確認
+        if (!$this->relationLoaded('presbyopiaMeasurements')) {
+            $this->load('presbyopiaMeasurements');
+        }
+        return $this->presbyopiaMeasurements->firstWhere('status', '施術後');
     }
 
     /**

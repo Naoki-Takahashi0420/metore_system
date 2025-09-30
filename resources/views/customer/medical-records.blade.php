@@ -148,6 +148,17 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         
         const data = await response.json();
+        console.log('API Response:', data);
+        console.log('Records count:', data.data ? data.data.length : 0);
+        if (data.data && data.data.length > 0) {
+            console.log('First record presbyopia check:', {
+                has_presbyopia_before: !!data.data[0].presbyopia_before,
+                has_presbyopia_after: !!data.data[0].presbyopia_after,
+                has_presbyopia_measurements: !!data.data[0].presbyopia_measurements,
+                presbyopia_before: data.data[0].presbyopia_before,
+                presbyopia_after: data.data[0].presbyopia_after
+            });
+        }
         displayMedicalRecords(data.data || []);
         
     } catch (error) {
