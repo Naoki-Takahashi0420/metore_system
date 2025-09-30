@@ -79,14 +79,23 @@ class TimelineCalendarWidget extends Widget
     private function generateTimeSlots()
     {
         $this->timeSlots = [];
+
+        // 選択された店舗の予約間隔を取得
+        $slotInterval = 30; // デフォルト
+        if ($this->selectedStoreId) {
+            $store = Store::find($this->selectedStoreId);
+            $slotInterval = $store->reservation_slot_duration ?? 30;
+        }
+
         $startHour = 9;  // 9:00から
         $endHour = 21;   // 21:00まで
-        
-        for ($hour = $startHour; $hour <= $endHour; $hour++) {
-            $this->timeSlots[] = sprintf('%02d:00', $hour);
-            if ($hour < $endHour) {
-                $this->timeSlots[] = sprintf('%02d:30', $hour);
-            }
+
+        $start = Carbon::createFromTime($startHour, 0);
+        $end = Carbon::createFromTime($endHour, 0);
+
+        while ($start <= $end) {
+            $this->timeSlots[] = $start->format('H:i');
+            $start->addMinutes($slotInterval);
         }
     }
     

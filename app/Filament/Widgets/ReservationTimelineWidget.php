@@ -1099,7 +1099,8 @@ class ReservationTimelineWidget extends Widget
             'line_type' => 'main',
             'line_number' => 1,
             'staff_id' => '',
-            'notes' => '電話予約'
+            'notes' => '電話予約',
+            'option_menu_ids' => []
         ];
 
         // JavaScript側のセッションストレージをクリア
@@ -1156,6 +1157,7 @@ class ReservationTimelineWidget extends Widget
             'start_time' => $timeSlot,
             'duration' => 60,
             'menu_id' => '',
+            'option_menu_ids' => [],
             'line_type' => $lineType,
             'line_number' => $lineNumber,
             'staff_id' => $staffId,

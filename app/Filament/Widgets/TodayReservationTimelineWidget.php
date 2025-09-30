@@ -400,16 +400,22 @@ class TodayReservationTimelineWidget extends Widget
             $latestClose = Carbon::createFromTime(23, 30);
         }
         
-        // 営業時間のフルレンジを表示（30分間隔）
+        // 表示対象店舗の最小予約間隔を取得
+        $minSlotInterval = 30; // デフォルト
+        if ($stores->isNotEmpty()) {
+            $minSlotInterval = $stores->min('reservation_slot_duration') ?? 30;
+        }
+
+        // 営業時間のフルレンジを表示
         $start = $earliestOpen->copy();
         $end = $latestClose->copy();
-        
+
         $slots = collect();
         while ($start <= $end) {
             $slots->push($start->format('H:i'));
-            $start->addMinutes(30);
+            $start->addMinutes($minSlotInterval);
         }
-        
+
         return $slots;
     }
     

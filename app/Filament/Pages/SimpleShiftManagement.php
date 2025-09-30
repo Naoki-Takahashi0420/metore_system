@@ -135,11 +135,16 @@ class SimpleShiftManagement extends Page implements HasForms
             }
         }
         
-        // 15分刻みで時間スロットを生成
-        // 終了時間の時まで完全に4分割する（例：21時終了なら20:45まで）
+        // 店舗の予約間隔を取得（シフト管理では15分刻みがデフォルト）
+        $slotInterval = 15;
+        if ($store && $store->reservation_slot_duration) {
+            $slotInterval = $store->reservation_slot_duration;
+        }
+
+        // 指定間隔で時間スロットを生成
         while ($start->hour < $end->hour) {
             $this->timeSlots[] = $start->format('H:i');
-            $start->addMinutes(15); // 15分刻み
+            $start->addMinutes($slotInterval);
         }
     }
     

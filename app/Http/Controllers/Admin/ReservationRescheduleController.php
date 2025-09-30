@@ -233,12 +233,15 @@ class ReservationRescheduleController extends Controller
             }
         }
 
+        // 店舗の予約枠間隔を取得（デフォルト30分）
+        $slotInterval = $store->reservation_slot_duration ?? 30;
+
         $start = Carbon::createFromTimeString($openTime);
         $end = Carbon::createFromTimeString($closeTime);
 
         while ($start < $end) {
             $slots[] = $start->format('H:i');
-            $start->addMinutes(30);
+            $start->addMinutes($slotInterval);
         }
 
         return $slots;
