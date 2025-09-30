@@ -50,10 +50,18 @@ class MenuManager extends Page implements HasForms, HasActions
 
         $this->categories = MenuCategory::where('store_id', $this->selectedStore)
             ->with(['menus' => function ($query) {
-                $query->select('*')->orderBy('sort_order');
+                $query->orderBy('sort_order');
             }])
             ->orderBy('sort_order')
             ->get()
+            ->map(function ($category) {
+                $categoryArray = $category->toArray();
+                // menusのサブスク情報が確実に含まれるようにする
+                $categoryArray['menus'] = $category->menus->map(function ($menu) {
+                    return $menu->toArray();
+                })->toArray();
+                return $categoryArray;
+            })
             ->toArray();
     }
 
