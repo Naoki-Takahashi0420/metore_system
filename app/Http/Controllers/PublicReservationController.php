@@ -854,6 +854,16 @@ class PublicReservationController extends Controller
             $isExistingCustomer = true;
         }
 
+        // サブスク予約かどうかを判定
+        $isSubscriptionBooking = Session::get('is_subscription_booking', false) || (isset($context['is_subscription']) && $context['is_subscription']);
+        $subscriptionId = Session::get('subscription_id') ?? ($context['subscription_id'] ?? null);
+
+        \Log::info('カレンダー画面表示', [
+            'is_subscription_booking' => $isSubscriptionBooking,
+            'subscription_id' => $subscriptionId,
+            'customer_id' => $customerId
+        ]);
+
         return view('reservation.public.index', compact(
             'stores',
             'selectedMenu',
@@ -865,7 +875,9 @@ class PublicReservationController extends Controller
             'weekOffset',
             'maxWeeks',
             'existingCustomer',
-            'isExistingCustomer'
+            'isExistingCustomer',
+            'isSubscriptionBooking',
+            'subscriptionId'
         ));
     }
     

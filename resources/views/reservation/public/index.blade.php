@@ -495,14 +495,14 @@
 
             checkExistingCustomer();
 
-            // URLパラメータからサブスク予約かどうかを判定
-            const urlParams = new URLSearchParams(window.location.search);
-            const isSubscriptionBooking = urlParams.get('type') === 'subscription';
+            // サーバー側から渡されたサブスク予約フラグを使用
+            const isSubscriptionBooking = @json($isSubscriptionBooking ?? false);
+            const subscriptionId = @json($subscriptionId ?? null);
 
-            console.log('🔍 URLパラメータ確認:', {
+            console.log('🔍 サブスク予約情報:', {
                 isSubscriptionBooking,
-                fullUrl: window.location.href,
-                params: Object.fromEntries(urlParams)
+                subscriptionId,
+                fullUrl: window.location.href
             });
 
             if (isSubscriptionBooking) {
@@ -552,9 +552,8 @@
 
             console.log('既存予約の表示更新開始', existingReservations);
 
-            // URLパラメータからサブスク予約かどうかを判定
-            const urlParams = new URLSearchParams(window.location.search);
-            const isSubscriptionBooking = urlParams.get('type') === 'subscription';
+            // サーバー側から渡されたサブスク予約フラグを使用
+            const isSubscriptionBooking = @json($isSubscriptionBooking ?? false);
             console.log('サブスク予約モード:', isSubscriptionBooking);
 
             // 現在のメニューIDを取得
