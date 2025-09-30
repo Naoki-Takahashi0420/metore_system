@@ -670,12 +670,17 @@ class PublicReservationController extends Controller
                 // 最初にセッションストレージからの情報を確認（JavaScript側で設定されている可能性）
                 $requestCustomerId = $request->header('X-Customer-ID');
 
-                // 現在ログイン中の顧客のアクティブサブスクリプションを取得
-                $subscriptions = \App\Models\CustomerSubscription::where('status', 'active')
+                // 現在の顧客のアクティブサブスクリプションを取得
+                $query = \App\Models\CustomerSubscription::where('status', 'active')
                     ->where('payment_failed', false)
-                    ->where('is_paused', false)
-                    ->with(['plan'])
-                    ->get();
+                    ->where('is_paused', false);
+
+                // 顧客IDでフィルタ（重要！）
+                if ($customerId) {
+                    $query->where('customer_id', $customerId);
+                }
+
+                $subscriptions = $query->with(['plan'])->get();
 
                 if ($subscriptions->isNotEmpty()) {
                     $subscription = $subscriptions->first();
