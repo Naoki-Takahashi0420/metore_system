@@ -60,6 +60,11 @@ class MedicalRecord extends Model
         'has_astigmatism' => 'boolean',
     ];
 
+    protected $appends = [
+        'presbyopia_before',
+        'presbyopia_after',
+    ];
+
     /**
      * リレーション: 顧客
      */
@@ -116,6 +121,22 @@ class MedicalRecord extends Model
     public function presbyopiaMeasurements()
     {
         return $this->hasMany(PresbyopiaMeasurement::class)->orderBy('status', 'asc');
+    }
+
+    /**
+     * アクセサ: 施術前の老眼測定データ
+     */
+    public function getPresbyopiaBeforeAttribute()
+    {
+        return $this->presbyopiaMeasurements->where('status', '施術前')->first();
+    }
+
+    /**
+     * アクセサ: 施術後の老眼測定データ
+     */
+    public function getPresbyopiaAfterAttribute()
+    {
+        return $this->presbyopiaMeasurements->where('status', '施術後')->first();
     }
 
     /**
