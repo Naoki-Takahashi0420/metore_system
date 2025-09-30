@@ -267,6 +267,36 @@ class CustomerSubscription extends Model
     }
 
     /**
+     * 次回リセット日を取得（次の周期の開始日）
+     * 例: 現在が2025-02-15で周期が2/9-3/8の場合 → 2025-03-09を返す
+     */
+    public function getNextResetDate(): ?Carbon
+    {
+        $periodEnd = $this->getCurrentPeriodEnd();
+
+        if (!$periodEnd) {
+            return null;
+        }
+
+        // 周期終了日の翌日 = 次回リセット日
+        return $periodEnd->copy()->addDay();
+    }
+
+    /**
+     * リセットまでの残り日数を取得
+     */
+    public function getDaysUntilReset(): ?int
+    {
+        $nextResetDate = $this->getNextResetDate();
+
+        if (!$nextResetDate) {
+            return null;
+        }
+
+        return Carbon::today()->diffInDays($nextResetDate, false);
+    }
+
+    /**
      * current_month_visitsアクセサ（動的計算）
      * データベースの値ではなく、常に予約データから計算
      */

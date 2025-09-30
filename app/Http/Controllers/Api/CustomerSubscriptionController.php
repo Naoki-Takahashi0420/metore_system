@@ -43,9 +43,9 @@ class CustomerSubscriptionController extends Controller
                 return [
                     'id' => $sub->id,
                     'status' => $sub->status,
-                    'store_id' => $sub->store_id,  // 直接store_idを追加
-                    'menu_id' => $sub->menu_id ?? $menuId,  // 直接menu_idを追加
-                    'plan_name' => $sub->plan_name ?? 'プラン',  // 直接plan_nameを追加
+                    'store_id' => $sub->store_id,
+                    'menu_id' => $sub->menu_id ?? $menuId,
+                    'plan_name' => $sub->plan_name ?? 'プラン',
                     'plan' => [
                         'id' => $sub->plan_id,
                         'name' => $sub->plan_name ?? 'プラン',
@@ -54,6 +54,11 @@ class CustomerSubscriptionController extends Controller
                     'remaining_sessions' => $remaining,
                     'monthly_limit' => $sub->monthly_limit,
                     'current_month_visits' => $sub->current_month_visits,
+                    // 期間情報を追加
+                    'period_start' => $sub->getCurrentPeriodStart()?->format('Y-m-d'),
+                    'period_end' => $sub->getCurrentPeriodEnd()?->format('Y-m-d'),
+                    'next_reset_date' => $sub->getNextResetDate()?->format('Y-m-d'),
+                    'days_until_reset' => $sub->getDaysUntilReset(),
                     'store' => $sub->store ? [
                         'id' => $sub->store->id,
                         'name' => $sub->store->name,
@@ -192,6 +197,11 @@ class CustomerSubscriptionController extends Controller
                     'remaining_sessions' => $remaining,
                     'monthly_limit' => $sub->monthly_limit,
                     'current_month_visits' => $sub->current_month_visits,
+                    // 期間情報を追加
+                    'period_start' => $sub->getCurrentPeriodStart()?->format('Y-m-d'),
+                    'period_end' => $sub->getCurrentPeriodEnd()?->format('Y-m-d'),
+                    'next_reset_date' => $sub->getNextResetDate()?->format('Y-m-d'),
+                    'days_until_reset' => $sub->getDaysUntilReset(),
                     'store' => $sub->store ? [
                         'id' => $sub->store->id,
                         'name' => $sub->store->name,

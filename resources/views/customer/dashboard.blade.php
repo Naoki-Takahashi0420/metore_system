@@ -444,9 +444,19 @@ async function fetchStats() {
                 const duration = activeSubscription.menu?.duration || 60;
                 const monthlyPrice = activeSubscription.monthly_price || 0;
                 
+                // 次回リセット日の表示文字列
+                let resetDateText = '';
+                if (activeSubscription.next_reset_date) {
+                    const resetDate = new Date(activeSubscription.next_reset_date);
+                    const year = resetDate.getFullYear();
+                    const month = resetDate.getMonth() + 1;
+                    const day = resetDate.getDate();
+                    resetDateText = `次回リセット: ${year}年${month}月${day}日`;
+                }
+
                 document.getElementById('subscription-details').innerHTML = `
                     <div class="text-sm text-gray-600 mb-1">${menuName} (${duration}分)</div>
-                    <div class="flex items-baseline gap-3">
+                    <div class="flex items-baseline gap-3 mb-2">
                         <div class="text-gray-800">
                             <span class="text-2xl font-bold text-blue-600">${activeSubscription.remaining_sessions || 0}</span>
                             <span class="text-sm text-gray-600">/ ${activeSubscription.monthly_limit || 0}回</span>
@@ -455,6 +465,7 @@ async function fetchStats() {
                             ${Math.floor(monthlyPrice).toLocaleString()}円/月
                         </div>
                     </div>
+                    ${resetDateText ? `<div class="text-xs text-gray-500">${resetDateText}</div>` : ''}
                 `;
                 
                 // サブスク予約ボタンのイベント
