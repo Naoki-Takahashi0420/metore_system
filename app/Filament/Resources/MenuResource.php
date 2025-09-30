@@ -272,7 +272,13 @@ class MenuResource extends Resource
                 Tables\Columns\TextColumn::make('price')
                     ->label('料金')
                     ->money('JPY')
-                    ->sortable(),
+                    ->sortable()
+                    ->formatStateUsing(function ($record) {
+                        if ($record->is_subscription && $record->subscription_monthly_price) {
+                            return '¥' . number_format($record->subscription_monthly_price) . '/月';
+                        }
+                        return '¥' . number_format($record->price);
+                    }),
                 Tables\Columns\TextColumn::make('duration_minutes')
                     ->label('所要時間')
                     ->formatStateUsing(fn (?int $state): string => $state ? "{$state}分" : '-')
