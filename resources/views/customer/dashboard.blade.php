@@ -756,29 +756,34 @@ function displayReservations() {
                     
                     <div class="mt-3 flex items-center gap-4">
                         <div class="text-lg font-semibold ${isSubscription && reservation.total_amount == 0 ? 'text-purple-600' : 'text-gray-900'}">
-                            ${isSubscription && reservation.total_amount == 0 ?
-                                '<span class="text-sm font-normal text-gray-600 line-through mr-1">通常料金</span>サブスク利用 ¥0' :
-                                (() => {
-                                    const hasOptions = reservation.option_menus && reservation.option_menus.length > 0;
-                                    const basePrice = reservation.menu?.is_subscription ?
-                                        (reservation.menu?.subscription_monthly_price || 0) :
-                                        (reservation.menu?.price || 0);
-                                    const optionTotal = hasOptions ?
-                                        reservation.option_menus.reduce((sum, opt) => sum + (opt.pivot?.price || 0), 0) : 0;
+                            ${(() => {
+                                // サブスク契約者がサブスクメニューを予約し、オプションなしの場合
+                                if (isSubscription && reservation.total_amount == 0) {
+                                    return '<span class="text-sm font-normal text-gray-600 line-through mr-1">通常料金</span>サブスク利用 ¥0';
+                                }
 
-                                    if (hasOptions && optionTotal > 0) {
-                                        return `
-                                            <div class="flex items-baseline gap-2">
-                                                <span class="text-sm text-gray-500">基本 ¥${Math.floor(basePrice).toLocaleString()}</span>
-                                                <span class="text-sm text-gray-500">+ オプション ¥${Math.floor(optionTotal).toLocaleString()}</span>
-                                                <span>=</span>
-                                                <span>¥${Math.floor(reservation.total_amount || 0).toLocaleString()}</span>
-                                            </div>
-                                        `;
-                                    }
-                                    return `¥${Math.floor(reservation.total_amount || 0).toLocaleString()}`;
-                                })()
-                            }
+                                const hasOptions = reservation.option_menus && reservation.option_menus.length > 0;
+                                const basePrice = reservation.menu?.is_subscription ?
+                                    (reservation.menu?.subscription_monthly_price || 0) :
+                                    (reservation.menu?.price || 0);
+                                const optionTotal = hasOptions ?
+                                    reservation.option_menus.reduce((sum, opt) => sum + (opt.pivot?.price || 0), 0) : 0;
+
+                                // オプション付きの場合は詳細表示
+                                if (hasOptions && optionTotal > 0) {
+                                    return `
+                                        <div class="flex items-baseline gap-2">
+                                            <span class="text-sm text-gray-500">基本 ¥${Math.floor(basePrice).toLocaleString()}</span>
+                                            <span class="text-sm text-gray-500">+ オプション ¥${Math.floor(optionTotal).toLocaleString()}</span>
+                                            <span>=</span>
+                                            <span>¥${Math.floor(reservation.total_amount || 0).toLocaleString()}</span>
+                                        </div>
+                                    `;
+                                }
+
+                                // 通常表示
+                                return `¥${Math.floor(reservation.total_amount || 0).toLocaleString()}`;
+                            })()}
                         </div>
                         ${reservation.staff?.name ? `
                             <div class="flex items-center text-sm text-gray-600">
