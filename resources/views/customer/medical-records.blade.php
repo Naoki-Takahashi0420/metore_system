@@ -3,6 +3,7 @@
 @section('title', 'カルテ')
 
 @section('content')
+<!-- DEBUG: View updated at 2025-09-30 21:30 -->
 <div class="bg-white min-h-screen pb-20 md:pb-0">
     <div class="max-w-4xl mx-auto px-4">
         <!-- Header -->
