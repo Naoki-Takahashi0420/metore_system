@@ -66,16 +66,6 @@
         <form action="{{ route('admin.reservations.reschedule.update', $reservation) }}" method="POST" id="reschedule-form">
             @csrf
 
-            <!-- デバッグ情報 -->
-            @if(config('app.debug'))
-            <div class="bg-gray-100 border border-gray-300 rounded-lg p-4 mb-4 text-xs">
-                <h4 class="font-bold mb-2">Debug Info:</h4>
-                <p>予約日: {{ $reservation->reservation_date->format('Y-m-d') }}</p>
-                <p>開始時間: {{ $reservation->start_time }} (substr: {{ substr($reservation->start_time, 0, 5) }})</p>
-                <p>店舗営業時間: {{ json_encode($selectedStore->business_hours) }}</p>
-            </div>
-            @endif
-
             <!-- 現在の予約情報 -->
             <div class="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4 mb-6">
                 <h3 class="font-semibold text-yellow-800 mb-3 flex items-center">

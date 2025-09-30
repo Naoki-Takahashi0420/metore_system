@@ -79,7 +79,7 @@ class ReservationRescheduleController extends Controller
                 'formatted' => $date->format('n/j'),
                 'day' => $this->getDayInJapanese($date->dayOfWeek),
                 'is_today' => $date->isToday(),
-                'is_past' => $date->isPast()
+                'is_past' => $date->lt(Carbon::today()) // 今日より前の日付のみtrueにする
             ];
         }
 
@@ -313,11 +313,7 @@ class ReservationRescheduleController extends Controller
                 $slotTime = Carbon::parse($date['date']->format('Y-m-d') . ' ' . $slot);
                 $slotEnd = $slotTime->copy()->addMinutes($menu->duration);
 
-                // 過去の時間チェック
-                if ($slotTime->isPast()) {
-                    $availability[$dateStr][$slot] = false;
-                    continue;
-                }
+                // 管理画面では過去の時間も選択可能（当日の過去時間も含む）
 
                 // 営業時間チェック
                 if ($slot < $openTime || $slotEnd->format('H:i') > $closeTime) {
