@@ -81,6 +81,8 @@ jobs:
         # sudo php artisan key:generate はコメントアウト（既存のキーを使用）
         sudo php artisan storage:link
         sudo php artisan optimize:clear
+        sudo php artisan view:clear
+        sudo php artisan cache:clear
         sudo php artisan migrate --force
         # route:cacheはFilamentと相性が悪いため使用しない
         sudo php artisan config:cache
