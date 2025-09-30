@@ -55,6 +55,7 @@ class ShiftManagementLinkWidget extends Widget
     public function updateStore($storeId, $date = null): void
     {
         $this->selectedStore = $storeId;
+        $this->generateTimeSlots(); // 店舗変更時に時間スロットを再生成
         $this->loadTimelineData();
         $this->loadCalendarData();
     }
@@ -62,9 +63,69 @@ class ShiftManagementLinkWidget extends Widget
     private function generateTimeSlots(): void
     {
         $this->timeSlots = [];
-        
-        // 10:00-20:00の時間スロットを生成（15分刻み）
-        for ($hour = 10; $hour < 20; $hour++) {
+
+        // 店舗の営業時間を取得
+        $startHour = 10;
+        $endHour = 22;
+
+        if ($this->selectedStore) {
+            $store = Store::find($this->selectedStore);
+            if ($store && $store->business_hours) {
+                $businessHours = $store->business_hours;
+
+                // 日付から曜日を取得
+                $targetDate = Carbon::parse($this->timelineDate);
+                $dayOfWeek = strtolower($targetDate->format('l'));
+
+                // 曜日ごとの営業時間を確認
+                if (is_array($businessHours)) {
+                    foreach ($businessHours as $hours) {
+                        if (isset($hours['day']) && $hours['day'] === $dayOfWeek) {
+                            if (isset($hours['open_time']) && isset($hours['close_time'])) {
+                                $startHour = (int)substr($hours['open_time'], 0, 2);
+                                $endHour = (int)substr($hours['close_time'], 0, 2);
+
+                                // 閉店時間が0分でない場合は+1時間（例：21:30なら22時まで表示）
+                                $closeMinute = (int)substr($hours['close_time'], 3, 2);
+                                if ($closeMinute > 0) {
+                                    $endHour++;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // シフトの実際の時間範囲を確認して調整
+            $shifts = Shift::where('store_id', $this->selectedStore)
+                ->whereDate('shift_date', Carbon::parse($this->timelineDate))
+                ->get();
+
+            if ($shifts->count() > 0) {
+                $earliestStart = $startHour;
+                $latestEnd = $endHour;
+
+                foreach ($shifts as $shift) {
+                    $shiftStartHour = (int)substr($shift->start_time, 0, 2);
+                    $shiftEndHour = (int)substr($shift->end_time, 0, 2);
+                    $shiftEndMinute = (int)substr($shift->end_time, 3, 2);
+
+                    if ($shiftStartHour < $earliestStart) {
+                        $earliestStart = $shiftStartHour;
+                    }
+                    if ($shiftEndHour > $latestEnd || ($shiftEndHour == $latestEnd && $shiftEndMinute > 0)) {
+                        $latestEnd = $shiftEndMinute > 0 ? $shiftEndHour + 1 : $shiftEndHour;
+                    }
+                }
+
+                $startHour = $earliestStart;
+                $endHour = $latestEnd;
+            }
+        }
+
+        // 時間スロットを生成（15分刻み）
+        for ($hour = $startHour; $hour < $endHour; $hour++) {
             for ($minute = 0; $minute < 60; $minute += 15) {
                 $this->timeSlots[] = sprintf('%02d:%02d', $hour, $minute);
             }
@@ -74,16 +135,16 @@ class ShiftManagementLinkWidget extends Widget
     public function loadTimelineData(): void
     {
         if (!$this->selectedStore) return;
-        
+
         $targetDate = Carbon::parse($this->timelineDate);
-        
+
         // その日のシフトを取得
         $shifts = Shift::with('user')
             ->where('store_id', $this->selectedStore)
             ->whereDate('shift_date', $targetDate)
             ->orderBy('start_time')
             ->get();
-        
+
         $this->todayTimeline = [];
         
         // 全スタッフのリストを取得（シフトがなくても表示）
@@ -203,18 +264,21 @@ class ShiftManagementLinkWidget extends Widget
     public function previousTimelineDay(): void
     {
         $this->timelineDate = Carbon::parse($this->timelineDate)->subDay()->format('Y-m-d');
+        $this->generateTimeSlots(); // 日付変更時に時間スロットを再生成
         $this->loadTimelineData();
     }
-    
+
     public function nextTimelineDay(): void
     {
         $this->timelineDate = Carbon::parse($this->timelineDate)->addDay()->format('Y-m-d');
+        $this->generateTimeSlots(); // 日付変更時に時間スロットを再生成
         $this->loadTimelineData();
     }
-    
+
     public function goToToday(): void
     {
         $this->timelineDate = now()->format('Y-m-d');
+        $this->generateTimeSlots(); // 日付変更時に時間スロットを再生成
         $this->loadTimelineData();
     }
     

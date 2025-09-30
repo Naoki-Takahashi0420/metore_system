@@ -37,6 +37,8 @@ class ReservationTimelineWidget extends Widget
     public $selectedCustomer = null;
     public $menuSearch = '';  // メニュー検索用
     public $showAllMenus = false;  // 全メニュー表示フラグ
+    public $availableOptions = [];  // 選択可能なオプションメニュー
+    public $selectedOptions = [];  // 選択されたオプションメニュー（詳細情報含む）
     public $newCustomer = [
         'last_name' => '',
         'first_name' => '',
@@ -51,7 +53,8 @@ class ReservationTimelineWidget extends Widget
         'line_type' => 'main',
         'line_number' => 1,
         'staff_id' => '',
-        'notes' => '電話予約'
+        'notes' => '電話予約',
+        'option_menu_ids' => [] // オプションメニューID配列
     ];
     // 予約ブロック用のプロパティ
     public $blockSettings = [
@@ -572,21 +575,32 @@ class ReservationTimelineWidget extends Widget
         if (!$categoryId) {
             return 'default';
         }
-        
-        // 見やすく区別しやすい配色パターンを使用
-        // 同じ系統の色が連続しないように配置
-        $colorPatterns = [
-            'care',      // 青系
-            'hydrogen',  // 紫系
-            'training',  // オレンジ系
-            'special',   // 緑系
-            'premium',   // 赤系
-            'vip',       // 黄系
-        ];
-        
-        // カテゴリーIDを元に色を決定（循環使用）
-        $index = ($categoryId - 1) % count($colorPatterns);
-        return $colorPatterns[$index];
+
+        // カテゴリーIDと色のマッピングをキャッシュから取得
+        static $categoryColorMap = null;
+
+        if ($categoryColorMap === null) {
+            $categoryColorMap = [];
+
+            // getCategories()と同じロジックでマッピングを作成
+            $categories = \App\Models\MenuCategory::where('is_active', true);
+
+            if ($this->selectedStore) {
+                $categories->where('store_id', $this->selectedStore);
+            }
+
+            $categories = $categories->orderBy('id')->get();
+
+            $colorPatterns = ['care', 'hydrogen', 'training', 'special', 'premium', 'vip'];
+
+            foreach ($categories as $index => $category) {
+                $colorIndex = $index % count($colorPatterns);
+                $categoryColorMap[$category->id] = $colorPatterns[$colorIndex];
+            }
+        }
+
+        // マッピングから色を返す
+        return $categoryColorMap[$categoryId] ?? 'default';
     }
     
     public function getCategories()
@@ -1192,8 +1206,13 @@ class ReservationTimelineWidget extends Widget
             'line_type' => 'main',
             'line_number' => 1,
             'staff_id' => '',
-            'notes' => '電話予約'
+            'notes' => '電話予約',
+            'option_menu_ids' => []
         ];
+
+        // オプション選択情報もクリア
+        $this->availableOptions = [];
+        $this->selectedOptions = [];
 
         // JavaScript側のセッションストレージをクリア
         $this->dispatch('clear-reservation-data');
@@ -1518,17 +1537,42 @@ class ReservationTimelineWidget extends Widget
 
         // 予約を作成
         $reservation = Reservation::create($reservationData);
-        
+
+        // オプションメニューを追加
+        if (!empty($this->newReservation['option_menu_ids'])) {
+            foreach ($this->newReservation['option_menu_ids'] as $optionId) {
+                $optionMenu = \App\Models\Menu::find($optionId);
+                if ($optionMenu) {
+                    $reservation->optionMenus()->attach($optionId, [
+                        'price' => $optionMenu->price,
+                        'duration' => $optionMenu->duration_minutes ?? 0
+                    ]);
+                }
+            }
+
+            \Log::info('Options attached to reservation', [
+                'reservation_id' => $reservation->id,
+                'option_ids' => $this->newReservation['option_menu_ids']
+            ]);
+        }
+
         // モーダルを閉じる
         $this->closeNewReservationModal();
-        
+
         // タイムラインを更新
         $this->loadTimelineData();
-        
-        // 成功通知
+
+        // 成功通知（オプション数を含める）
+        $optionCount = count($this->newReservation['option_menu_ids']);
+        $message = '予約を作成しました（予約番号: ' . $reservationNumber;
+        if ($optionCount > 0) {
+            $message .= '、オプション' . $optionCount . '件追加';
+        }
+        $message .= '）';
+
         $this->dispatch('notify', [
             'type' => 'success',
-            'message' => '予約を作成しました（予約番号: ' . $reservationNumber . '）'
+            'message' => $message
         ]);
     }
 
@@ -1536,12 +1580,33 @@ class ReservationTimelineWidget extends Widget
     {
         $query = \App\Models\Menu::where('is_available', true);
 
+        // 選択された店舗のメニューのみを表示
+        if ($this->selectedStore) {
+            $query->where('store_id', $this->selectedStore);
+
+            \Log::info('Filtering menus by store', [
+                'store_id' => $this->selectedStore,
+                'search_term' => $this->menuSearch
+            ]);
+        }
+
         if (!empty($this->menuSearch)) {
             $search = $this->menuSearch;
             $query->where('name', 'like', '%' . $search . '%');
         }
 
-        return $query->orderBy('id')->get();
+        $menus = $query->orderBy('is_subscription', 'desc')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
+        \Log::info('Filtered menus result', [
+            'store_id' => $this->selectedStore,
+            'menu_count' => $menus->count(),
+            'menu_names' => $menus->pluck('name')->toArray()
+        ]);
+
+        return $menus;
     }
 
     public function updatedMenuSearch()
@@ -1560,9 +1625,108 @@ class ReservationTimelineWidget extends Widget
             $this->newReservation['duration'] = $menu->duration_minutes;
         }
 
+        // オプションメニューを読み込む
+        $this->loadAvailableOptions($menuId);
+
         // 検索フィールドをクリア & ドロップダウンを閉じる
         $this->menuSearch = '';
         $this->showAllMenus = false;
+    }
+
+    /**
+     * 選択可能なオプションメニューを読み込む
+     */
+    public function loadAvailableOptions($menuId)
+    {
+        try {
+            // 選択されたメニューと同じ店舗のオプションメニューを取得
+            $mainMenu = \App\Models\Menu::find($menuId);
+            if (!$mainMenu) {
+                $this->availableOptions = [];
+                return;
+            }
+
+            // オプションとして選択可能なメニュー（is_optionがtrueまたは小額メニュー）
+            $this->availableOptions = \App\Models\Menu::where('is_available', true)
+                ->where('store_id', $mainMenu->store_id)
+                ->where('id', '!=', $menuId)
+                ->where(function($q) {
+                    $q->where('is_option', true)
+                      ->orWhere('price', '<=', 3000); // 3000円以下はオプションとして選択可能
+                })
+                ->orderBy('price')
+                ->get()
+                ->toArray();
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to load available options', [
+                'menu_id' => $menuId,
+                'error' => $e->getMessage()
+            ]);
+            $this->availableOptions = [];
+        }
+    }
+
+    /**
+     * オプションメニューを追加
+     */
+    public function addOption($optionId)
+    {
+        // 既に追加されているかチェック
+        if (!in_array($optionId, $this->newReservation['option_menu_ids'])) {
+            $this->newReservation['option_menu_ids'][] = $optionId;
+
+            // 選択されたオプションの詳細を取得して保持
+            $option = \App\Models\Menu::find($optionId);
+            if ($option) {
+                $this->selectedOptions[$optionId] = [
+                    'id' => $option->id,
+                    'name' => $option->name,
+                    'price' => $option->price,
+                    'duration_minutes' => $option->duration_minutes ?? 0
+                ];
+            }
+
+            $this->dispatch('notify', [
+                'type' => 'success',
+                'message' => 'オプションを追加しました'
+            ]);
+        }
+    }
+
+    /**
+     * オプションメニューを削除
+     */
+    public function removeOption($optionId)
+    {
+        $this->newReservation['option_menu_ids'] = array_values(
+            array_filter($this->newReservation['option_menu_ids'], function($id) use ($optionId) {
+                return $id != $optionId;
+            })
+        );
+
+        unset($this->selectedOptions[$optionId]);
+
+        $this->dispatch('notify', [
+            'type' => 'info',
+            'message' => 'オプションを削除しました'
+        ]);
+    }
+
+    /**
+     * オプションの合計金額を計算
+     */
+    public function getOptionsTotalPrice()
+    {
+        return collect($this->selectedOptions)->sum('price');
+    }
+
+    /**
+     * オプションの合計時間を計算
+     */
+    public function getOptionsTotalDuration()
+    {
+        return collect($this->selectedOptions)->sum('duration_minutes');
     }
 
     /**

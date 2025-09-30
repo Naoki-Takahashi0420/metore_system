@@ -77,7 +77,7 @@
                 bottom: 0;
                 width: 2px;
                 background: #ef4444;
-                z-index: 50;  /* モーダルより下、基本レイヤーで表示 */
+                z-index: 10;  /* サイドバーより下に配置（サイドバーは40-50） */
                 pointer-events: none;
                 box-shadow: 0 0 10px rgba(239, 68, 68, 0.8),
                             0 0 5px rgba(239, 68, 68, 0.6);
@@ -892,7 +892,7 @@
                     width: 2px;
                     height: calc(100% - 60px);
                     background: #ef4444;
-                    z-index: 50;  /* CSSと統一 */
+                    z-index: 10;  /* サイドバーより下に配置 */
                     pointer-events: none;
                     box-shadow: 0 0 10px rgba(239, 68, 68, 0.8);
                 `;
@@ -1648,8 +1648,14 @@
                             <!-- よく使うメニューのクイック選択ボタン -->
                             @php
                                 $popularMenus = \App\Models\Menu::where('is_available', true)
-                                    ->where('is_visible_to_customer', true)
-                                    ->whereIn('name', ['視力回復コース(60分)', '水素吸入コース(90分)', 'サブスク60分'])
+                                    ->where('is_visible_to_customer', true);
+
+                                // 選択された店舗のメニューのみ表示
+                                if ($selectedStore) {
+                                    $popularMenus->where('store_id', $selectedStore);
+                                }
+
+                                $popularMenus = $popularMenus->whereIn('name', ['視力回復コース(60分)', '水素吸入コース(90分)', 'サブスク60分'])
                                     ->orderBy('is_subscription', 'desc')
                                     ->limit(3)
                                     ->get();
@@ -1696,11 +1702,21 @@
                                          x-data
                                          @click.outside="@this.set('showAllMenus', false)">
                                         @php
-                                            $displayMenus = $menuSearch ? $this->getFilteredMenus() : \App\Models\Menu::where('is_available', true)
-                                                ->where('is_visible_to_customer', true)
-                                                ->orderBy('is_subscription', 'desc')
-                                                ->orderBy('sort_order')
-                                                ->get();
+                                            if ($menuSearch) {
+                                                $displayMenus = $this->getFilteredMenus();
+                                            } else {
+                                                $displayMenusQuery = \App\Models\Menu::where('is_available', true)
+                                                    ->where('is_visible_to_customer', true);
+
+                                                // 選択された店舗のメニューのみ表示
+                                                if ($selectedStore) {
+                                                    $displayMenusQuery->where('store_id', $selectedStore);
+                                                }
+
+                                                $displayMenus = $displayMenusQuery->orderBy('is_subscription', 'desc')
+                                                    ->orderBy('sort_order')
+                                                    ->get();
+                                            }
                                         @endphp
 
                                         @if($displayMenus->count() > 0)
@@ -1896,10 +1912,87 @@
                                 </div>
                             @endif
                         @endif
-                        
+
+                        <!-- オプションメニュー選択 -->
+                        @if($newReservation['menu_id'] && !empty($availableOptions))
+                            <div class="border-t pt-4">
+                                <label class="block text-sm font-medium mb-2">オプションメニュー（任意）</label>
+                                <p class="text-xs text-gray-500 mb-3">追加で受けられるオプションを選択できます</p>
+
+                                <!-- 選択済みオプション -->
+                                @if(!empty($selectedOptions))
+                                    <div class="mb-3 space-y-2">
+                                        <p class="text-xs font-medium text-green-700">選択中のオプション：</p>
+                                        @foreach($selectedOptions as $optionId => $option)
+                                            <div class="flex items-center justify-between p-2 bg-green-50 border border-green-200 rounded-lg">
+                                                <div class="flex-1">
+                                                    <div class="font-medium text-sm text-green-900">{{ $option['name'] }}</div>
+                                                    <div class="text-xs text-green-700">
+                                                        ¥{{ number_format($option['price']) }}
+                                                        @if($option['duration_minutes'] > 0)
+                                                            - {{ $option['duration_minutes'] }}分
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    wire:click="removeOption({{ $optionId }})"
+                                                    class="ml-2 text-red-600 hover:text-red-800">
+                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        @endforeach
+
+                                        <!-- 合計表示 -->
+                                        <div class="p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                                            <div class="text-sm text-blue-900">
+                                                <span class="font-medium">オプション合計：</span>
+                                                ¥{{ number_format($this->getOptionsTotalPrice()) }}
+                                                @if($this->getOptionsTotalDuration() > 0)
+                                                    （+{{ $this->getOptionsTotalDuration() }}分）
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endif
+
+                                <!-- 選択可能なオプション -->
+                                <div class="space-y-2 max-h-60 overflow-y-auto">
+                                    @foreach($availableOptions as $option)
+                                        @php
+                                            $isSelected = in_array($option['id'], $newReservation['option_menu_ids']);
+                                        @endphp
+                                        @if(!$isSelected)
+                                            <button
+                                                type="button"
+                                                wire:click="addOption({{ $option['id'] }})"
+                                                class="w-full p-3 text-left border border-gray-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors">
+                                                <div class="flex items-center justify-between">
+                                                    <div class="flex-1">
+                                                        <div class="font-medium text-sm">{{ $option['name'] }}</div>
+                                                        <div class="text-xs text-gray-600">
+                                                            ¥{{ number_format($option['price']) }}
+                                                            @if(!empty($option['duration_minutes']))
+                                                                - {{ $option['duration_minutes'] }}分
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                                    </svg>
+                                                </div>
+                                            </button>
+                                        @endif
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
+
                         <div>
                             <label class="block text-sm font-medium mb-1">備考</label>
-                            <textarea 
+                            <textarea
                                 wire:model="newReservation.notes"
                                 class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                                 rows="3"
