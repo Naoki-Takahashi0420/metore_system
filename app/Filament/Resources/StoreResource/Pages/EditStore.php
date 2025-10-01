@@ -75,15 +75,29 @@ class EditStore extends EditRecord
                         // デバッグ情報を含めたエラー表示
                         $tokenPreview = substr($store->line_channel_access_token, 0, 20) . '...' . substr($store->line_channel_access_token, -10);
 
-                        $debugInfo = "【デバッグ情報】\n";
+                        $debugInfo = "【デバッグ情報 - すべての設定】\n\n";
+                        $debugInfo .= "■ 店舗情報\n";
                         $debugInfo .= "Store ID: {$store->id}\n";
                         $debugInfo .= "Store Name: {$store->name}\n";
+                        $debugInfo .= "Store Code: {$store->code}\n\n";
+
+                        $debugInfo .= "■ LINE設定\n";
+                        $debugInfo .= "LINE有効: " . ($store->line_enabled ? 'はい' : 'いいえ') . "\n";
                         $debugInfo .= "Channel ID: " . ($store->line_channel_id ?: '未設定') . "\n";
-                        $debugInfo .= "Channel Secret: " . ($store->line_channel_secret ? substr($store->line_channel_secret, 0, 10) . '...' : '未設定') . "\n";
+                        $debugInfo .= "Channel Secret: " . ($store->line_channel_secret ? substr($store->line_channel_secret, 0, 10) . '...' . substr($store->line_channel_secret, -5) : '未設定') . "\n";
                         $debugInfo .= "Access Token: {$tokenPreview}\n";
                         $debugInfo .= "Token Length: " . strlen($store->line_channel_access_token) . "\n";
+                        $debugInfo .= "LIFF ID: " . ($store->line_liff_id ?: '未設定') . "\n\n";
+
+                        $debugInfo .= "■ LINE通知設定\n";
+                        $debugInfo .= "予約確認送信: " . ($store->line_send_reservation_confirmation ? '有効' : '無効') . "\n";
+                        $debugInfo .= "リマインダー送信: " . ($store->line_send_reminder ? '有効' : '無効') . "\n";
+                        $debugInfo .= "フォローアップ送信: " . ($store->line_send_followup ? '有効' : '無効') . "\n";
+                        $debugInfo .= "プロモーション送信: " . ($store->line_send_promotion ? '有効' : '無効') . "\n\n";
+
+                        $debugInfo .= "■ テスト情報\n";
                         $debugInfo .= "Test User ID: {$testLineUserId}\n";
-                        $debugInfo .= "LIFF ID: " . ($store->line_liff_id ?: '未設定');
+                        $debugInfo .= "Webhook URL: " . config('app.url') . '/api/line/webhook/' . $store->code;
 
                         // 最後のログエントリを取得
                         $logFile = storage_path('logs/laravel.log');
