@@ -161,16 +161,21 @@ class SimpleLineService
             if ($response->successful()) {
                 Log::info('LINE送信成功', [
                     'store_id' => $store->id,
+                    'store_name' => $store->name,
                     'line_user_id' => $lineUserId,
                 ]);
             } else {
                 Log::error('LINE送信失敗', [
                     'store_id' => $store->id,
+                    'store_name' => $store->name,
                     'line_user_id' => $lineUserId,
-                    'response' => $response->body(),
+                    'status_code' => $response->status(),
+                    'response_body' => $response->body(),
+                    'token_length' => strlen($store->line_channel_access_token),
+                    'has_token' => !empty($store->line_channel_access_token),
                 ]);
             }
-            
+
             return $response->successful();
         } catch (\Exception $e) {
             Log::error('LINE送信エラー', [
