@@ -461,7 +461,38 @@ class CustomerResource extends Resource
                         }
                         return $name;
                     })
-                    ->searchable()
+                    ->searchable(query: function ($query, $search) {
+                        $dbDriver = \DB::connection()->getDriverName();
+
+                        // 検索文字列をトリム
+                        $search = trim($search);
+
+                        if ($dbDriver === 'mysql') {
+                            // MySQLの場合：CONCAT関数を使用
+                            return $query->where(function ($q) use ($search) {
+                                $q->where('last_name', 'like', "%{$search}%")
+                                  ->orWhere('first_name', 'like', "%{$search}%")
+                                  ->orWhere('last_name_kana', 'like', "%{$search}%")
+                                  ->orWhere('first_name_kana', 'like', "%{$search}%")
+                                  ->orWhereRaw('CONCAT(last_name, first_name) LIKE ?', ["%{$search}%"])
+                                  ->orWhereRaw('CONCAT(last_name, " ", first_name) LIKE ?', ["%{$search}%"])
+                                  ->orWhereRaw('CONCAT(last_name_kana, first_name_kana) LIKE ?', ["%{$search}%"])
+                                  ->orWhereRaw('CONCAT(last_name_kana, " ", first_name_kana) LIKE ?', ["%{$search}%"]);
+                            });
+                        } else {
+                            // SQLiteの場合：|| 演算子を使用
+                            return $query->where(function ($q) use ($search) {
+                                $q->where('last_name', 'like', "%{$search}%")
+                                  ->orWhere('first_name', 'like', "%{$search}%")
+                                  ->orWhere('last_name_kana', 'like', "%{$search}%")
+                                  ->orWhere('first_name_kana', 'like', "%{$search}%")
+                                  ->orWhereRaw('(last_name || first_name) LIKE ?', ["%{$search}%"])
+                                  ->orWhereRaw('(last_name || " " || first_name) LIKE ?', ["%{$search}%"])
+                                  ->orWhereRaw('(last_name_kana || first_name_kana) LIKE ?', ["%{$search}%"])
+                                  ->orWhereRaw('(last_name_kana || " " || first_name_kana) LIKE ?', ["%{$search}%"]);
+                            });
+                        }
+                    })
                     ->tooltip(function ($record) {
                         if (!$record->isHighRisk()) {
                             return null;
