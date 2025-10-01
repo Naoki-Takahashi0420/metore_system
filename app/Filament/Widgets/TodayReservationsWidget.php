@@ -28,16 +28,51 @@ class TodayReservationsWidget extends BaseWidget
     
     public function mount(): void
     {
-        // URLパラメータから店舗フィルターを取得
-        $this->storeFilter = request()->get('storeFilter');
+        $user = auth()->user();
+
+        // 初期店舗を設定（ReservationTimelineWidgetと同じロジック）
+        if ($user->hasRole('super_admin')) {
+            $stores = \App\Models\Store::where('is_active', true)->get();
+        } elseif ($user->hasRole('owner')) {
+            $stores = $user->manageableStores()->where('is_active', true)->get();
+        } else {
+            // 店長・スタッフは所属店舗のみ
+            $stores = $user->store ? collect([$user->store]) : collect();
+        }
+
+        $this->storeFilter = $stores->first()?->id;
+
         // 本日の日付で初期化
         $this->selectedDate = Carbon::today()->format('Y-m-d');
+
+        logger('📍 TodayReservationsWidget::mount', [
+            'storeFilter' => $this->storeFilter,
+            'selectedDate' => $this->selectedDate,
+            'userRole' => $user->getRoleNames()->first()
+        ]);
     }
     
-    public function updateStore($storeId): void
+    public function updateStore($storeId, $date = null): void
     {
+        logger('📍 TodayReservationsWidget::updateStore called', [
+            'storeId' => $storeId,
+            'date' => $date,
+            'previous_storeFilter' => $this->storeFilter,
+            'previous_selectedDate' => $this->selectedDate
+        ]);
+
         $this->storeFilter = $storeId;
+
+        if ($date) {
+            $this->selectedDate = $date;
+        }
+
         $this->resetTable();
+
+        logger('📍 TodayReservationsWidget::updateStore completed', [
+            'new_storeFilter' => $this->storeFilter,
+            'new_selectedDate' => $this->selectedDate
+        ]);
     }
 
     public function updateDate($date): void
