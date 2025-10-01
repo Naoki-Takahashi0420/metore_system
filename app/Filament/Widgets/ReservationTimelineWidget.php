@@ -1452,183 +1452,220 @@ class ReservationTimelineWidget extends Widget
     
     public function createReservation(): void
     {
-        // バリデーション
-        if (!$this->selectedCustomer || empty($this->newReservation['menu_id'])) {
-            $this->dispatch('notify', [
-                'type' => 'error',
-                'message' => '必須項目を入力してください'
-            ]);
-            return;
-        }
-        
-        // 過去の日時チェック（現在時刻から30分前まで許可）
-        $reservationDateTime = \Carbon\Carbon::parse($this->newReservation['date'] . ' ' . $this->newReservation['start_time']);
-        $minimumTime = \Carbon\Carbon::now()->subMinutes(30);
-        if ($reservationDateTime->lt($minimumTime)) {
-            $this->dispatch('notify', [
-                'type' => 'error',
-                'message' => '過去の時間には予約できません'
-            ]);
-            return;
-        }
-        
-        // メニュー情報を取得
-        $menu = \App\Models\Menu::find($this->newReservation['menu_id']);
-        if (!$menu) {
-            $this->dispatch('notify', [
-                'type' => 'error',
-                'message' => 'メニューが見つかりません'
-            ]);
-            return;
-        }
-        
-        // 終了時刻を計算
-        $startTime = \Carbon\Carbon::parse($this->newReservation['date'] . ' ' . $this->newReservation['start_time']);
-        $endTime = $startTime->copy()->addMinutes($menu->duration_minutes ?? $this->newReservation['duration']);
-
-        // 店舗情報取得
-        $store = \App\Models\Store::find($this->selectedStore);
-
-        // スタッフシフトモードの場合、スタッフ可用性をチェック
-        if ($store && $store->use_staff_assignment) {
-            // 予約可能性をチェック
-            $availabilityResult = $this->canReserveAtTimeSlot(
-                $this->newReservation['start_time'],
-                $endTime->format('H:i'),
-                $store,
-                \Carbon\Carbon::parse($this->newReservation['date'])
-            );
-
-            if (!$availabilityResult['can_reserve']) {
+        try {
+            // バリデーション
+            if (!$this->selectedCustomer || empty($this->newReservation['menu_id'])) {
                 $this->dispatch('notify', [
                     'type' => 'error',
-                    'message' => $availabilityResult['reason'] ?: 'この時間帯は予約できません'
+                    'message' => '必須項目を入力してください'
                 ]);
                 return;
             }
-        } else {
-            // 営業時間ベースモードの場合、営業時間チェック（終了時刻ベース）
-            $dayOfWeek = $startTime->format('l');
-            $closingTime = '20:00'; // デフォルト
 
-            // 曜日別営業時間があるか確認
-            if ($store && isset($store->business_hours[$dayOfWeek])) {
-                $closingTime = $store->business_hours[$dayOfWeek]['close'] ?? '20:00';
-            } elseif ($store && isset($store->business_hours['close'])) {
-                $closingTime = $store->business_hours['close'];
-            }
-
-            $closingDateTime = \Carbon\Carbon::parse($this->newReservation['date'] . ' ' . $closingTime);
-
-            // 終了時刻が営業時間を超える場合はエラー
-            if ($endTime->gt($closingDateTime)) {
+            // 過去の日時チェック（現在時刻から30分前まで許可）
+            $reservationDateTime = \Carbon\Carbon::parse($this->newReservation['date'] . ' ' . $this->newReservation['start_time']);
+            $minimumTime = \Carbon\Carbon::now()->subMinutes(30);
+            if ($reservationDateTime->lt($minimumTime)) {
                 $this->dispatch('notify', [
                     'type' => 'error',
-                    'message' => '予約終了時刻（' . $endTime->format('H:i') . '）が営業時間（' . $closingTime . '）を超えています'
+                    'message' => '過去の時間には予約できません'
                 ]);
                 return;
             }
-        }
 
-        // 予約番号を生成
-        $reservationNumber = 'R' . date('Ymd') . str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
-        
-        // スタッフシフトモードかどうか確認
-        $store = Store::find($this->selectedStore);
-        $useStaffAssignment = $store->use_staff_assignment ?? false;
-
-        // 予約データを準備
-        $reservationData = [
-            'reservation_number' => $reservationNumber,
-            'store_id' => $this->selectedStore,
-            'customer_id' => $this->selectedCustomer->id,
-            'menu_id' => $this->newReservation['menu_id'],
-            'reservation_date' => $this->newReservation['date'],
-            'start_time' => $this->newReservation['start_time'],
-            'end_time' => $endTime->format('H:i'),
-            'guest_count' => 1,
-            'status' => 'booked',
-            'source' => 'phone',
-            'notes' => $this->newReservation['notes'],
-            'total_amount' => $menu->price ?? 0,
-            'deposit_amount' => 0,
-            'payment_method' => 'cash',
-            'payment_status' => 'unpaid',
-        ];
-
-        // スタッフシフトモードの場合
-        if ($useStaffAssignment) {
-            $rawStaffId = $this->newReservation['staff_id'] ?? '';
-
-            // より厳密な null 判定
-            $staffId = null;
-            if ($rawStaffId !== '' && $rawStaffId !== null && $rawStaffId !== '0' && trim((string)$rawStaffId) !== '') {
-                $staffId = is_numeric($rawStaffId) ? (int)$rawStaffId : $rawStaffId;
+            // メニュー情報を取得
+            $menu = \App\Models\Menu::find($this->newReservation['menu_id']);
+            if (!$menu) {
+                $this->dispatch('notify', [
+                    'type' => 'error',
+                    'message' => 'メニューが見つかりません'
+                ]);
+                return;
             }
 
-            $reservationData['staff_id'] = $staffId;
+            // 終了時刻を計算
+            $startTime = \Carbon\Carbon::parse($this->newReservation['date'] . ' ' . $this->newReservation['start_time']);
+            $endTime = $startTime->copy()->addMinutes($menu->duration_minutes ?? $this->newReservation['duration']);
 
-            \Log::info('Staff assignment debug:', [
-                'raw_staff_id' => $rawStaffId,
-                'raw_type' => gettype($rawStaffId),
-                'processed_staff_id' => $staffId,
-                'is_empty' => empty($rawStaffId),
-                'is_null_or_empty_string' => in_array($rawStaffId, [null, '', '0'], true)
-            ]);
+            // 店舗情報取得
+            $store = \App\Models\Store::find($this->selectedStore);
 
-            // スタッフシフトモードではline_typeとseat_numberは設定しない
-        } else {
-            // 営業時間ベースモードの場合
-            $reservationData['line_type'] = $this->newReservation['line_type'];
-            if ($this->newReservation['line_type'] === 'main') {
-                $reservationData['seat_number'] = $this->newReservation['line_number'];
-                $reservationData['line_number'] = $this->newReservation['line_number'];
-                $reservationData['is_sub'] = false;
-            } elseif ($this->newReservation['line_type'] === 'sub') {
-                $reservationData['is_sub'] = true;
-                $reservationData['line_number'] = 1;
-            }
-        }
+            // スタッフシフトモードの場合、スタッフ可用性をチェック
+            if ($store && $store->use_staff_assignment) {
+                // 予約可能性をチェック
+                $availabilityResult = $this->canReserveAtTimeSlot(
+                    $this->newReservation['start_time'],
+                    $endTime->format('H:i'),
+                    $store,
+                    \Carbon\Carbon::parse($this->newReservation['date'])
+                );
 
-        // 予約を作成
-        $reservation = Reservation::create($reservationData);
-
-        // オプションメニューを追加
-        if (!empty($this->newReservation['option_menu_ids'])) {
-            foreach ($this->newReservation['option_menu_ids'] as $optionId) {
-                $optionMenu = \App\Models\Menu::find($optionId);
-                if ($optionMenu) {
-                    $reservation->optionMenus()->attach($optionId, [
-                        'price' => $optionMenu->price,
-                        'duration' => $optionMenu->duration_minutes ?? 0
+                if (!$availabilityResult['can_reserve']) {
+                    $this->dispatch('notify', [
+                        'type' => 'error',
+                        'message' => $availabilityResult['reason'] ?: 'この時間帯は予約できません'
                     ]);
+                    return;
+                }
+            } else {
+                // 営業時間ベースモードの場合、営業時間チェック（終了時刻ベース）
+                $dayOfWeek = $startTime->format('l');
+                $closingTime = '20:00'; // デフォルト
+
+                // 曜日別営業時間があるか確認
+                if ($store && isset($store->business_hours[$dayOfWeek])) {
+                    $closingTime = $store->business_hours[$dayOfWeek]['close'] ?? '20:00';
+                } elseif ($store && isset($store->business_hours['close'])) {
+                    $closingTime = $store->business_hours['close'];
+                }
+
+                $closingDateTime = \Carbon\Carbon::parse($this->newReservation['date'] . ' ' . $closingTime);
+
+                // 終了時刻が営業時間を超える場合はエラー
+                if ($endTime->gt($closingDateTime)) {
+                    $this->dispatch('notify', [
+                        'type' => 'error',
+                        'message' => '予約終了時刻（' . $endTime->format('H:i') . '）が営業時間（' . $closingTime . '）を超えています'
+                    ]);
+                    return;
                 }
             }
 
-            \Log::info('Options attached to reservation', [
-                'reservation_id' => $reservation->id,
-                'option_ids' => $this->newReservation['option_menu_ids']
+            // 予約番号を生成
+            $reservationNumber = 'R' . date('Ymd') . str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
+
+            // スタッフシフトモードかどうか確認
+            $store = Store::find($this->selectedStore);
+            $useStaffAssignment = $store->use_staff_assignment ?? false;
+
+            // 予約データを準備
+            $reservationData = [
+                'reservation_number' => $reservationNumber,
+                'store_id' => $this->selectedStore,
+                'customer_id' => $this->selectedCustomer->id,
+                'menu_id' => $this->newReservation['menu_id'],
+                'reservation_date' => $this->newReservation['date'],
+                'start_time' => $this->newReservation['start_time'],
+                'end_time' => $endTime->format('H:i'),
+                'guest_count' => 1,
+                'status' => 'booked',
+                'source' => 'phone',
+                'notes' => $this->newReservation['notes'],
+                'total_amount' => $menu->price ?? 0,
+                'deposit_amount' => 0,
+                'payment_method' => 'cash',
+                'payment_status' => 'unpaid',
+            ];
+
+            // スタッフシフトモードの場合
+            if ($useStaffAssignment) {
+                $rawStaffId = $this->newReservation['staff_id'] ?? '';
+
+                // より厳密な null 判定
+                $staffId = null;
+                if ($rawStaffId !== '' && $rawStaffId !== null && $rawStaffId !== '0' && trim((string)$rawStaffId) !== '') {
+                    $staffId = is_numeric($rawStaffId) ? (int)$rawStaffId : $rawStaffId;
+                }
+
+                $reservationData['staff_id'] = $staffId;
+
+                \Log::info('Staff assignment debug:', [
+                    'raw_staff_id' => $rawStaffId,
+                    'raw_type' => gettype($rawStaffId),
+                    'processed_staff_id' => $staffId,
+                    'is_empty' => empty($rawStaffId),
+                    'is_null_or_empty_string' => in_array($rawStaffId, [null, '', '0'], true)
+                ]);
+
+                // スタッフシフトモードではline_typeとseat_numberは設定しない
+            } else {
+                // 営業時間ベースモードの場合
+                $reservationData['line_type'] = $this->newReservation['line_type'];
+                if ($this->newReservation['line_type'] === 'main') {
+                    $reservationData['seat_number'] = $this->newReservation['line_number'];
+                    $reservationData['line_number'] = $this->newReservation['line_number'];
+                    $reservationData['is_sub'] = false;
+                } elseif ($this->newReservation['line_type'] === 'sub') {
+                    $reservationData['is_sub'] = true;
+                    $reservationData['line_number'] = 1;
+                }
+            }
+
+            // 予約を作成
+            $reservation = Reservation::create($reservationData);
+
+            // オプションメニューを追加
+            if (!empty($this->newReservation['option_menu_ids'])) {
+                foreach ($this->newReservation['option_menu_ids'] as $optionId) {
+                    $optionMenu = \App\Models\Menu::find($optionId);
+                    if ($optionMenu) {
+                        $reservation->optionMenus()->attach($optionId, [
+                            'price' => $optionMenu->price,
+                            'duration' => $optionMenu->duration_minutes ?? 0
+                        ]);
+                    }
+                }
+
+                \Log::info('Options attached to reservation', [
+                    'reservation_id' => $reservation->id,
+                    'option_ids' => $this->newReservation['option_menu_ids']
+                ]);
+            }
+
+            // モーダルを閉じる
+            $this->closeNewReservationModal();
+
+            // タイムラインを更新
+            $this->loadTimelineData();
+
+            // 成功通知（オプション数を含める）
+            $optionCount = count($this->newReservation['option_menu_ids']);
+            $message = '予約を作成しました（予約番号: ' . $reservationNumber;
+            if ($optionCount > 0) {
+                $message .= '、オプション' . $optionCount . '件追加';
+            }
+            $message .= '）';
+
+            $this->dispatch('notify', [
+                'type' => 'success',
+                'message' => $message
+            ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            // データベースエラー（重複など）
+            logger()->error('Reservation creation database error', [
+                'error' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'reservation_data' => $reservationData ?? null,
+                'customer_id' => $this->selectedCustomer->id ?? null,
+                'time' => $this->newReservation['start_time'] ?? null
+            ]);
+
+            // SQLSTATEコードで重複エラーを判定
+            if ($e->getCode() == 23000 || strpos($e->getMessage(), 'Duplicate') !== false || strpos($e->getMessage(), 'UNIQUE constraint failed') !== false) {
+                $this->dispatch('notify', [
+                    'type' => 'error',
+                    'message' => 'この時間帯は既に予約が入っています。別の時間帯を選択してください。'
+                ]);
+            } else {
+                $this->dispatch('notify', [
+                    'type' => 'error',
+                    'message' => '予約の作成中にエラーが発生しました。時間をおいて再度お試しください。'
+                ]);
+            }
+        } catch (\Exception $e) {
+            // その他のエラー
+            logger()->error('Reservation creation error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'customer_id' => $this->selectedCustomer->id ?? null,
+                'reservation_data' => $reservationData ?? null
+            ]);
+
+            $this->dispatch('notify', [
+                'type' => 'error',
+                'message' => '予約の作成に失敗しました: ' . $e->getMessage()
             ]);
         }
-
-        // モーダルを閉じる
-        $this->closeNewReservationModal();
-
-        // タイムラインを更新
-        $this->loadTimelineData();
-
-        // 成功通知（オプション数を含める）
-        $optionCount = count($this->newReservation['option_menu_ids']);
-        $message = '予約を作成しました（予約番号: ' . $reservationNumber;
-        if ($optionCount > 0) {
-            $message .= '、オプション' . $optionCount . '件追加';
-        }
-        $message .= '）';
-
-        $this->dispatch('notify', [
-            'type' => 'success',
-            'message' => $message
-        ]);
     }
 
     public function getFilteredMenus()
