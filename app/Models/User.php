@@ -34,6 +34,8 @@ class User extends Authenticatable implements FilamentUser
         'phone',
         'notification_preferences',
         'theme_color',
+        'line_user_id',
+        'line_linked_at',
     ];
 
     /**
@@ -57,6 +59,7 @@ class User extends Authenticatable implements FilamentUser
         'permissions' => 'array',
         'specialties' => 'array',
         'hourly_rate' => 'decimal:2',
+        'line_linked_at' => 'datetime',
         'is_active' => 'boolean',
         'last_login_at' => 'datetime',
         'notification_preferences' => 'array',
