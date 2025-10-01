@@ -1475,21 +1475,39 @@
                         $latestMedicalRecord = null;
                         if ($selectedReservation->customer_id) {
                             $latestMedicalRecord = \App\Models\MedicalRecord::where('customer_id', $selectedReservation->customer_id)
-                                ->whereNotNull('notes')
-                                ->where('notes', '!=', '')
+                                ->where(function($q) {
+                                    $q->whereNotNull('next_visit_notes')
+                                      ->where('next_visit_notes', '!=', '')
+                                      ->orWhere(function($q2) {
+                                          $q2->whereNotNull('notes')
+                                             ->where('notes', '!=', '');
+                                      });
+                                })
                                 ->orderBy('created_at', 'desc')
                                 ->first();
                         }
                     @endphp
-                    @if($latestMedicalRecord && $latestMedicalRecord->notes)
+                    @if($latestMedicalRecord && ($latestMedicalRecord->next_visit_notes || $latestMedicalRecord->notes))
                         <div class="border-t pt-4 mt-4">
                             <p class="text-xs text-gray-500 mb-2">📋 カルテ引き継ぎ情報</p>
-                            <div class="bg-yellow-50 border border-yellow-200 rounded p-3">
-                                <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ $latestMedicalRecord->notes }}</p>
-                                <p class="text-xs text-gray-400 mt-2">
-                                    記録日: {{ \Carbon\Carbon::parse($latestMedicalRecord->created_at)->format('Y/m/d H:i') }}
-                                </p>
-                            </div>
+
+                            @if($latestMedicalRecord->next_visit_notes)
+                                <div class="bg-yellow-50 border border-yellow-200 rounded p-3 mb-3">
+                                    <p class="text-xs font-semibold text-yellow-800 mb-1">⚠️ 次回引き継ぎ事項</p>
+                                    <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ $latestMedicalRecord->next_visit_notes }}</p>
+                                </div>
+                            @endif
+
+                            @if($latestMedicalRecord->notes)
+                                <div class="bg-blue-50 border border-blue-200 rounded p-3">
+                                    <p class="text-xs font-semibold text-blue-800 mb-1">📝 その他メモ</p>
+                                    <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ $latestMedicalRecord->notes }}</p>
+                                </div>
+                            @endif
+
+                            <p class="text-xs text-gray-400 mt-2">
+                                記録日: {{ \Carbon\Carbon::parse($latestMedicalRecord->created_at)->format('Y/m/d H:i') }}
+                            </p>
                         </div>
                     @endif
 
