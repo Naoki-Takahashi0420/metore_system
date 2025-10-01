@@ -27,6 +27,12 @@ class PublicReservationController extends Controller
 {
     public function selectStore(Request $request, ReservationContextService $contextService)
     {
+        // 新規予約の開始時に予約変更関連のセッションをクリア
+        Session::forget('is_reservation_change');
+        Session::forget('change_reservation_id');
+        Session::forget('original_reservation_date');
+        Session::forget('original_reservation_time');
+
         // パラメータベース: 暗号化されたコンテキストを取得
         $context = $contextService->extractContextFromRequest($request);
 
