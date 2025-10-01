@@ -1299,14 +1299,25 @@ class ReservationTimelineWidget extends Widget
                 $search = $this->phoneSearch;
                 $storeId = $this->selectedStore;
 
-                $this->searchResults = \App\Models\Customer::where(function($query) use ($search) {
+                // SQLiteとMySQLの互換性対応
+                $dbDriver = DB::connection()->getDriverName();
+                $concatOperator = $dbDriver === 'sqlite' ? '||' : 'CONCAT';
+
+                $this->searchResults = \App\Models\Customer::where(function($query) use ($search, $dbDriver) {
                         $query->where('phone', 'LIKE', '%' . $search . '%')
                               ->orWhere('last_name', 'LIKE', '%' . $search . '%')
                               ->orWhere('first_name', 'LIKE', '%' . $search . '%')
                               ->orWhere('last_name_kana', 'LIKE', '%' . $search . '%')
-                              ->orWhere('first_name_kana', 'LIKE', '%' . $search . '%')
-                              ->orWhereRaw('CONCAT(last_name, first_name) LIKE ?', ['%' . $search . '%'])
-                              ->orWhereRaw('CONCAT(last_name_kana, first_name_kana) LIKE ?', ['%' . $search . '%']);
+                              ->orWhere('first_name_kana', 'LIKE', '%' . $search . '%');
+
+                        // SQLite: last_name || first_name, MySQL: CONCAT(last_name, first_name)
+                        if ($dbDriver === 'sqlite') {
+                            $query->orWhereRaw('(last_name || first_name) LIKE ?', ['%' . $search . '%'])
+                                  ->orWhereRaw('(last_name_kana || first_name_kana) LIKE ?', ['%' . $search . '%']);
+                        } else {
+                            $query->orWhereRaw('CONCAT(last_name, first_name) LIKE ?', ['%' . $search . '%'])
+                                  ->orWhereRaw('CONCAT(last_name_kana, first_name_kana) LIKE ?', ['%' . $search . '%']);
+                        }
                     })
                     // whereHas を削除して、全ての顧客を検索対象に
                     ->withCount(['reservations' => function($query) use ($storeId) {
