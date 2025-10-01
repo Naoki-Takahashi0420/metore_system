@@ -1310,7 +1310,7 @@ class ReservationTimelineWidget extends Widget
                     // この店舗での最新予約を取得（なくてもOK）
                     $query->where('store_id', $storeId)
                           ->latest('reservation_date')
-                          ->first();
+                          ->limit(1);
                 }])
                 ->limit(10)
                 ->get()
