@@ -1592,7 +1592,7 @@ class ReservationTimelineWidget extends Widget
                 'first_name' => $this->newCustomer['first_name'],
                 'last_name_kana' => '',  // カナは空で設定
                 'first_name_kana' => '', // カナは空で設定
-                'email' => $this->newCustomer['email'],
+                'email' => !empty($this->newCustomer['email']) ? $this->newCustomer['email'] : null,
                 'phone' => $this->newCustomer['phone'],
             ]);
         } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
