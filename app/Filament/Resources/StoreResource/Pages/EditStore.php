@@ -46,7 +46,7 @@ class EditStore extends EditRecord
                     }
 
                     // テスト用の固定User ID（開発者アカウント）
-                    $testLineUserId = 'Uc37e9137beadca4a6d5c04aaada19ab1';
+                    $testLineUserId = 'U83530714b6d81d61a2d76e7f9f1b7cf8';
 
                     $lineService = new SimpleLineService();
 
