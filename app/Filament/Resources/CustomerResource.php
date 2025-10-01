@@ -515,16 +515,30 @@ class CustomerResource extends Resource
                 Tables\Columns\TextColumn::make('phone')
                     ->label('電話番号')
                     ->searchable(query: function ($query, $search) {
-                        return $query->where(function ($q) use ($search) {
-                            // ハイフンありなしの両方で検索
-                            $searchPlain = preg_replace('/[^0-9]/', '', $search);
-                            $q->where('phone', 'like', "%{$search}%")
-                              ->orWhere('phone', 'like', "%{$searchPlain}%");
-                        });
+                        // 数字が含まれている場合のみ電話番号検索を実行
+                        if (preg_match('/\d/', $search)) {
+                            return $query->where(function ($q) use ($search) {
+                                // ハイフンありなしの両方で検索
+                                $searchPlain = preg_replace('/[^0-9]/', '', $search);
+                                $q->where('phone', 'like', "%{$search}%");
+                                if (!empty($searchPlain)) {
+                                    $q->orWhere('phone', 'like', "%{$searchPlain}%");
+                                }
+                            });
+                        }
+                        // 数字が含まれていない場合は検索しない（何もマッチしない条件を返す）
+                        return $query->whereRaw('1 = 0');
                     }),
                 Tables\Columns\TextColumn::make('email')
                     ->label('メールアドレス')
-                    ->searchable(),
+                    ->searchable(query: function ($query, $search) {
+                        // @が含まれている場合のみメールアドレス検索を実行
+                        if (strpos($search, '@') !== false || preg_match('/[a-zA-Z]/', $search)) {
+                            return $query->where('email', 'like', "%{$search}%");
+                        }
+                        // メールアドレスっぽくない場合は検索しない
+                        return $query->whereRaw('1 = 0');
+                    }),
                 Tables\Columns\TextColumn::make('birth_date')
                     ->label('生年月日')
                     ->date()
