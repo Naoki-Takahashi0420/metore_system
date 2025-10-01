@@ -56,6 +56,15 @@ class EditStore extends EditRecord
                     $message .= "✅ LINE連携が正常に動作しています！\n\n";
                     $message .= "テスト送信先: 開発者アカウント";
 
+                    // 送信前にログをクリアしてから送信
+                    \Log::info('LINE接続テスト開始', [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'test_user_id' => $testLineUserId,
+                        'has_token' => !empty($store->line_channel_access_token),
+                        'token_length' => strlen($store->line_channel_access_token ?? ''),
+                    ]);
+
                     if ($lineService->sendMessage($store, $testLineUserId, $message)) {
                         Notification::make()
                             ->title('テスト送信成功')
@@ -63,9 +72,24 @@ class EditStore extends EditRecord
                             ->success()
                             ->send();
                     } else {
+                        // 最後のログエントリを取得
+                        $logFile = storage_path('logs/laravel.log');
+                        $lastLines = [];
+                        if (file_exists($logFile)) {
+                            $lines = file($logFile);
+                            $lastLines = array_slice($lines, -50);
+                            $errorInfo = '';
+                            foreach (array_reverse($lastLines) as $line) {
+                                if (strpos($line, 'LINE送信失敗') !== false || strpos($line, 'response_body') !== false) {
+                                    $errorInfo = $line;
+                                    break;
+                                }
+                            }
+                        }
+
                         Notification::make()
                             ->title('テスト送信失敗')
-                            ->body('テストメッセージの送信に失敗しました。Channel Access TokenとUser IDを確認してください。')
+                            ->body('ログを確認してください: ' . ($errorInfo ? substr($errorInfo, 0, 200) : 'ログが見つかりません'))
                             ->danger()
                             ->send();
                     }
