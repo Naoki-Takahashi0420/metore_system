@@ -45,52 +45,36 @@ class EditStore extends EditRecord
                         return;
                     }
 
-                    // 管理者ユーザーでLINE連携済みのユーザーを取得
-                    $adminUsers = \App\Models\User::whereIn('role', ['superadmin', 'admin'])
-                        ->whereNotNull('line_user_id')
-                        ->get();
+                    // テスト用の固定User ID（.envから取得）
+                    $testLineUserId = env('LINE_TEST_USER_ID');
 
-                    if ($adminUsers->isEmpty()) {
+                    if (!$testLineUserId) {
                         Notification::make()
-                            ->title('送信対象がいません')
-                            ->body('LINE連携済みの管理者ユーザーがいません。管理者アカウントでLINE連携を行ってください。')
+                            ->title('テストUser IDが未設定です')
+                            ->body('.envファイルにLINE_TEST_USER_IDを設定してください。')
                             ->warning()
                             ->send();
                         return;
                     }
 
                     $lineService = new SimpleLineService();
-                    $successCount = 0;
-                    $failCount = 0;
 
-                    foreach ($adminUsers as $user) {
-                        // line_user_idが空の場合はスキップ
-                        if (empty($user->line_user_id)) {
-                            continue;
-                        }
+                    $message = "【LINE接続テスト】\n\n";
+                    $message .= "店舗: {$store->name}\n";
+                    $message .= "送信日時: " . now()->format('Y-m-d H:i:s') . "\n\n";
+                    $message .= "✅ LINE連携が正常に動作しています！\n\n";
+                    $message .= "テスト送信先: 開発者アカウント";
 
-                        $message = "【LINE接続テスト】\n\n";
-                        $message .= "店舗: {$store->name}\n";
-                        $message .= "送信日時: " . now()->format('Y-m-d H:i:s') . "\n\n";
-                        $message .= "✅ LINE連携が正常に動作しています！";
-
-                        if ($lineService->sendMessage($store, $user->line_user_id, $message)) {
-                            $successCount++;
-                        } else {
-                            $failCount++;
-                        }
-                    }
-
-                    if ($successCount > 0) {
+                    if ($lineService->sendMessage($store, $testLineUserId, $message)) {
                         Notification::make()
                             ->title('テスト送信成功')
-                            ->body("管理者 {$successCount}人にテストメッセージを送信しました。LINEを確認してください。")
+                            ->body('開発者アカウントにテストメッセージを送信しました。LINEを確認してください。')
                             ->success()
                             ->send();
                     } else {
                         Notification::make()
                             ->title('テスト送信失敗')
-                            ->body('テストメッセージの送信に失敗しました。Channel Access Tokenを確認してください。')
+                            ->body('テストメッセージの送信に失敗しました。Channel Access TokenとUser IDを確認してください。')
                             ->danger()
                             ->send();
                     }
