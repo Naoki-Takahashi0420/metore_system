@@ -873,7 +873,13 @@
     </script>
 
     {{-- マイページ誘導モーダル --}}
-    @if(session('show_mypage_modal'))
+    {{-- ctxパラメータからモーダル表示フラグをチェック --}}
+    @php
+        $showModal = isset($context['show_mypage_modal']) && $context['show_mypage_modal'];
+        $customerPhone = $context['customer_phone'] ?? '';
+    @endphp
+
+    @if($showModal)
     <div id="mypageModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white rounded-lg p-6 max-w-md mx-4">
             <div class="text-center">
@@ -884,7 +890,7 @@
                 </div>
                 <h3 class="text-lg font-medium text-gray-900 mb-2">すでに予約があります</h3>
                 <p class="text-sm text-gray-600 mb-6">
-                    この電話番号（{{ session('customer_phone') }}）で過去にご予約履歴があります。<br>
+                    この電話番号（{{ $customerPhone }}）で過去にご予約履歴があります。<br>
                     2回目以降のお客様は、マイページから予約の変更・追加を行ってください。
                 </p>
                 <div class="flex space-x-3 justify-center">

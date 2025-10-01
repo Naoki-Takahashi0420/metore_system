@@ -883,7 +883,8 @@ class PublicReservationController extends Controller
             'existingCustomer',
             'isExistingCustomer',
             'isSubscriptionBooking',
-            'subscriptionId'
+            'subscriptionId',
+            'context'
         ));
     }
     
@@ -1730,10 +1731,27 @@ class PublicReservationController extends Controller
                         'context' => $context,
                         'is_existing_from_context' => $context && isset($context['is_existing_customer']) ? $context['is_existing_customer'] : false
                     ]);
-                    return back()->with([
-                        'show_mypage_modal' => true,
-                        'customer_phone' => $existingCustomerByPhone->phone
+
+                    // 元のコンテキスト情報を保持し、モーダル表示フラグを追加
+                    if ($context) {
+                        $context['show_mypage_modal'] = true;
+                        $context['customer_phone'] = $existingCustomerByPhone->phone;
+                        $newEncryptedContext = $contextService->encryptContext($context);
+
+                        \Log::info('既存顧客検出: 新しいctxで予約画面にリダイレクト', [
+                            'customer_id' => $existingCustomerByPhone->id,
+                            'has_new_ctx' => true
+                        ]);
+
+                        return redirect('/reservation/calendar?ctx=' . urlencode($newEncryptedContext));
+                    }
+
+                    // コンテキストがない場合（念のため）
+                    \Log::error('既存顧客検出したがコンテキストがない', [
+                        'customer_id' => $existingCustomerByPhone->id,
+                        'phone' => $existingCustomerByPhone->phone
                     ]);
+                    return redirect('/stores')->with('error', '予約処理でエラーが発生しました。最初からやり直してください。');
                 }
             } else {
                 // サブスク会員の場合、月の利用回数をチェック
