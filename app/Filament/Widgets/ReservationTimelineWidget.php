@@ -1291,6 +1291,23 @@ class ReservationTimelineWidget extends Widget
         }
     }
     
+    /**
+     * 顧客選択モードが変更されたときにselectedCustomerをリセット
+     */
+    public function updatedCustomerSelectionMode($value): void
+    {
+        // モードを切り替えたら、選択中の顧客をクリア
+        $this->selectedCustomer = null;
+        $this->searchResults = [];
+        $this->phoneSearch = '';
+
+        logger('🔄 Customer selection mode changed', [
+            'new_mode' => $value,
+            'selectedCustomer_reset' => 'null',
+            'searchResults_cleared' => true
+        ]);
+    }
+
     public function updatedPhoneSearch(): void
     {
         try {
@@ -1421,11 +1438,17 @@ class ReservationTimelineWidget extends Widget
     
     public function createNewCustomer(): void
     {
-        // デバッグログ
-        logger('🆕 Creating new customer', [
+        // デバッグログ - 開始時点の状態を記録
+        logger('🆕 Creating new customer - START', [
             'newCustomer' => $this->newCustomer,
             'phoneSearch' => $this->phoneSearch,
-            'selectedCustomer' => $this->selectedCustomer ? $this->selectedCustomer->id : null
+            'selectedCustomer_before' => $this->selectedCustomer ? [
+                'id' => $this->selectedCustomer->id,
+                'name' => $this->selectedCustomer->last_name . ' ' . $this->selectedCustomer->first_name,
+                'phone' => $this->selectedCustomer->phone
+            ] : null,
+            'reservationStep' => $this->reservationStep,
+            'customerSelectionMode' => $this->customerSelectionMode
         ]);
 
         // バリデーション
@@ -1508,15 +1531,25 @@ class ReservationTimelineWidget extends Widget
                 'phone' => $this->newCustomer['phone'],
             ]);
         } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
-            // メールアドレス重複の場合、既存顧客を使用
+            // メールアドレス重複の場合、確認画面を表示
             $existingCustomer = \App\Models\Customer::where('email', $this->newCustomer['email'])->first();
             if ($existingCustomer) {
-                $this->selectedCustomer = $existingCustomer;
-                $this->reservationStep = 3;
-                $this->dispatch('notify', [
-                    'type' => 'warning',
-                    'message' => '既存のお客様でした（' . $existingCustomer->last_name . ' ' . $existingCustomer->first_name . '様）。予約詳細を入力してください。'
+                logger('⚠️ Email duplicate detected', [
+                    'email' => $this->newCustomer['email'],
+                    'existing_customer' => $existingCustomer->id,
+                    'existing_name' => $existingCustomer->last_name . ' ' . $existingCustomer->first_name,
+                    'input_name' => $this->newCustomer['last_name'] . ' ' . $this->newCustomer['first_name']
                 ]);
+
+                // 電話番号重複と同じように確認画面を表示
+                $this->conflictingCustomer = $existingCustomer;
+                $this->showCustomerConflictConfirmation = true;
+
+                Notification::make()
+                    ->warning()
+                    ->title('メールアドレスの重複')
+                    ->body('入力されたメールアドレスは既に登録されています: ' . $existingCustomer->last_name . ' ' . $existingCustomer->first_name . '様')
+                    ->send();
                 return;
             } else {
                 throw $e; // 他の原因の場合はエラーを再throw
@@ -1526,9 +1559,25 @@ class ReservationTimelineWidget extends Widget
         $this->selectedCustomer = $customer;
         $this->reservationStep = 3; // 予約詳細入力へ
 
+        // デバッグログ - 完了時点の状態を記録
+        logger('✅ Creating new customer - SUCCESS', [
+            'created_customer' => [
+                'id' => $customer->id,
+                'name' => $customer->last_name . ' ' . $customer->first_name,
+                'phone' => $customer->phone,
+                'email' => $customer->email
+            ],
+            'selectedCustomer_after' => [
+                'id' => $this->selectedCustomer->id,
+                'name' => $this->selectedCustomer->last_name . ' ' . $this->selectedCustomer->first_name,
+                'phone' => $this->selectedCustomer->phone
+            ],
+            'match' => $customer->id === $this->selectedCustomer->id
+        ]);
+
         // ステップ3に移行したことをブラウザに通知
         $this->dispatch('modal-opened');
-        
+
         $this->dispatch('notify', [
             'type' => 'success',
             'message' => '新規顧客を登録しました'
@@ -1674,6 +1723,19 @@ class ReservationTimelineWidget extends Widget
             // スタッフシフトモードかどうか確認
             $store = Store::find($this->selectedStore);
             $useStaffAssignment = $store->use_staff_assignment ?? false;
+
+            // CRITICAL: 予約作成時の顧客情報をログに記録
+            logger('📝 Creating reservation with customer', [
+                'selectedCustomer' => [
+                    'id' => $this->selectedCustomer->id,
+                    'name' => $this->selectedCustomer->last_name . ' ' . $this->selectedCustomer->first_name,
+                    'phone' => $this->selectedCustomer->phone,
+                    'email' => $this->selectedCustomer->email
+                ],
+                'reservation_date' => $this->newReservation['date'],
+                'start_time' => $this->newReservation['start_time'],
+                'menu_id' => $this->newReservation['menu_id']
+            ]);
 
             // 予約データを準備
             $reservationData = [
