@@ -1674,7 +1674,8 @@ class ReservationTimelineWidget extends Widget
 
     public function getFilteredMenus()
     {
-        $query = \App\Models\Menu::where('is_available', true);
+        $query = \App\Models\Menu::where('is_available', true)
+            ->where('is_option', false); // オプションメニューを除外
 
         // 選択された店舗のメニューのみを表示
         if ($this->selectedStore) {
