@@ -1594,29 +1594,36 @@ class ReservationTimelineWidget extends Widget
                 'phone' => $this->newCustomer['phone'],
             ]);
         } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
-            // メールアドレス重複の場合、確認画面を表示
-            $existingCustomer = \App\Models\Customer::where('email', $this->newCustomer['email'])->first();
-            if ($existingCustomer) {
-                logger('⚠️ Email duplicate detected', [
-                    'email' => $this->newCustomer['email'],
-                    'existing_customer' => $existingCustomer->id,
-                    'existing_name' => $existingCustomer->last_name . ' ' . $existingCustomer->first_name,
-                    'input_name' => $this->newCustomer['last_name'] . ' ' . $this->newCustomer['first_name']
-                ]);
+            // メールアドレス重複の場合、確認画面を表示（空文字列の場合はスキップ）
+            if (!empty($this->newCustomer['email'])) {
+                $existingCustomer = \App\Models\Customer::where('email', $this->newCustomer['email'])->first();
+                if ($existingCustomer) {
+                    logger('⚠️ Email duplicate detected', [
+                        'email' => $this->newCustomer['email'],
+                        'existing_customer' => $existingCustomer->id,
+                        'existing_name' => $existingCustomer->last_name . ' ' . $existingCustomer->first_name,
+                        'input_name' => $this->newCustomer['last_name'] . ' ' . $this->newCustomer['first_name']
+                    ]);
 
-                // 電話番号重複と同じように確認画面を表示
-                $this->conflictingCustomer = $existingCustomer;
-                $this->showCustomerConflictConfirmation = true;
+                    // 電話番号重複と同じように確認画面を表示
+                    $this->conflictingCustomer = $existingCustomer;
+                    $this->showCustomerConflictConfirmation = true;
 
-                Notification::make()
-                    ->warning()
-                    ->title('メールアドレスの重複')
-                    ->body('入力されたメールアドレスは既に登録されています: ' . $existingCustomer->last_name . ' ' . $existingCustomer->first_name . '様')
-                    ->send();
-                return;
-            } else {
-                throw $e; // 他の原因の場合はエラーを再throw
+                    Notification::make()
+                        ->warning()
+                        ->title('メールアドレスの重複')
+                        ->body('入力されたメールアドレスは既に登録されています: ' . $existingCustomer->last_name . ' ' . $existingCustomer->first_name . '様')
+                        ->send();
+                    return;
+                }
             }
+
+            // 空emailでの重複エラーの場合はログに記録して再throw
+            logger('⚠️ Email constraint violation with empty email', [
+                'email' => $this->newCustomer['email'],
+                'customer_name' => $this->newCustomer['last_name'] . ' ' . $this->newCustomer['first_name']
+            ]);
+            throw $e;
         }
         
         $this->selectedCustomer = $customer;
