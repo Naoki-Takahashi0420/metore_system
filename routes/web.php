@@ -33,6 +33,17 @@ Route::get('/health', function () {
     ]);
 });
 
+// Debug: View logs (本番環境では削除すること)
+Route::get('/debug/logs', function () {
+    $logFile = storage_path('logs/laravel.log');
+    if (!file_exists($logFile)) {
+        return response('Log file not found', 404);
+    }
+    $lines = file($logFile);
+    $last200 = array_slice($lines, -200);
+    return response('<pre>' . implode('', $last200) . '</pre>');
+});
+
 // Store routes - パラメータベース対応
 Route::get('/stores', [App\Http\Controllers\PublicReservationController::class, 'selectStore'])->name('stores');
 
