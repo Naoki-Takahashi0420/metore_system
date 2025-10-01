@@ -1078,11 +1078,16 @@ class ReservationTimelineWidget extends Widget
     {
         $reservation = Reservation::find($reservationId);
         if (!$reservation) {
+            \Log::info('canMoveToMain: reservation not found', ['id' => $reservationId]);
             return false;
         }
 
         // 現在と同じ席番号への移動は不可
         if (!$reservation->is_sub && $reservation->seat_number == $seatNumber) {
+            \Log::info('canMoveToMain: same seat', [
+                'id' => $reservationId,
+                'seat' => $seatNumber
+            ]);
             return false;
         }
 
@@ -1090,7 +1095,23 @@ class ReservationTimelineWidget extends Widget
         $temp->is_sub = false;
         $temp->seat_number = $seatNumber;
 
-        return Reservation::checkAvailability($temp);
+        try {
+            $result = Reservation::checkAvailability($temp);
+            \Log::info('canMoveToMain result:', [
+                'reservation_id' => $reservationId,
+                'from' => $reservation->is_sub ? 'sub' : "seat {$reservation->seat_number}",
+                'to_seat' => $seatNumber,
+                'can_move' => $result
+            ]);
+            return $result;
+        } catch (\Exception $e) {
+            \Log::error('canMoveToMain exception:', [
+                'reservation_id' => $reservationId,
+                'seat' => $seatNumber,
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
     }
     
     // 新規予約作成関連のメソッド
