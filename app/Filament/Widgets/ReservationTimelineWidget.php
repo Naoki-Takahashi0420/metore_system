@@ -1077,14 +1077,19 @@ class ReservationTimelineWidget extends Widget
     public function canMoveToMain($reservationId, $seatNumber): bool
     {
         $reservation = Reservation::find($reservationId);
-        if (!$reservation || !$reservation->is_sub) {
+        if (!$reservation) {
             return false;
         }
-        
+
+        // 現在と同じ席番号への移動は不可
+        if (!$reservation->is_sub && $reservation->seat_number == $seatNumber) {
+            return false;
+        }
+
         $temp = clone $reservation;
         $temp->is_sub = false;
         $temp->seat_number = $seatNumber;
-        
+
         return Reservation::checkAvailability($temp);
     }
     
