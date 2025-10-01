@@ -1373,43 +1373,65 @@ class ReservationTimelineWidget extends Widget
     
     public function startNewCustomerRegistration(): void
     {
-        $this->newCustomer['phone'] = $this->phoneSearch;
+        // 検索フィールドの値を初期値として設定するが、ユーザーが変更可能
+        // ただし、既に入力されている場合は上書きしない
+        if (empty($this->newCustomer['phone'])) {
+            $this->newCustomer['phone'] = $this->phoneSearch;
+        }
         $this->reservationStep = 2; // 新規顧客登録へ
     }
     
     public function createNewCustomer(): void
     {
+        // デバッグログ
+        logger('🆕 Creating new customer', [
+            'newCustomer' => $this->newCustomer,
+            'phoneSearch' => $this->phoneSearch,
+            'selectedCustomer' => $this->selectedCustomer ? $this->selectedCustomer->id : null
+        ]);
+
         // バリデーション
         if (empty($this->newCustomer['last_name']) || empty($this->newCustomer['first_name'])) {
-            $this->dispatch('notify', [
-                'type' => 'error',
-                'message' => '姓名は必須です'
-            ]);
+            Notification::make()
+                ->danger()
+                ->title('入力エラー')
+                ->body('姓名は必須です')
+                ->send();
             return;
         }
-        
+
         if (empty($this->newCustomer['phone'])) {
-            $this->dispatch('notify', [
-                'type' => 'error',
-                'message' => '電話番号は必須です'
-            ]);
+            Notification::make()
+                ->danger()
+                ->title('入力エラー')
+                ->body('電話番号は必須です')
+                ->send();
             return;
         }
-        
-        // 電話番号の重複チェック
-        $existingCustomer = \App\Models\Customer::where('phone', $this->newCustomer['phone'])->first();
+
+        // 電話番号の重複チェック（完全一致のみ）
+        $phoneToCheck = trim($this->newCustomer['phone']);
+        $existingCustomer = \App\Models\Customer::where('phone', $phoneToCheck)->first();
+
         if ($existingCustomer) {
-            // 既存顧客だった場合は、情報を更新して次へ進む
+            // 既存顧客だった場合は、警告を表示して次へ進む
+            logger('⚠️ Customer already exists', [
+                'phone' => $phoneToCheck,
+                'existing_customer' => $existingCustomer->id,
+                'name' => $existingCustomer->last_name . ' ' . $existingCustomer->first_name
+            ]);
+
             $this->selectedCustomer = $existingCustomer;
             $this->reservationStep = 3;
 
             // ステップ3に移行したことをブラウザに通知
             $this->dispatch('modal-opened');
 
-            $this->dispatch('notify', [
-                'type' => 'info',
-                'message' => '既存のお客様でした（' . $existingCustomer->last_name . ' ' . $existingCustomer->first_name . '様）。予約詳細を入力してください。'
-            ]);
+            Notification::make()
+                ->warning()
+                ->title('既存のお客様でした')
+                ->body('この電話番号は既に登録されています: ' . $existingCustomer->last_name . ' ' . $existingCustomer->first_name . '様')
+                ->send();
             return;
         }
         
@@ -1791,9 +1813,11 @@ class ReservationTimelineWidget extends Widget
             }
 
             // オプションとして選択可能なメニュー（is_optionがtrueまたは小額メニュー）
+            // ただし、show_in_upsell = true（追加オプションとして提案）のメニューは除外
             $this->availableOptions = \App\Models\Menu::where('is_available', true)
                 ->where('store_id', $mainMenu->store_id)
                 ->where('id', '!=', $menuId)
+                ->where('show_in_upsell', false) // 追加オプション提案メニューを除外
                 ->where(function($q) {
                     $q->where('is_option', true)
                       ->orWhere('price', '<=', 3000); // 3000円以下はオプションとして選択可能
@@ -1801,6 +1825,12 @@ class ReservationTimelineWidget extends Widget
                 ->orderBy('price')
                 ->get()
                 ->toArray();
+
+            \Log::info('Loaded available options', [
+                'menu_id' => $menuId,
+                'options_count' => count($this->availableOptions),
+                'option_names' => array_column($this->availableOptions, 'name')
+            ]);
 
         } catch (\Exception $e) {
             \Log::error('Failed to load available options', [
