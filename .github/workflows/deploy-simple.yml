@@ -27,7 +27,12 @@ jobs:
         cd /tmp
         rm -rf metore_system
         git clone https://github.com/Naoki-Takahashi0420/metore_system.git
-        
+
+        # バージョン情報を記録
+        cd /tmp/metore_system
+        git rev-parse --short HEAD > .version
+        echo "Version: $(cat .version)"
+
         # Backup database if exists
         if [ -f "$APP_DIR/database/database.sqlite" ]; then
           sudo cp $APP_DIR/database/database.sqlite /tmp/database-backup.sqlite

@@ -82,43 +82,47 @@ class AdminPanelProvider extends PanelProvider
                 'panels::body.end',
                 fn () => '<script>
                     console.log("Calendar click handler loading...");
-                    
+
                     function setupCalendarClicks() {
                         const dayNumbers = document.querySelectorAll("a.fc-daygrid-day-number");
                         console.log("Found " + dayNumbers.length + " day numbers");
-                        
+
                         dayNumbers.forEach(function(dayNumber) {
                             if (dayNumber.dataset.clickSetup) return;
-                            
+
                             dayNumber.style.cursor = "pointer";
-                            
+
                             dayNumber.addEventListener("click", function(e) {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                
+
                                 const td = this.closest("td[data-date]");
                                 if (td) {
                                     const date = td.getAttribute("data-date");
                                     console.log("Date clicked: " + date);
-                                    
+
                                     if (window.Livewire) {
                                         window.Livewire.dispatch("calendar-date-clicked", { date: date });
                                     }
                                 }
                             });
-                            
+
                             dayNumber.dataset.clickSetup = "true";
                         });
                     }
-                    
+
                     // 3秒後に実行
                     setTimeout(setupCalendarClicks, 3000);
-                    
+
                     // ページ変更時にも実行
                     document.addEventListener("livewire:navigated", function() {
                         setTimeout(setupCalendarClicks, 3000);
                     });
                 </script>',
+            )
+            ->renderHook(
+                'panels::footer',
+                fn () => view('components.version-footer')
             )
             ->theme(asset('css/filament/admin/theme.css'));
     }

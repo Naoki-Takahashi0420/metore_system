@@ -577,7 +577,9 @@ class ReservationTimelineWidget extends Widget
             'shiftBasedAvailability' => $shiftBasedAvailability ?? [],
             'shiftBasedCapacity' => $store->shift_based_capacity ?? 1,
             'maxCapacity' => $useStaffAssignment ? $maxCapacity : ($mainSeats ?? 3),
-            'slotDuration' => $slotDuration
+            'slotDuration' => $slotDuration,
+            'startHour' => $startHour,  // タイムライン開始時刻を追加
+            'endHour' => $endHour        // タイムライン終了時刻を追加
         ];
     }
     

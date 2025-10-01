@@ -534,19 +534,26 @@
                     $now = \Carbon\Carbon::now('Asia/Tokyo');
                     $currentHour = $now->hour;
                     $currentMinute = $now->minute;
+
+                    // タイムラインの開始時刻を取得（デフォルトは10:00）
+                    $timelineStartHour = $timelineData['startHour'] ?? 10;
+                    $timelineEndHour = $timelineData['endHour'] ?? 21;
+                    $slotDuration = $timelineData['slotDuration'] ?? 30;
+
                     $shouldShowIndicator = false;
 
                     // デバッグ情報をJavaScriptコンソールに出力
-                    echo "<script>console.log('🐘 PHP: JST現在時刻: {$currentHour}:{$currentMinute} - 営業時間内？" . ($currentHour >= 9 && $currentHour < 22 ? 'YES' : 'NO') . "');</script>";
+                    echo "<script>console.log('🐘 PHP: JST現在時刻: {$currentHour}:{$currentMinute}');</script>";
+                    echo "<script>console.log('🐘 PHP: タイムライン開始時刻: {$timelineStartHour}:00, 終了時刻: {$timelineEndHour}:00');</script>";
                     echo "<script>console.log('🐘 PHP Debug: shouldShow={$shouldShowIndicator}, isToday=" . ($isToday ? 'true' : 'false') . "');</script>";
 
-                    // 営業時間内の場合のみ位置計算（9:00 - 22:00）テスト用に9時から
+                    // タイムライン範囲内の場合のみ位置計算
                     $leftPosition = 0;
-                    if ($currentHour >= 9 && $currentHour < 22) { // 22:00以降は表示しない
+                    if ($currentHour >= $timelineStartHour && $currentHour < $timelineEndHour) {
                         $shouldShowIndicator = true;
-                        $minutesFromStart = ($currentHour - 9) * 60 + $currentMinute;
-                        $cellIndex = floor($minutesFromStart / 30);
-                        $percentageIntoCell = ($minutesFromStart % 30) / 30;
+                        $minutesFromStart = ($currentHour - $timelineStartHour) * 60 + $currentMinute;
+                        $cellIndex = floor($minutesFromStart / $slotDuration);
+                        $percentageIntoCell = ($minutesFromStart % $slotDuration) / $slotDuration;
                         $firstCellWidth = 36; // 席ラベルの幅
                         $cellWidth = 48; // 各セルの幅
                         $leftPosition = $firstCellWidth + ($cellIndex * $cellWidth) + ($percentageIntoCell * $cellWidth);
@@ -555,15 +562,20 @@
                 @php
                     // 営業時間に関係なく位置計算を行う（JSで制御）
                     if (!$shouldShowIndicator) {
-                        $minutesFromStart = ($currentHour - 9) * 60 + $currentMinute;
-                        $cellIndex = floor($minutesFromStart / 30);
-                        $percentageIntoCell = ($minutesFromStart % 30) / 30;
+                        $minutesFromStart = ($currentHour - $timelineStartHour) * 60 + $currentMinute;
+                        $cellIndex = floor($minutesFromStart / $slotDuration);
+                        $percentageIntoCell = ($minutesFromStart % $slotDuration) / $slotDuration;
                         $firstCellWidth = 36;
                         $cellWidth = 48;
                         $leftPosition = $firstCellWidth + ($cellIndex * $cellWidth) + ($percentageIntoCell * $cellWidth);
                     }
                 @endphp
-                <div id="current-time-indicator" class="current-time-indicator{{ ($currentHour < 9 || $currentHour >= 22) ? ' outside-business-hours' : '' }}" style="left: {{ $leftPosition }}px;">
+                <div id="current-time-indicator"
+                     class="current-time-indicator{{ ($currentHour < $timelineStartHour || $currentHour >= $timelineEndHour) ? ' outside-business-hours' : '' }}"
+                     style="left: {{ $leftPosition }}px;"
+                     data-timeline-start="{{ $timelineStartHour }}"
+                     data-timeline-end="{{ $timelineEndHour }}"
+                     data-slot-duration="{{ $slotDuration }}">
                     <span class="current-time-text">{{ $now->format('H:i') }}</span>
                 </div>
             @endif
@@ -841,31 +853,31 @@
                 const currentHour = jstDate.getHours();
                 const currentMinute = jstDate.getMinutes();
 
-                // 🚨 緊急停止: 営業時間外は何もしない
-                if (currentHour < 10 || currentHour >= 22) {
-                    console.log('🚫 createTimeIndicator: 営業時間外のため処理停止');
-                    return;
-                }
+                // タイムライン開始時刻をdata属性から取得（デフォルト10:00）
+                const existingIndicator = document.getElementById('current-time-indicator');
+                const timelineStartHour = existingIndicator ? parseInt(existingIndicator.dataset.timelineStart || '10') : 10;
+                const timelineEndHour = existingIndicator ? parseInt(existingIndicator.dataset.timelineEnd || '21') : 21;
+                const slotDuration = existingIndicator ? parseInt(existingIndicator.dataset.slotDuration || '30') : 30;
 
                 console.log(`🕒 JST現在時刻: ${currentHour}:${String(currentMinute).padStart(2, '0')}`);
-                console.log(`🕒 ローカル時刻（参考）: ${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2, '0')}`);
-                console.log(`📋 営業時間判定: 10時以前？${currentHour < 10} / 22時以降？${currentHour >= 22}`);
+                console.log(`📅 タイムライン範囲: ${timelineStartHour}:00 - ${timelineEndHour}:00`);
+                console.log(`⏱️  スロット間隔: ${slotDuration}分`);
 
-                // 営業時間チェック（22:00以降は表示しない）
-                if (currentHour < 10 || currentHour >= 22) {
-                    console.log('🚫 営業時間外のためインジケーター削除');
-                    // 既存のインジケーターを削除
-                    const existing = document.getElementById('current-time-indicator');
-                    if (existing) {
+                // タイムライン範囲外の場合は何もしない
+                if (currentHour < timelineStartHour || currentHour >= timelineEndHour) {
+                    console.log('🚫 createTimeIndicator: タイムライン範囲外のため処理停止');
+                    if (existingIndicator) {
                         console.log('🗑️ 既存インジケーター削除実行');
-                        existing.remove();
+                        existingIndicator.remove();
                     } else {
                         console.log('ℹ️ 削除対象のインジケーターが見つからない');
                     }
+                    // 緊急削除も実行
+                    emergencyRemoveIndicator();
                     return;
                 }
 
-                console.log('✅ 営業時間内のためインジケーター表示処理を続行');
+                console.log('✅ タイムライン範囲内のためインジケーター表示処理を続行');
 
                 // 要素を探す
                 const table = document.querySelector('.timeline-table');
@@ -926,9 +938,9 @@
                             const retryFirstCellWidth = cells[0].offsetWidth || 36;
                             const retryCellWidth = cells[1].offsetWidth || 48;
 
-                            const minutesFromStart = (currentHour - 10) * 60 + currentMinute;
-                            const cellIndex = Math.floor(minutesFromStart / 30);
-                            const percentageIntoCell = (minutesFromStart % 30) / 30;
+                            const minutesFromStart = (currentHour - timelineStartHour) * 60 + currentMinute;
+                            const cellIndex = Math.floor(minutesFromStart / slotDuration);
+                            const percentageIntoCell = (minutesFromStart % slotDuration) / slotDuration;
                             const leftPosition = retryFirstCellWidth + (cellIndex * retryCellWidth) + (percentageIntoCell * retryCellWidth);
 
                             indicator.style.left = leftPosition + 'px';
@@ -937,10 +949,10 @@
                         return;
                     }
 
-                    // 時間計算
-                    const minutesFromStart = (currentHour - 10) * 60 + currentMinute;
-                    const cellIndex = Math.floor(minutesFromStart / 30);
-                    const percentageIntoCell = (minutesFromStart % 30) / 30;
+                    // 時間計算（タイムライン開始時刻からの経過時間）
+                    const minutesFromStart = (currentHour - timelineStartHour) * 60 + currentMinute;
+                    const cellIndex = Math.floor(minutesFromStart / slotDuration);
+                    const percentageIntoCell = (minutesFromStart % slotDuration) / slotDuration;
                     const leftPosition = firstCellWidth + (cellIndex * cellWidth) + (percentageIntoCell * cellWidth);
 
                     console.log(`計算結果: 左位置=${leftPosition}px, セルインデックス=${cellIndex}`);
