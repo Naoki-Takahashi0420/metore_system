@@ -415,7 +415,13 @@ class StoreResource extends Resource
                                             ->password()
                                             ->helperText('Webhook署名検証用のシークレットキー')
                                             ->visible(fn ($get) => $get('line_enabled')),
-                                        
+
+                                        Forms\Components\TextInput::make('line_channel_id')
+                                            ->label('Channel ID')
+                                            ->placeholder('2008211284')
+                                            ->helperText('LINE Developersの Basic settings で確認できる数字のみのID（IDトークン検証に必要）')
+                                            ->visible(fn ($get) => $get('line_enabled')),
+
                                         Forms\Components\TextInput::make('line_liff_id')
                                             ->label('LIFF ID')
                                             ->placeholder('1234567890-AbCdEfGh')

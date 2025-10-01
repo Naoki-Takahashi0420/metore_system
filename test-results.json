@@ -10,7 +10,9 @@
     "grep": {},
     "grepInvert": null,
     "maxFailures": 0,
-    "metadata": {},
+    "metadata": {
+      "actualWorkers": 1
+    },
     "preserveOutput": "always",
     "reporter": [
       [
@@ -40,7 +42,9 @@
         "outputDir": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results",
         "repeatEach": 1,
         "retries": 1,
-        "metadata": {},
+        "metadata": {
+          "actualWorkers": 1
+        },
         "id": "chromium",
         "name": "chromium",
         "testDir": "/Applications/MAMP/htdocs/Xsyumeno-main/tests",
@@ -62,17 +66,77 @@
       "reuseExistingServer": true
     }
   },
-  "suites": [],
-  "errors": [
+  "suites": [
     {
-      "message": "Error: No tests found.\nMake sure that arguments are regular expressions matching test files.\nYou may need to escape symbols like \"$\" or \"*\" and quote the arguments.",
-      "stack": "Error: No tests found.\nMake sure that arguments are regular expressions matching test files.\nYou may need to escape symbols like \"$\" or \"*\" and quote the arguments."
+      "title": "check-initial-position.spec.js",
+      "file": "check-initial-position.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "初期位置確認",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 9041,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "\n=== 初期位置（500ms後） ===\n"
+                    },
+                    {
+                      "text": "存在: ✅\n"
+                    },
+                    {
+                      "text": "style.left: 0px\n"
+                    },
+                    {
+                      "text": "computed left: 0px\n"
+                    },
+                    {
+                      "text": "\n=== JavaScript更新後（5秒後） ===\n"
+                    },
+                    {
+                      "text": "style.left: 506.667px\n"
+                    },
+                    {
+                      "text": "computed left: 506.667px\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2025-10-01T04:35:33.279Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "ad114659a7e6deca0318-c5b56bc2563918041215",
+          "file": "check-initial-position.spec.js",
+          "line": 3,
+          "column": 1
+        }
+      ]
     }
   ],
+  "errors": [],
   "stats": {
-    "startTime": "2025-10-01T02:45:46.736Z",
-    "duration": 30.23599999999999,
-    "expected": 0,
+    "startTime": "2025-10-01T04:35:32.796Z",
+    "duration": 10701.816,
+    "expected": 1,
     "skipped": 0,
     "unexpected": 0,
     "flaky": 0

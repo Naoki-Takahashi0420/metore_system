@@ -64,13 +64,20 @@ class LineTokenVerificationService
     /**
      * LINE Verify APIを使用してトークンを検証
      */
-    public function verifyTokenWithAPI(string $idToken): array
+    public function verifyTokenWithAPI(string $idToken, ?string $channelId = null): array
     {
         try {
+            // Channel IDは引数で渡されるか、環境変数から取得
+            $clientId = $channelId ?? config('services.line.channel_id');
+
+            if (!$clientId) {
+                throw new Exception('LINE Channel ID is not configured');
+            }
+
             $response = $this->httpClient->post('https://api.line.me/oauth2/v2.1/verify', [
                 'form_params' => [
                     'id_token' => $idToken,
-                    'client_id' => config('services.line.channel_id'),
+                    'client_id' => $clientId,
                 ]
             ]);
 
@@ -90,7 +97,8 @@ class LineTokenVerificationService
         } catch (Exception $e) {
             Log::error('LINE token verification API failed', [
                 'error' => $e->getMessage(),
-                'token' => substr($idToken, 0, 50) . '...'
+                'token' => substr($idToken, 0, 50) . '...',
+                'channel_id' => $channelId ?? 'not provided'
             ]);
             throw new Exception('Token verification failed: ' . $e->getMessage());
         }

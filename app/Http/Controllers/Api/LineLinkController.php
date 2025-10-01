@@ -407,13 +407,18 @@ class LineLinkController extends Controller
             try {
                 $lineUserData = $this->tokenVerificationService->verifyIdToken($validatedData['id_token']);
             } catch (Exception $e) {
-                // JWKs検証失敗時はAPI検証を試行
+                // JWKs検証失敗時はAPI検証を試行（店舗のChannel IDを使用）
                 try {
-                    $lineUserData = $this->tokenVerificationService->verifyTokenWithAPI($validatedData['id_token']);
+                    $lineUserData = $this->tokenVerificationService->verifyTokenWithAPI(
+                        $validatedData['id_token'],
+                        $store->line_channel_id
+                    );
                 } catch (Exception $apiError) {
                     $this->logAuditEvent('line_link_reservation_attempt', $customer->id, 'failed', [
                         'error' => 'token_verification_failed',
                         'message' => $apiError->getMessage(),
+                        'store_id' => $store->id,
+                        'has_channel_id' => !empty($store->line_channel_id),
                         'ip' => $request->ip()
                     ]);
 
