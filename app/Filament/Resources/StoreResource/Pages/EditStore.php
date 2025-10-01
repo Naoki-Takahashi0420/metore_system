@@ -45,17 +45,8 @@ class EditStore extends EditRecord
                         return;
                     }
 
-                    // テスト用の固定User ID（.envから取得）
-                    $testLineUserId = env('LINE_TEST_USER_ID');
-
-                    if (!$testLineUserId) {
-                        Notification::make()
-                            ->title('テストUser IDが未設定です')
-                            ->body('.envファイルにLINE_TEST_USER_IDを設定してください。')
-                            ->warning()
-                            ->send();
-                        return;
-                    }
+                    // テスト用の固定User ID（開発者アカウント）
+                    $testLineUserId = 'Uc37e9137beadca4a6d5c04aaada19ab1';
 
                     $lineService = new SimpleLineService();
 
