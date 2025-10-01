@@ -75,6 +75,18 @@ jobs:
           # Create .env only if it doesn't exist
           echo "WARNING: .env file not found. Please create it manually."
         fi
+
+        # LINE_TEST_USER_IDを.envに追加（.env復元後に実行）
+        echo "Checking LINE_TEST_USER_ID in .env..."
+        if ! grep -q "LINE_TEST_USER_ID" $APP_DIR/.env 2>/dev/null; then
+          echo "Adding LINE_TEST_USER_ID to .env..."
+          echo "" | sudo tee -a $APP_DIR/.env > /dev/null
+          echo "# LINE Test User ID (開発者用)" | sudo tee -a $APP_DIR/.env > /dev/null
+          echo "LINE_TEST_USER_ID=Uc37e9137beadca4a6d5c04aaada19ab1" | sudo tee -a $APP_DIR/.env > /dev/null
+          echo "✅ LINE_TEST_USER_ID added to .env"
+        else
+          echo "✅ LINE_TEST_USER_ID already exists in .env"
+        fi
         
         # SQLiteデータベース設定（新規作成しない）
         cd $APP_DIR
@@ -90,19 +102,6 @@ jobs:
         
         # Laravel設定（.envファイルは既存のものを使用）
         # sudo php artisan key:generate はコメントアウト（既存のキーを使用）
-
-        # LINE_TEST_USER_IDを.envに追加
-        echo "Checking LINE_TEST_USER_ID in .env..."
-        if ! grep -q "LINE_TEST_USER_ID" .env 2>/dev/null; then
-          echo "Adding LINE_TEST_USER_ID to .env..."
-          echo "" | sudo tee -a .env > /dev/null
-          echo "# LINE Test User ID (開発者用)" | sudo tee -a .env > /dev/null
-          echo "LINE_TEST_USER_ID=Uc37e9137beadca4a6d5c04aaada19ab1" | sudo tee -a .env > /dev/null
-          echo "✅ LINE_TEST_USER_ID added to .env"
-        else
-          echo "✅ LINE_TEST_USER_ID already exists in .env"
-        fi
-
         sudo php artisan storage:link
         sudo php artisan optimize:clear
         sudo php artisan view:clear
