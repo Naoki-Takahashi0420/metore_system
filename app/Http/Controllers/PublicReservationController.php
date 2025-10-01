@@ -1995,24 +1995,13 @@ class PublicReservationController extends Controller
                     }
 
                     if ($customer) {
-                        // 既存顧客が見つかった場合、情報は更新せずそのまま使用
-                        // 理由: メールアドレスで見つかった場合、入力された電話番号は別の新規顧客のものである可能性が高い
-                        // 既存顧客の電話番号を上書きすると、データが壊れる
-                        \Log::info('既存顧客を使用（情報は更新しない）', [
-                            'customer_id' => $customer->id,
-                            'customer_name' => $customer->last_name . ' ' . $customer->first_name,
-                            'customer_phone' => $customer->phone,
-                            'input_phone' => $validated['phone'],
-                            'matched_by' => $customer->phone === $validated['phone'] ? 'phone' : 'email'
+                        // 既存顧客が見つかった場合、情報を更新
+                        $customer->update([
+                            'last_name' => $validated['last_name'],
+                            'first_name' => $validated['first_name'],
+                            'phone' => $validated['phone'],
+                            'email' => $validated['email'] ?? null,
                         ]);
-
-                        // 電話番号が一致しない場合は警告
-                        if ($customer->phone !== $validated['phone']) {
-                            \Log::warning('電話番号が一致しない既存顧客を使用', [
-                                'customer_phone' => $customer->phone,
-                                'input_phone' => $validated['phone']
-                            ]);
-                        }
                     } else {
                         // 新規顧客として作成
                         $customer = Customer::create([
