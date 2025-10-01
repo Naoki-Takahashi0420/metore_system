@@ -90,6 +90,15 @@ class Menu extends Model
     }
 
     /**
+     * duration アクセサ（後方互換性のため）
+     * duration_minutes を duration として取得できるようにする
+     */
+    public function getDurationAttribute()
+    {
+        return $this->duration_minutes;
+    }
+
+    /**
      * リレーション: カテゴリー
      */
     public function menuCategory(): BelongsTo

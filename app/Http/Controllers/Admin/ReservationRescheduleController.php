@@ -18,6 +18,9 @@ class ReservationRescheduleController extends Controller
 {
     public function show(Reservation $reservation)
     {
+        // メニュー情報をEager Load
+        $reservation->load('menu');
+
         // 権限チェック
         $user = auth()->user();
         if (!$user) {
@@ -315,8 +318,11 @@ class ReservationRescheduleController extends Controller
 
                 // 管理画面では過去の時間も選択可能（当日の過去時間も含む）
 
-                // 営業時間チェック
-                if ($slot < $openTime || $slotEnd->format('H:i') > $closeTime) {
+                // 営業時間チェック - 終了時間が営業終了時刻を超えないかチェック
+                $openTimeCarbon = Carbon::parse($date['date']->format('Y-m-d') . ' ' . $openTime);
+                $closeTimeCarbon = Carbon::parse($date['date']->format('Y-m-d') . ' ' . $closeTime);
+
+                if ($slotTime->lt($openTimeCarbon) || $slotEnd->gt($closeTimeCarbon)) {
                     $availability[$dateStr][$slot] = false;
                     continue;
                 }

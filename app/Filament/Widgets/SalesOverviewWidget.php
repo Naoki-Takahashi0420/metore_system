@@ -7,12 +7,34 @@ use App\Models\Reservation;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 use Carbon\Carbon;
+use Livewire\Attributes\On;
 
 class SalesOverviewWidget extends BaseWidget
 {
     protected static ?int $sort = 1;
 
     protected static ?string $pollingInterval = '30s';
+
+    public ?int $selectedStoreId = null;
+
+    public function mount(): void
+    {
+        $user = auth()->user();
+
+        // 初期店舗設定
+        if ($user->hasRole('super_admin')) {
+            $firstStore = \App\Models\Store::first();
+            $this->selectedStoreId = $firstStore?->id;
+        } else {
+            $this->selectedStoreId = $user->store_id;
+        }
+    }
+
+    #[On('store-changed')]
+    public function updateStore($storeId, $date = null): void
+    {
+        $this->selectedStoreId = $storeId;
+    }
 
     public static function canView(): bool
     {
@@ -28,34 +50,49 @@ class SalesOverviewWidget extends BaseWidget
         $lastMonth = Carbon::now()->subMonth()->startOfMonth();
         $lastMonthEnd = Carbon::now()->subMonth()->endOfMonth();
         
+        // 店舗フィルタークエリを生成
+        $saleQuery = Sale::query();
+        $reservationQuery = Reservation::query();
+
+        if ($this->selectedStoreId) {
+            $saleQuery->where('store_id', $this->selectedStoreId);
+            $reservationQuery->where('store_id', $this->selectedStoreId);
+        }
+
         // 今日の売上
-        $todaySales = Sale::whereDate('sale_date', $today)
+        $todaySales = (clone $saleQuery)
+            ->whereDate('sale_date', $today)
             ->where('status', 'completed')
             ->sum('total_amount');
-            
+
         // 昨日の売上
-        $yesterdaySales = Sale::whereDate('sale_date', $yesterday)
+        $yesterdaySales = (clone $saleQuery)
+            ->whereDate('sale_date', $yesterday)
             ->where('status', 'completed')
             ->sum('total_amount');
-            
+
         // 今月の売上
-        $thisMonthSales = Sale::whereBetween('sale_date', [$thisMonth, $today])
+        $thisMonthSales = (clone $saleQuery)
+            ->whereBetween('sale_date', [$thisMonth, $today])
             ->where('status', 'completed')
             ->sum('total_amount');
-            
+
         // 先月の売上
-        $lastMonthSales = Sale::whereBetween('sale_date', [$lastMonth, $lastMonthEnd])
+        $lastMonthSales = (clone $saleQuery)
+            ->whereBetween('sale_date', [$lastMonth, $lastMonthEnd])
             ->where('status', 'completed')
             ->sum('total_amount');
-            
+
         // 今日の客数
-        $todayCustomers = Sale::whereDate('sale_date', $today)
+        $todayCustomers = (clone $saleQuery)
+            ->whereDate('sale_date', $today)
             ->where('status', 'completed')
             ->distinct('customer_id')
             ->count('customer_id');
-            
+
         // 今日の予約数
-        $todayReservations = Reservation::whereDate('reservation_date', $today)
+        $todayReservations = (clone $reservationQuery)
+            ->whereDate('reservation_date', $today)
             ->whereIn('status', ['pending', 'confirmed'])
             ->count();
         
@@ -129,9 +166,14 @@ class SalesOverviewWidget extends BaseWidget
         $sales = [];
         for ($i = 6; $i >= 0; $i--) {
             $date = Carbon::today()->subDays($i);
-            $sales[] = Sale::whereDate('sale_date', $date)
-                ->where('status', 'completed')
-                ->sum('total_amount');
+            $query = Sale::whereDate('sale_date', $date)
+                ->where('status', 'completed');
+
+            if ($this->selectedStoreId) {
+                $query->where('store_id', $this->selectedStoreId);
+            }
+
+            $sales[] = $query->sum('total_amount');
         }
         return $sales;
     }
