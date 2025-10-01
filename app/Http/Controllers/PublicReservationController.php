@@ -694,6 +694,14 @@ class PublicReservationController extends Controller
         // パラメータベース：コンテキストを取得
         $context = $contextService->extractContextFromRequest($request);
 
+        // 予約変更フラグがコンテキストにない場合、セッションからも削除
+        if (!$context || !isset($context['existing_reservation_id'])) {
+            Session::forget('is_reservation_change');
+            Session::forget('change_reservation_id');
+            Session::forget('original_reservation_date');
+            Session::forget('original_reservation_time');
+        }
+
         // デバッグ：contextの中身を確認
         \Log::info('index: context確認', [
             'has_context' => !!$context,

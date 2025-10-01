@@ -38,17 +38,32 @@ class SubscriptionStatsWidget extends BaseWidget
     {
         $query = CustomerSubscription::query();
 
+        // デバッグログ
+        \Log::info('📊 SubscriptionStatsWidget - getStats()', [
+            'selectedStoreId' => $this->selectedStoreId,
+            'user_store_id' => auth()->user()?->store_id,
+            'user_role' => auth()->user()?->getRoleNames()->first()
+        ]);
+
         // 店舗フィルタリング（store_idで直接フィルタリング）
         if ($this->selectedStoreId) {
             $query->where('store_id', $this->selectedStoreId);
         }
 
-        $activeCount = $query->where('status', 'active')->count();
-        $expiringCount = $query->where('status', 'active')
+        $activeCount = (clone $query)->where('status', 'active')->count();
+        $expiringCount = (clone $query)->where('status', 'active')
+            ->whereNotNull('end_date')
+            ->whereDate('end_date', '>=', now())
             ->whereDate('end_date', '<=', now()->addDays(30))
             ->count();
-        $monthlyRevenue = $query->where('status', 'active')
+        $monthlyRevenue = (clone $query)->where('status', 'active')
             ->sum('monthly_price');
+
+        \Log::info('📊 SubscriptionStatsWidget - 計算結果', [
+            'activeCount' => $activeCount,
+            'expiringCount' => $expiringCount,
+            'monthlyRevenue' => $monthlyRevenue
+        ]);
         
         return [
             Stat::make('有効な契約数', $activeCount)
