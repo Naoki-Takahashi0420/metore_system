@@ -144,8 +144,11 @@ class SimpleLineService
         }
         
         try {
+            $token = $store->line_channel_access_token;
+            $tokenPreview = substr($token, 0, 20) . '...' . substr($token, -10);
+
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $store->line_channel_access_token,
+                'Authorization' => 'Bearer ' . $token,
                 'Content-Type' => 'application/json',
             ])->post('https://api.line.me/v2/bot/message/push', [
                 'to' => $lineUserId,
@@ -156,13 +159,14 @@ class SimpleLineService
                     ]
                 ]
             ]);
-            
+
             // ログ記録
             if ($response->successful()) {
                 Log::info('LINE送信成功', [
                     'store_id' => $store->id,
                     'store_name' => $store->name,
                     'line_user_id' => $lineUserId,
+                    'token_preview' => $tokenPreview,
                 ]);
             } else {
                 Log::error('LINE送信失敗', [
@@ -171,8 +175,11 @@ class SimpleLineService
                     'line_user_id' => $lineUserId,
                     'status_code' => $response->status(),
                     'response_body' => $response->body(),
-                    'token_length' => strlen($store->line_channel_access_token),
-                    'has_token' => !empty($store->line_channel_access_token),
+                    'token_length' => strlen($token),
+                    'token_preview' => $tokenPreview,
+                    'has_token' => !empty($token),
+                    'channel_id' => $store->line_channel_id,
+                    'channel_secret_preview' => $store->line_channel_secret ? substr($store->line_channel_secret, 0, 10) . '...' : null,
                 ]);
             }
 

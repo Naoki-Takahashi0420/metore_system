@@ -72,6 +72,19 @@ class EditStore extends EditRecord
                             ->success()
                             ->send();
                     } else {
+                        // デバッグ情報を含めたエラー表示
+                        $tokenPreview = substr($store->line_channel_access_token, 0, 20) . '...' . substr($store->line_channel_access_token, -10);
+
+                        $debugInfo = "【デバッグ情報】\n";
+                        $debugInfo .= "Store ID: {$store->id}\n";
+                        $debugInfo .= "Store Name: {$store->name}\n";
+                        $debugInfo .= "Channel ID: " . ($store->line_channel_id ?: '未設定') . "\n";
+                        $debugInfo .= "Channel Secret: " . ($store->line_channel_secret ? substr($store->line_channel_secret, 0, 10) . '...' : '未設定') . "\n";
+                        $debugInfo .= "Access Token: {$tokenPreview}\n";
+                        $debugInfo .= "Token Length: " . strlen($store->line_channel_access_token) . "\n";
+                        $debugInfo .= "Test User ID: {$testLineUserId}\n";
+                        $debugInfo .= "LIFF ID: " . ($store->line_liff_id ?: '未設定');
+
                         // 最後のログエントリを取得
                         $logFile = storage_path('logs/laravel.log');
                         $lastLines = [];
@@ -89,8 +102,9 @@ class EditStore extends EditRecord
 
                         Notification::make()
                             ->title('テスト送信失敗')
-                            ->body('ログを確認してください: ' . ($errorInfo ? substr($errorInfo, 0, 200) : 'ログが見つかりません'))
+                            ->body($debugInfo . "\n\n" . '【エラーログ】' . "\n" . ($errorInfo ? substr($errorInfo, 0, 300) : 'ログが見つかりません'))
                             ->danger()
+                            ->duration(30000) // 30秒表示
                             ->send();
                     }
                 })
