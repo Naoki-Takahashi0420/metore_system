@@ -48,6 +48,33 @@ class TodayReservationsWidget extends BaseWidget
         ]);
     }
 
+    // テーブルクエリ前に必ず呼ばれる
+    protected function getTableQuery(): Builder
+    {
+        $date = $this->selectedDate ? Carbon::parse($this->selectedDate) : Carbon::today();
+
+        $query = $this->getBaseQuery()
+            ->with(['customer', 'store', 'menu', 'staff'])
+            ->whereDate('reservation_date', $date)
+            ->whereNotIn('status', ['cancelled', 'canceled']);
+
+        // 店舗フィルターを適用
+        if ($this->storeFilter) {
+            $query->where('store_id', $this->storeFilter);
+            logger('📍 Table query with store filter', [
+                'storeFilter' => $this->storeFilter,
+                'date' => $date->format('Y-m-d')
+            ]);
+        } else {
+            logger('⚠️ Table query WITHOUT store filter', [
+                'storeFilter' => $this->storeFilter,
+                'date' => $date->format('Y-m-d')
+            ]);
+        }
+
+        return $query->orderBy('start_time', 'asc');
+    }
+
     public function updateStore($storeId, $date = null): void
     {
         $this->storeFilter = $storeId;
@@ -124,19 +151,8 @@ class TodayReservationsWidget extends BaseWidget
     
     public function table(Table $table): Table
     {
-        $date = $this->selectedDate ? Carbon::parse($this->selectedDate) : Carbon::today();
-
-        $query = $this->getBaseQuery()
-            ->with(['customer', 'store', 'menu', 'staff'])
-            ->whereDate('reservation_date', $date)
-            ->whereNotIn('status', ['cancelled', 'canceled']);
-
-        if ($this->storeFilter) {
-            $query->where('store_id', $this->storeFilter);
-        }
-        
         return $table
-            ->query($query->orderBy('start_time', 'asc'))
+            ->query($this->getTableQuery())
             ->columns([
                 Tables\Columns\TextColumn::make('start_time')
                     ->label('時間')
