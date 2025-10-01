@@ -46,6 +46,11 @@ class ReservationTimelineWidget extends Widget
         'email' => '',
         'phone' => ''
     ];
+
+    // 顧客重複時の確認画面用
+    public $conflictingCustomer = null;
+    public $showCustomerConflictConfirmation = false;
+
     public $newReservation = [
         'date' => '',
         'start_time' => '',
@@ -1447,25 +1452,49 @@ class ReservationTimelineWidget extends Widget
         $existingCustomer = \App\Models\Customer::where('phone', $phoneToCheck)->first();
 
         if ($existingCustomer) {
-            // 既存顧客だった場合は、警告を表示して次へ進む
-            logger('⚠️ Customer already exists', [
-                'phone' => $phoneToCheck,
-                'existing_customer' => $existingCustomer->id,
-                'name' => $existingCustomer->last_name . ' ' . $existingCustomer->first_name
-            ]);
+            // 入力された名前と既存顧客の名前を比較
+            $inputName = trim($this->newCustomer['last_name']) . trim($this->newCustomer['first_name']);
+            $existingName = $existingCustomer->last_name . $existingCustomer->first_name;
 
-            $this->selectedCustomer = $existingCustomer;
-            $this->reservationStep = 3;
+            if ($inputName === $existingName) {
+                // 名前も一致 → そのまま既存顧客で進む
+                logger('✅ Customer already exists with matching name', [
+                    'phone' => $phoneToCheck,
+                    'existing_customer' => $existingCustomer->id,
+                    'name' => $existingName
+                ]);
 
-            // ステップ3に移行したことをブラウザに通知
-            $this->dispatch('modal-opened');
+                $this->selectedCustomer = $existingCustomer;
+                $this->reservationStep = 3;
 
-            Notification::make()
-                ->warning()
-                ->title('既存のお客様でした')
-                ->body('この電話番号は既に登録されています: ' . $existingCustomer->last_name . ' ' . $existingCustomer->first_name . '様')
-                ->send();
-            return;
+                // ステップ3に移行したことをブラウザに通知
+                $this->dispatch('modal-opened');
+
+                Notification::make()
+                    ->info()
+                    ->title('既存のお客様でした')
+                    ->body('この電話番号は既に登録されています: ' . $existingCustomer->last_name . ' ' . $existingCustomer->first_name . '様')
+                    ->send();
+                return;
+            } else {
+                // 名前が異なる → 確認画面を表示
+                logger('⚠️ Customer exists but name is different', [
+                    'phone' => $phoneToCheck,
+                    'existing_customer' => $existingCustomer->id,
+                    'existing_name' => $existingName,
+                    'input_name' => $inputName
+                ]);
+
+                $this->conflictingCustomer = $existingCustomer;
+                $this->showCustomerConflictConfirmation = true;
+
+                Notification::make()
+                    ->warning()
+                    ->title('電話番号の重複')
+                    ->body('入力された電話番号は既に別の名前で登録されています。確認してください。')
+                    ->send();
+                return;
+            }
         }
         
         // 新規顧客を作成（重複チェック強化）
@@ -1505,7 +1534,59 @@ class ReservationTimelineWidget extends Widget
             'message' => '新規顧客を登録しました'
         ]);
     }
-    
+
+    /**
+     * 既存顧客で予約を続ける（確認画面から）
+     */
+    public function confirmUseExistingCustomer(): void
+    {
+        if (!$this->conflictingCustomer) {
+            Notification::make()
+                ->danger()
+                ->title('エラー')
+                ->body('既存顧客情報が見つかりません')
+                ->send();
+            return;
+        }
+
+        logger('✅ User confirmed to use existing customer', [
+            'existing_customer' => $this->conflictingCustomer->id,
+            'existing_name' => $this->conflictingCustomer->last_name . ' ' . $this->conflictingCustomer->first_name,
+            'input_name' => $this->newCustomer['last_name'] . ' ' . $this->newCustomer['first_name']
+        ]);
+
+        $this->selectedCustomer = $this->conflictingCustomer;
+        $this->reservationStep = 3;
+        $this->showCustomerConflictConfirmation = false;
+        $this->conflictingCustomer = null;
+
+        // ステップ3に移行したことをブラウザに通知
+        $this->dispatch('modal-opened');
+
+        Notification::make()
+            ->success()
+            ->title('既存顧客で予約を作成します')
+            ->body($this->selectedCustomer->last_name . ' ' . $this->selectedCustomer->first_name . '様の予約を作成します')
+            ->send();
+    }
+
+    /**
+     * 確認をキャンセルして入力画面に戻る
+     */
+    public function cancelCustomerConflict(): void
+    {
+        logger('ℹ️ User cancelled customer conflict confirmation');
+
+        $this->showCustomerConflictConfirmation = false;
+        $this->conflictingCustomer = null;
+
+        Notification::make()
+            ->info()
+            ->title('キャンセルしました')
+            ->body('電話番号または名前を修正してください')
+            ->send();
+    }
+
     public function createReservation(): void
     {
         try {

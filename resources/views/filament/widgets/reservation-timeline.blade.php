@@ -1705,12 +1705,53 @@
                 <!-- Step 2: 新規顧客登録 -->
                 @if($reservationStep === 2)
                     <div class="space-y-4">
-                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                            <div class="font-medium text-blue-900">新規顧客登録</div>
-                            <div class="text-sm text-blue-700">電話番号: {{ $phoneSearch }}</div>
-                        </div>
-                        
-                        <div class="grid grid-cols-2 gap-4">
+                        <!-- 顧客重複の確認画面 -->
+                        @if($showCustomerConflictConfirmation && $conflictingCustomer)
+                            <div class="space-y-4">
+                                <div class="bg-red-50 border-2 border-red-300 rounded-lg p-4">
+                                    <div class="flex items-start gap-3">
+                                        <div class="flex-shrink-0 text-red-500 text-2xl">⚠️</div>
+                                        <div class="flex-1">
+                                            <div class="font-bold text-red-900 text-lg mb-2">電話番号が重複しています</div>
+                                            <div class="text-sm text-red-800 space-y-2">
+                                                <p>入力された電話番号 <strong>{{ $newCustomer['phone'] }}</strong> は既に登録されています。</p>
+                                                <div class="bg-white rounded p-3 space-y-2 border border-red-200">
+                                                    <div>
+                                                        <span class="text-gray-600">入力された名前：</span>
+                                                        <strong class="text-blue-700">{{ $newCustomer['last_name'] }} {{ $newCustomer['first_name'] }}</strong>
+                                                    </div>
+                                                    <div>
+                                                        <span class="text-gray-600">既存の顧客名：</span>
+                                                        <strong class="text-green-700">{{ $conflictingCustomer->last_name }} {{ $conflictingCustomer->first_name }}</strong>
+                                                    </div>
+                                                </div>
+                                                <p class="font-medium">どちらで予約を作成しますか？</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="flex flex-col gap-3">
+                                    <button
+                                        wire:click="confirmUseExistingCustomer"
+                                        class="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium">
+                                        ✅ 既存顧客（{{ $conflictingCustomer->last_name }} {{ $conflictingCustomer->first_name }} 様）で予約を作成
+                                    </button>
+                                    <button
+                                        wire:click="cancelCustomerConflict"
+                                        class="w-full px-4 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">
+                                        ← キャンセルして電話番号・名前を修正
+                                    </button>
+                                </div>
+                            </div>
+                        @else
+                            <!-- 通常の新規顧客登録フォーム -->
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                                <div class="font-medium text-blue-900">新規顧客登録</div>
+                                <div class="text-sm text-blue-700">電話番号: {{ $phoneSearch }}</div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-medium mb-1">姓 <span class="text-red-500">*</span></label>
                                 <input 
@@ -1745,18 +1786,19 @@
                             </div>
                         </div>
                         
-                        <div class="flex gap-2">
-                            <button 
-                                wire:click="$set('reservationStep', 1)"
-                                class="px-4 py-2 border rounded-lg hover:bg-gray-50 transition">
-                                戻る
-                            </button>
-                            <button 
-                                wire:click="createNewCustomer"
-                                class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition">
-                                登録して予約作成へ
-                            </button>
-                        </div>
+                            <div class="flex gap-2">
+                                <button
+                                    wire:click="$set('reservationStep', 1)"
+                                    class="px-4 py-2 border rounded-lg hover:bg-gray-50 transition">
+                                    戻る
+                                </button>
+                                <button
+                                    wire:click="createNewCustomer"
+                                    class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition">
+                                    登録して予約作成へ
+                                </button>
+                            </div>
+                        @endif
                     </div>
                 @endif
                 
