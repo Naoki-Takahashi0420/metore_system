@@ -91,12 +91,16 @@ jobs:
         # Laravel設定（.envファイルは既存のものを使用）
         # sudo php artisan key:generate はコメントアウト（既存のキーを使用）
 
-        # LINE_TEST_USER_IDを.envに追加（存在しない場合のみ）
-        if ! grep -q "LINE_TEST_USER_ID" .env; then
-          echo "" | sudo tee -a .env
-          echo "# LINE Test User ID (開発者用)" | sudo tee -a .env
-          echo "LINE_TEST_USER_ID=Uc37e9137beadca4a6d5c04aaada19ab1" | sudo tee -a .env
-          echo "LINE_TEST_USER_ID added to .env"
+        # LINE_TEST_USER_IDを.envに追加
+        echo "Checking LINE_TEST_USER_ID in .env..."
+        if ! grep -q "LINE_TEST_USER_ID" .env 2>/dev/null; then
+          echo "Adding LINE_TEST_USER_ID to .env..."
+          echo "" | sudo tee -a .env > /dev/null
+          echo "# LINE Test User ID (開発者用)" | sudo tee -a .env > /dev/null
+          echo "LINE_TEST_USER_ID=Uc37e9137beadca4a6d5c04aaada19ab1" | sudo tee -a .env > /dev/null
+          echo "✅ LINE_TEST_USER_ID added to .env"
+        else
+          echo "✅ LINE_TEST_USER_ID already exists in .env"
         fi
 
         sudo php artisan storage:link
