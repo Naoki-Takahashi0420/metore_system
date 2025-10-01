@@ -1076,15 +1076,29 @@ class ReservationTimelineWidget extends Widget
     
     public function canMoveToMain($reservationId, $seatNumber): bool
     {
+        \Log::info('🔍 canMoveToMain called', [
+            'reservation_id' => $reservationId,
+            'target_seat' => $seatNumber
+        ]);
+
         $reservation = Reservation::find($reservationId);
         if (!$reservation) {
-            \Log::info('canMoveToMain: reservation not found', ['id' => $reservationId]);
+            \Log::info('❌ canMoveToMain: reservation not found', ['id' => $reservationId]);
             return false;
         }
 
+        \Log::info('📋 Reservation details', [
+            'id' => $reservation->id,
+            'customer' => $reservation->customer_name,
+            'time' => $reservation->start_time . '-' . $reservation->end_time,
+            'is_sub' => $reservation->is_sub,
+            'current_seat' => $reservation->seat_number,
+            'store_id' => $reservation->store_id
+        ]);
+
         // 現在と同じ席番号への移動は不可
         if (!$reservation->is_sub && $reservation->seat_number == $seatNumber) {
-            \Log::info('canMoveToMain: same seat', [
+            \Log::info('❌ canMoveToMain: same seat', [
                 'id' => $reservationId,
                 'seat' => $seatNumber
             ]);
@@ -1095,9 +1109,14 @@ class ReservationTimelineWidget extends Widget
         $temp->is_sub = false;
         $temp->seat_number = $seatNumber;
 
+        \Log::info('🧪 Testing availability', [
+            'temp_is_sub' => $temp->is_sub,
+            'temp_seat_number' => $temp->seat_number
+        ]);
+
         try {
             $result = Reservation::checkAvailability($temp);
-            \Log::info('canMoveToMain result:', [
+            \Log::info('✅ canMoveToMain result:', [
                 'reservation_id' => $reservationId,
                 'from' => $reservation->is_sub ? 'sub' : "seat {$reservation->seat_number}",
                 'to_seat' => $seatNumber,
@@ -1105,10 +1124,11 @@ class ReservationTimelineWidget extends Widget
             ]);
             return $result;
         } catch (\Exception $e) {
-            \Log::error('canMoveToMain exception:', [
+            \Log::error('❌ canMoveToMain exception:', [
                 'reservation_id' => $reservationId,
                 'seat' => $seatNumber,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
             return false;
         }
