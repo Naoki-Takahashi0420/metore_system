@@ -377,6 +377,24 @@ class Reservation extends Model
 
         // スタッフシフトモードの場合
         if ($store->use_staff_assignment) {
+            // 席番号が指定されている場合は、その席の重複チェックのみ
+            if ($reservation->seat_number && !$reservation->is_sub) {
+                \Log::info('checkAvailability: 席番号指定あり、席の重複チェックのみ', [
+                    'seat_number' => $reservation->seat_number
+                ]);
+                $seatQuery = clone $overlappingReservations;
+                $overlapping = $seatQuery->where('seat_number', $reservation->seat_number)
+                    ->where(function($q) {
+                        $q->where('is_sub', false);
+                        $q->orWhere('line_type', 'main');
+                        $q->orWhereNull('line_type');
+                    })
+                    ->exists();
+
+                return !$overlapping;
+            }
+
+            // 席番号未指定の場合は容量チェック
             // スタッフ勤務時間をチェック
             $hasAvailableStaff = self::checkStaffAvailability($store, $reservation);
             if (!$hasAvailableStaff) {
