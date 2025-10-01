@@ -328,13 +328,17 @@ class Reservation extends Model
             $query->where('id', '!=', $reservation->id);
         }
 
+        // 時刻フォーマットを統一（HH:MM:SS形式に）
+        $startTimeFormatted = strlen($startTime) === 5 ? $startTime . ':00' : $startTime;
+        $endTimeFormatted = strlen($endTime) === 5 ? $endTime . ':00' : $endTime;
+
         // 時間の重複チェック（クエリをコピーして独立して使用）
         $overlappingReservations = clone $query;
-        $overlappingReservations = $overlappingReservations->where(function ($q) use ($startTime, $endTime) {
+        $overlappingReservations = $overlappingReservations->where(function ($q) use ($startTimeFormatted, $endTimeFormatted) {
             // 既存の予約と時間が重なっているかチェック
             // start_time < endTime AND end_time > startTime
-            $q->where('start_time', '<', $endTime)
-                ->where('end_time', '>', $startTime);
+            $q->whereRaw("time(start_time) < time(?)", [$endTimeFormatted])
+                ->whereRaw("time(end_time) > time(?)", [$startTimeFormatted]);
         });
         
         // スタッフシフトモードと通常モードの判定
