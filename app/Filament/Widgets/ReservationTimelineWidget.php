@@ -1805,11 +1805,23 @@ class ReservationTimelineWidget extends Widget
                 $dayOfWeek = $startTime->format('l');
                 $closingTime = '20:00'; // デフォルト
 
+                logger('🏪 Store business hours data', [
+                    'store_id' => $store->id ?? null,
+                    'store_name' => $store->name ?? null,
+                    'day_of_week' => $dayOfWeek,
+                    'business_hours_raw' => $store->business_hours ?? null,
+                    'business_hours_type' => gettype($store->business_hours ?? null)
+                ]);
+
                 // 曜日別営業時間があるか確認
                 if ($store && isset($store->business_hours[$dayOfWeek])) {
                     $closingTime = $store->business_hours[$dayOfWeek]['close'] ?? '20:00';
+                    logger('✅ Using day-specific closing time', ['day' => $dayOfWeek, 'close' => $closingTime]);
                 } elseif ($store && isset($store->business_hours['close'])) {
                     $closingTime = $store->business_hours['close'];
+                    logger('✅ Using general closing time', ['close' => $closingTime]);
+                } else {
+                    logger('⚠️ Using default closing time 20:00');
                 }
 
                 $closingDateTime = \Carbon\Carbon::parse($this->newReservation['date'] . ' ' . $closingTime);
@@ -1840,8 +1852,7 @@ class ReservationTimelineWidget extends Widget
             // 予約番号を生成
             $reservationNumber = 'R' . date('Ymd') . str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
 
-            // スタッフシフトモードかどうか確認
-            $store = Store::find($this->selectedStore);
+            // スタッフシフトモードかどうか確認（既に取得済みの$storeを使用）
             $useStaffAssignment = $store->use_staff_assignment ?? false;
 
             // CRITICAL: 予約作成時の顧客情報をログに記録
