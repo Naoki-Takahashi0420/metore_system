@@ -1727,8 +1727,21 @@ class ReservationTimelineWidget extends Widget
     public function createReservation(): void
     {
         try {
+            logger('🎯 createReservation called', [
+                'selectedCustomer' => $this->selectedCustomer ? $this->selectedCustomer->id : null,
+                'menu_id' => $this->newReservation['menu_id'] ?? null,
+                'date' => $this->newReservation['date'] ?? null,
+                'start_time' => $this->newReservation['start_time'] ?? null,
+                'newReservation_full' => $this->newReservation
+            ]);
+
             // バリデーション
             if (!$this->selectedCustomer || empty($this->newReservation['menu_id'])) {
+                logger('❌ Validation failed', [
+                    'has_customer' => (bool)$this->selectedCustomer,
+                    'has_menu_id' => !empty($this->newReservation['menu_id'])
+                ]);
+
                 $this->dispatch('notify', [
                     'type' => 'error',
                     'message' => '必須項目を入力してください'
