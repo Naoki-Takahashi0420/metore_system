@@ -25,7 +25,7 @@ jobs:
 
         ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << EOF
         echo "=== Last ${LINES} lines of Laravel log ==="
-        sudo tail -${LINES} /var/www/html/storage/logs/laravel.log | grep -A 10 "LINE"
+        sudo tail -${LINES} /var/www/html/storage/logs/laravel.log
         EOF
 
         rm deploy_key.pem
