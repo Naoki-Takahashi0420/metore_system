@@ -1698,6 +1698,52 @@ class ReservationTimelineWidget extends Widget
             ->orderBy('id')
             ->get();
 
+        // 既存顧客が選択されている場合、優先順位を調整
+        if ($this->selectedCustomer) {
+            $customerId = is_object($this->selectedCustomer) ? $this->selectedCustomer->id : $this->selectedCustomer;
+
+            // 契約中のサブスクメニューIDを取得
+            $activeSubscriptionMenuIds = \App\Models\CustomerSubscription::where('customer_id', $customerId)
+                ->where('store_id', $this->selectedStore)
+                ->where('status', 'active')
+                ->pluck('menu_id')
+                ->toArray();
+
+            // 過去に使用したメニューIDを取得（最新5件）
+            $pastMenuIds = \App\Models\Reservation::where('customer_id', $customerId)
+                ->where('store_id', $this->selectedStore)
+                ->whereNotNull('menu_id')
+                ->orderBy('reservation_date', 'desc')
+                ->limit(5)
+                ->pluck('menu_id')
+                ->unique()
+                ->toArray();
+
+            // 優先メニューIDのリスト（契約中のサブスク > 過去利用）
+            $priorityMenuIds = array_unique(array_merge($activeSubscriptionMenuIds, $pastMenuIds));
+
+            // メニューを並び替え
+            $menus = $menus->sortBy(function($menu) use ($priorityMenuIds, $activeSubscriptionMenuIds) {
+                // 契約中のサブスクメニューは最優先（0）
+                if (in_array($menu->id, $activeSubscriptionMenuIds)) {
+                    return 0;
+                }
+                // 過去利用メニューは次（1）
+                if (in_array($menu->id, $priorityMenuIds)) {
+                    return 1;
+                }
+                // その他は通常順（2）
+                return 2;
+            })->values();
+
+            \Log::info('Menus prioritized for customer', [
+                'customer_id' => $customerId,
+                'active_subscription_menus' => $activeSubscriptionMenuIds,
+                'past_menus' => $pastMenuIds,
+                'sorted_menu_names' => $menus->pluck('name')->toArray()
+            ]);
+        }
+
         \Log::info('Filtered menus result', [
             'store_id' => $this->selectedStore,
             'menu_count' => $menus->count(),
