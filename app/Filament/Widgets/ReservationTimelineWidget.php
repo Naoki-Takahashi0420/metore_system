@@ -1802,26 +1802,20 @@ class ReservationTimelineWidget extends Widget
                 }
             } else {
                 // 営業時間ベースモードの場合、営業時間チェック（終了時刻ベース）
-                $dayOfWeek = $startTime->format('l');
-                $closingTime = '20:00'; // デフォルト
+                $dayOfWeek = strtolower($startTime->format('l')); // 小文字に変換
+                $closingTime = '22:00'; // デフォルトを22:00に変更
 
-                logger('🏪 Store business hours data', [
-                    'store_id' => $store->id ?? null,
-                    'store_name' => $store->name ?? null,
-                    'day_of_week' => $dayOfWeek,
-                    'business_hours_raw' => $store->business_hours ?? null,
-                    'business_hours_type' => gettype($store->business_hours ?? null)
-                ]);
-
-                // 曜日別営業時間があるか確認
-                if ($store && isset($store->business_hours[$dayOfWeek])) {
-                    $closingTime = $store->business_hours[$dayOfWeek]['close'] ?? '20:00';
-                    logger('✅ Using day-specific closing time', ['day' => $dayOfWeek, 'close' => $closingTime]);
+                // 曜日別営業時間があるか確認（配列形式）
+                if ($store && is_array($store->business_hours)) {
+                    foreach ($store->business_hours as $schedule) {
+                        if (isset($schedule['day']) && strtolower($schedule['day']) === $dayOfWeek) {
+                            $closingTime = substr($schedule['close_time'] ?? $schedule['close'] ?? '22:00', 0, 5);
+                            break;
+                        }
+                    }
                 } elseif ($store && isset($store->business_hours['close'])) {
+                    // オブジェクト形式の場合
                     $closingTime = $store->business_hours['close'];
-                    logger('✅ Using general closing time', ['close' => $closingTime]);
-                } else {
-                    logger('⚠️ Using default closing time 20:00');
                 }
 
                 $closingDateTime = \Carbon\Carbon::parse($this->newReservation['date'] . ' ' . $closingTime);
