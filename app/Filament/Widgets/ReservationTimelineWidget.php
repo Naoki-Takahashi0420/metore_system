@@ -747,8 +747,11 @@ class ReservationTimelineWidget extends Widget
                 ->whereNotIn('status', ['cancelled', 'canceled'])
                 ->where('id', '!=', $reservation->id)
                 ->where(function($q) use ($reservation) {
-                    $q->where('start_time', '<', $reservation->end_time)
-                      ->where('end_time', '>', $reservation->start_time);
+                    // 時刻フォーマットを統一して比較
+                    $endTime = strlen($reservation->end_time) === 5 ? $reservation->end_time . ':00' : $reservation->end_time;
+                    $startTime = strlen($reservation->start_time) === 5 ? $reservation->start_time . ':00' : $reservation->start_time;
+                    $q->whereRaw('time(start_time) < time(?)', [$endTime])
+                      ->whereRaw('time(end_time) > time(?)', [$startTime]);
                 })
                 ->where(function($q) {
                     $q->where('is_sub', true)
@@ -994,8 +997,11 @@ class ReservationTimelineWidget extends Widget
                     ->where('seat_number', $seatNumber)
                     ->where('is_sub', false)
                     ->where(function($q) use ($reservation) {
-                        $q->where('start_time', '<', $reservation->end_time)
-                          ->where('end_time', '>', $reservation->start_time);
+                        // 時刻フォーマットを統一して比較
+                        $endTime = strlen($reservation->end_time) === 5 ? $reservation->end_time . ':00' : $reservation->end_time;
+                        $startTime = strlen($reservation->start_time) === 5 ? $reservation->start_time . ':00' : $reservation->start_time;
+                        $q->whereRaw('time(start_time) < time(?)', [$endTime])
+                          ->whereRaw('time(end_time) > time(?)', [$startTime]);
                     })
                     ->exists();
 
