@@ -171,6 +171,15 @@ jobs:
         sudo chown -R www-data:www-data $APP_DIR/storage
         sudo chmod -R 775 $APP_DIR/storage
         
+        # Laravelスケジューラーのcron設定
+        echo "=== Setting up Laravel Scheduler ==="
+        # 既存のLaravelスケジューラーcronを削除
+        (sudo crontab -l 2>/dev/null | grep -v "artisan schedule:run" || true) | sudo crontab -
+        # 新しいcronエントリを追加
+        (sudo crontab -l 2>/dev/null; echo "* * * * * cd /var/www/html && /usr/bin/php artisan schedule:run >> /dev/null 2>&1") | sudo crontab -
+        sudo crontab -l | grep "schedule:run"
+        echo "Scheduler cron configured"
+
         # キューワーカーの起動（バックグラウンド）
         echo "=== Starting Queue Worker ==="
         # 既存のキューワーカーを停止
