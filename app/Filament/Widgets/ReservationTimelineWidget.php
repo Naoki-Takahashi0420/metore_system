@@ -1641,16 +1641,34 @@ class ReservationTimelineWidget extends Widget
             return;
         }
 
-        logger('✅ User confirmed to use existing customer', [
-            'existing_customer' => $this->conflictingCustomer->id,
-            'existing_name' => $this->conflictingCustomer->last_name . ' ' . $this->conflictingCustomer->first_name,
-            'input_name' => $this->newCustomer['last_name'] . ' ' . $this->newCustomer['first_name']
+        logger('✅ User confirmed to use existing customer - BEFORE', [
+            'conflicting_customer' => [
+                'id' => $this->conflictingCustomer->id,
+                'name' => $this->conflictingCustomer->last_name . ' ' . $this->conflictingCustomer->first_name,
+                'phone' => $this->conflictingCustomer->phone,
+                'email' => $this->conflictingCustomer->email
+            ],
+            'input_data' => [
+                'name' => $this->newCustomer['last_name'] . ' ' . $this->newCustomer['first_name'],
+                'phone' => $this->newCustomer['phone'],
+                'email' => $this->newCustomer['email']
+            ]
         ]);
 
         $this->selectedCustomer = $this->conflictingCustomer;
         $this->reservationStep = 3;
         $this->showCustomerConflictConfirmation = false;
         $this->conflictingCustomer = null;
+
+        // CRITICAL: 選択した顧客の情報が変わっていないか確認
+        logger('✅ User confirmed to use existing customer - AFTER', [
+            'selectedCustomer' => [
+                'id' => $this->selectedCustomer->id,
+                'name' => $this->selectedCustomer->last_name . ' ' . $this->selectedCustomer->first_name,
+                'phone' => $this->selectedCustomer->phone,
+                'email' => $this->selectedCustomer->email
+            ]
+        ]);
 
         // ステップ3に移行したことをブラウザに通知
         $this->dispatch('modal-opened');
