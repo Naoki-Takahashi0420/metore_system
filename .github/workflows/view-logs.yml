@@ -1,0 +1,31 @@
+name: View Laravel Logs
+
+on:
+  workflow_dispatch:
+    inputs:
+      lines:
+        description: 'Number of lines to show'
+        required: false
+        default: '100'
+
+jobs:
+  view-logs:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: View Logs
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+        LINES: ${{ github.event.inputs.lines }}
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << EOF
+        echo "=== Last ${LINES} lines of Laravel log ==="
+        sudo tail -${LINES} /var/www/html/storage/logs/laravel.log | grep -A 10 "LINE"
+        EOF
+
+        rm deploy_key.pem
