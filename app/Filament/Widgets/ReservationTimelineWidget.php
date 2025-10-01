@@ -1063,7 +1063,6 @@ class ReservationTimelineWidget extends Widget
 
         $temp = clone $reservation;
         $temp->is_sub = true;
-        $temp->line_type = 'sub';  // メイン→サブ移動なのでline_typeも変更
         $temp->seat_number = null;
 
         $result = Reservation::checkAvailability($temp);
@@ -1108,12 +1107,10 @@ class ReservationTimelineWidget extends Widget
 
         $temp = clone $reservation;
         $temp->is_sub = false;
-        $temp->line_type = 'main';  // サブ→メイン移動なのでline_typeも変更
         $temp->seat_number = $seatNumber;
 
         \Log::info('🧪 Testing availability', [
             'temp_is_sub' => $temp->is_sub,
-            'temp_line_type' => $temp->line_type,
             'temp_seat_number' => $temp->seat_number
         ]);
 

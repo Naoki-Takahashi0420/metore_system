@@ -341,7 +341,7 @@ class Reservation extends Model
         $store = Store::find($reservation->store_id);
 
         // サブラインの場合（スタッフシフトモードでも独立して処理）
-        if ($reservation->line_type === 'sub' || $reservation->is_sub) {
+        if ($reservation->is_sub) {
             // サブ枠は営業時間内であれば利用可能（スタッフ不要）
             // ただし、スタッフシフトモードの場合はシフト時間も考慮
             if (!$store->use_staff_assignment) {
