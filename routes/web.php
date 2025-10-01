@@ -3,6 +3,26 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\PasswordResetController;
 
+// Health check endpoint for deployment verification
+Route::get('/health', function () {
+    return response()->json([
+        'status' => 'healthy',
+        'timestamp' => now(),
+        'version' => config('app.version', '1.0.0')
+    ]);
+});
+
+// Debug: View logs (本番環境では削除すること)
+Route::get('/debug/logs', function () {
+    $logFile = storage_path('logs/laravel.log');
+    if (!file_exists($logFile)) {
+        return response('Log file not found', 404);
+    }
+    $lines = file($logFile);
+    $last200 = array_slice($lines, -200);
+    return response('<pre>' . implode('', $last200) . '</pre>');
+});
+
 // Basic認証ミドルウェアでサイト全体を保護（管理画面は除く）
 Route::middleware(['auth.basic'])->group(function () {
 
@@ -22,26 +42,6 @@ Route::get('/', function (\Illuminate\Http\Request $request) {
 // オリジナルのウェルカムページを別URLで保持
 Route::get('/welcome', function () {
     return view('welcome');
-});
-
-// Health check endpoint for deployment verification
-Route::get('/health', function () {
-    return response()->json([
-        'status' => 'healthy',
-        'timestamp' => now(),
-        'version' => config('app.version', '1.0.0')
-    ]);
-});
-
-// Debug: View logs (本番環境では削除すること)
-Route::get('/debug/logs', function () {
-    $logFile = storage_path('logs/laravel.log');
-    if (!file_exists($logFile)) {
-        return response('Log file not found', 404);
-    }
-    $lines = file($logFile);
-    $last200 = array_slice($lines, -200);
-    return response('<pre>' . implode('', $last200) . '</pre>');
 });
 
 // Store routes - パラメータベース対応
