@@ -1676,7 +1676,7 @@ class ReservationTimelineWidget extends Widget
     {
         $query = \App\Models\Menu::where('is_available', true)
             ->where('is_option', false) // オプションメニューを除外
-            ->where('name', 'NOT LIKE', '%オプション%'); // 名前に「オプション」を含むメニューを除外
+            ->where('show_in_upsell', false); // 追加オプションとして提案するメニューを除外
 
         // 選択された店舗のメニューのみを表示
         if ($this->selectedStore) {
