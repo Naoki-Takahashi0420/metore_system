@@ -51,7 +51,25 @@ class TodayReservationsWidget extends BaseWidget
     // テーブルクエリ前に必ず呼ばれる
     protected function getTableQuery(): Builder
     {
-        $date = $this->selectedDate ? Carbon::parse($this->selectedDate) : Carbon::today();
+        // storeFilterがnullの場合、再初期化
+        if (!$this->storeFilter) {
+            $user = auth()->user();
+            if ($user->hasRole('super_admin')) {
+                $stores = \App\Models\Store::where('is_active', true)->get();
+            } elseif ($user->hasRole('owner')) {
+                $stores = $user->manageableStores()->where('is_active', true)->get();
+            } else {
+                $stores = $user->store ? collect([$user->store]) : collect();
+            }
+            $this->storeFilter = $stores->first()?->id;
+
+            logger('⚠️ storeFilter was null, re-initialized', [
+                'storeFilter' => $this->storeFilter
+            ]);
+        }
+
+        $date = $this->selectedDate ?: Carbon::today()->format('Y-m-d');
+        $date = Carbon::parse($date);
 
         $query = $this->getBaseQuery()
             ->with(['customer', 'store', 'menu', 'staff'])
@@ -151,6 +169,30 @@ class TodayReservationsWidget extends BaseWidget
     
     public function table(Table $table): Table
     {
+        // table()が呼ばれる時点で必ず初期化されているようにする
+        if (!$this->storeFilter || !$this->selectedDate) {
+            $user = auth()->user();
+
+            if (!$this->storeFilter) {
+                if ($user->hasRole('super_admin')) {
+                    $stores = \App\Models\Store::where('is_active', true)->get();
+                } elseif ($user->hasRole('owner')) {
+                    $stores = $user->manageableStores()->where('is_active', true)->get();
+                } else {
+                    $stores = $user->store ? collect([$user->store]) : collect();
+                }
+                $this->storeFilter = $stores->first()?->id;
+
+                logger('⚠️ storeFilter initialized in table() method', [
+                    'storeFilter' => $this->storeFilter
+                ]);
+            }
+
+            if (!$this->selectedDate) {
+                $this->selectedDate = Carbon::today()->format('Y-m-d');
+            }
+        }
+
         return $table
             ->query($this->getTableQuery())
             ->columns([
