@@ -222,11 +222,7 @@ class TodayReservationsWidget extends BaseWidget
                     ->modalHeading('予約を削除')
                     ->modalDescription('この予約を完全に削除してもよろしいですか？この操作は取り消せません。')
                     ->modalSubmitActionLabel('削除する')
-                    ->successNotificationTitle('予約を削除しました')
-                    ->visible(fn ($record) =>
-                        // キャンセル済みまたは完了済みの予約のみ削除可能
-                        in_array($record->status, ['cancelled', 'canceled', 'completed', 'no_show'])
-                    ),
+                    ->successNotificationTitle('予約を削除しました'),
 
                 Tables\Actions\Action::make('create_medical_record')
                     ->label('カルテ作成')
