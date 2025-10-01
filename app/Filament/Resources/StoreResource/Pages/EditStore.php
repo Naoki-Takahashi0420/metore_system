@@ -64,6 +64,11 @@ class EditStore extends EditRecord
                     $failCount = 0;
 
                     foreach ($adminUsers as $user) {
+                        // line_user_idが空の場合はスキップ
+                        if (empty($user->line_user_id)) {
+                            continue;
+                        }
+
                         $message = "【LINE接続テスト】\n\n";
                         $message .= "店舗: {$store->name}\n";
                         $message .= "送信日時: " . now()->format('Y-m-d H:i:s') . "\n\n";
