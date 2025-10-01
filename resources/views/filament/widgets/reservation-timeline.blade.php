@@ -1645,8 +1645,8 @@
                                     autofocus>
                             </div>
                         @else
-                            <button 
-                                wire:click="$set('reservationStep', 2); $set('newCustomer.phone', phoneSearch)"
+                            <button
+                                wire:click="startNewCustomerRegistration"
                                 class="w-full px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition">
                                 新規顧客情報を入力
                             </button>

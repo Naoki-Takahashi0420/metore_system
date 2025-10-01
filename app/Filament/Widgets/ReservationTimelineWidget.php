@@ -1304,7 +1304,8 @@ class ReservationTimelineWidget extends Widget
                 $dbDriver = DB::connection()->getDriverName();
                 $concatOperator = $dbDriver === 'sqlite' ? '||' : 'CONCAT';
 
-                $this->searchResults = \App\Models\Customer::where(function($query) use ($search, $dbDriver) {
+                // 検索結果を取得して、関連度順にソート
+                $results = \App\Models\Customer::where(function($query) use ($search, $dbDriver) {
                         $query->where('phone', 'LIKE', '%' . $search . '%')
                               ->orWhere('last_name', 'LIKE', '%' . $search . '%')
                               ->orWhere('first_name', 'LIKE', '%' . $search . '%')
@@ -1320,24 +1321,56 @@ class ReservationTimelineWidget extends Widget
                                   ->orWhereRaw('CONCAT(last_name_kana, first_name_kana) LIKE ?', ['%' . $search . '%']);
                         }
                     })
-                    // whereHas を削除して、全ての顧客を検索対象に
                     ->withCount(['reservations' => function($query) use ($storeId) {
-                        // この店舗での予約回数をカウント（0件でもOK）
                         $query->where('store_id', $storeId);
                     }])
                     ->with(['reservations' => function($query) use ($storeId) {
-                        // この店舗での最新予約を取得（なくてもOK）
                         $query->where('store_id', $storeId)
                               ->latest('reservation_date')
                               ->limit(1);
                     }])
-                    ->limit(10)
+                    ->limit(20) // 10件から20件に増やして見つかりやすく
                     ->get()
-                    ->map(function($customer) {
+                    ->map(function($customer) use ($search) {
                         $lastReservation = $customer->reservations->first();
                         $customer->last_visit_date = $lastReservation ? $lastReservation->reservation_date : null;
+
+                        // 関連度スコアを計算（完全一致 > 前方一致 > 部分一致）
+                        $score = 0;
+                        $searchLower = mb_strtolower($search);
+
+                        // 電話番号の完全一致（最優先）
+                        if ($customer->phone === $search) {
+                            $score += 1000;
+                        } elseif (strpos($customer->phone, $search) === 0) {
+                            $score += 500; // 前方一致
+                        } elseif (strpos($customer->phone, $search) !== false) {
+                            $score += 100; // 部分一致
+                        }
+
+                        // 名前の一致
+                        $fullName = $customer->last_name . $customer->first_name;
+                        $fullNameLower = mb_strtolower($fullName);
+                        if ($fullNameLower === $searchLower) {
+                            $score += 800;
+                        } elseif (strpos($fullNameLower, $searchLower) === 0) {
+                            $score += 400;
+                        } elseif (strpos($fullNameLower, $searchLower) !== false) {
+                            $score += 80;
+                        }
+
+                        // 姓名個別の一致
+                        if (mb_strtolower($customer->last_name) === $searchLower || mb_strtolower($customer->first_name) === $searchLower) {
+                            $score += 600;
+                        }
+
+                        $customer->search_score = $score;
                         return $customer;
-                    });
+                    })
+                    ->sortByDesc('search_score') // 関連度順にソート
+                    ->values();
+
+                $this->searchResults = $results;
 
                 logger('✅ Customer search completed', [
                     'results_count' => count($this->searchResults)
