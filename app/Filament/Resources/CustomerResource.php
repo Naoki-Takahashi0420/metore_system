@@ -514,7 +514,6 @@ class CustomerResource extends Resource
                     }),
                 Tables\Columns\TextColumn::make('phone')
                     ->label('電話番号')
-                    ->searchable()
                     ->searchable(query: function ($query, $search) {
                         return $query->where(function ($q) use ($search) {
                             // ハイフンありなしの両方で検索
