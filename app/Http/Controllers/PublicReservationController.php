@@ -1865,28 +1865,17 @@ class PublicReservationController extends Controller
             if ($existingCustomerByPhone) {
                 // サブスクリプション会員かチェック
                 $hasActiveSubscription = $existingCustomerByPhone->hasActiveSubscription();
-            
-            // デバッグログ
-            \Log::info('Subscription check for customer', [
-                'customer_id' => $existingCustomerByPhone->id,
-                'phone' => $existingCustomerByPhone->phone,
-                'has_active_subscription' => $hasActiveSubscription,
-                'store_id' => $validated['store_id'] ?? null
-            ]);
-            
-            // データベースに顧客情報がある場合は既存顧客として扱う（CSVインポート顧客も含む）
-            if (!$hasActiveSubscription) {
-                // 最新の予約（完了済みも含む）を取得
-                $latestReservation = Reservation::where('customer_id', $existingCustomerByPhone->id)
-                    ->whereIn('status', ['pending', 'confirmed', 'booked', 'completed'])
-                    ->orderBy('reservation_date', 'desc')
-                    ->orderBy('start_time', 'desc')
-                    ->first();
-                    
-                // 5日間の制限チェックを削除（新規予約ルートでは適用しない）
-                // ユーザー要求：「新規のルートではこのアラートが出てしまうのは問題なので、最後に電話番号で弾いて、マイページに誘導の流れだけでいい」
-                
+
+                // デバッグログ
+                \Log::info('Subscription check for customer', [
+                    'customer_id' => $existingCustomerByPhone->id,
+                    'phone' => $existingCustomerByPhone->phone,
+                    'has_active_subscription' => $hasActiveSubscription,
+                    'store_id' => $validated['store_id'] ?? null
+                ]);
+
                 // 過去の予約履歴チェック（一度でも予約したことがある顧客）
+                // サブスク会員・非会員に関わらず、過去予約があればマイページへ誘導
                 $pastReservations = Reservation::where('customer_id', $existingCustomerByPhone->id)
                     ->whereIn('status', ['completed', 'pending', 'confirmed', 'booked'])
                     ->count();
@@ -1897,6 +1886,7 @@ class PublicReservationController extends Controller
 
                 \Log::info('モーダル表示判定', [
                     'past_reservations' => $pastReservations,
+                    'has_active_subscription' => $hasActiveSubscription,
                     'isFromMyPageOrMedical' => $isFromMyPageOrMedical,
                     'context_source' => $context['source'] ?? 'none',
                     'will_show_modal' => ($pastReservations > 0 && !$isFromMyPageOrMedical)
@@ -1932,7 +1922,16 @@ class PublicReservationController extends Controller
                     ]);
                     return redirect('/stores')->with('error', '予約処理でエラーが発生しました。最初からやり直してください。');
                 }
-            } else {
+
+                // データベースに顧客情報がある場合は既存顧客として扱う（CSVインポート顧客も含む）
+                if (!$hasActiveSubscription) {
+                    // 最新の予約（完了済みも含む）を取得
+                    $latestReservation = Reservation::where('customer_id', $existingCustomerByPhone->id)
+                        ->whereIn('status', ['pending', 'confirmed', 'booked', 'completed'])
+                        ->orderBy('reservation_date', 'desc')
+                        ->orderBy('start_time', 'desc')
+                        ->first();
+                } else {
                 // サブスク会員の場合、月の利用回数をチェック
                 $activeSubscription = $existingCustomerByPhone->activeSubscription()->first();
                 if ($activeSubscription && $activeSubscription->monthly_limit) {
