@@ -1808,8 +1808,21 @@ class ReservationTimelineWidget extends Widget
 
                 $closingDateTime = \Carbon\Carbon::parse($this->newReservation['date'] . ' ' . $closingTime);
 
+                logger('⏰ Business hours check', [
+                    'start_time' => $startTime->format('H:i'),
+                    'end_time' => $endTime->format('H:i'),
+                    'closing_time' => $closingTime,
+                    'closing_datetime' => $closingDateTime->format('Y-m-d H:i'),
+                    'endTime_gt_closingTime' => $endTime->gt($closingDateTime)
+                ]);
+
                 // 終了時刻が営業時間を超える場合はエラー
                 if ($endTime->gt($closingDateTime)) {
+                    logger('❌ Business hours exceeded', [
+                        'end_time' => $endTime->format('H:i'),
+                        'closing_time' => $closingTime
+                    ]);
+
                     $this->dispatch('notify', [
                         'type' => 'error',
                         'message' => '予約終了時刻（' . $endTime->format('H:i') . '）が営業時間（' . $closingTime . '）を超えています'
