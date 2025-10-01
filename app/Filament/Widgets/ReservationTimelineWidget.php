@@ -1287,40 +1287,66 @@ class ReservationTimelineWidget extends Widget
     
     public function updatedPhoneSearch(): void
     {
-        if (strlen($this->phoneSearch) >= 2) {
-            // 電話番号、名前、カナで顧客を検索（全ての顧客が対象）
-            $search = $this->phoneSearch;
-            $storeId = $this->selectedStore;
+        try {
+            logger('🔍 Customer search started', [
+                'search_term' => $this->phoneSearch,
+                'search_length' => strlen($this->phoneSearch),
+                'store_id' => $this->selectedStore
+            ]);
 
-            $this->searchResults = \App\Models\Customer::where(function($query) use ($search) {
-                    $query->where('phone', 'LIKE', '%' . $search . '%')
-                          ->orWhere('last_name', 'LIKE', '%' . $search . '%')
-                          ->orWhere('first_name', 'LIKE', '%' . $search . '%')
-                          ->orWhere('last_name_kana', 'LIKE', '%' . $search . '%')
-                          ->orWhere('first_name_kana', 'LIKE', '%' . $search . '%')
-                          ->orWhereRaw('CONCAT(last_name, first_name) LIKE ?', ['%' . $search . '%'])
-                          ->orWhereRaw('CONCAT(last_name_kana, first_name_kana) LIKE ?', ['%' . $search . '%']);
-                })
-                // whereHas を削除して、全ての顧客を検索対象に
-                ->withCount(['reservations' => function($query) use ($storeId) {
-                    // この店舗での予約回数をカウント（0件でもOK）
-                    $query->where('store_id', $storeId);
-                }])
-                ->with(['reservations' => function($query) use ($storeId) {
-                    // この店舗での最新予約を取得（なくてもOK）
-                    $query->where('store_id', $storeId)
-                          ->latest('reservation_date')
-                          ->limit(1);
-                }])
-                ->limit(10)
-                ->get()
-                ->map(function($customer) {
-                    $lastReservation = $customer->reservations->first();
-                    $customer->last_visit_date = $lastReservation ? $lastReservation->reservation_date : null;
-                    return $customer;
-                });
-        } else {
+            if (strlen($this->phoneSearch) >= 2) {
+                // 電話番号、名前、カナで顧客を検索（全ての顧客が対象）
+                $search = $this->phoneSearch;
+                $storeId = $this->selectedStore;
+
+                $this->searchResults = \App\Models\Customer::where(function($query) use ($search) {
+                        $query->where('phone', 'LIKE', '%' . $search . '%')
+                              ->orWhere('last_name', 'LIKE', '%' . $search . '%')
+                              ->orWhere('first_name', 'LIKE', '%' . $search . '%')
+                              ->orWhere('last_name_kana', 'LIKE', '%' . $search . '%')
+                              ->orWhere('first_name_kana', 'LIKE', '%' . $search . '%')
+                              ->orWhereRaw('CONCAT(last_name, first_name) LIKE ?', ['%' . $search . '%'])
+                              ->orWhereRaw('CONCAT(last_name_kana, first_name_kana) LIKE ?', ['%' . $search . '%']);
+                    })
+                    // whereHas を削除して、全ての顧客を検索対象に
+                    ->withCount(['reservations' => function($query) use ($storeId) {
+                        // この店舗での予約回数をカウント（0件でもOK）
+                        $query->where('store_id', $storeId);
+                    }])
+                    ->with(['reservations' => function($query) use ($storeId) {
+                        // この店舗での最新予約を取得（なくてもOK）
+                        $query->where('store_id', $storeId)
+                              ->latest('reservation_date')
+                              ->limit(1);
+                    }])
+                    ->limit(10)
+                    ->get()
+                    ->map(function($customer) {
+                        $lastReservation = $customer->reservations->first();
+                        $customer->last_visit_date = $lastReservation ? $lastReservation->reservation_date : null;
+                        return $customer;
+                    });
+
+                logger('✅ Customer search completed', [
+                    'results_count' => count($this->searchResults)
+                ]);
+            } else {
+                $this->searchResults = [];
+                logger('ℹ️ Search term too short, cleared results');
+            }
+        } catch (\Exception $e) {
+            logger('❌ Customer search error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'search_term' => $this->phoneSearch,
+                'store_id' => $this->selectedStore
+            ]);
+
             $this->searchResults = [];
+            $this->dispatch('notify', [
+                'type' => 'error',
+                'message' => '顧客検索中にエラーが発生しました: ' . $e->getMessage()
+            ]);
         }
     }
     
