@@ -171,9 +171,18 @@ jobs:
         sudo chown -R www-data:www-data $APP_DIR/storage
         sudo chmod -R 775 $APP_DIR/storage
         
+        # キューワーカーの起動（バックグラウンド）
+        echo "=== Starting Queue Worker ==="
+        # 既存のキューワーカーを停止
+        sudo pkill -f "artisan queue:work" || true
+        # 新しいキューワーカーを起動
+        cd $APP_DIR
+        nohup sudo php artisan queue:work --tries=3 --timeout=90 > /var/www/html/storage/logs/queue.log 2>&1 &
+        echo "Queue worker started"
+
         # サービス再起動
         sudo systemctl restart nginx php8.3-fpm
-        
+
         echo "=== Deploy Complete ==="
         curl -I http://localhost/
         DEPLOY
