@@ -20,9 +20,9 @@ class SimpleShiftManagement extends Page implements HasForms
 {
     use InteractsWithForms;
     
-    protected static ?string $navigationIcon = 'heroicon-o-calendar';
+    protected static ?string $navigationIcon = 'heroicon-o-calendar-days';
     protected static ?string $navigationLabel = 'シフト管理';
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 2;
     protected static string $view = 'filament.pages.simple-shift-management';
     protected static ?string $navigationGroup = 'スタッフ管理';
     protected static ?string $title = 'シフト管理';
@@ -114,14 +114,22 @@ class SimpleShiftManagement extends Page implements HasForms
                 'Sunday' => 'sunday',
             ];
             $dayKey = $dayMapping[$dayOfWeek] ?? 'monday';
-            
+
             $businessHours = $store->business_hours ?? [];
+
+            // business_hoursが文字列の場合はデコード
+            if (is_string($businessHours)) {
+                $businessHours = json_decode($businessHours, true) ?? [];
+            }
+
             $todayHours = null;
-            
-            foreach ($businessHours as $hours) {
-                if (isset($hours['day']) && $hours['day'] === $dayKey) {
-                    $todayHours = $hours;
-                    break;
+
+            if (is_array($businessHours)) {
+                foreach ($businessHours as $hours) {
+                    if (isset($hours['day']) && $hours['day'] === $dayKey) {
+                        $todayHours = $hours;
+                        break;
+                    }
                 }
             }
             

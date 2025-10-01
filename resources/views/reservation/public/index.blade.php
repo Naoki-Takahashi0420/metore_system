@@ -362,8 +362,16 @@
                 <input type="hidden" name="menu_id" value="{{ $selectedMenu->id }}">
                 <input type="hidden" id="selectedDate" name="date">
                 <input type="hidden" id="selectedTime" name="time">
-                @if(Session::has('selected_staff_id'))
-                    <input type="hidden" name="staff_id" value="{{ Session::get('selected_staff_id') }}">
+                @php
+                    $staffId = null;
+                    if (isset($context) && isset($context['staff_id'])) {
+                        $staffId = $context['staff_id'];
+                    } elseif (Session::has('selected_staff_id')) {
+                        $staffId = Session::get('selected_staff_id');
+                    }
+                @endphp
+                @if($staffId)
+                    <input type="hidden" name="staff_id" value="{{ $staffId }}">
                 @endif
                 
                 <!-- 選択された日時表示 -->
@@ -378,9 +386,9 @@
                     <p class="text-lg font-semibold">{{ $selectedMenu->name }}</p>
                     <p class="text-sm text-gray-600">{{ $selectedMenu->duration_minutes }}分 / ¥{{ number_format($selectedMenu->price) }}</p>
 
-                    @if(Session::has('selected_staff_id'))
+                    @if($staffId)
                         @php
-                            $selectedStaff = \App\Models\User::find(Session::get('selected_staff_id'));
+                            $selectedStaff = \App\Models\User::find($staffId);
                         @endphp
                         @if($selectedStaff)
                             <div class="mt-2 pt-2 border-t border-gray-200">
@@ -390,9 +398,9 @@
                     @endif
                 </div>
 
-                @if(Session::has('selected_staff_id'))
+                @if($staffId)
                     @php
-                        $selectedStaff = App\Models\User::find(Session::get('selected_staff_id'));
+                        $selectedStaff = App\Models\User::find($staffId);
                     @endphp
                     @if($selectedStaff)
                         <!-- 担当スタッフ表示 -->

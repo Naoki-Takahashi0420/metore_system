@@ -337,15 +337,27 @@ class ReservationTimelineWidget extends Widget
                 'staff_id' => null
             ];
 
-            // 2. 店舗に所属する全スタッフのラインを追加（シフトの有無に関わらず）
-            $storeStaff = \App\Models\User::whereHas('roles', function($q) {
-                $q->whereIn('name', ['staff', 'manager']);
-            })->where('store_id', $this->selectedStore)
+            // 2. この日のシフトがあるスタッフ + 予約で指定されているスタッフを集める
+            $staffIds = collect();
+
+            // シフトがあるスタッフ
+            foreach ($shifts as $shift) {
+                if ($shift->user_id) {
+                    $staffIds->push($shift->user_id);
+                }
+            }
+
+            // この日の予約で指定されているスタッフも追加
+            $reservedStaffIds = $reservations->pluck('staff_id')->filter()->unique();
+            $staffIds = $staffIds->merge($reservedStaffIds)->unique();
+
+            // スタッフ情報を取得
+            $storeStaff = \App\Models\User::whereIn('id', $staffIds)
               ->where('is_active', true)
               ->orderBy('name')
               ->get();
 
-            logger('📊 店舗スタッフ確認 - Store: ' . $this->selectedStore . ', スタッフ数: ' . $storeStaff->count());
+            logger('📊 店舗スタッフ確認 - Store: ' . $this->selectedStore . ', スタッフ数: ' . $storeStaff->count() . ', シフトスタッフ: ' . $shifts->pluck('user_id')->implode(',') . ', 予約スタッフ: ' . $reservedStaffIds->implode(','));
 
             // 各スタッフのシフト情報を取得
             $staffShifts = [];

@@ -215,8 +215,8 @@
                                 foreach($day['shifts'] as $shift) {
                                     if($shift['user_id'] == $staff->id) {
                                         $shiftCount++;
-                                        $start = Carbon::parse($shift['start']);
-                                        $end = Carbon::parse($shift['end']);
+                                        $start = \Carbon\Carbon::parse($shift['start']);
+                                        $end = \Carbon\Carbon::parse($shift['end']);
                                         $totalHours += $start->diffInHours($end);
                                     }
                                 }

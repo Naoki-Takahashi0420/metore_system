@@ -524,8 +524,20 @@ class PublicReservationController extends Controller
         // コンテキストを暗号化
         $encryptedContext = $contextService->encryptContext($context);
 
+        // スタッフ選択判定のデバッグログ
+        \Log::info('storeMenu: スタッフ選択判定', [
+            'menu_id' => $menu->id,
+            'menu_name' => $menu->name,
+            'requires_staff' => $menu->requires_staff,
+            'store_id' => $store->id ?? 'null',
+            'store_name' => $store->name ?? 'null',
+            'use_staff_assignment' => $store->use_staff_assignment ?? 'null',
+            'should_redirect_to_staff' => ($store && $store->use_staff_assignment && $menu->requires_staff)
+        ]);
+
         if ($store && $store->use_staff_assignment && $menu->requires_staff) {
             // スタッフ指定が必要な場合はスタッフ選択ページへ
+            \Log::info('storeMenu: スタッフ選択ページへリダイレクト');
             return redirect()->route('reservation.select-staff', ['ctx' => $encryptedContext]);
         }
 
@@ -546,20 +558,43 @@ class PublicReservationController extends Controller
     /**
      * スタッフ選択画面
      */
-    public function selectStaff(Request $request)
+    public function selectStaff(Request $request, ReservationContextService $contextService)
     {
-        // セッションから必要な情報を取得
-        $storeId = Session::get('selected_store_id');
-        $menu = Session::get('reservation_menu');
+        // パラメータベース：コンテキストを取得
+        $context = $contextService->extractContextFromRequest($request);
+
+        if ($context) {
+            // ctxパラメータから情報を取得
+            $storeId = $context['store_id'] ?? null;
+            $menuId = $context['menu_id'] ?? null;
+            $menu = $menuId ? Menu::find($menuId) : null;
+
+            \Log::info('selectStaff: ctxパラメータから情報取得', [
+                'store_id' => $storeId,
+                'menu_id' => $menuId,
+                'has_menu' => !!$menu
+            ]);
+        } else {
+            // レガシー：セッションから必要な情報を取得
+            $storeId = Session::get('selected_store_id');
+            $menu = Session::get('reservation_menu');
+
+            \Log::info('selectStaff: セッションから情報取得', [
+                'store_id' => $storeId,
+                'has_menu' => !!$menu
+            ]);
+        }
 
         // 必要な情報がない場合はメニュー選択へリダイレクト
         if (!$storeId || !$menu) {
+            \Log::warning('selectStaff: 必要な情報がないためメニュー選択へリダイレクト');
             return redirect()->route('reservation.select-category');
         }
 
         $store = Store::find($storeId);
         if (!$store || !$store->use_staff_assignment || !$menu->requires_staff) {
             // スタッフ指定が不要な場合はカレンダーへ
+            \Log::info('selectStaff: スタッフ指定不要のためカレンダーへリダイレクト');
             return redirect()->route('reservation.index');
         }
 
@@ -568,47 +603,154 @@ class PublicReservationController extends Controller
             ->where('is_active_staff', true)
             ->get();
 
+        \Log::info('selectStaff: スタッフ選択画面表示', [
+            'store_id' => $storeId,
+            'menu_id' => $menu->id,
+            'staff_count' => $staffs->count()
+        ]);
+
         // カテゴリ情報も取得
         $category = null;
         if ($menu->category_id) {
             $category = MenuCategory::find($menu->category_id);
         }
 
-        return view('reservation.staff-select', compact('staffs', 'store', 'menu', 'category'));
+        return view('reservation.staff-select', compact('staffs', 'store', 'menu', 'category', 'context'));
     }
 
     /**
      * スタッフ選択処理
      */
-    public function storeStaff(Request $request)
+    public function storeStaff(Request $request, ReservationContextService $contextService)
     {
         $validated = $request->validate([
             'staff_id' => 'required|exists:users,id'
         ]);
 
+        // パラメータベース：コンテキストを取得
+        $context = $contextService->extractContextFromRequest($request);
+
+        if ($context) {
+            // ctxパラメータから店舗IDを取得
+            $storeId = $context['store_id'] ?? null;
+
+            \Log::info('storeStaff: ctxパラメータから情報取得', [
+                'staff_id' => $validated['staff_id'],
+                'store_id' => $storeId,
+                'has_context' => true
+            ]);
+        } else {
+            // レガシー：セッションから店舗IDを取得
+            $storeId = Session::get('selected_store_id');
+
+            \Log::info('storeStaff: セッションから情報取得', [
+                'staff_id' => $validated['staff_id'],
+                'store_id' => $storeId,
+                'has_context' => false
+            ]);
+        }
+
         // スタッフが該当店舗のアクティブなスタッフかチェック
-        $storeId = Session::get('selected_store_id');
         $staff = User::where('id', $validated['staff_id'])
             ->where('store_id', $storeId)
             ->where('is_active_staff', true)
             ->first();
 
         if (!$staff) {
+            \Log::warning('storeStaff: 無効なスタッフが選択されました', [
+                'staff_id' => $validated['staff_id'],
+                'store_id' => $storeId
+            ]);
             return back()->withErrors(['staff_id' => '選択されたスタッフが無効です。']);
         }
 
-        // セッションにスタッフIDを保存
-        Session::put('selected_staff_id', $validated['staff_id']);
-        Session::put('selected_staff', $staff);
+        if ($context) {
+            // ctxパラメータにスタッフIDを追加
+            $context['staff_id'] = $validated['staff_id'];
+            $encryptedContext = $contextService->encryptContext($context);
 
-        // カレンダー選択へ
-        return redirect()->route('reservation.index');
+            \Log::info('storeStaff: カレンダーへリダイレクト（ctxパラメータ）', [
+                'staff_id' => $validated['staff_id'],
+                'staff_name' => $staff->name
+            ]);
+
+            return redirect()->route('reservation.index', ['ctx' => $encryptedContext]);
+        } else {
+            // レガシー：セッションにスタッフIDを保存
+            Session::put('selected_staff_id', $validated['staff_id']);
+            Session::put('selected_staff', $staff);
+
+            \Log::info('storeStaff: カレンダーへリダイレクト（セッション）', [
+                'staff_id' => $validated['staff_id'],
+                'staff_name' => $staff->name
+            ]);
+
+            return redirect()->route('reservation.index');
+        }
     }
 
     public function index(Request $request, ReservationContextService $contextService)
     {
         // パラメータベース：コンテキストを取得
         $context = $contextService->extractContextFromRequest($request);
+
+        // デバッグ：contextの中身を確認
+        \Log::info('index: context確認', [
+            'has_context' => !!$context,
+            'context_keys' => $context ? array_keys($context) : [],
+            'context_data' => $context
+        ]);
+
+        // デバッグ：条件チェックの詳細
+        \Log::info('index: 条件チェック', [
+            'context_is_true' => !!$context,
+            'has_menu_id_key' => isset($context['menu_id']),
+            'has_store_id_key' => isset($context['store_id']),
+            'condition_result' => ($context && isset($context['menu_id']) && isset($context['store_id']))
+        ]);
+
+        // スタッフ選択が必要かチェック（マイページからの直接アクセス対応）
+        if ($context && isset($context['menu_id']) && isset($context['store_id'])) {
+            $menu = Menu::find($context['menu_id']);
+            $store = Store::find($context['store_id']);
+
+            \Log::info('index: スタッフ選択判定', [
+                'has_context' => !!$context,
+                'has_menu_id' => isset($context['menu_id']),
+                'has_store_id' => isset($context['store_id']),
+                'has_staff_id' => isset($context['staff_id']),
+                'menu_id' => $context['menu_id'] ?? null,
+                'store_id' => $context['store_id'] ?? null,
+                'menu_found' => !!$menu,
+                'store_found' => !!$store,
+                'menu_requires_staff' => $menu ? $menu->requires_staff : null,
+                'store_use_staff_assignment' => $store ? $store->use_staff_assignment : null,
+            ]);
+
+            // リダイレクト条件の詳細チェック
+            $shouldRedirect = $menu && $store && $store->use_staff_assignment && $menu->requires_staff && !isset($context['staff_id']);
+            \Log::info('index: リダイレクト条件', [
+                'menu_exists' => !!$menu,
+                'store_exists' => !!$store,
+                'store_use_staff' => $store ? $store->use_staff_assignment : 'N/A',
+                'menu_requires_staff' => $menu ? $menu->requires_staff : 'N/A',
+                'no_staff_id' => !isset($context['staff_id']),
+                'should_redirect' => $shouldRedirect
+            ]);
+
+            // スタッフIDがコンテキストにない、かつスタッフ選択が必要な場合
+            if ($shouldRedirect) {
+                \Log::info('index: スタッフ選択が必要なため、スタッフ選択画面へリダイレクト', [
+                    'menu_id' => $menu->id,
+                    'menu_name' => $menu->name,
+                    'store_id' => $store->id,
+                    'store_name' => $store->name
+                ]);
+
+                $encryptedContext = $contextService->encryptContext($context);
+                return redirect()->route('reservation.select-staff', ['ctx' => $encryptedContext]);
+            }
+        }
 
         // コンテキストがない場合はセッションからフォールバック（レガシー互換性）
         if (!$context) {
@@ -850,7 +992,22 @@ class PublicReservationController extends Controller
                 'final_customer_id' => $customerId
             ]);
         }
-        $availability = $this->getAvailability($selectedStoreId, $selectedStore, $startDate, $dates, $totalDuration, $customerId);
+
+        // スタッフIDを取得（ctxパラメータを優先）
+        $staffId = null;
+        if ($context && isset($context['staff_id'])) {
+            $staffId = $context['staff_id'];
+        } elseif (Session::has('selected_staff_id')) {
+            $staffId = Session::get('selected_staff_id');
+        }
+
+        \Log::info('index: getAvailability呼び出し前', [
+            'staff_id' => $staffId,
+            'from_context' => isset($context['staff_id']),
+            'from_session' => Session::has('selected_staff_id')
+        ]);
+
+        $availability = $this->getAvailability($selectedStoreId, $selectedStore, $startDate, $dates, $totalDuration, $customerId, $staffId);
 
         // 既存顧客情報を取得
         $existingCustomer = null;
@@ -1024,7 +1181,7 @@ class PublicReservationController extends Controller
         return $slots;
     }
     
-    private function getAvailability($storeId, $store, $startDate, $dates, $menuDuration = 60, $customerId = null)
+    private function getAvailability($storeId, $store, $startDate, $dates, $menuDuration = 60, $customerId = null, $staffId = null)
     {
         $availability = [];
         $endDate = $startDate->copy()->addDays(6);
@@ -1107,7 +1264,15 @@ class PublicReservationController extends Controller
         
         // シフト情報を取得（スタッフシフトベースの場合、または指名スタッフがいる場合）
         $shifts = collect();
-        $selectedStaffId = Session::get('selected_staff_id');
+        // ctxパラメータを優先、なければセッションから取得（レガシー互換性）
+        $selectedStaffId = $staffId ?? Session::get('selected_staff_id');
+
+        \Log::info('getAvailability: スタッフID確認', [
+            'staffId_param' => $staffId,
+            'session_staff_id' => Session::get('selected_staff_id'),
+            'selected_staff_id' => $selectedStaffId,
+            'use_staff_assignment' => $store->use_staff_assignment
+        ]);
 
         // 指名スタッフがいる場合、またはスタッフシフトベースの場合
         if ($selectedStaffId || $store->use_staff_assignment) {
@@ -1121,6 +1286,7 @@ class PublicReservationController extends Controller
 
             // 指名スタッフがいる場合はそのスタッフのシフトのみ取得
             if ($selectedStaffId) {
+                \Log::info('getAvailability: 指定スタッフのシフトのみ取得', ['staff_id' => $selectedStaffId]);
                 $shiftsQuery->where('user_id', $selectedStaffId);
             }
 
@@ -1128,6 +1294,11 @@ class PublicReservationController extends Controller
                 ->groupBy(function($shift) {
                     return Carbon::parse($shift->shift_date)->format('Y-m-d');
                 });
+
+            \Log::info('getAvailability: シフト取得結果', [
+                'shifts_count' => $shifts->count(),
+                'dates_with_shifts' => $shifts->keys()->toArray()
+            ]);
         }
         
         foreach ($dates as $dateInfo) {

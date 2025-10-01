@@ -76,7 +76,7 @@
             {{-- スタッフ一覧 --}}
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 @foreach($staffs as $staff)
-                    <form action="{{ route('reservation.store-staff') }}" method="POST" class="staff-form">
+                    <form action="{{ route('reservation.store-staff', isset($context) && $context ? ['ctx' => request('ctx')] : []) }}" method="POST" class="staff-form">
                         @csrf
                         <input type="hidden" name="staff_id" value="{{ $staff->id }}">
 

@@ -23,18 +23,18 @@ class ShiftResource extends Resource
     protected static ?string $model = Shift::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-calendar-days';
-    
+
     protected static ?string $navigationLabel = 'シフト管理';
-    
+
     protected static ?string $modelLabel = 'シフト';
-    
+
     protected static ?string $pluralModelLabel = 'シフト';
-    
+
     protected static ?string $navigationGroup = 'スタッフ管理';
-    
-    // 古いシフト一覧は非表示（ShiftManagementに統合）
-    protected static bool $shouldRegisterNavigation = false;
+
     protected static ?int $navigationSort = 2;
+
+    protected static bool $shouldRegisterNavigation = false;
 
     public static function form(Form $form): Form
     {

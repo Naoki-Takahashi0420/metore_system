@@ -98,16 +98,11 @@ class UserResource extends Resource
                             ->label('電話番号')
                             ->tel()
                             ->maxLength(20),
-                        Forms\Components\Select::make('status')
-                            ->label('状態')
-                            ->options([
-                                'active' => '有効',
-                                'inactive' => '無効',
-                            ])
-                            ->default('active')
-                            ->required()
+                        Forms\Components\Toggle::make('is_active')
+                            ->label('有効状態')
+                            ->default(true)
                             ->helperText('⚠️ 無効にするとログインできなくなり、通知も送信されません。退職や長期休暇時に使用してください（ユーザー削除は推奨しません）'),
-                        Forms\Components\Toggle::make('is_available')
+                        Forms\Components\Toggle::make('is_active_staff')
                             ->label('予約受付可能')
                             ->helperText('スタッフとして予約を受け付けるかどうか'),
                         Forms\Components\Textarea::make('bio')
