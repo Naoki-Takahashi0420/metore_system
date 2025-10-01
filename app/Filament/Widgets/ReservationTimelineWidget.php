@@ -1060,11 +1060,12 @@ class ReservationTimelineWidget extends Widget
             ]);
             return false;
         }
-        
+
         $temp = clone $reservation;
         $temp->is_sub = true;
+        $temp->line_type = 'sub';  // メイン→サブ移動なのでline_typeも変更
         $temp->seat_number = null;
-        
+
         $result = Reservation::checkAvailability($temp);
         \Log::info('canMoveToSub result:', [
             'reservation_id' => $reservationId,
