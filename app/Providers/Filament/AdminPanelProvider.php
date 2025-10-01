@@ -118,6 +118,80 @@ class AdminPanelProvider extends PanelProvider
                     document.addEventListener("livewire:navigated", function() {
                         setTimeout(setupCalendarClicks, 3000);
                     });
+
+                    // タイムラインインジケーター位置更新
+                    console.log("⏰ Timeline indicator script loading...");
+
+                    window.updateIndicatorPosition = function() {
+                        console.log("updateIndicatorPosition 開始");
+
+                        const indicator = document.getElementById("current-time-indicator");
+                        if (!indicator) {
+                            console.log("⚠️ インジケーターが存在しません");
+                            return;
+                        }
+
+                        const table = document.querySelector(".timeline-table");
+                        if (!table) {
+                            console.log("⚠️ テーブルが存在しません");
+                            return;
+                        }
+
+                        const firstRow = table.querySelector("tbody tr");
+                        if (!firstRow) {
+                            console.log("⚠️ 行が存在しません");
+                            return;
+                        }
+
+                        const cells = firstRow.querySelectorAll("td");
+                        if (cells.length < 2) {
+                            console.log("⚠️ セルが不足しています");
+                            return;
+                        }
+
+                        const now = new Date().toLocaleString("en-US", {timeZone: "Asia/Tokyo"});
+                        const jstDate = new Date(now);
+                        const currentHour = jstDate.getHours();
+                        const currentMinute = jstDate.getMinutes();
+
+                        const timelineStartHour = parseInt(indicator.dataset.timelineStart || "10");
+                        const slotDuration = parseInt(indicator.dataset.slotDuration || "30");
+
+                        const firstCellWidth = cells[0].offsetWidth;
+                        const cellWidth = cells[1].offsetWidth;
+
+                        console.log("📊 セル幅実測: 1列目=" + firstCellWidth + "px, 2列目=" + cellWidth + "px");
+
+                        if (firstCellWidth === 0 || cellWidth === 0) {
+                            console.log("⚠️ セル幅が0です。500ms後に再試行します");
+                            setTimeout(window.updateIndicatorPosition, 500);
+                            return;
+                        }
+
+                        const minutesFromStart = (currentHour - timelineStartHour) * 60 + currentMinute;
+                        const cellIndex = Math.floor(minutesFromStart / slotDuration);
+                        const percentageIntoCell = (minutesFromStart % slotDuration) / slotDuration;
+                        const leftPosition = firstCellWidth + (cellIndex * cellWidth) + (percentageIntoCell * cellWidth);
+
+                        indicator.style.left = leftPosition + "px";
+                        indicator.style.visibility = "visible";
+                        indicator.style.opacity = "1";
+
+                        console.log("✅ インジケーター位置更新: " + leftPosition.toFixed(1) + "px (" + currentHour + ":" + String(currentMinute).padStart(2, "0") + ")");
+                        console.log("   計算式: " + firstCellWidth + " + (" + cellIndex + " × " + cellWidth + ") + (" + (percentageIntoCell * 100).toFixed(1) + "% × " + cellWidth + ")");
+
+                        const timeText = indicator.querySelector(".current-time-text");
+                        if (timeText) {
+                            timeText.textContent = currentHour.toString().padStart(2, "0") + ":" + currentMinute.toString().padStart(2, "0");
+                        }
+                    };
+
+                    setTimeout(function() {
+                        console.log("⏰ 3秒後の自動実行開始");
+                        window.updateIndicatorPosition();
+                    }, 3000);
+
+                    setInterval(window.updateIndicatorPosition, 60000);
                 </script>',
             )
             ->renderHook(
