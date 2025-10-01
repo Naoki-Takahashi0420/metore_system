@@ -420,6 +420,8 @@ class StoreResource extends Resource
                                             ->label('Channel ID')
                                             ->placeholder('2008211284')
                                             ->helperText('LINE Developersの Basic settings で確認できる数字のみのID（IDトークン検証に必要）')
+                                            ->live()
+                                            ->dehydrated()
                                             ->visible(fn ($get) => $get('line_enabled')),
 
                                         Forms\Components\TextInput::make('line_liff_id')

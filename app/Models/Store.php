@@ -48,6 +48,7 @@ class Store extends Model
         // LINE設定（1店舗1LINE）
         'line_channel_access_token',
         'line_channel_secret',
+        'line_channel_id',
         'line_liff_id',
         'line_official_account_id',
         'line_basic_id',
