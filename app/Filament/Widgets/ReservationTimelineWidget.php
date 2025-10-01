@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use Filament\Widgets\Widget;
+use Filament\Notifications\Notification;
 use App\Models\Store;
 use App\Models\Reservation;
 use Carbon\Carbon;
@@ -1642,15 +1643,17 @@ class ReservationTimelineWidget extends Widget
 
             // SQLSTATEコードで重複エラーを判定
             if ($e->getCode() == 23000 || strpos($e->getMessage(), 'Duplicate') !== false || strpos($e->getMessage(), 'UNIQUE constraint failed') !== false) {
-                $this->dispatch('notify', [
-                    'type' => 'error',
-                    'message' => 'この時間帯は既に予約が入っています。別の時間帯を選択してください。'
-                ]);
+                Notification::make()
+                    ->danger()
+                    ->title('予約作成エラー')
+                    ->body('この時間帯は既に予約が入っています。別の時間帯を選択してください。')
+                    ->send();
             } else {
-                $this->dispatch('notify', [
-                    'type' => 'error',
-                    'message' => '予約の作成中にエラーが発生しました。時間をおいて再度お試しください。'
-                ]);
+                Notification::make()
+                    ->danger()
+                    ->title('予約作成エラー')
+                    ->body('予約の作成中にエラーが発生しました。時間をおいて再度お試しください。')
+                    ->send();
             }
         } catch (\Exception $e) {
             // その他のエラー
@@ -1661,10 +1664,11 @@ class ReservationTimelineWidget extends Widget
                 'reservation_data' => $reservationData ?? null
             ]);
 
-            $this->dispatch('notify', [
-                'type' => 'error',
-                'message' => '予約の作成に失敗しました: ' . $e->getMessage()
-            ]);
+            Notification::make()
+                ->danger()
+                ->title('予約作成エラー')
+                ->body('予約の作成に失敗しました: ' . $e->getMessage())
+                ->send();
         }
     }
 
