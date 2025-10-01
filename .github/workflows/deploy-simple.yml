@@ -22,7 +22,13 @@ jobs:
         APP_DIR="/var/www/html"
         
         echo "=== Simple Deploy ==="
-        
+
+        # ファイルシステムを拡張
+        echo "=== Extending filesystem ==="
+        sudo growpart /dev/nvme0n1 1 || true
+        sudo resize2fs /dev/nvme0n1p1 || true
+        df -h
+
         # Git clone
         cd /tmp
         rm -rf metore_system
