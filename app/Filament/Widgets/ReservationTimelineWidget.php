@@ -1454,10 +1454,27 @@ class ReservationTimelineWidget extends Widget
     
     public function startNewCustomerRegistration(): void
     {
-        // 検索フィールドの値を初期値として設定するが、ユーザーが変更可能
-        // ただし、既に入力されている場合は上書きしない
+        logger('🆕 Starting new customer registration', [
+            'phoneSearch' => $this->phoneSearch,
+            'newCustomer_phone_before' => $this->newCustomer['phone'] ?? null,
+            'selectedCustomer_before' => $this->selectedCustomer ? [
+                'id' => $this->selectedCustomer->id,
+                'name' => $this->selectedCustomer->last_name . ' ' . $this->selectedCustomer->first_name,
+                'phone' => $this->selectedCustomer->phone
+            ] : null
+        ]);
+
+        // 検索フィールドの値を初期値として設定するが、電話番号形式の場合のみ
+        // 名前検索の場合は電話番号フィールドに入れない
         if (empty($this->newCustomer['phone'])) {
-            $this->newCustomer['phone'] = $this->phoneSearch;
+            // 電話番号形式（数字のみ、または数字とハイフン）の場合のみコピー
+            if (preg_match('/^[0-9\-]+$/', $this->phoneSearch)) {
+                $this->newCustomer['phone'] = $this->phoneSearch;
+                logger('📞 Phone copied from search', ['phone' => $this->phoneSearch]);
+            } else {
+                logger('⚠️ Phone NOT copied (not a phone number format)', ['search' => $this->phoneSearch]);
+            }
+            // それ以外（名前検索など）の場合は電話番号を空のままにする
         }
         $this->reservationStep = 2; // 新規顧客登録へ
     }
