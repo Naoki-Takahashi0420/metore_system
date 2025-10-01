@@ -355,6 +355,41 @@ class StoreResource extends Resource
                                 Forms\Components\Section::make('LINE API設定')
                                     ->description('店舗専用のLINE公式アカウントの設定を行います。')
                                     ->schema([
+                                        Forms\Components\Placeholder::make('webhook_url_display')
+                                            ->label('')
+                                            ->content(function ($record) {
+                                                if (!$record || !$record->code) {
+                                                    return new \Illuminate\Support\HtmlString('保存後にWebhook URLが表示されます');
+                                                }
+
+                                                $baseUrl = config('app.url', 'https://reservation.meno-training.com');
+                                                $webhookUrl = $baseUrl . '/api/line/webhook/' . $record->code;
+
+                                                return new \Illuminate\Support\HtmlString("
+                                                    <div class='bg-green-50 border border-green-200 rounded-lg p-4 mb-4'>
+                                                        <h4 class='font-semibold text-green-900 mb-2'>🔗 この店舗のWebhook URL</h4>
+                                                        <div class='flex items-center space-x-2'>
+                                                            <input
+                                                                type='text'
+                                                                value='{$webhookUrl}'
+                                                                id='webhook-url'
+                                                                readonly
+                                                                class='flex-1 px-3 py-2 border border-green-300 rounded-md bg-white text-sm font-mono'
+                                                            />
+                                                            <button
+                                                                type='button'
+                                                                onclick='copyToClipboard(\"webhook-url\")'
+                                                                class='px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium'
+                                                            >
+                                                                コピー
+                                                            </button>
+                                                        </div>
+                                                        <p class='text-xs text-green-700 mt-2'>💡 LINE Developers の Messaging API設定 で上記URLを設定してください</p>
+                                                    </div>
+                                                ");
+                                            })
+                                            ->columnSpanFull(),
+
                                         Forms\Components\Placeholder::make('line_setup_guide')
                                             ->label('')
                                             ->content(new \Illuminate\Support\HtmlString('
@@ -365,7 +400,7 @@ class StoreResource extends Resource
                                                             <li>LINE Developersコンソールでチャネルを作成</li>
                                                             <li>Messaging APIを有効化</li>
                                                             <li>Channel Access TokenとChannel Secretを取得</li>
-                                                            <li>Webhook URLを設定: <code class="bg-gray-100 px-1">https://your-domain.com/api/line/webhook/{store_code}</code></li>
+                                                            <li><strong>上記のWebhook URLをコピーしてLINE Developersに設定</strong></li>
                                                             <li>下記フォームに情報を入力</li>
                                                         </ol>
                                                     </div>
