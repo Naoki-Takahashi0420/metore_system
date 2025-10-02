@@ -595,12 +595,31 @@ function renderVisionCharts(records) {
     const allVisionRecords = [];
 
     records.forEach(record => {
+        // vision_recordsがある場合
         if (record.vision_records && record.vision_records.length > 0) {
             record.vision_records.forEach(vision => {
                 allVisionRecords.push({
                     ...vision,
                     treatment_date: record.treatment_date || record.record_date
                 });
+            });
+        }
+        // 個別カラムに視力データがある場合（従来形式）
+        else if (record.before_naked_left || record.after_naked_left ||
+                 record.before_naked_right || record.after_naked_right ||
+                 record.before_corrected_left || record.after_corrected_left ||
+                 record.before_corrected_right || record.after_corrected_right) {
+            allVisionRecords.push({
+                date: record.treatment_date || record.record_date,
+                before_naked_left: record.before_naked_left,
+                after_naked_left: record.after_naked_left,
+                before_naked_right: record.before_naked_right,
+                after_naked_right: record.after_naked_right,
+                before_corrected_left: record.before_corrected_left,
+                after_corrected_left: record.after_corrected_left,
+                before_corrected_right: record.before_corrected_right,
+                after_corrected_right: record.after_corrected_right,
+                treatment_date: record.treatment_date || record.record_date
             });
         }
     });
@@ -618,9 +637,13 @@ function renderVisionCharts(records) {
 
     // データ整形
     const dates = [];
+    const leftNakedBefore = [];
     const leftNakedAfter = [];
+    const rightNakedBefore = [];
     const rightNakedAfter = [];
+    const leftCorrectedBefore = [];
     const leftCorrectedAfter = [];
+    const rightCorrectedBefore = [];
     const rightCorrectedAfter = [];
 
     let hasNakedData = false;
@@ -630,23 +653,37 @@ function renderVisionCharts(records) {
         const date = vision.date ? new Date(vision.date) : new Date(vision.treatment_date);
         dates.push(date.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }));
 
-        // 施術後の視力を収集
-        const leftNaked = vision.after_naked_left ? parseFloat(vision.after_naked_left) : null;
-        const rightNaked = vision.after_naked_right ? parseFloat(vision.after_naked_right) : null;
-        const leftCorrected = vision.after_corrected_left ? parseFloat(vision.after_corrected_left) : null;
-        const rightCorrected = vision.after_corrected_right ? parseFloat(vision.after_corrected_right) : null;
+        // 施術前後の視力を収集
+        const leftNakedB = vision.before_naked_left ? parseFloat(vision.before_naked_left) : null;
+        const leftNakedA = vision.after_naked_left ? parseFloat(vision.after_naked_left) : null;
+        const rightNakedB = vision.before_naked_right ? parseFloat(vision.before_naked_right) : null;
+        const rightNakedA = vision.after_naked_right ? parseFloat(vision.after_naked_right) : null;
 
-        leftNakedAfter.push(leftNaked);
-        rightNakedAfter.push(rightNaked);
-        leftCorrectedAfter.push(leftCorrected);
-        rightCorrectedAfter.push(rightCorrected);
+        const leftCorrectedB = vision.before_corrected_left ? parseFloat(vision.before_corrected_left) : null;
+        const leftCorrectedA = vision.after_corrected_left ? parseFloat(vision.after_corrected_left) : null;
+        const rightCorrectedB = vision.before_corrected_right ? parseFloat(vision.before_corrected_right) : null;
+        const rightCorrectedA = vision.after_corrected_right ? parseFloat(vision.after_corrected_right) : null;
 
-        if (leftNaked !== null || rightNaked !== null) hasNakedData = true;
-        if (leftCorrected !== null || rightCorrected !== null) hasCorrectedData = true;
+        leftNakedBefore.push(leftNakedB);
+        leftNakedAfter.push(leftNakedA);
+        rightNakedBefore.push(rightNakedB);
+        rightNakedAfter.push(rightNakedA);
+        leftCorrectedBefore.push(leftCorrectedB);
+        leftCorrectedAfter.push(leftCorrectedA);
+        rightCorrectedBefore.push(rightCorrectedB);
+        rightCorrectedAfter.push(rightCorrectedA);
+
+        if (leftNakedB !== null || leftNakedA !== null || rightNakedB !== null || rightNakedA !== null) hasNakedData = true;
+        if (leftCorrectedB !== null || leftCorrectedA !== null || rightCorrectedB !== null || rightCorrectedA !== null) hasCorrectedData = true;
     });
 
     const chartContainer = document.getElementById('vision-chart-container');
     if (!chartContainer) return;
+
+    // データがあればコンテナを表示
+    if (hasNakedData || hasCorrectedData) {
+        chartContainer.classList.remove('hidden');
+    }
 
     const chartConfig = {
         type: 'line',
@@ -657,6 +694,11 @@ function renderVisionCharts(records) {
                 legend: {
                     display: true,
                     position: 'top',
+                    labels: {
+                        filter: function(item) {
+                            return item.text !== undefined && item.text !== null && item.text !== '';
+                        }
+                    }
                 },
                 tooltip: {
                     mode: 'index',
@@ -703,18 +745,48 @@ function renderVisionCharts(records) {
                     labels: dates,
                     datasets: [
                         {
-                            label: '左眼',
-                            data: leftNakedAfter,
+                            label: '左眼 施術前',
+                            data: leftNakedBefore,
                             borderColor: 'rgb(255, 99, 132)',
-                            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                            backgroundColor: 'rgb(255, 99, 132)',
+                            borderDash: [5, 5],
+                            pointStyle: 'rect',
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
                             tension: 0.4,
                             spanGaps: true
                         },
                         {
-                            label: '右眼',
+                            label: '左眼 施術後',
+                            data: leftNakedAfter,
+                            borderColor: 'rgb(255, 99, 132)',
+                            backgroundColor: 'rgb(255, 99, 132)',
+                            pointStyle: 'circle',
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            tension: 0.4,
+                            spanGaps: true
+                        },
+                        {
+                            label: '右眼 施術前',
+                            data: rightNakedBefore,
+                            borderColor: 'rgb(54, 162, 235)',
+                            backgroundColor: 'rgb(54, 162, 235)',
+                            borderDash: [5, 5],
+                            pointStyle: 'rect',
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            tension: 0.4,
+                            spanGaps: true
+                        },
+                        {
+                            label: '右眼 施術後',
                             data: rightNakedAfter,
                             borderColor: 'rgb(54, 162, 235)',
-                            backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                            backgroundColor: 'rgb(54, 162, 235)',
+                            pointStyle: 'circle',
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
                             tension: 0.4,
                             spanGaps: true
                         }
@@ -737,18 +809,48 @@ function renderVisionCharts(records) {
                     labels: dates,
                     datasets: [
                         {
-                            label: '左眼',
-                            data: leftCorrectedAfter,
+                            label: '左眼 施術前',
+                            data: leftCorrectedBefore,
                             borderColor: 'rgb(255, 159, 64)',
-                            backgroundColor: 'rgba(255, 159, 64, 0.1)',
+                            backgroundColor: 'rgb(255, 159, 64)',
+                            borderDash: [5, 5],
+                            pointStyle: 'rect',
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
                             tension: 0.4,
                             spanGaps: true
                         },
                         {
-                            label: '右眼',
+                            label: '左眼 施術後',
+                            data: leftCorrectedAfter,
+                            borderColor: 'rgb(255, 159, 64)',
+                            backgroundColor: 'rgb(255, 159, 64)',
+                            pointStyle: 'circle',
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            tension: 0.4,
+                            spanGaps: true
+                        },
+                        {
+                            label: '右眼 施術前',
+                            data: rightCorrectedBefore,
+                            borderColor: 'rgb(75, 192, 192)',
+                            backgroundColor: 'rgb(75, 192, 192)',
+                            borderDash: [5, 5],
+                            pointStyle: 'rect',
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            tension: 0.4,
+                            spanGaps: true
+                        },
+                        {
+                            label: '右眼 施術後',
                             data: rightCorrectedAfter,
                             borderColor: 'rgb(75, 192, 192)',
-                            backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                            backgroundColor: 'rgb(75, 192, 192)',
+                            pointStyle: 'circle',
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
                             tension: 0.4,
                             spanGaps: true
                         }
