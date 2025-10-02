@@ -257,9 +257,14 @@ class ReservationRescheduleController extends Controller
         // すべての日付の予約を一度に取得
         $dateStrings = collect($dates)->pluck('date')->map(fn($date) => $date->format('Y-m-d'));
 
-        $reservationsQuery = Reservation::whereIn('reservation_date', $dateStrings)
-            ->where('store_id', $store->id)
-            ->whereNotIn('status', ['cancelled', 'canceled']);
+        // SQLiteではreservation_dateが"2025-10-02 00:00:00"形式で保存されているため、DATE()関数を使用
+        $reservationsQuery = Reservation::where('store_id', $store->id)
+            ->whereNotIn('status', ['cancelled', 'canceled'])
+            ->where(function($query) use ($dateStrings) {
+                foreach ($dateStrings as $dateStr) {
+                    $query->orWhereRaw('DATE(reservation_date) = ?', [$dateStr]);
+                }
+            });
 
         if ($excludeReservationId) {
             $reservationsQuery->where('id', '<>', $excludeReservationId);
@@ -332,9 +337,10 @@ class ReservationRescheduleController extends Controller
                     ? $dayReservations->where('staff_id', $staffId)
                     : $dayReservations;
 
-                $conflictingReservations = $relevantReservations->filter(function($reservation) use ($slotTime, $slotEnd) {
-                    $reservationStart = Carbon::parse($reservation->start_time);
-                    $reservationEnd = Carbon::parse($reservation->end_time);
+                $conflictingReservations = $relevantReservations->filter(function($reservation) use ($slotTime, $slotEnd, $dateStr) {
+                    // 時間文字列を日付と結合してからパース
+                    $reservationStart = Carbon::parse($dateStr . ' ' . $reservation->start_time);
+                    $reservationEnd = Carbon::parse($dateStr . ' ' . $reservation->end_time);
 
                     return (
                         ($slotTime->gte($reservationStart) && $slotTime->lt($reservationEnd)) ||
