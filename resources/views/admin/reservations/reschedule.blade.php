@@ -263,6 +263,20 @@
         let selectedTime = null;
 
         function selectTimeSlot(date, time) {
+            // 予約済み時間帯のチェック
+            const availability = @json($availability);
+            const isAvailable = availability[date] && availability[date][time];
+
+            if (!isAvailable) {
+                // 予約不可の場合は確認ダイアログを表示
+                const dateObj = new Date(date);
+                const dateStr = dateObj.getMonth() + 1 + '月' + dateObj.getDate() + '日';
+
+                if (!confirm(`注意: ${dateStr} ${time}〜 は既に予約が入っている可能性があります。\n\nこの時間帯を選択すると、ダブルブッキングが発生する恐れがあります。\n\n本当にこの時間帯で予約を変更しますか？`)) {
+                    return; // キャンセルされた場合は何もしない
+                }
+            }
+
             // 既に選択されているスロットの選択解除
             document.querySelectorAll('.time-slot').forEach(slot => {
                 slot.classList.remove('selected');
