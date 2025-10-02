@@ -110,22 +110,15 @@ class LineWebhookController extends Controller
         if (!$lineUserId) {
             return;
         }
-        
+
         Log::info('LINE 友だち追加', [
             'line_user_id' => $lineUserId,
             'store_id' => $store->id
         ]);
-        
-        // URLのトークンパラメータをチェック
-        $token = request()->input('token');
-        
-        if ($token) {
-            // トークンベース顧客連携処理
-            $this->linkCustomerByToken($lineUserId, $token, $store);
-        } else {
-            // 通常の友だち追加の場合、ウェルカムメッセージ送信
-            $this->sendWelcomeMessage($lineUserId, $store);
-        }
+
+        // 友だち追加時は何もしない
+        // LINE連携は予約完了時のLIFFボタン経由で行う
+        // あいさつメッセージはLINE公式アカウント管理画面で設定
     }
     
     /**
@@ -258,77 +251,6 @@ class LineWebhookController extends Controller
         }
     }
 
-    /**
-     * ウェルカムメッセージ送信（LIFF連携ボタン付き）
-     */
-    private function sendWelcomeMessage(string $lineUserId, Store $store): void
-    {
-        $lineService = new SimpleLineService();
-        
-        // 1. まず既存のLINE User IDと連携済みかどうかチェック
-        $existingCustomer = Customer::where('line_user_id', $lineUserId)->first();
-        if ($existingCustomer) {
-            // 既に連携済みの場合は通常のウェルカムメッセージ
-            $message = "お帰りなさい！\n{$existingCustomer->last_name} {$existingCustomer->first_name}様\n\n" .
-                       "{$store->name}のLINE公式アカウントをご利用いただき、ありがとうございます。";
-            $lineService->sendMessage($store, $lineUserId, $message);
-            return;
-        }
-        
-        // 2. 最近の未連携予約を確認（7日間以内に拡張）
-        $recentToken = CustomerAccessToken::where('store_id', $store->id)
-            ->where('purpose', 'line_linking')
-            ->where('created_at', '>=', now()->subDays(7))
-            ->whereHas('customer', function($q) {
-                $q->whereNull('line_user_id');
-            })
-            ->orderBy('created_at', 'desc')
-            ->first();
-        
-        if ($recentToken) {
-            // 最新の予約トークンがある場合はLIFFボタンメッセージを送信
-            $this->sendLinkingButtonMessage($lineUserId, $recentToken, $store);
-            return;
-        }
-        
-        // 3. 最近の予約がない場合でも、LIFF設定があれば必ず連携ボタンを送信
-        if ($store->line_liff_id) {
-            // すべてのユーザーに連携の機会を提供するため汎用トークンを生成
-            $this->createGenericLinkingToken($lineUserId, $store);
-        } else {
-            // LIFF設定がない場合は通常のウェルカムメッセージ
-            $message = "いらっしゃいませ！\n{$store->name}のLINE公式アカウントにご登録いただき、ありがとうございます。\n\n" .
-                       "📋 予約がある場合は、予約完了メールに記載された6桁の連携コードを送信してください。";
-            
-            $lineService->sendMessage($store, $lineUserId, $message);
-        }
-    }
-
-    /**
-     * LIFF連携ボタンメッセージ送信
-     */
-    private function sendLinkingButtonMessage(string $lineUserId, CustomerAccessToken $token, Store $store): void
-    {
-        $lineService = new SimpleLineService();
-        
-        // LIFF URLを生成（トークン付き、店舗IDも含める）
-        $liffUrl = route('line.link') . '?token=' . $token->token . '&store_id=' . $store->id;
-        
-        $customer = $token->customer;
-        $linkingCode = $token->metadata['linking_code'] ?? '------';
-        
-        // テキストメッセージで連携案内を送信
-        $message = "🎉 いらっしゃいませ！\n{$store->name}のLINE公式アカウントにご登録いただき、ありがとうございます。\n\n" .
-                   "📋 アカウント連携のご案内\n" .
-                   "お客様: {$customer->full_name}\n" .
-                   "連携コード: {$linkingCode}\n\n" .
-                   "🔗 下記URLからLINEアカウントと顧客情報を連携できます：\n" .
-                   "{$liffUrl}\n\n" .
-                   "または、上記の6桁の連携コードをメッセージで送信してください。\n\n" .
-                   "連携すると、予約のリマインダーやお得な情報をLINEで受け取れます。";
-        
-        $lineService->sendMessage($store, $lineUserId, $message);
-    }
 
     /**
      * 連携完了メッセージ送信
@@ -499,62 +421,4 @@ class LineWebhookController extends Controller
         }
     }
     
-    /**
-     * 汎用的な連携トークンを生成してLIFFボタンを送信
-     */
-    private function createGenericLinkingToken(string $lineUserId, Store $store): void
-    {
-        try {
-            // 汎用の連携用ダミー顧客を作成（この段階では具体的な顧客情報なし）
-            $linkingCode = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-            
-            // 汎用連携用のトークンを生成
-            $accessToken = CustomerAccessToken::create([
-                'customer_id' => null, // まだ顧客が特定されていない
-                'store_id' => $store->id,
-                'token' => \Illuminate\Support\Str::random(32),
-                'purpose' => 'line_linking_generic',
-                'expires_at' => now()->addDays(30),
-                'metadata' => [
-                    'linking_code' => $linkingCode,
-                    'line_user_id' => $lineUserId,
-                    'generic_linking' => true
-                ]
-            ]);
-            
-            // LIFF URLを生成
-            $liffUrl = route('line.link') . '?token=' . $accessToken->token . '&store_id=' . $store->id;
-            
-            $lineService = new SimpleLineService();
-            
-            // 汎用連携メッセージを送信
-            $message = "🎉 いらっしゃいませ！\n{$store->name}のLINE公式アカウントにご登録いただき、ありがとうございます。\n\n" .
-                       "🔗 アカウント連携のご案内\n\n" .
-                       "LINEアカウントと顧客情報を連携すると以下のサービスをご利用いただけます：\n\n" .
-                       "✅ 予約の確認・変更・キャンセル\n" .
-                       "✅ 来店前日のリマインダー通知\n" .
-                       "✅ お得なキャンペーン情報\n\n" .
-                       "👇 こちらのリンクから連携してください\n" .
-                       "{$liffUrl}\n\n" .
-                       "連携コード: {$linkingCode}\n" .
-                       "（上記のコードをメッセージで送信することでも連携できます）";
-            
-            $lineService->sendMessage($store, $lineUserId, $message);
-            
-            Log::info('汎用LINE連携ボタン送信完了', [
-                'line_user_id' => $lineUserId,
-                'store_id' => $store->id,
-                'token' => $accessToken->token,
-                'linking_code' => $linkingCode
-            ]);
-            
-        } catch (\Exception $e) {
-            Log::error('汎用LINE連携トークン生成エラー', [
-                'line_user_id' => $lineUserId,
-                'store_id' => $store->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-        }
-    }
 }
