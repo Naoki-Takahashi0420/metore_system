@@ -734,10 +734,11 @@ class ReservationTimelineWidget extends Widget
             // 過去の予約は移動不可（日付と時刻を合わせて判定）
             $reservationDateTime = \Carbon\Carbon::parse($reservation->reservation_date->format('Y-m-d') . ' ' . $reservation->start_time);
             if ($reservationDateTime->isPast()) {
-                $this->dispatch('notify', [
-                    'type' => 'error',
-                    'message' => '過去の予約の席移動はできません'
-                ]);
+                \Filament\Notifications\Notification::make()
+                    ->danger()
+                    ->title('移動失敗')
+                    ->body('過去の予約の席移動はできません')
+                    ->send();
                 return;
             }
             // サブ枠に既に予約があるかチェック
@@ -765,10 +766,11 @@ class ReservationTimelineWidget extends Widget
             ]);
 
             if ($hasConflict) {
-                $this->dispatch('notify', [
-                    'type' => 'error',
-                    'message' => 'サブ枠は既に予約が入っています'
-                ]);
+                \Filament\Notifications\Notification::make()
+                    ->danger()
+                    ->title('移動失敗')
+                    ->body('サブ枠は既に予約が入っています')
+                    ->send();
                 return;
             }
             
@@ -787,10 +789,11 @@ class ReservationTimelineWidget extends Widget
             
             $this->loadTimelineData();
             $this->selectedReservation = null;
-            $this->dispatch('notify', [
-                'type' => 'success',
-                'message' => 'サブ枠に移動しました'
-            ]);
+            \Filament\Notifications\Notification::make()
+                ->success()
+                ->title('移動完了')
+                ->body('サブ枠に移動しました')
+                ->send();
         }
     }
     
@@ -807,10 +810,11 @@ class ReservationTimelineWidget extends Widget
         // 過去の予約は移動不可
         $reservationDateTime = \Carbon\Carbon::parse($reservation->reservation_date->format('Y-m-d') . ' ' . $reservation->start_time);
         if ($reservationDateTime->isPast()) {
-            $this->dispatch('notify', [
-                'type' => 'error',
-                'message' => '過去の予約の席移動はできません'
-            ]);
+            \Filament\Notifications\Notification::make()
+                ->danger()
+                ->title('移動失敗')
+                ->body('過去の予約の席移動はできません')
+                ->send();
             return;
         }
 
@@ -824,10 +828,11 @@ class ReservationTimelineWidget extends Widget
 
         if (!$shift) {
             $staff = \App\Models\User::find($staffId);
-            $this->dispatch('notify', [
-                'type' => 'warning',
-                'message' => ($staff ? $staff->name : 'スタッフ') . 'はこの日シフトがありません'
-            ]);
+            \Filament\Notifications\Notification::make()
+                ->warning()
+                ->title('シフトなし')
+                ->body(($staff ? $staff->name : 'スタッフ') . 'はこの日シフトがありません')
+                ->send();
             return;
         }
 
@@ -838,10 +843,11 @@ class ReservationTimelineWidget extends Widget
         $shiftEnd = Carbon::parse($shift->end_time);
 
         if ($startTime->lt($shiftStart) || $endTime->gt($shiftEnd)) {
-            $this->dispatch('notify', [
-                'type' => 'warning',
-                'message' => '予約時間がスタッフのシフト時間外です（' . $shift->start_time . '-' . $shift->end_time . '）'
-            ]);
+            \Filament\Notifications\Notification::make()
+                ->warning()
+                ->title('シフト時間外')
+                ->body('予約時間がスタッフのシフト時間外です（' . $shift->start_time . '-' . $shift->end_time . '）')
+                ->send();
             return;
         }
 
@@ -885,10 +891,11 @@ class ReservationTimelineWidget extends Widget
         $this->selectedReservation = null;
 
         $staff = \App\Models\User::find($staffId);
-        $this->dispatch('notify', [
-            'type' => 'success',
-            'message' => ($staff ? $staff->name : 'スタッフ') . 'に割り当てました'
-        ]);
+        \Filament\Notifications\Notification::make()
+            ->success()
+            ->title('割り当て完了')
+            ->body(($staff ? $staff->name : 'スタッフ') . 'に割り当てました')
+            ->send();
     }
 
     /**
@@ -912,10 +919,11 @@ class ReservationTimelineWidget extends Widget
             // 過去の予約は移動不可
             $reservationDateTime = \Carbon\Carbon::parse($reservation->reservation_date->format('Y-m-d') . ' ' . $reservation->start_time);
             if ($reservationDateTime->isPast()) {
-                $this->dispatch('notify', [
-                    'type' => 'error',
-                    'message' => '過去の予約の席移動はできません'
-                ]);
+                \Filament\Notifications\Notification::make()
+                    ->danger()
+                    ->title('移動失敗')
+                    ->body('過去の予約の席移動はできません')
+                    ->send();
                 return;
             }
 
@@ -958,10 +966,11 @@ class ReservationTimelineWidget extends Widget
 
             $this->selectedReservation = null;
 
-            $this->dispatch('notify', [
-                'type' => 'success',
-                'message' => '未指定ラインに移動しました'
-            ]);
+            \Filament\Notifications\Notification::make()
+                ->success()
+                ->title('移動完了')
+                ->body('未指定ラインに移動しました')
+                ->send();
         }
     }
 
@@ -972,10 +981,11 @@ class ReservationTimelineWidget extends Widget
             // 過去の予約は移動不可（日付と時刻を合わせて判定）
             $reservationDateTime = \Carbon\Carbon::parse($reservation->reservation_date->format('Y-m-d') . ' ' . $reservation->start_time);
             if ($reservationDateTime->isPast()) {
-                $this->dispatch('notify', [
-                    'type' => 'error',
-                    'message' => '過去の予約の席移動はできません'
-                ]);
+                \Filament\Notifications\Notification::make()
+                    ->danger()
+                    ->title('移動失敗')
+                    ->body('過去の予約の席移動はできません')
+                    ->send();
                 return;
             }
 
@@ -983,10 +993,11 @@ class ReservationTimelineWidget extends Widget
 
             // スタッフシフトモードでは使用しない
             if ($store && $store->use_staff_assignment) {
-                $this->dispatch('notify', [
-                    'type' => 'error',
-                    'message' => 'スタッフシフトモードではこの操作は利用できません'
-                ]);
+                \Filament\Notifications\Notification::make()
+                    ->danger()
+                    ->title('操作不可')
+                    ->body('スタッフシフトモードではこの操作は利用できません')
+                    ->send();
                 return;
             } else {
                 // 営業時間ベースモードの重複チェック
@@ -1006,10 +1017,11 @@ class ReservationTimelineWidget extends Widget
                     ->exists();
 
                 if ($hasConflict) {
-                    $this->dispatch('notify', [
-                        'type' => 'error',
-                        'message' => '席' . $seatNumber . 'は既に予約が入っています'
-                    ]);
+                    \Filament\Notifications\Notification::make()
+                        ->danger()
+                        ->title('移動失敗')
+                        ->body('席' . $seatNumber . 'は既に予約が入っています')
+                        ->send();
                     return;
                 }
             }
@@ -1028,10 +1040,11 @@ class ReservationTimelineWidget extends Widget
             
             $this->loadTimelineData();
             $this->selectedReservation = null;
-            $this->dispatch('notify', [
-                'type' => 'success',
-                'message' => '席' . $seatNumber . 'に移動しました'
-            ]);
+            \Filament\Notifications\Notification::make()
+                ->success()
+                ->title('移動完了')
+                ->body('席' . $seatNumber . 'に移動しました')
+                ->send();
         }
     }
     
@@ -1462,10 +1475,11 @@ class ReservationTimelineWidget extends Widget
             ]);
 
             $this->searchResults = [];
-            $this->dispatch('notify', [
-                'type' => 'error',
-                'message' => '顧客検索中にエラーが発生しました: ' . $e->getMessage()
-            ]);
+            \Filament\Notifications\Notification::make()
+                ->danger()
+                ->title('検索エラー')
+                ->body('顧客検索中にエラーが発生しました: ' . $e->getMessage())
+                ->send();
         }
     }
     
@@ -1654,10 +1668,11 @@ class ReservationTimelineWidget extends Widget
         // ステップ3に移行したことをブラウザに通知
         $this->dispatch('modal-opened');
 
-        $this->dispatch('notify', [
-            'type' => 'success',
-            'message' => '新規顧客を登録しました'
-        ]);
+        \Filament\Notifications\Notification::make()
+            ->success()
+            ->title('登録完了')
+            ->body('新規顧客を登録しました')
+            ->send();
     }
 
     /**
@@ -1954,16 +1969,16 @@ class ReservationTimelineWidget extends Widget
 
             // 成功通知（オプション数を含める）
             $optionCount = count($this->newReservation['option_menu_ids']);
-            $message = '予約を作成しました（予約番号: ' . $reservationNumber;
+            $message = '予約番号: ' . $reservationNumber;
             if ($optionCount > 0) {
                 $message .= '、オプション' . $optionCount . '件追加';
             }
-            $message .= '）';
 
-            $this->dispatch('notify', [
-                'type' => 'success',
-                'message' => $message
-            ]);
+            \Filament\Notifications\Notification::make()
+                ->success()
+                ->title('予約作成完了')
+                ->body($message)
+                ->send();
         } catch (\Illuminate\Database\QueryException $e) {
             // データベースエラー（重複など）
             logger()->error('Reservation creation database error', [
@@ -2172,10 +2187,11 @@ class ReservationTimelineWidget extends Widget
                 ];
             }
 
-            $this->dispatch('notify', [
-                'type' => 'success',
-                'message' => 'オプションを追加しました'
-            ]);
+            \Filament\Notifications\Notification::make()
+                ->success()
+                ->title('追加完了')
+                ->body('オプションを追加しました')
+                ->send();
         }
     }
 
@@ -2192,10 +2208,11 @@ class ReservationTimelineWidget extends Widget
 
         unset($this->selectedOptions[$optionId]);
 
-        $this->dispatch('notify', [
-            'type' => 'info',
-            'message' => 'オプションを削除しました'
-        ]);
+        \Filament\Notifications\Notification::make()
+            ->info()
+            ->title('削除完了')
+            ->body('オプションを削除しました')
+            ->send();
     }
 
     /**

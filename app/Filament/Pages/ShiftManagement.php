@@ -167,21 +167,23 @@ class ShiftManagement extends Page
         }
         
         $this->loadCalendarData();
-        
-        $this->dispatch('notify', [
-            'type' => 'success',
-            'message' => 'シフトを追加しました',
-        ]);
+
+        \Filament\Notifications\Notification::make()
+            ->success()
+            ->title('追加完了')
+            ->body('シフトを追加しました')
+            ->send();
     }
     
     public function deleteShift($shiftId): void
     {
         Shift::find($shiftId)?->delete();
         $this->loadCalendarData();
-        
-        $this->dispatch('notify', [
-            'type' => 'success',
-            'message' => 'シフトを削除しました',
-        ]);
+
+        \Filament\Notifications\Notification::make()
+            ->success()
+            ->title('削除完了')
+            ->body('シフトを削除しました')
+            ->send();
     }
 }

@@ -290,10 +290,11 @@ class ShiftCalendarWidget extends Widget
         
         $this->loadCalendarData();
         $this->calculateMonthlySummary();
-        $this->dispatch('notify', [
-            'type' => 'success',
-            'message' => 'パターンを適用しました',
-        ]);
+        \Filament\Notifications\Notification::make()
+            ->success()
+            ->title('適用完了')
+            ->body('パターンを適用しました')
+            ->send();
     }
     
     public function bulkSaveShifts($dates, $staffShifts): void
@@ -307,10 +308,11 @@ class ShiftCalendarWidget extends Widget
                 }
             }
         });
-        
-        $this->dispatch('notify', [
-            'type' => 'success',
-            'message' => 'シフトを一括登録しました',
-        ]);
+
+        \Filament\Notifications\Notification::make()
+            ->success()
+            ->title('登録完了')
+            ->body('シフトを一括登録しました')
+            ->send();
     }
 }
