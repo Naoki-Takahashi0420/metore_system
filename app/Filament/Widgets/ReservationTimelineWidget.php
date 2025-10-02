@@ -1733,7 +1733,7 @@ class ReservationTimelineWidget extends Widget
     public function createReservation(): void
     {
         try {
-            logger('🎯 createReservation called', [
+            logger('createReservation called', [
                 'selectedCustomer' => $this->selectedCustomer ? $this->selectedCustomer->id : null,
                 'menu_id' => $this->newReservation['menu_id'] ?? null,
                 'date' => $this->newReservation['date'] ?? null,
@@ -1743,15 +1743,17 @@ class ReservationTimelineWidget extends Widget
 
             // バリデーション
             if (!$this->selectedCustomer || empty($this->newReservation['menu_id'])) {
-                logger('❌ Validation failed', [
+                logger('Validation failed', [
                     'has_customer' => (bool)$this->selectedCustomer,
                     'has_menu_id' => !empty($this->newReservation['menu_id'])
                 ]);
 
-                $this->dispatch('notify', [
-                    'type' => 'error',
-                    'message' => '必須項目を入力してください'
-                ]);
+                \Filament\Notifications\Notification::make()
+                    ->danger()
+                    ->title('入力エラー')
+                    ->body('顧客とメニューを選択してください')
+                    ->persistent()
+                    ->send();
                 return;
             }
 
@@ -1759,20 +1761,24 @@ class ReservationTimelineWidget extends Widget
             $reservationDateTime = \Carbon\Carbon::parse($this->newReservation['date'] . ' ' . $this->newReservation['start_time']);
             $minimumTime = \Carbon\Carbon::now()->subMinutes(30);
             if ($reservationDateTime->lt($minimumTime)) {
-                $this->dispatch('notify', [
-                    'type' => 'error',
-                    'message' => '過去の時間には予約できません'
-                ]);
+                \Filament\Notifications\Notification::make()
+                    ->danger()
+                    ->title('予約作成失敗')
+                    ->body('過去の時間には予約できません')
+                    ->persistent()
+                    ->send();
                 return;
             }
 
             // メニュー情報を取得
             $menu = \App\Models\Menu::find($this->newReservation['menu_id']);
             if (!$menu) {
-                $this->dispatch('notify', [
-                    'type' => 'error',
-                    'message' => 'メニューが見つかりません'
-                ]);
+                \Filament\Notifications\Notification::make()
+                    ->danger()
+                    ->title('メニューエラー')
+                    ->body('選択されたメニューが見つかりません')
+                    ->persistent()
+                    ->send();
                 return;
             }
 
@@ -1794,10 +1800,12 @@ class ReservationTimelineWidget extends Widget
                 );
 
                 if (!$availabilityResult['can_reserve']) {
-                    $this->dispatch('notify', [
-                        'type' => 'error',
-                        'message' => $availabilityResult['reason'] ?: 'この時間帯は予約できません'
-                    ]);
+                    \Filament\Notifications\Notification::make()
+                        ->danger()
+                        ->title('予約作成失敗')
+                        ->body($availabilityResult['reason'] ?: 'この時間帯は予約できません')
+                        ->persistent()
+                        ->send();
                     return;
                 }
             } else {
@@ -1820,7 +1828,7 @@ class ReservationTimelineWidget extends Widget
 
                 $closingDateTime = \Carbon\Carbon::parse($this->newReservation['date'] . ' ' . $closingTime);
 
-                logger('⏰ Business hours check', [
+                logger('Business hours check', [
                     'start_time' => $startTime->format('H:i'),
                     'end_time' => $endTime->format('H:i'),
                     'closing_time' => $closingTime,
@@ -1830,15 +1838,17 @@ class ReservationTimelineWidget extends Widget
 
                 // 終了時刻が営業時間を超える場合はエラー
                 if ($endTime->gt($closingDateTime)) {
-                    logger('❌ Business hours exceeded', [
+                    logger('Business hours exceeded', [
                         'end_time' => $endTime->format('H:i'),
                         'closing_time' => $closingTime
                     ]);
 
-                    $this->dispatch('notify', [
-                        'type' => 'error',
-                        'message' => '予約終了時刻（' . $endTime->format('H:i') . '）が営業時間（' . $closingTime . '）を超えています'
-                    ]);
+                    \Filament\Notifications\Notification::make()
+                        ->danger()
+                        ->title('営業時間外')
+                        ->body('予約終了時刻（' . $endTime->format('H:i') . '）が営業時間（' . $closingTime . '）を超えています')
+                        ->persistent()
+                        ->send();
                     return;
                 }
             }
@@ -1849,8 +1859,8 @@ class ReservationTimelineWidget extends Widget
             // スタッフシフトモードかどうか確認（既に取得済みの$storeを使用）
             $useStaffAssignment = $store->use_staff_assignment ?? false;
 
-            // CRITICAL: 予約作成時の顧客情報をログに記録
-            logger('📝 Creating reservation with customer', [
+            // 予約作成時の顧客情報をログに記録
+            logger('Creating reservation with customer', [
                 'selectedCustomer' => [
                     'id' => $this->selectedCustomer->id,
                     'name' => $this->selectedCustomer->last_name . ' ' . $this->selectedCustomer->first_name,

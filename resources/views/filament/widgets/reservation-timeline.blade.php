@@ -725,6 +725,7 @@
                                             style="cursor: not-allowed; position: relative;"
                                             title="過去の時間帯です（予約開始1時間前まで受付）"
                                         @elseif(!$hasReservation && !$isBlocked)
+                                            onclick="alert('この時間帯は予約できません。\n\n理由: {{ $tooltipMessage ?: ($hasNoStaff ? 'スタッフのシフトがありません' : '予約枠が満席です') }}')"
                                             style="cursor: not-allowed; position: relative; opacity: 0.6;"
                                             title="{{ $tooltipMessage ?: ($hasNoStaff ? 'スタッフのシフトがありません' : '予約不可') }}"
                                         @endif>
