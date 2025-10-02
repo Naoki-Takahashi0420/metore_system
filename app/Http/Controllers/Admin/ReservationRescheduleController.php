@@ -262,7 +262,7 @@ class ReservationRescheduleController extends Controller
             ->whereNotIn('status', ['cancelled', 'canceled']);
 
         if ($excludeReservationId) {
-            $reservationsQuery->where('id', '!=', $excludeReservationId);
+            $reservationsQuery->where('id', '<>', $excludeReservationId);
         }
 
         if ($staffId) {
@@ -332,7 +332,7 @@ class ReservationRescheduleController extends Controller
                     ? $dayReservations->where('staff_id', $staffId)
                     : $dayReservations;
 
-                $hasConflict = $relevantReservations->filter(function($reservation) use ($slotTime, $slotEnd) {
+                $conflictingReservations = $relevantReservations->filter(function($reservation) use ($slotTime, $slotEnd) {
                     $reservationStart = Carbon::parse($reservation->start_time);
                     $reservationEnd = Carbon::parse($reservation->end_time);
 
@@ -341,7 +341,9 @@ class ReservationRescheduleController extends Controller
                         ($slotEnd->gt($reservationStart) && $slotEnd->lte($reservationEnd)) ||
                         ($slotTime->lte($reservationStart) && $slotEnd->gte($reservationEnd))
                     );
-                })->count() > 0;
+                });
+
+                $hasConflict = $conflictingReservations->count() > 0;
 
                 if ($hasConflict) {
                     $availability[$dateStr][$slot] = false;
