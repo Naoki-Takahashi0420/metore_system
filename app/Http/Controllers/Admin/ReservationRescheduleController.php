@@ -327,23 +327,25 @@ class ReservationRescheduleController extends Controller
                     continue;
                 }
 
-                // スタッフ指定の場合の重複チェック
-                if ($staffId) {
-                    $hasConflict = $dayReservations->filter(function($reservation) use ($slotTime, $slotEnd) {
-                        $reservationStart = Carbon::parse($reservation->start_time);
-                        $reservationEnd = Carbon::parse($reservation->end_time);
+                // 重複チェック（スタッフ指定の有無に関わらず）
+                $relevantReservations = $staffId
+                    ? $dayReservations->where('staff_id', $staffId)
+                    : $dayReservations;
 
-                        return (
-                            ($slotTime->gte($reservationStart) && $slotTime->lt($reservationEnd)) ||
-                            ($slotEnd->gt($reservationStart) && $slotEnd->lte($reservationEnd)) ||
-                            ($slotTime->lte($reservationStart) && $slotEnd->gte($reservationEnd))
-                        );
-                    })->count() > 0;
+                $hasConflict = $relevantReservations->filter(function($reservation) use ($slotTime, $slotEnd) {
+                    $reservationStart = Carbon::parse($reservation->start_time);
+                    $reservationEnd = Carbon::parse($reservation->end_time);
 
-                    if ($hasConflict) {
-                        $availability[$dateStr][$slot] = false;
-                        continue;
-                    }
+                    return (
+                        ($slotTime->gte($reservationStart) && $slotTime->lt($reservationEnd)) ||
+                        ($slotEnd->gt($reservationStart) && $slotEnd->lte($reservationEnd)) ||
+                        ($slotTime->lte($reservationStart) && $slotEnd->gte($reservationEnd))
+                    );
+                })->count() > 0;
+
+                if ($hasConflict) {
+                    $availability[$dateStr][$slot] = false;
+                    continue;
                 }
 
                 $availability[$dateStr][$slot] = true;
