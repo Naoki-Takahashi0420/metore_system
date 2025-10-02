@@ -35,6 +35,23 @@
             </div>
         </div>
 
+        <!-- 視力推移グラフ -->
+        <div id="vision-chart-container" class="hidden py-6">
+            <div class="bg-white rounded-lg border border-gray-200 p-6">
+                <h2 class="text-lg font-semibold mb-4 text-gray-900">視力推移グラフ</h2>
+                <div class="space-y-6">
+                    <div id="naked-vision-chart-wrapper" class="hidden">
+                        <h3 class="text-base font-medium mb-3 text-gray-700">裸眼視力</h3>
+                        <canvas id="nakedVisionChart" width="400" height="200"></canvas>
+                    </div>
+                    <div id="corrected-vision-chart-wrapper" class="hidden">
+                        <h3 class="text-base font-medium mb-3 text-gray-700">矯正視力</h3>
+                        <canvas id="correctedVisionChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Medical Records List -->
         <div id="medical-records-container" class="py-4">
             <div class="text-center py-12">
@@ -59,6 +76,7 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 async function goToReservation() {
     const token = localStorage.getItem('customer_token');
@@ -148,8 +166,10 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         
         const data = await response.json();
-        displayMedicalRecords(data.data || []);
-        
+        const records = data.data || [];
+        displayMedicalRecords(records);
+        renderVisionCharts(records);
+
     } catch (error) {
         console.error('Error fetching medical records:', error);
         document.getElementById('medical-records-container').innerHTML = `
@@ -568,6 +588,181 @@ document.addEventListener('keydown', function(e) {
         closeImageModal();
     }
 });
+
+// 視力推移グラフを描画
+function renderVisionCharts(records) {
+    // 全カルテから視力記録を収集
+    const allVisionRecords = [];
+
+    records.forEach(record => {
+        if (record.vision_records && record.vision_records.length > 0) {
+            record.vision_records.forEach(vision => {
+                allVisionRecords.push({
+                    ...vision,
+                    treatment_date: record.treatment_date || record.record_date
+                });
+            });
+        }
+    });
+
+    if (allVisionRecords.length === 0) {
+        return; // データがない場合は何もしない
+    }
+
+    // 日付でソート
+    allVisionRecords.sort((a, b) => {
+        const dateA = new Date(a.date || a.treatment_date);
+        const dateB = new Date(b.date || b.treatment_date);
+        return dateA - dateB;
+    });
+
+    // データ整形
+    const dates = [];
+    const leftNakedAfter = [];
+    const rightNakedAfter = [];
+    const leftCorrectedAfter = [];
+    const rightCorrectedAfter = [];
+
+    let hasNakedData = false;
+    let hasCorrectedData = false;
+
+    allVisionRecords.forEach((vision, index) => {
+        const date = vision.date ? new Date(vision.date) : new Date(vision.treatment_date);
+        dates.push(date.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }));
+
+        // 施術後の視力を収集
+        const leftNaked = vision.after_naked_left ? parseFloat(vision.after_naked_left) : null;
+        const rightNaked = vision.after_naked_right ? parseFloat(vision.after_naked_right) : null;
+        const leftCorrected = vision.after_corrected_left ? parseFloat(vision.after_corrected_left) : null;
+        const rightCorrected = vision.after_corrected_right ? parseFloat(vision.after_corrected_right) : null;
+
+        leftNakedAfter.push(leftNaked);
+        rightNakedAfter.push(rightNaked);
+        leftCorrectedAfter.push(leftCorrected);
+        rightCorrectedAfter.push(rightCorrected);
+
+        if (leftNaked !== null || rightNaked !== null) hasNakedData = true;
+        if (leftCorrected !== null || rightCorrected !== null) hasCorrectedData = true;
+    });
+
+    const chartContainer = document.getElementById('vision-chart-container');
+    if (!chartContainer) return;
+
+    const chartConfig = {
+        type: 'line',
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 2.0,
+                    ticks: {
+                        stepSize: 0.1
+                    },
+                    title: {
+                        display: true,
+                        text: '視力'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: '測定日'
+                    }
+                }
+            },
+            interaction: {
+                mode: 'nearest',
+                axis: 'x',
+                intersect: false
+            }
+        }
+    };
+
+    // 裸眼視力グラフ
+    if (hasNakedData) {
+        const nakedWrapper = document.getElementById('naked-vision-chart-wrapper');
+        const nakedCanvas = document.getElementById('nakedVisionChart');
+
+        if (nakedWrapper && nakedCanvas) {
+            nakedWrapper.classList.remove('hidden');
+            new Chart(nakedCanvas, {
+                ...chartConfig,
+                data: {
+                    labels: dates,
+                    datasets: [
+                        {
+                            label: '左眼',
+                            data: leftNakedAfter,
+                            borderColor: 'rgb(255, 99, 132)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                            tension: 0.4,
+                            spanGaps: true
+                        },
+                        {
+                            label: '右眼',
+                            data: rightNakedAfter,
+                            borderColor: 'rgb(54, 162, 235)',
+                            backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                            tension: 0.4,
+                            spanGaps: true
+                        }
+                    ]
+                }
+            });
+        }
+    }
+
+    // 矯正視力グラフ
+    if (hasCorrectedData) {
+        const correctedWrapper = document.getElementById('corrected-vision-chart-wrapper');
+        const correctedCanvas = document.getElementById('correctedVisionChart');
+
+        if (correctedWrapper && correctedCanvas) {
+            correctedWrapper.classList.remove('hidden');
+            new Chart(correctedCanvas, {
+                ...chartConfig,
+                data: {
+                    labels: dates,
+                    datasets: [
+                        {
+                            label: '左眼',
+                            data: leftCorrectedAfter,
+                            borderColor: 'rgb(255, 159, 64)',
+                            backgroundColor: 'rgba(255, 159, 64, 0.1)',
+                            tension: 0.4,
+                            spanGaps: true
+                        },
+                        {
+                            label: '右眼',
+                            data: rightCorrectedAfter,
+                            borderColor: 'rgb(75, 192, 192)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                            tension: 0.4,
+                            spanGaps: true
+                        }
+                    ]
+                }
+            });
+        }
+    }
+
+    // グラフコンテナを表示
+    if (hasNakedData || hasCorrectedData) {
+        chartContainer.classList.remove('hidden');
+    }
+}
 </script>
 
 {{-- モバイル用固定ナビゲーションバー --}}

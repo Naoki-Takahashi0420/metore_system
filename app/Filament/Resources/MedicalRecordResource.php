@@ -80,7 +80,8 @@ class MedicalRecordResource extends Resource
                                             )),
                                         
                                         Forms\Components\Select::make('reservation_id')
-                                            ->label('予約')
+                                            ->label('予約（任意）')
+                                            ->helperText('引き継ぎメモなど、予約に紐づかないカルテ作成も可能です')
                                             ->options(function ($get) {
                                                 if (!$get('customer_id')) {
                                                     return [];
@@ -95,13 +96,14 @@ class MedicalRecordResource extends Resource
                                                         $menu = $reservation->menu ? ' - ' . $reservation->menu->name : '';
                                                         $store = $reservation->store ? ' (' . $reservation->store->name . ')' : '';
                                                         $status = $reservation->status === 'completed' ? ' [完了]' : '';
-                                                        
+
                                                         $label = $date . $time . $menu . $store . $status;
                                                         return [$reservation->id => $label];
                                                     });
                                             })
                                             ->searchable()
                                             ->reactive()
+                                            ->nullable()
                                             ->afterStateUpdated(function ($state, $set) {
                                                 // 予約選択時に担当スタッフを自動設定
                                                 if ($state) {
