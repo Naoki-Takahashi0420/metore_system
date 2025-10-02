@@ -15,7 +15,10 @@ class BlockedTimePeriod extends Model
         'is_all_day',
         'reason',
         'is_recurring',
-        'recurrence_pattern'
+        'recurrence_pattern',
+        'line_type',
+        'line_number',
+        'staff_id'
     ];
 
     protected $casts = [
@@ -27,5 +30,10 @@ class BlockedTimePeriod extends Model
     public function store(): BelongsTo
     {
         return $this->belongsTo(Store::class);
+    }
+
+    public function staff(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'staff_id');
     }
 }

@@ -95,24 +95,57 @@ class AvailabilityController extends Controller
         $blockedPeriods = BlockedTimePeriod::where('store_id', $store->id)
             ->whereDate('blocked_date', $date)
             ->get();
-        
+
         // 予約済みの時間帯とブロック時間を除外
-        $availableSlots = collect($slots)->filter(function ($slot) use ($existingReservations, $blockedPeriods, $menuDuration, $date) {
+        $availableSlots = collect($slots)->filter(function ($slot) use ($existingReservations, $blockedPeriods, $menuDuration, $date, $store) {
             $slotStart = Carbon::parse($slot['datetime']);
             $slotEnd = $slotStart->copy()->addMinutes($menuDuration);
-            
+
             // ブロックされた時間帯との重複チェック
+            // 1. 全体ブロック（line_typeがnull）がある場合は予約不可
+            $hasGlobalBlock = false;
             foreach ($blockedPeriods as $blocked) {
-                $blockStart = Carbon::parse($date->format('Y-m-d') . ' ' . $blocked->start_time);
-                $blockEnd = Carbon::parse($date->format('Y-m-d') . ' ' . $blocked->end_time);
-                
-                if (
-                    ($slotStart->gte($blockStart) && $slotStart->lt($blockEnd)) ||
-                    ($slotEnd->gt($blockStart) && $slotEnd->lte($blockEnd)) ||
-                    ($slotStart->lte($blockStart) && $slotEnd->gte($blockEnd))
-                ) {
-                    return false;
+                if ($blocked->line_type === null) {
+                    $blockStart = Carbon::parse($date->format('Y-m-d') . ' ' . $blocked->start_time);
+                    $blockEnd = Carbon::parse($date->format('Y-m-d') . ' ' . $blocked->end_time);
+
+                    if (
+                        ($slotStart->gte($blockStart) && $slotStart->lt($blockEnd)) ||
+                        ($slotEnd->gt($blockStart) && $slotEnd->lte($blockEnd)) ||
+                        ($slotStart->lte($blockStart) && $slotEnd->gte($blockEnd))
+                    ) {
+                        $hasGlobalBlock = true;
+                        break;
+                    }
                 }
+            }
+
+            if ($hasGlobalBlock) {
+                return false;
+            }
+
+            // 2. ライン別ブロックをカウント（メインラインのみ）
+            $mainLinesCount = $store->main_lines_count ?? 1;
+            $blockedMainLinesCount = 0;
+
+            foreach ($blockedPeriods as $blocked) {
+                if ($blocked->line_type === 'main') {
+                    $blockStart = Carbon::parse($date->format('Y-m-d') . ' ' . $blocked->start_time);
+                    $blockEnd = Carbon::parse($date->format('Y-m-d') . ' ' . $blocked->end_time);
+
+                    if (
+                        ($slotStart->gte($blockStart) && $slotStart->lt($blockEnd)) ||
+                        ($slotEnd->gt($blockStart) && $slotEnd->lte($blockEnd)) ||
+                        ($slotStart->lte($blockStart) && $slotEnd->gte($blockEnd))
+                    ) {
+                        $blockedMainLinesCount++;
+                    }
+                }
+            }
+
+            // 全てのメインラインがブロックされている場合は予約不可
+            if ($blockedMainLinesCount >= $mainLinesCount) {
+                return false;
             }
             
             // 既存予約との重複チェック（店舗設定に応じた席数制御）

@@ -383,6 +383,57 @@ class ReservationRescheduleController extends Controller
             }
         }
 
+        // ブロック時間帯チェック
+        $blockedPeriodsQuery = BlockedTimePeriod::where('store_id', $store->id)
+            ->whereDate('blocked_date', $date);
+
+        // 全体ブロック（line_typeがnull）をチェック
+        $hasGlobalBlock = $blockedPeriodsQuery->clone()
+            ->whereNull('line_type')
+            ->where(function($query) use ($startTime, $endTime) {
+                $query->where(function($q) use ($startTime) {
+                    $q->where('start_time', '<=', $startTime)
+                      ->where('end_time', '>', $startTime);
+                })
+                ->orWhere(function($q) use ($endTime) {
+                    $q->where('start_time', '<', $endTime)
+                      ->where('end_time', '>=', $endTime);
+                })
+                ->orWhere(function($q) use ($startTime, $endTime) {
+                    $q->where('start_time', '>=', $startTime)
+                      ->where('end_time', '<=', $endTime);
+                });
+            })->exists();
+
+        if ($hasGlobalBlock) {
+            return ['available' => false, 'message' => 'この時間帯はブロックされています'];
+        }
+
+        // スタッフ指定がある場合は、そのスタッフのライン専用ブロックをチェック
+        if ($staffId) {
+            $hasStaffLineBlock = $blockedPeriodsQuery->clone()
+                ->where('line_type', 'staff')
+                ->where('staff_id', $staffId)
+                ->where(function($query) use ($startTime, $endTime) {
+                    $query->where(function($q) use ($startTime) {
+                        $q->where('start_time', '<=', $startTime)
+                          ->where('end_time', '>', $startTime);
+                    })
+                    ->orWhere(function($q) use ($endTime) {
+                        $q->where('start_time', '<', $endTime)
+                          ->where('end_time', '>=', $endTime);
+                    })
+                    ->orWhere(function($q) use ($startTime, $endTime) {
+                        $q->where('start_time', '>=', $startTime)
+                          ->where('end_time', '<=', $endTime);
+                    });
+                })->exists();
+
+            if ($hasStaffLineBlock) {
+                return ['available' => false, 'message' => 'このスタッフのラインはブロックされています'];
+            }
+        }
+
         // 重複チェック
         $conflictQuery = Reservation::where('store_id', $store->id)
             ->where('reservation_date', $date)

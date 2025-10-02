@@ -1,4 +1,7 @@
 <x-filament-widgets::widget>
+    <div wire:poll.30s="loadTimelineData">
+        <!-- 30秒ごとに自動更新 -->
+    </div>
     <!-- スロットクリックハンドラー（最初に定義） -->
     <script>
         window.handleSlotClick = function(seatKey, timeSlot) {
@@ -619,7 +622,12 @@
                                                 break;
                                             }
                                         }
+                                        // 全体ブロックまたはライン別ブロックをチェック
                                         $isBlocked = in_array($index, $timelineData['blockedSlots']);
+                                        $seatKey = $seat['key'] ?? null;
+                                        if (!$isBlocked && $seatKey && isset($timelineData['lineBlockedSlots'][$seatKey])) {
+                                            $isBlocked = in_array($index, $timelineData['lineBlockedSlots'][$seatKey]);
+                                        }
 
                                         // 予約可否の詳細情報を取得
                                         $availabilityResult = null;
@@ -1568,17 +1576,44 @@
                             <div class="text-sm font-medium text-red-900">
                                 ブロック開始: {{ $blockSettings['date'] }} {{ $blockSettings['start_time'] }}
                             </div>
+                            @if(!empty($blockSettings['selected_lines']) && count($blockSettings['selected_lines']) > 0)
+                                @php
+                                    $seatKey = $blockSettings['selected_lines'][0];
+                                    $lineLabel = '';
+
+                                    if (strpos($seatKey, 'staff_') === 0) {
+                                        $staffId = intval(substr($seatKey, 6));
+                                        $staff = \App\Models\User::find($staffId);
+                                        $lineLabel = '👤 ' . ($staff ? $staff->name : 'スタッフ');
+                                    } elseif ($seatKey === 'unassigned') {
+                                        $lineLabel = '未割当ライン';
+                                    } elseif (strpos($seatKey, 'sub_') === 0) {
+                                        $lineNumber = intval(substr($seatKey, 4));
+                                        $lineLabel = 'サブライン ' . $lineNumber;
+                                    } elseif (strpos($seatKey, 'seat_') === 0) {
+                                        $lineNumber = intval(substr($seatKey, 5));
+                                        $lineLabel = 'メインライン ' . $lineNumber;
+                                    }
+                                @endphp
+                                <div class="text-sm text-red-700 mt-1">
+                                    ブロック対象: {{ $lineLabel }}
+                                </div>
+                            @endif
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium mb-1">終了時間 <span class="text-red-500">*</span></label>
-                            <input
-                                type="time"
+                            <select
                                 wire:model="blockSettings.end_time"
                                 class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                                 required>
-                            @if($blockSettings['end_time'] && $blockSettings['end_time'] <= $blockSettings['start_time'])
-                                <p class="text-red-500 text-sm mt-1">終了時間は開始時間より後に設定してください</p>
+                                <option value="">選択してください</option>
+                                @foreach($this->getBlockEndTimeOptions() as $option)
+                                    <option value="{{ $option['value'] }}">{{ $option['label'] }}</option>
+                                @endforeach
+                            </select>
+                            @if(empty($this->getBlockEndTimeOptions()))
+                                <p class="text-gray-500 text-sm mt-1">開始時間を選択すると、終了時間の選択肢が表示されます</p>
                             @endif
                         </div>
 

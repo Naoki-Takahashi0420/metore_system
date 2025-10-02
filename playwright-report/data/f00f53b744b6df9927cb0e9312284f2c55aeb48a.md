@@ -1,0 +1,1005 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - navigation [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e9]:
+            - generic [ref=e10]: グローバル検索
+            - generic [ref=e11]:
+              - img [ref=e13]
+              - searchbox "グローバル検索" [ref=e16]
+          - button "ユーザーメニュー" [ref=e19] [cursor=pointer]:
+            - img "Administratorのアバター" [ref=e20] [cursor=pointer]
+      - main [ref=e21]:
+        - generic [ref=e22]:
+          - generic [ref=e23]:
+            - heading "ダッシュボード" [level=1] [ref=e26]
+            - generic [ref=e29]:
+              - generic [ref=e33]:
+                - generic [ref=e34]:
+                  - text: 💡
+                  - strong [ref=e35]: "操作方法:"
+                  - text: スタッフ別モード - 空きスロットをクリックで予約作成、予約ブロッククリックで詳細表示
+                - generic [ref=e36]:
+                  - generic [ref=e37]:
+                    - generic [ref=e38]: 店舗：
+                    - combobox [ref=e39]:
+                      - option "銀座本店" [selected]
+                      - option "新宿店"
+                      - option "横浜店"
+                      - option "目のトレーニング名古屋駅前店"
+                      - option "渋谷店"
+                      - option "新宿店"
+                      - option "池袋店"
+                      - option "品川店"
+                      - option "上野店"
+                      - option "横浜店"
+                      - option "川崎店"
+                      - option "千葉店"
+                      - option "大宮店"
+                      - option "立川店"
+                      - option "テスト店舗 (LINE連携)"
+                      - option "テスト店舗 (LINE連携)"
+                      - option "テスト店舗_1758538551"
+                      - option "テスト店舗_1758538575"
+                      - option "テスト店舗_1758538665"
+                  - generic [ref=e40]:
+                    - img [ref=e41]
+                    - generic [ref=e43]: シフトベース（スタッフ別）
+                    - generic [ref=e44]: （最大1席）
+                  - generic [ref=e46]:
+                    - button "◀" [ref=e47] [cursor=pointer]
+                    - generic [ref=e48]: 2025年10月2日 (木)
+                    - button "▶" [ref=e49] [cursor=pointer]
+                - generic [ref=e50]:
+                  - generic:
+                    - generic: 21:42
+                  - table [ref=e51]:
+                    - rowgroup [ref=e52]:
+                      - row "スタッフ/ライン 09:00 10:00 11:00 12:00 13:00 14:00 15:00 16:00 17:00 18:00 19:00 20:00 21:00 22:00" [ref=e53]:
+                        - cell "スタッフ/ライン" [ref=e54]
+                        - cell "09:00" [ref=e55]
+                        - cell "10:00" [ref=e56]
+                        - cell "11:00" [ref=e57]
+                        - cell "12:00" [ref=e58]
+                        - cell "13:00" [ref=e59]
+                        - cell "14:00" [ref=e60]
+                        - cell "15:00" [ref=e61]
+                        - cell "16:00" [ref=e62]
+                        - cell "17:00" [ref=e63]
+                        - cell "18:00" [ref=e64]
+                        - cell "19:00" [ref=e65]
+                        - cell "20:00" [ref=e66]
+                        - cell "21:00" [ref=e67]
+                        - cell "22:00" [ref=e68]
+                    - rowgroup [ref=e69]:
+                      - row "未指定 田中 うんこたれ スタンダードコース 田中 うんこたれ スタンダードコース 田中 うんこたれ スタンダードコース 田中 うんこたれ スタンダードコース 田中 うんこたれ スタンダードコース BRK BRK BRK BRK BRK BRK 田中 うんこたれ スタンダードコース BRK BRK BRK BRK BRK BRK" [ref=e70]:
+                        - cell "未指定" [ref=e71] [cursor=pointer]:
+                          - generic [ref=e72] [cursor=pointer]: 未指定
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e73]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e74]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e75]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e76]
+                        - cell "田中 うんこたれ スタンダードコース" [ref=e77]:
+                          - generic [ref=e78] [cursor=pointer]:
+                            - generic [ref=e79] [cursor=pointer]: 田中 うんこたれ
+                            - generic [ref=e80] [cursor=pointer]: スタンダードコース
+                        - cell [ref=e81]
+                        - cell [ref=e82]
+                        - cell [ref=e83]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e84]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e85]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e86]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e87]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e88]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e89]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e90]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e91]
+                        - cell "田中 うんこたれ スタンダードコース" [ref=e92]:
+                          - generic [ref=e93] [cursor=pointer]:
+                            - generic [ref=e94] [cursor=pointer]: 田中 うんこたれ
+                            - generic [ref=e95] [cursor=pointer]: スタンダードコース
+                        - cell [ref=e96]
+                        - cell [ref=e97]
+                        - cell [ref=e98]
+                        - cell "田中 うんこたれ スタンダードコース" [ref=e99]:
+                          - generic [ref=e100] [cursor=pointer]:
+                            - generic [ref=e101] [cursor=pointer]: 田中 うんこたれ
+                            - generic [ref=e102] [cursor=pointer]: スタンダードコース
+                        - cell [ref=e103]
+                        - cell [ref=e104]
+                        - cell [ref=e105]
+                        - cell "田中 うんこたれ スタンダードコース" [ref=e106]:
+                          - generic [ref=e107] [cursor=pointer]:
+                            - generic [ref=e108] [cursor=pointer]: 田中 うんこたれ
+                            - generic [ref=e109] [cursor=pointer]: スタンダードコース
+                        - cell [ref=e110]
+                        - cell [ref=e111]
+                        - cell [ref=e112]
+                        - cell "田中 うんこたれ スタンダードコース" [ref=e113]:
+                          - generic [ref=e114] [cursor=pointer]:
+                            - generic [ref=e115] [cursor=pointer]: 田中 うんこたれ
+                            - generic [ref=e116] [cursor=pointer]: スタンダードコース
+                        - cell [ref=e117]
+                        - cell [ref=e118]
+                        - cell [ref=e119]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e120]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e121]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e122]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e123]
+                        - cell "BRK" [ref=e124]:
+                          - generic [ref=e125]: BRK
+                        - cell "BRK" [ref=e126]:
+                          - generic [ref=e127]: BRK
+                        - cell "BRK" [ref=e128]:
+                          - generic [ref=e129]: BRK
+                        - cell "BRK" [ref=e130]:
+                          - generic [ref=e131]: BRK
+                        - cell "BRK" [ref=e132]:
+                          - generic [ref=e133]: BRK
+                        - cell "BRK" [ref=e134]:
+                          - generic [ref=e135]: BRK
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e136]
+                        - cell "田中 うんこたれ スタンダードコース" [ref=e137]:
+                          - generic [ref=e138] [cursor=pointer]:
+                            - generic [ref=e139] [cursor=pointer]: 田中 うんこたれ
+                            - generic [ref=e140] [cursor=pointer]: スタンダードコース
+                        - cell [ref=e141]
+                        - cell [ref=e142]
+                        - cell [ref=e143]
+                        - 'cell "この時間帯の予約枠は満席です（容量: 1）" [ref=e144]'
+                        - cell "BRK" [ref=e145]:
+                          - generic [ref=e146]: BRK
+                        - cell "BRK" [ref=e147]:
+                          - generic [ref=e148]: BRK
+                        - cell "BRK" [ref=e149]:
+                          - generic [ref=e150]: BRK
+                        - cell "BRK" [ref=e151]:
+                          - generic [ref=e152]: BRK
+                        - cell "BRK" [ref=e153]:
+                          - generic [ref=e154]: BRK
+                        - cell "BRK" [ref=e155]:
+                          - generic [ref=e156]: BRK
+                        - cell "この時間帯には勤務可能なスタッフがいません" [ref=e157]
+                        - cell "この時間帯には勤務可能なスタッフがいません" [ref=e158]
+                      - row "👤 銀座本店 店長 BRK BRK BRK BRK BRK BRK BRK BRK BRK BRK BRK BRK" [ref=e159]:
+                        - cell "👤 銀座本店 店長" [ref=e160] [cursor=pointer]:
+                          - generic [ref=e161] [cursor=pointer]: 👤 銀座本店 店長
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e162]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e163]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e164]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e165]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e166]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e167]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e168]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e169]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e170]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e171]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e172]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e173]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e174]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e175]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e176]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e177]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e178]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e179]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e180]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e181]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e182]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e183]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e184]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e185]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e186]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e187]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e188]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e189]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e190]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e191]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e192]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e193]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e194]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e195]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e196]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e197]
+                        - cell "BRK" [ref=e198]:
+                          - generic [ref=e199]: BRK
+                        - cell "BRK" [ref=e200]:
+                          - generic [ref=e201]: BRK
+                        - cell "BRK" [ref=e202]:
+                          - generic [ref=e203]: BRK
+                        - cell "BRK" [ref=e204]:
+                          - generic [ref=e205]: BRK
+                        - cell "BRK" [ref=e206]:
+                          - generic [ref=e207]: BRK
+                        - cell "BRK" [ref=e208]:
+                          - generic [ref=e209]: BRK
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e210]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e211]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e212]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e213]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e214]
+                        - 'cell "この時間帯の予約枠は満席です（容量: 1）" [ref=e215]'
+                        - cell "BRK" [ref=e216]:
+                          - generic [ref=e217]: BRK
+                        - cell "BRK" [ref=e218]:
+                          - generic [ref=e219]: BRK
+                        - cell "BRK" [ref=e220]:
+                          - generic [ref=e221]: BRK
+                        - cell "BRK" [ref=e222]:
+                          - generic [ref=e223]: BRK
+                        - cell "BRK" [ref=e224]:
+                          - generic [ref=e225]: BRK
+                        - cell "BRK" [ref=e226]:
+                          - generic [ref=e227]: BRK
+                        - cell "この時間帯には勤務可能なスタッフがいません" [ref=e228]
+                        - cell "この時間帯には勤務可能なスタッフがいません" [ref=e229]
+                      - row "サブ BRK BRK BRK BRK BRK BRK BRK BRK BRK BRK BRK BRK" [ref=e230]:
+                        - cell "サブ" [ref=e231] [cursor=pointer]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e232]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e233]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e234]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e235]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e236]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e237]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e238]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e239]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e240]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e241]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e242]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e243]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e244]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e245]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e246]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e247]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e248]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e249]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e250]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e251]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e252]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e253]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e254]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e255]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e256]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e257]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e258]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e259]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e260]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e261]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e262]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e263]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e264]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e265]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e266]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e267]
+                        - cell "BRK" [ref=e268]:
+                          - generic [ref=e269]: BRK
+                        - cell "BRK" [ref=e270]:
+                          - generic [ref=e271]: BRK
+                        - cell "BRK" [ref=e272]:
+                          - generic [ref=e273]: BRK
+                        - cell "BRK" [ref=e274]:
+                          - generic [ref=e275]: BRK
+                        - cell "BRK" [ref=e276]:
+                          - generic [ref=e277]: BRK
+                        - cell "BRK" [ref=e278]:
+                          - generic [ref=e279]: BRK
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e280]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e281]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e282]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e283]
+                        - cell "過去の時間帯です（予約開始1時間前まで受付）" [ref=e284]
+                        - 'cell "この時間帯の予約枠は満席です（容量: 1）" [ref=e285]'
+                        - cell "BRK" [ref=e286]:
+                          - generic [ref=e287]: BRK
+                        - cell "BRK" [ref=e288]:
+                          - generic [ref=e289]: BRK
+                        - cell "BRK" [ref=e290]:
+                          - generic [ref=e291]: BRK
+                        - cell "BRK" [ref=e292]:
+                          - generic [ref=e293]: BRK
+                        - cell "BRK" [ref=e294]:
+                          - generic [ref=e295]: BRK
+                        - cell "BRK" [ref=e296]:
+                          - generic [ref=e297]: BRK
+                        - cell "この時間帯には勤務可能なスタッフがいません" [ref=e298]
+                        - cell "この時間帯には勤務可能なスタッフがいません" [ref=e299]
+                - generic [ref=e300]:
+                  - generic [ref=e303]: ケアコース
+                  - generic [ref=e306]: 水素コース
+                  - generic [ref=e309]: トレーニングコース
+                  - generic [ref=e312]: 指名のみコース
+              - generic [ref=e315]:
+                - img [ref=e317]
+                - generic [ref=e319]:
+                  - heading "🚨 サブスク決済失敗 - 要対応（1件）" [level=3] [ref=e320]
+                  - paragraph [ref=e321]: 以下の顧客の決済が失敗しています。至急ご対応ください。
+                  - generic [ref=e324]:
+                    - generic [ref=e325]:
+                      - generic [ref=e326]:
+                        - heading "青木 孝介" [level=4] [ref=e327]
+                        - generic [ref=e328]: 決済失敗
+                      - generic [ref=e329]:
+                        - generic [ref=e330]:
+                          - generic [ref=e331]: "電話番号:"
+                          - generic [ref=e332]: "0368223875"
+                        - generic [ref=e333]:
+                          - generic [ref=e334]: "プラン:"
+                          - generic [ref=e335]: 水素サブスクプラン60分
+                        - generic [ref=e336]:
+                          - generic [ref=e337]: "月額:"
+                          - generic [ref=e338]: ¥12,000
+                        - generic [ref=e339]:
+                          - generic [ref=e340]: "失敗日時:"
+                          - generic [ref=e341]: 09/22 13:07
+                      - generic [ref=e342]:
+                        - generic [ref=e343]:
+                          - generic [ref=e344]: "失敗理由:"
+                          - generic [ref=e345]: カード期限切れ
+                        - generic [ref=e346]:
+                          - generic [ref=e347]: "備考:"
+                          - generic [ref=e348]: 不明
+                    - link "対応する" [ref=e350] [cursor=pointer]:
+                      - /url: http://127.0.0.1:8000/admin/subscriptions/24/edit
+                      - img [ref=e351] [cursor=pointer]
+                      - text: 対応する
+                  - paragraph [ref=e354]: "💡 ヒント: 「対応する」ボタンをクリックすると、サブスク契約編集画面に移動します。決済が完了したら「決済復旧」ボタンで正常状態に戻してください。"
+              - generic [ref=e356]:
+                - generic [ref=e357]:
+                  - generic [ref=e358]:
+                    - heading "予約一覧 (6件) - 今日 (2025年10月2日)" [level=3] [ref=e361]
+                    - generic [ref=e364]:
+                      - generic [ref=e365]: 検索
+                      - generic [ref=e366]:
+                        - img [ref=e368]
+                        - searchbox "検索" [ref=e371]
+                  - table [ref=e373]:
+                    - rowgroup [ref=e374]:
+                      - row "時間 店舗 顧客名 電話番号 メニュー 担当 ステータス Actions" [ref=e375]:
+                        - cell "時間" [ref=e376]:
+                          - button "時間" [ref=e377] [cursor=pointer]:
+                            - generic [ref=e378] [cursor=pointer]: 時間
+                            - img [ref=e379] [cursor=pointer]
+                        - cell "店舗" [ref=e381]:
+                          - generic [ref=e383]: 店舗
+                        - cell "顧客名" [ref=e384]:
+                          - generic [ref=e386]: 顧客名
+                        - cell "電話番号" [ref=e387]:
+                          - generic [ref=e389]: 電話番号
+                        - cell "メニュー" [ref=e390]:
+                          - generic [ref=e392]: メニュー
+                        - cell "担当" [ref=e393]:
+                          - generic [ref=e395]: 担当
+                        - cell "ステータス" [ref=e396]:
+                          - generic [ref=e398]: ステータス
+                        - cell "Actions" [ref=e399]
+                    - rowgroup [ref=e400]:
+                      - row "10:00-11:00 銀座本店 田中 うんこたれ 0205555555 スタンダードコース 未定 予約済み 詳細 日程変更 完了 来店なし キャンセル 削除" [ref=e401]:
+                        - cell "10:00-11:00" [ref=e402]:
+                          - generic [ref=e409]: 10:00-11:00
+                        - cell "銀座本店" [ref=e410]:
+                          - generic [ref=e417]: 銀座本店
+                        - cell "田中 うんこたれ" [ref=e418]:
+                          - generic [ref=e425]: 田中 うんこたれ
+                        - cell "0205555555" [ref=e426]:
+                          - generic [ref=e433]: "0205555555"
+                        - cell "スタンダードコース" [ref=e434]:
+                          - generic [ref=e441]: スタンダードコース
+                        - cell "未定" [ref=e442]:
+                          - generic [ref=e446]: 未定
+                        - cell "予約済み" [ref=e447]:
+                          - generic [ref=e455]: 予約済み
+                        - cell "詳細 日程変更 完了 来店なし キャンセル 削除" [ref=e456]:
+                          - generic [ref=e458]:
+                            - link "詳細" [ref=e459] [cursor=pointer]:
+                              - /url: /admin/reservations/74
+                              - img [ref=e460] [cursor=pointer]
+                              - generic [ref=e463] [cursor=pointer]: 詳細
+                            - link "日程変更" [ref=e464] [cursor=pointer]:
+                              - /url: http://127.0.0.1:8000/admin/reservations/74/reschedule
+                              - img [ref=e465] [cursor=pointer]
+                              - generic [ref=e467] [cursor=pointer]: 日程変更
+                            - button "完了" [ref=e468] [cursor=pointer]:
+                              - img [ref=e469] [cursor=pointer]
+                              - generic [ref=e471] [cursor=pointer]: 完了
+                            - button "来店なし" [ref=e472] [cursor=pointer]:
+                              - img [ref=e473] [cursor=pointer]
+                              - generic [ref=e475] [cursor=pointer]: 来店なし
+                            - button "キャンセル" [ref=e476] [cursor=pointer]:
+                              - img [ref=e477] [cursor=pointer]
+                              - generic [ref=e479] [cursor=pointer]: キャンセル
+                            - button "削除" [ref=e480] [cursor=pointer]:
+                              - img [ref=e481] [cursor=pointer]
+                              - generic [ref=e483] [cursor=pointer]: 削除
+                      - row "13:00-14:00 銀座本店 田中 うんこたれ 0205555555 スタンダードコース 未定 予約済み 詳細 日程変更 完了 来店なし キャンセル 削除" [ref=e484]:
+                        - cell "13:00-14:00" [ref=e485]:
+                          - generic [ref=e492]: 13:00-14:00
+                        - cell "銀座本店" [ref=e493]:
+                          - generic [ref=e500]: 銀座本店
+                        - cell "田中 うんこたれ" [ref=e501]:
+                          - generic [ref=e508]: 田中 うんこたれ
+                        - cell "0205555555" [ref=e509]:
+                          - generic [ref=e516]: "0205555555"
+                        - cell "スタンダードコース" [ref=e517]:
+                          - generic [ref=e524]: スタンダードコース
+                        - cell "未定" [ref=e525]:
+                          - generic [ref=e529]: 未定
+                        - cell "予約済み" [ref=e530]:
+                          - generic [ref=e538]: 予約済み
+                        - cell "詳細 日程変更 完了 来店なし キャンセル 削除" [ref=e539]:
+                          - generic [ref=e541]:
+                            - link "詳細" [ref=e542] [cursor=pointer]:
+                              - /url: /admin/reservations/70
+                              - img [ref=e543] [cursor=pointer]
+                              - generic [ref=e546] [cursor=pointer]: 詳細
+                            - link "日程変更" [ref=e547] [cursor=pointer]:
+                              - /url: http://127.0.0.1:8000/admin/reservations/70/reschedule
+                              - img [ref=e548] [cursor=pointer]
+                              - generic [ref=e550] [cursor=pointer]: 日程変更
+                            - button "完了" [ref=e551] [cursor=pointer]:
+                              - img [ref=e552] [cursor=pointer]
+                              - generic [ref=e554] [cursor=pointer]: 完了
+                            - button "来店なし" [ref=e555] [cursor=pointer]:
+                              - img [ref=e556] [cursor=pointer]
+                              - generic [ref=e558] [cursor=pointer]: 来店なし
+                            - button "キャンセル" [ref=e559] [cursor=pointer]:
+                              - img [ref=e560] [cursor=pointer]
+                              - generic [ref=e562] [cursor=pointer]: キャンセル
+                            - button "削除" [ref=e563] [cursor=pointer]:
+                              - img [ref=e564] [cursor=pointer]
+                              - generic [ref=e566] [cursor=pointer]: 削除
+                      - row "14:00-15:00 銀座本店 田中 うんこたれ 0205555555 スタンダードコース 未定 予約済み 詳細 日程変更 完了 来店なし キャンセル 削除" [ref=e567]:
+                        - cell "14:00-15:00" [ref=e568]:
+                          - generic [ref=e575]: 14:00-15:00
+                        - cell "銀座本店" [ref=e576]:
+                          - generic [ref=e583]: 銀座本店
+                        - cell "田中 うんこたれ" [ref=e584]:
+                          - generic [ref=e591]: 田中 うんこたれ
+                        - cell "0205555555" [ref=e592]:
+                          - generic [ref=e599]: "0205555555"
+                        - cell "スタンダードコース" [ref=e600]:
+                          - generic [ref=e607]: スタンダードコース
+                        - cell "未定" [ref=e608]:
+                          - generic [ref=e612]: 未定
+                        - cell "予約済み" [ref=e613]:
+                          - generic [ref=e621]: 予約済み
+                        - cell "詳細 日程変更 完了 来店なし キャンセル 削除" [ref=e622]:
+                          - generic [ref=e624]:
+                            - link "詳細" [ref=e625] [cursor=pointer]:
+                              - /url: /admin/reservations/75
+                              - img [ref=e626] [cursor=pointer]
+                              - generic [ref=e629] [cursor=pointer]: 詳細
+                            - link "日程変更" [ref=e630] [cursor=pointer]:
+                              - /url: http://127.0.0.1:8000/admin/reservations/75/reschedule
+                              - img [ref=e631] [cursor=pointer]
+                              - generic [ref=e633] [cursor=pointer]: 日程変更
+                            - button "完了" [ref=e634] [cursor=pointer]:
+                              - img [ref=e635] [cursor=pointer]
+                              - generic [ref=e637] [cursor=pointer]: 完了
+                            - button "来店なし" [ref=e638] [cursor=pointer]:
+                              - img [ref=e639] [cursor=pointer]
+                              - generic [ref=e641] [cursor=pointer]: 来店なし
+                            - button "キャンセル" [ref=e642] [cursor=pointer]:
+                              - img [ref=e643] [cursor=pointer]
+                              - generic [ref=e645] [cursor=pointer]: キャンセル
+                            - button "削除" [ref=e646] [cursor=pointer]:
+                              - img [ref=e647] [cursor=pointer]
+                              - generic [ref=e649] [cursor=pointer]: 削除
+                      - row "15:00-16:00 銀座本店 田中 うんこたれ 0205555555 スタンダードコース 未定 予約済み 詳細 日程変更 完了 来店なし キャンセル 削除" [ref=e650]:
+                        - cell "15:00-16:00" [ref=e651]:
+                          - generic [ref=e658]: 15:00-16:00
+                        - cell "銀座本店" [ref=e659]:
+                          - generic [ref=e666]: 銀座本店
+                        - cell "田中 うんこたれ" [ref=e667]:
+                          - generic [ref=e674]: 田中 うんこたれ
+                        - cell "0205555555" [ref=e675]:
+                          - generic [ref=e682]: "0205555555"
+                        - cell "スタンダードコース" [ref=e683]:
+                          - generic [ref=e690]: スタンダードコース
+                        - cell "未定" [ref=e691]:
+                          - generic [ref=e695]: 未定
+                        - cell "予約済み" [ref=e696]:
+                          - generic [ref=e704]: 予約済み
+                        - cell "詳細 日程変更 完了 来店なし キャンセル 削除" [ref=e705]:
+                          - generic [ref=e707]:
+                            - link "詳細" [ref=e708] [cursor=pointer]:
+                              - /url: /admin/reservations/71
+                              - img [ref=e709] [cursor=pointer]
+                              - generic [ref=e712] [cursor=pointer]: 詳細
+                            - link "日程変更" [ref=e713] [cursor=pointer]:
+                              - /url: http://127.0.0.1:8000/admin/reservations/71/reschedule
+                              - img [ref=e714] [cursor=pointer]
+                              - generic [ref=e716] [cursor=pointer]: 日程変更
+                            - button "完了" [ref=e717] [cursor=pointer]:
+                              - img [ref=e718] [cursor=pointer]
+                              - generic [ref=e720] [cursor=pointer]: 完了
+                            - button "来店なし" [ref=e721] [cursor=pointer]:
+                              - img [ref=e722] [cursor=pointer]
+                              - generic [ref=e724] [cursor=pointer]: 来店なし
+                            - button "キャンセル" [ref=e725] [cursor=pointer]:
+                              - img [ref=e726] [cursor=pointer]
+                              - generic [ref=e728] [cursor=pointer]: キャンセル
+                            - button "削除" [ref=e729] [cursor=pointer]:
+                              - img [ref=e730] [cursor=pointer]
+                              - generic [ref=e732] [cursor=pointer]: 削除
+                      - row "16:00-17:00 銀座本店 田中 うんこたれ 0205555555 スタンダードコース 未定 予約済み 詳細 日程変更 完了 来店なし キャンセル 削除" [ref=e733]:
+                        - cell "16:00-17:00" [ref=e734]:
+                          - generic [ref=e741]: 16:00-17:00
+                        - cell "銀座本店" [ref=e742]:
+                          - generic [ref=e749]: 銀座本店
+                        - cell "田中 うんこたれ" [ref=e750]:
+                          - generic [ref=e757]: 田中 うんこたれ
+                        - cell "0205555555" [ref=e758]:
+                          - generic [ref=e765]: "0205555555"
+                        - cell "スタンダードコース" [ref=e766]:
+                          - generic [ref=e773]: スタンダードコース
+                        - cell "未定" [ref=e774]:
+                          - generic [ref=e778]: 未定
+                        - cell "予約済み" [ref=e779]:
+                          - generic [ref=e787]: 予約済み
+                        - cell "詳細 日程変更 完了 来店なし キャンセル 削除" [ref=e788]:
+                          - generic [ref=e790]:
+                            - link "詳細" [ref=e791] [cursor=pointer]:
+                              - /url: /admin/reservations/76
+                              - img [ref=e792] [cursor=pointer]
+                              - generic [ref=e795] [cursor=pointer]: 詳細
+                            - link "日程変更" [ref=e796] [cursor=pointer]:
+                              - /url: http://127.0.0.1:8000/admin/reservations/76/reschedule
+                              - img [ref=e797] [cursor=pointer]
+                              - generic [ref=e799] [cursor=pointer]: 日程変更
+                            - button "完了" [ref=e800] [cursor=pointer]:
+                              - img [ref=e801] [cursor=pointer]
+                              - generic [ref=e803] [cursor=pointer]: 完了
+                            - button "来店なし" [ref=e804] [cursor=pointer]:
+                              - img [ref=e805] [cursor=pointer]
+                              - generic [ref=e807] [cursor=pointer]: 来店なし
+                            - button "キャンセル" [ref=e808] [cursor=pointer]:
+                              - img [ref=e809] [cursor=pointer]
+                              - generic [ref=e811] [cursor=pointer]: キャンセル
+                            - button "削除" [ref=e812] [cursor=pointer]:
+                              - img [ref=e813] [cursor=pointer]
+                              - generic [ref=e815] [cursor=pointer]: 削除
+                      - row "19:45-20:45 銀座本店 田中 うんこたれ 0205555555 スタンダードコース 未定 予約済み 詳細 日程変更 完了 来店なし キャンセル 削除" [ref=e816]:
+                        - cell "19:45-20:45" [ref=e817]:
+                          - generic [ref=e824]: 19:45-20:45
+                        - cell "銀座本店" [ref=e825]:
+                          - generic [ref=e832]: 銀座本店
+                        - cell "田中 うんこたれ" [ref=e833]:
+                          - generic [ref=e840]: 田中 うんこたれ
+                        - cell "0205555555" [ref=e841]:
+                          - generic [ref=e848]: "0205555555"
+                        - cell "スタンダードコース" [ref=e849]:
+                          - generic [ref=e856]: スタンダードコース
+                        - cell "未定" [ref=e857]:
+                          - generic [ref=e861]: 未定
+                        - cell "予約済み" [ref=e862]:
+                          - generic [ref=e870]: 予約済み
+                        - cell "詳細 日程変更 完了 来店なし キャンセル 削除" [ref=e871]:
+                          - generic [ref=e873]:
+                            - link "詳細" [ref=e874] [cursor=pointer]:
+                              - /url: /admin/reservations/69
+                              - img [ref=e875] [cursor=pointer]
+                              - generic [ref=e878] [cursor=pointer]: 詳細
+                            - link "日程変更" [ref=e879] [cursor=pointer]:
+                              - /url: http://127.0.0.1:8000/admin/reservations/69/reschedule
+                              - img [ref=e880] [cursor=pointer]
+                              - generic [ref=e882] [cursor=pointer]: 日程変更
+                            - button "完了" [ref=e883] [cursor=pointer]:
+                              - img [ref=e884] [cursor=pointer]
+                              - generic [ref=e886] [cursor=pointer]: 完了
+                            - button "来店なし" [ref=e887] [cursor=pointer]:
+                              - img [ref=e888] [cursor=pointer]
+                              - generic [ref=e890] [cursor=pointer]: 来店なし
+                            - button "キャンセル" [ref=e891] [cursor=pointer]:
+                              - img [ref=e892] [cursor=pointer]
+                              - generic [ref=e894] [cursor=pointer]: キャンセル
+                            - button "削除" [ref=e895] [cursor=pointer]:
+                              - img [ref=e896] [cursor=pointer]
+                              - generic [ref=e898] [cursor=pointer]: 削除
+                - generic:
+                  - dialog
+                - generic:
+                  - dialog
+                - generic:
+                  - dialog
+                - generic:
+                  - dialog
+                - generic:
+                  - dialog
+              - generic [ref=e899]:
+                - generic [ref=e902]:
+                  - button "作成" [ref=e905] [cursor=pointer]:
+                    - generic [ref=e906] [cursor=pointer]: 作成
+                  - generic [ref=e907]:
+                    - generic [ref=e908]:
+                      - generic [ref=e909]:
+                        - generic [ref=e910]:
+                          - button "" [ref=e911] [cursor=pointer]:
+                            - generic [ref=e912] [cursor=pointer]: 
+                          - button "" [ref=e913] [cursor=pointer]:
+                            - generic [ref=e914] [cursor=pointer]: 
+                        - button "今日" [disabled] [ref=e915]
+                      - heading "2025年10月" [level=2] [ref=e917]
+                      - generic [ref=e919]:
+                        - button "月" [pressed] [ref=e920] [cursor=pointer]
+                        - button "週" [ref=e921] [cursor=pointer]
+                        - button "日" [ref=e922] [cursor=pointer]
+                    - grid [ref=e925]:
+                      - rowgroup [ref=e926]:
+                        - row "日曜日 月曜日 火曜日 水曜日 木曜日 金曜日 土曜日" [ref=e930]:
+                          - columnheader "日曜日" [ref=e931]:
+                            - generic "日曜日" [ref=e933]: 日
+                          - columnheader "月曜日" [ref=e934]:
+                            - generic "月曜日" [ref=e936]: 月
+                          - columnheader "火曜日" [ref=e937]:
+                            - generic "火曜日" [ref=e939]: 火
+                          - columnheader "水曜日" [ref=e940]:
+                            - generic "水曜日" [ref=e942]: 水
+                          - columnheader "木曜日" [ref=e943]:
+                            - generic "木曜日" [ref=e945]: 木
+                          - columnheader "金曜日" [ref=e946]:
+                            - generic "金曜日" [ref=e948]: 金
+                          - columnheader "土曜日" [ref=e949]:
+                            - generic "土曜日" [ref=e951]: 土
+                      - rowgroup [ref=e952]:
+                        - generic [ref=e955]:
+                          - row "2025年9月28日 2025年9月29日 2025年9月30日 2025年10月1日 2025年10月2日 2025年10月3日 2025年10月4日" [ref=e957]:
+                            - gridcell "2025年9月28日" [ref=e958]:
+                              - generic [ref=e959]:
+                                - generic "2025年9月28日" [ref=e961] [cursor=pointer]: 28日
+                                - generic [ref=e962]:
+                                  - link "🟡 5件" [ref=e964] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-09-28&tableFilters[reservation_date][to]=2025-09-28
+                                    - generic [ref=e968] [cursor=pointer]: 🟡 5件
+                                  - link "10:00 相嶋様" [ref=e970] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-09-28&tableFilters[reservation_date][to]=2025-09-28
+                                    - generic [ref=e974] [cursor=pointer]: 10:00 相嶋様
+                                  - link "11:30 青木様" [ref=e976] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-09-28&tableFilters[reservation_date][to]=2025-09-28
+                                    - generic [ref=e980] [cursor=pointer]: 11:30 青木様
+                                  - link "14:00 青山様" [ref=e982] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-09-28&tableFilters[reservation_date][to]=2025-09-28
+                                    - generic [ref=e986] [cursor=pointer]: 14:00 青山様
+                            - gridcell "2025年9月29日" [ref=e987]:
+                              - generic [ref=e988]:
+                                - generic "2025年9月29日" [ref=e990] [cursor=pointer]: 29日
+                                - generic [ref=e991]:
+                                  - link "🟢 2件" [ref=e993] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-09-29&tableFilters[reservation_date][to]=2025-09-29
+                                    - generic [ref=e997] [cursor=pointer]: 🟢 2件
+                                  - link "11:00 秋元様" [ref=e999] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-09-29&tableFilters[reservation_date][to]=2025-09-29
+                                    - generic [ref=e1003] [cursor=pointer]: 11:00 秋元様
+                                  - link "14:00 浅賀様" [ref=e1005] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-09-29&tableFilters[reservation_date][to]=2025-09-29
+                                    - generic [ref=e1009] [cursor=pointer]: 14:00 浅賀様
+                            - gridcell "2025年9月30日" [ref=e1010]:
+                              - generic [ref=e1011]:
+                                - generic "2025年9月30日" [ref=e1013] [cursor=pointer]: 30日
+                                - generic [ref=e1014]:
+                                  - link "🟢 2件" [ref=e1016] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-09-30&tableFilters[reservation_date][to]=2025-09-30
+                                    - generic [ref=e1020] [cursor=pointer]: 🟢 2件
+                                  - link "10:00 青木様" [ref=e1022] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-09-30&tableFilters[reservation_date][to]=2025-09-30
+                                    - generic [ref=e1026] [cursor=pointer]: 10:00 青木様
+                                  - link "11:00 ゆめちゃん様" [ref=e1028] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-09-30&tableFilters[reservation_date][to]=2025-09-30
+                                    - generic [ref=e1032] [cursor=pointer]: 11:00 ゆめちゃん様
+                            - gridcell "2025年10月1日" [ref=e1033]:
+                              - generic [ref=e1034]:
+                                - generic "2025年10月1日" [ref=e1036] [cursor=pointer]: 1日
+                                - generic [ref=e1037]:
+                                  - link "🟡 6件" [ref=e1039] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-10-01&tableFilters[reservation_date][to]=2025-10-01
+                                    - generic [ref=e1043] [cursor=pointer]: 🟡 6件
+                                  - link "10:00 高橋様" [ref=e1045] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-10-01&tableFilters[reservation_date][to]=2025-10-01
+                                    - generic [ref=e1049] [cursor=pointer]: 10:00 高橋様
+                                  - link "13:45 高橋様" [ref=e1051] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-10-01&tableFilters[reservation_date][to]=2025-10-01
+                                    - generic [ref=e1055] [cursor=pointer]: 13:45 高橋様
+                                  - link "16:30 高橋様" [ref=e1057] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-10-01&tableFilters[reservation_date][to]=2025-10-01
+                                    - generic [ref=e1061] [cursor=pointer]: 16:30 高橋様
+                                  - link "他1名" [ref=e1063] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-10-01&tableFilters[reservation_date][to]=2025-10-01
+                                    - generic [ref=e1067] [cursor=pointer]: 他1名
+                            - gridcell "2025年10月2日" [ref=e1068]:
+                              - generic [ref=e1069]:
+                                - generic "2025年10月2日" [ref=e1071] [cursor=pointer]: 2日
+                                - generic [ref=e1072]:
+                                  - link "🟡 6件" [ref=e1074] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-10-02&tableFilters[reservation_date][to]=2025-10-02
+                                    - generic [ref=e1078] [cursor=pointer]: 🟡 6件
+                                  - link "10:00 田中様" [ref=e1080] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-10-02&tableFilters[reservation_date][to]=2025-10-02
+                                    - generic [ref=e1084] [cursor=pointer]: 10:00 田中様
+                                  - link "13:00 田中様" [ref=e1086] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-10-02&tableFilters[reservation_date][to]=2025-10-02
+                                    - generic [ref=e1090] [cursor=pointer]: 13:00 田中様
+                                  - link "14:00 田中様" [ref=e1092] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-10-02&tableFilters[reservation_date][to]=2025-10-02
+                                    - generic [ref=e1096] [cursor=pointer]: 14:00 田中様
+                                  - link "他1名" [ref=e1098] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-10-02&tableFilters[reservation_date][to]=2025-10-02
+                                    - generic [ref=e1102] [cursor=pointer]: 他1名
+                            - gridcell "2025年10月3日" [ref=e1103]:
+                              - generic [ref=e1104]:
+                                - generic "2025年10月3日" [ref=e1106] [cursor=pointer]: 3日
+                                - generic [ref=e1107]:
+                                  - link "🟠 7件" [ref=e1109] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-10-03&tableFilters[reservation_date][to]=2025-10-03
+                                    - generic [ref=e1113] [cursor=pointer]: 🟠 7件
+                                  - link "09:00 田中様" [ref=e1115] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-10-03&tableFilters[reservation_date][to]=2025-10-03
+                                    - generic [ref=e1119] [cursor=pointer]: 09:00 田中様
+                                  - link "10:00 田中様" [ref=e1121] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-10-03&tableFilters[reservation_date][to]=2025-10-03
+                                    - generic [ref=e1125] [cursor=pointer]: 10:00 田中様
+                                  - link "11:00 田中様" [ref=e1127] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-10-03&tableFilters[reservation_date][to]=2025-10-03
+                                    - generic [ref=e1131] [cursor=pointer]: 11:00 田中様
+                                  - link "他2名" [ref=e1133] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-10-03&tableFilters[reservation_date][to]=2025-10-03
+                                    - generic [ref=e1137] [cursor=pointer]: 他2名
+                            - gridcell "2025年10月4日" [ref=e1138]:
+                              - generic [ref=e1139]:
+                                - generic "2025年10月4日" [ref=e1141] [cursor=pointer]: 4日
+                                - generic [ref=e1142]:
+                                  - link "🟢 2件" [ref=e1144] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-10-04&tableFilters[reservation_date][to]=2025-10-04
+                                    - generic [ref=e1148] [cursor=pointer]: 🟢 2件
+                                  - link "13:00 高橋様" [ref=e1150] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-10-04&tableFilters[reservation_date][to]=2025-10-04
+                                    - generic [ref=e1154] [cursor=pointer]: 13:00 高橋様
+                                  - link "15:00 高橋様" [ref=e1156] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-10-04&tableFilters[reservation_date][to]=2025-10-04
+                                    - generic [ref=e1160] [cursor=pointer]: 15:00 高橋様
+                          - row "2025年10月5日 2025年10月6日 2025年10月7日 2025年10月8日 2025年10月9日 2025年10月10日 2025年10月11日" [ref=e1161]:
+                            - gridcell "2025年10月5日" [ref=e1162]:
+                              - generic [ref=e1163]:
+                                - generic "2025年10月5日" [ref=e1165] [cursor=pointer]: 5日
+                                - generic [ref=e1166]:
+                                  - link "🟢 1件" [ref=e1168] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-10-05&tableFilters[reservation_date][to]=2025-10-05
+                                    - generic [ref=e1172] [cursor=pointer]: 🟢 1件
+                                  - link "12:00 高橋様" [ref=e1174] [cursor=pointer]:
+                                    - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-10-05&tableFilters[reservation_date][to]=2025-10-05
+                                    - generic [ref=e1178] [cursor=pointer]: 12:00 高橋様
+                            - gridcell "2025年10月6日" [ref=e1179]:
+                              - generic "2025年10月6日" [ref=e1182] [cursor=pointer]: 6日
+                            - gridcell "2025年10月7日" [ref=e1184]:
+                              - generic "2025年10月7日" [ref=e1187] [cursor=pointer]: 7日
+                            - gridcell "2025年10月8日" [ref=e1189]:
+                              - generic "2025年10月8日" [ref=e1192] [cursor=pointer]: 8日
+                            - gridcell "2025年10月9日" [ref=e1194]:
+                              - generic "2025年10月9日" [ref=e1197] [cursor=pointer]: 9日
+                            - gridcell "2025年10月10日" [ref=e1199]:
+                              - generic "2025年10月10日" [ref=e1202] [cursor=pointer]: 10日
+                            - gridcell "2025年10月11日" [ref=e1204]:
+                              - generic "2025年10月11日" [ref=e1207] [cursor=pointer]: 11日
+                          - row "2025年10月12日 2025年10月13日 2025年10月14日 2025年10月15日 2025年10月16日 2025年10月17日 2025年10月18日" [ref=e1209]:
+                            - gridcell "2025年10月12日" [ref=e1210]:
+                              - generic "2025年10月12日" [ref=e1213] [cursor=pointer]: 12日
+                            - gridcell "2025年10月13日" [ref=e1215]:
+                              - generic [ref=e1216]:
+                                - generic "2025年10月13日" [ref=e1218] [cursor=pointer]: 13日
+                                - link "0件" [ref=e1221] [cursor=pointer]:
+                                  - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-10-13&tableFilters[reservation_date][to]=2025-10-13
+                                  - generic [ref=e1225] [cursor=pointer]: 0件
+                            - gridcell "2025年10月14日" [ref=e1226]:
+                              - generic "2025年10月14日" [ref=e1229] [cursor=pointer]: 14日
+                            - gridcell "2025年10月15日" [ref=e1231]:
+                              - generic "2025年10月15日" [ref=e1234] [cursor=pointer]: 15日
+                            - gridcell "2025年10月16日" [ref=e1236]:
+                              - generic "2025年10月16日" [ref=e1239] [cursor=pointer]: 16日
+                            - gridcell "2025年10月17日" [ref=e1241]:
+                              - generic "2025年10月17日" [ref=e1244] [cursor=pointer]: 17日
+                            - gridcell "2025年10月18日" [ref=e1246]:
+                              - generic "2025年10月18日" [ref=e1249] [cursor=pointer]: 18日
+                          - row "2025年10月19日 2025年10月20日 2025年10月21日 2025年10月22日 2025年10月23日 2025年10月24日 2025年10月25日" [ref=e1251]:
+                            - gridcell "2025年10月19日" [ref=e1252]:
+                              - generic "2025年10月19日" [ref=e1255] [cursor=pointer]: 19日
+                            - gridcell "2025年10月20日" [ref=e1257]:
+                              - generic "2025年10月20日" [ref=e1260] [cursor=pointer]: 20日
+                            - gridcell "2025年10月21日" [ref=e1262]:
+                              - generic "2025年10月21日" [ref=e1265] [cursor=pointer]: 21日
+                            - gridcell "2025年10月22日" [ref=e1267]:
+                              - generic "2025年10月22日" [ref=e1270] [cursor=pointer]: 22日
+                            - gridcell "2025年10月23日" [ref=e1272]:
+                              - generic "2025年10月23日" [ref=e1275] [cursor=pointer]: 23日
+                            - gridcell "2025年10月24日" [ref=e1277]:
+                              - generic "2025年10月24日" [ref=e1280] [cursor=pointer]: 24日
+                            - gridcell "2025年10月25日" [ref=e1282]:
+                              - generic "2025年10月25日" [ref=e1285] [cursor=pointer]: 25日
+                          - row "2025年10月26日 2025年10月27日 2025年10月28日 2025年10月29日 2025年10月30日 2025年10月31日 2025年11月1日" [ref=e1287]:
+                            - gridcell "2025年10月26日" [ref=e1288]:
+                              - generic "2025年10月26日" [ref=e1291] [cursor=pointer]: 26日
+                            - gridcell "2025年10月27日" [ref=e1293]:
+                              - generic "2025年10月27日" [ref=e1296] [cursor=pointer]: 27日
+                            - gridcell "2025年10月28日" [ref=e1298]:
+                              - generic "2025年10月28日" [ref=e1301] [cursor=pointer]: 28日
+                            - gridcell "2025年10月29日" [ref=e1303]:
+                              - generic "2025年10月29日" [ref=e1306] [cursor=pointer]: 29日
+                            - gridcell "2025年10月30日" [ref=e1308]:
+                              - generic "2025年10月30日" [ref=e1311] [cursor=pointer]: 30日
+                            - gridcell "2025年10月31日" [ref=e1313]:
+                              - generic "2025年10月31日" [ref=e1316] [cursor=pointer]: 31日
+                            - gridcell "2025年11月1日" [ref=e1318]:
+                              - generic "2025年11月1日" [ref=e1321] [cursor=pointer]: 1日
+                          - row "2025年11月2日 2025年11月3日 2025年11月4日 2025年11月5日 2025年11月6日 2025年11月7日 2025年11月8日" [ref=e1323]:
+                            - gridcell "2025年11月2日" [ref=e1324]:
+                              - generic "2025年11月2日" [ref=e1327] [cursor=pointer]: 2日
+                            - gridcell "2025年11月3日" [ref=e1329]:
+                              - generic "2025年11月3日" [ref=e1332] [cursor=pointer]: 3日
+                            - gridcell "2025年11月4日" [ref=e1334]:
+                              - generic [ref=e1335]:
+                                - generic "2025年11月4日" [ref=e1337] [cursor=pointer]: 4日
+                                - link "0件" [ref=e1340] [cursor=pointer]:
+                                  - /url: http://127.0.0.1:8000/admin/reservations?tableFilters[reservation_date][from]=2025-11-04&tableFilters[reservation_date][to]=2025-11-04
+                                  - generic [ref=e1344] [cursor=pointer]: 0件
+                            - gridcell "2025年11月5日" [ref=e1345]:
+                              - generic "2025年11月5日" [ref=e1348] [cursor=pointer]: 5日
+                            - gridcell "2025年11月6日" [ref=e1350]:
+                              - generic "2025年11月6日" [ref=e1353] [cursor=pointer]: 6日
+                            - gridcell "2025年11月7日" [ref=e1355]:
+                              - generic "2025年11月7日" [ref=e1358] [cursor=pointer]: 7日
+                            - gridcell "2025年11月8日" [ref=e1360]:
+                              - generic "2025年11月8日" [ref=e1363] [cursor=pointer]: 8日
+                - generic:
+                  - dialog
+                - generic:
+                  - dialog
+          - generic:
+            - dialog
+          - generic:
+            - dialog
+          - generic:
+            - dialog
+      - generic [ref=e1373]: vfa2d400
+    - complementary [ref=e1374]:
+      - generic [ref=e1376]:
+        - link "目のトレーニング 管理画面ロゴ" [ref=e1378] [cursor=pointer]:
+          - /url: http://127.0.0.1:8000/admin
+          - img "目のトレーニング 管理画面ロゴ" [ref=e1379] [cursor=pointer]
+        - button "サイドバーを折り畳む" [ref=e1380] [cursor=pointer]:
+          - generic [ref=e1381] [cursor=pointer]: サイドバーを折り畳む
+          - img [ref=e1382] [cursor=pointer]
+      - navigation [ref=e1384]:
+        - list [ref=e1385]:
+          - listitem [ref=e1386]:
+            - list [ref=e1387]:
+              - listitem [ref=e1388]:
+                - link "ダッシュボード" [ref=e1389] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin
+                  - img [ref=e1390] [cursor=pointer]
+                  - generic [ref=e1392] [cursor=pointer]: ダッシュボード
+              - listitem [ref=e1393]:
+                - link "店舗管理" [ref=e1394] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/stores
+                  - img [ref=e1395] [cursor=pointer]
+                  - generic [ref=e1397] [cursor=pointer]: 店舗管理
+              - listitem [ref=e1398]:
+                - link "予約ブロック設定" [ref=e1399] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/blocked-time-periods
+                  - img [ref=e1400] [cursor=pointer]
+                  - generic [ref=e1402] [cursor=pointer]: 予約ブロック設定
+              - listitem [ref=e1403]:
+                - link "ユーザー管理" [ref=e1404] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/users
+                  - img [ref=e1405] [cursor=pointer]
+                  - generic [ref=e1407] [cursor=pointer]: ユーザー管理
+              - listitem [ref=e1408]:
+                - link "カルテ管理" [ref=e1409] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/medical-records
+                  - img [ref=e1410] [cursor=pointer]
+                  - generic [ref=e1412] [cursor=pointer]: カルテ管理
+              - listitem [ref=e1413]:
+                - link "顧客管理" [ref=e1414] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/customers
+                  - img [ref=e1415] [cursor=pointer]
+                  - generic [ref=e1417] [cursor=pointer]: 顧客管理
+              - listitem [ref=e1418]:
+                - link "サブスク契約管理" [ref=e1419] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/subscriptions
+                  - img [ref=e1420] [cursor=pointer]
+                  - generic [ref=e1422] [cursor=pointer]: サブスク契約管理
+          - listitem [ref=e1423]:
+            - generic [ref=e1424] [cursor=pointer]:
+              - generic [ref=e1425] [cursor=pointer]: メニュー管理
+              - button "メニュー管理" [expanded] [ref=e1426] [cursor=pointer]:
+                - generic [ref=e1427] [cursor=pointer]: メニュー管理
+                - img [ref=e1428] [cursor=pointer]
+            - list [ref=e1430]:
+              - listitem [ref=e1431]:
+                - link "メニュー統合管理" [ref=e1432] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/menu-manager
+                  - img [ref=e1433] [cursor=pointer]
+                  - generic [ref=e1435] [cursor=pointer]: メニュー統合管理
+              - listitem [ref=e1436]:
+                - link "メニューカテゴリー" [ref=e1437] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/menu-categories
+                  - img [ref=e1438] [cursor=pointer]
+                  - generic [ref=e1440] [cursor=pointer]: メニューカテゴリー
+              - listitem [ref=e1441]:
+                - link "メニュー管理" [ref=e1442] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/menus
+                  - img [ref=e1443] [cursor=pointer]
+                  - generic [ref=e1445] [cursor=pointer]: メニュー管理
+          - listitem [ref=e1446]:
+            - generic [ref=e1447] [cursor=pointer]:
+              - generic [ref=e1448] [cursor=pointer]: 分析・レポート
+              - button "分析・レポート" [expanded] [ref=e1449] [cursor=pointer]:
+                - generic [ref=e1450] [cursor=pointer]: 分析・レポート
+                - img [ref=e1451] [cursor=pointer]
+            - list [ref=e1453]:
+              - listitem [ref=e1454]:
+                - link "マーケティング分析" [ref=e1455] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/marketing-dashboard
+                  - img [ref=e1456] [cursor=pointer]
+                  - generic [ref=e1458] [cursor=pointer]: マーケティング分析
+          - listitem [ref=e1459]:
+            - generic [ref=e1460] [cursor=pointer]:
+              - generic [ref=e1461] [cursor=pointer]: 売上・会計
+              - button "売上・会計" [expanded] [ref=e1462] [cursor=pointer]:
+                - generic [ref=e1463] [cursor=pointer]: 売上・会計
+                - img [ref=e1464] [cursor=pointer]
+            - list [ref=e1466]:
+              - listitem [ref=e1467]:
+                - link "売上管理 0" [ref=e1468] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/sales
+                  - img [ref=e1469] [cursor=pointer]
+                  - generic [ref=e1471] [cursor=pointer]: 売上管理
+                  - generic [ref=e1475] [cursor=pointer]: "0"
+          - listitem [ref=e1476]:
+            - generic [ref=e1477] [cursor=pointer]:
+              - generic [ref=e1478] [cursor=pointer]: スタッフ管理
+              - button "スタッフ管理" [expanded] [ref=e1479] [cursor=pointer]:
+                - generic [ref=e1480] [cursor=pointer]: スタッフ管理
+                - img [ref=e1481] [cursor=pointer]
+            - list [ref=e1483]:
+              - listitem [ref=e1484]:
+                - link "シフト管理" [ref=e1485] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/simple-shift-management
+                  - img [ref=e1486] [cursor=pointer]
+                  - generic [ref=e1488] [cursor=pointer]: シフト管理
+              - listitem [ref=e1489]:
+                - link "シフト設定" [ref=e1490] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/shift-settings
+                  - img [ref=e1491] [cursor=pointer]
+                  - generic [ref=e1494] [cursor=pointer]: シフト設定
+              - listitem [ref=e1495]:
+                - link "勤怠レポート" [ref=e1496] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/attendance-report
+                  - img [ref=e1497] [cursor=pointer]
+                  - generic [ref=e1499] [cursor=pointer]: 勤怠レポート
+          - listitem [ref=e1500]:
+            - generic [ref=e1501] [cursor=pointer]:
+              - generic [ref=e1502] [cursor=pointer]: 予約管理
+              - button "予約管理" [expanded] [ref=e1503] [cursor=pointer]:
+                - generic [ref=e1504] [cursor=pointer]: 予約管理
+                - img [ref=e1505] [cursor=pointer]
+            - list [ref=e1507]:
+              - listitem [ref=e1508]:
+                - link "予約管理" [ref=e1509] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/reservations
+                  - img [ref=e1510] [cursor=pointer]
+                  - generic [ref=e1512] [cursor=pointer]: 予約管理
+          - listitem [ref=e1513]:
+            - generic [ref=e1514] [cursor=pointer]:
+              - generic [ref=e1515] [cursor=pointer]: 顧客管理
+              - button "顧客管理" [expanded] [ref=e1516] [cursor=pointer]:
+                - generic [ref=e1517] [cursor=pointer]: 顧客管理
+                - img [ref=e1518] [cursor=pointer]
+            - list [ref=e1520]:
+              - listitem [ref=e1521]:
+                - link "顧客インポート" [ref=e1522] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/import-customers
+                  - img [ref=e1523] [cursor=pointer]
+                  - generic [ref=e1525] [cursor=pointer]: 顧客インポート
+  - generic:
+    - status
+```

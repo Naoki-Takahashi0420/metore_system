@@ -1385,20 +1385,73 @@ class PublicReservationController extends Controller
                 }
                 
                 // ブロックされた時間帯との重複チェック
-                $isBlocked = $dayBlocks->contains(function ($block) use ($slotTime, $slotEnd) {
+                // 1. 全体ブロック（line_typeがnull）のチェック
+                $hasGlobalBlock = $dayBlocks->contains(function ($block) use ($slotTime, $slotEnd) {
+                    if ($block->line_type !== null) {
+                        return false;
+                    }
+
                     $blockStart = Carbon::parse($block->start_time);
                     $blockEnd = Carbon::parse($block->end_time);
-                    
+
                     return (
                         ($slotTime->gte($blockStart) && $slotTime->lt($blockEnd)) ||
                         ($slotEnd->gt($blockStart) && $slotEnd->lte($blockEnd)) ||
                         ($slotTime->lte($blockStart) && $slotEnd->gte($blockEnd))
                     );
                 });
-                
-                if ($isBlocked) {
+
+                if ($hasGlobalBlock) {
                     $availability[$dateStr][$slot] = false;
                     continue;
+                }
+
+                // 2. スタッフ指定がある場合は、そのスタッフのライン専用ブロックをチェック
+                if ($selectedStaffId) {
+                    $hasStaffLineBlock = $dayBlocks->contains(function ($block) use ($slotTime, $slotEnd, $selectedStaffId) {
+                        if ($block->line_type !== 'staff' || $block->staff_id != $selectedStaffId) {
+                            return false;
+                        }
+
+                        $blockStart = Carbon::parse($block->start_time);
+                        $blockEnd = Carbon::parse($block->end_time);
+
+                        return (
+                            ($slotTime->gte($blockStart) && $slotTime->lt($blockEnd)) ||
+                            ($slotEnd->gt($blockStart) && $slotEnd->lte($blockEnd)) ||
+                            ($slotTime->lte($blockStart) && $slotEnd->gte($blockEnd))
+                        );
+                    });
+
+                    if ($hasStaffLineBlock) {
+                        $availability[$dateStr][$slot] = false;
+                        continue;
+                    }
+                }
+
+                // 3. メインラインのブロック数をカウント（営業時間ベース時のみ）
+                if (!$store->use_staff_assignment && !$selectedStaffId) {
+                    $blockedMainLinesCount = $dayBlocks->filter(function ($block) use ($slotTime, $slotEnd) {
+                        if ($block->line_type !== 'main') {
+                            return false;
+                        }
+
+                        $blockStart = Carbon::parse($block->start_time);
+                        $blockEnd = Carbon::parse($block->end_time);
+
+                        return (
+                            ($slotTime->gte($blockStart) && $slotTime->lt($blockEnd)) ||
+                            ($slotEnd->gt($blockStart) && $slotEnd->lte($blockEnd)) ||
+                            ($slotTime->lte($blockStart) && $slotEnd->gte($blockEnd))
+                        );
+                    })->count();
+
+                    // 全てのメインラインがブロックされている場合は予約不可
+                    $mainLinesCount = $store->main_lines_count ?? 1;
+                    if ($blockedMainLinesCount >= $mainLinesCount) {
+                        $availability[$dateStr][$slot] = false;
+                        continue;
+                    }
                 }
                 
                 // 店舗の同時予約可能数を初期化

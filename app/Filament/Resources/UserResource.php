@@ -50,7 +50,28 @@ class UserResource extends Resource
                             ->maxLength(255),
                         Forms\Components\Select::make('store_id')
                             ->label('所属店舗')
-                            ->options(\App\Models\Store::whereNotNull('name')->where('name', '!=', '')->get()->pluck('name', 'id')->filter())
+                            ->options(function () {
+                                $user = auth()->user();
+
+                                // super_adminの場合は全店舗を表示
+                                if ($user && $user->hasRole('super_admin')) {
+                                    return \App\Models\Store::where('is_active', true)
+                                        ->whereNotNull('name')
+                                        ->where('name', '!=', '')
+                                        ->pluck('name', 'id');
+                                }
+
+                                // ownerの場合は自分の管理可能店舗を表示
+                                if ($user && $user->hasRole('owner')) {
+                                    return $user->manageableStores()
+                                        ->where('stores.is_active', true)
+                                        ->whereNotNull('stores.name')
+                                        ->where('stores.name', '!=', '')
+                                        ->pluck('stores.name', 'stores.id');
+                                }
+
+                                return [];
+                            })
                             ->searchable()
                             ->preload()
                             ->nullable(),
@@ -70,16 +91,34 @@ class UserResource extends Resource
                             ->helperText('ユーザーの権限レベルを選択してください'),
                         Forms\Components\Select::make('manageable_stores')
                             ->label('管理可能店舗')
-                            ->relationship('manageableStores', 'name')
+                            ->options(function () {
+                                $user = auth()->user();
+
+                                // super_adminの場合は全店舗を表示
+                                if ($user && $user->hasRole('super_admin')) {
+                                    return \App\Models\Store::where('is_active', true)
+                                        ->pluck('name', 'id');
+                                }
+
+                                // ownerの場合は自分の管理可能店舗を表示
+                                if ($user && $user->hasRole('owner')) {
+                                    return $user->manageableStores()
+                                        ->where('stores.is_active', true)
+                                        ->pluck('stores.name', 'stores.id');
+                                }
+
+                                return [];
+                            })
                             ->multiple()
+                            ->searchable()
                             ->preload()
                             ->visible(function (callable $get) {
                                 $selectedRoles = $get('roles');
                                 if (!$selectedRoles) return false;
-                                
+
                                 // 複数選択の場合は配列、単一選択の場合は数値
                                 $roleIds = is_array($selectedRoles) ? $selectedRoles : [$selectedRoles];
-                                
+
                                 // ロール名を確認
                                 foreach ($roleIds as $roleId) {
                                     $role = \Spatie\Permission\Models\Role::find($roleId);
@@ -222,8 +261,8 @@ class UserResource extends Resource
             return false;
         }
 
-        // スーパー管理者のみユーザー管理可能
-        return $user->hasRole('super_admin');
+        // スーパー管理者とオーナーがユーザー管理可能
+        return $user->hasRole(['super_admin', 'owner']);
     }
 
     public static function canCreate(): bool
@@ -234,8 +273,8 @@ class UserResource extends Resource
             return false;
         }
 
-        // スーパー管理者のみユーザー作成可能
-        return $user->hasRole('super_admin');
+        // スーパー管理者とオーナーがユーザー作成可能
+        return $user->hasRole(['super_admin', 'owner']);
     }
     
     public static function canEdit($record): bool

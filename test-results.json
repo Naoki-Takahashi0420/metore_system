@@ -10,7 +10,9 @@
     "grep": {},
     "grepInvert": null,
     "maxFailures": 0,
-    "metadata": {},
+    "metadata": {
+      "actualWorkers": 1
+    },
     "preserveOutput": "always",
     "reporter": [
       [
@@ -40,7 +42,9 @@
         "outputDir": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results",
         "repeatEach": 1,
         "retries": 1,
-        "metadata": {},
+        "metadata": {
+          "actualWorkers": 1
+        },
         "id": "chromium",
         "name": "chromium",
         "testDir": "/Applications/MAMP/htdocs/Xsyumeno-main/tests",
@@ -62,19 +66,316 @@
       "reuseExistingServer": true
     }
   },
-  "suites": [],
-  "errors": [
+  "suites": [
     {
-      "message": "Error: No tests found",
-      "stack": "Error: No tests found"
+      "title": "e2e/line-blocking-interaction.spec.js",
+      "file": "e2e/line-blocking-interaction.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "ライン別ブロック機能 - インタラクションテスト",
+          "file": "e2e/line-blocking-interaction.spec.js",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "タイムラインのセルをクリックしてブロックモーダルが開く",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 6152,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "✅ モーダルまたはアクションメニューが表示されました\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-02T12:42:13.997Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "c58fe99d153ebf69b926-64a0d6fb1f11820ad6c7",
+              "file": "e2e/line-blocking-interaction.spec.js",
+              "line": 14,
+              "column": 5
+            },
+            {
+              "title": "ページに\"ブロック\"という文字列が存在する",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4021,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "✅ ブロック機能関連のテキストが確認できました\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-02T12:42:20.414Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "c58fe99d153ebf69b926-f5e8d194dc52a898a1db",
+              "file": "e2e/line-blocking-interaction.spec.js",
+              "line": 45,
+              "column": 5
+            },
+            {
+              "title": "タイムラインテーブルに正しい構造がある",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4070,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "✅ タイムラインテーブル構造確認: 16行\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-02T12:42:24.443Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "c58fe99d153ebf69b926-887e12b19c55fa97fc0c",
+              "file": "e2e/line-blocking-interaction.spec.js",
+              "line": 53,
+              "column": 5
+            },
+            {
+              "title": "スタッフラインの表示確認",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4060,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "✅ スタッフライン表示確認\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-02T12:42:28.522Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "c58fe99d153ebf69b926-23386bfd56112e183702",
+              "file": "e2e/line-blocking-interaction.spec.js",
+              "line": 75,
+              "column": 5
+            },
+            {
+              "title": "データベースのブロック情報を確認",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 4002,
+                      "error": {
+                        "message": "ReferenceError: require is not defined",
+                        "stack": "ReferenceError: require is not defined\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/line-blocking-interaction.spec.js:94:26",
+                        "location": {
+                          "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/line-blocking-interaction.spec.js",
+                          "column": 26,
+                          "line": 94
+                        },
+                        "snippet": "  92 |     test('データベースのブロック情報を確認', async ({ page }) => {\n  93 |         // PHPスクリプトを実行してデータベースを確認\n> 94 |         const { exec } = require('child_process');\n     |                          ^\n  95 |         const util = require('util');\n  96 |         const execPromise = util.promisify(exec);\n  97 |"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/line-blocking-interaction.spec.js",
+                            "column": 26,
+                            "line": 94
+                          },
+                          "message": "ReferenceError: require is not defined\n\n  92 |     test('データベースのブロック情報を確認', async ({ page }) => {\n  93 |         // PHPスクリプトを実行してデータベースを確認\n> 94 |         const { exec } = require('child_process');\n     |                          ^\n  95 |         const util = require('util');\n  96 |         const execPromise = util.promisify(exec);\n  97 |\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/line-blocking-interaction.spec.js:94:26"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-02T12:42:32.591Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-line-blocking-interact-339a5-ンタラクションテスト-データベースのブロック情報を確認-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-line-blocking-interact-339a5-ンタラクションテスト-データベースのブロック情報を確認-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-line-blocking-interact-339a5-ンタラクションテスト-データベースのブロック情報を確認-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/line-blocking-interaction.spec.js",
+                        "column": 26,
+                        "line": 94
+                      }
+                    },
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 15733,
+                      "error": {
+                        "message": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation to \"**/admin\" until \"load\"\n============================================================",
+                        "stack": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation to \"**/admin\" until \"load\"\n============================================================\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/line-blocking-interaction.spec.js:10:20",
+                        "location": {
+                          "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/line-blocking-interaction.spec.js",
+                          "column": 20,
+                          "line": 10
+                        },
+                        "snippet": "   8 |         await page.fill('input[type=\"password\"]', 'password');\n   9 |         await page.click('button[type=\"submit\"]');\n> 10 |         await page.waitForURL('**/admin', { timeout: 15000 });\n     |                    ^\n  11 |         await page.waitForTimeout(3000);\n  12 |     });\n  13 |"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/line-blocking-interaction.spec.js",
+                            "column": 20,
+                            "line": 10
+                          },
+                          "message": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation to \"**/admin\" until \"load\"\n============================================================\n\n   8 |         await page.fill('input[type=\"password\"]', 'password');\n   9 |         await page.click('button[type=\"submit\"]');\n> 10 |         await page.waitForURL('**/admin', { timeout: 15000 });\n     |                    ^\n  11 |         await page.waitForTimeout(3000);\n  12 |     });\n  13 |\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/line-blocking-interaction.spec.js:10:20"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 1,
+                      "startTime": "2025-10-02T12:42:36.939Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-line-blocking-interact-339a5-ンタラクションテスト-データベースのブロック情報を確認-chromium-retry1/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-line-blocking-interact-339a5-ンタラクションテスト-データベースのブロック情報を確認-chromium-retry1/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-line-blocking-interact-339a5-ンタラクションテスト-データベースのブロック情報を確認-chromium-retry1/error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-line-blocking-interact-339a5-ンタラクションテスト-データベースのブロック情報を確認-chromium-retry1/trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/line-blocking-interaction.spec.js",
+                        "column": 20,
+                        "line": 10
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "c58fe99d153ebf69b926-c7fbfb50ef7a407c92f7",
+              "file": "e2e/line-blocking-interaction.spec.js",
+              "line": 92,
+              "column": 5
+            }
+          ]
+        }
+      ]
     }
   ],
+  "errors": [],
   "stats": {
-    "startTime": "2025-10-02T07:22:48.634Z",
-    "duration": 1387.692,
-    "expected": 0,
+    "startTime": "2025-10-02T12:42:12.695Z",
+    "duration": 40221.934,
+    "expected": 4,
     "skipped": 0,
-    "unexpected": 0,
+    "unexpected": 1,
     "flaky": 0
   }
 }

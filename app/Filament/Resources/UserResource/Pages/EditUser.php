@@ -18,6 +18,14 @@ class EditUser extends EditRecord
         ];
     }
 
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        // 既存のmanageable_storesをロード
+        $data['manageable_stores'] = $this->record->manageableStores()->pluck('stores.id')->toArray();
+
+        return $data;
+    }
+
     protected function afterSave(): void
     {
         $record = $this->record;

@@ -149,6 +149,16 @@ class ReservationTimelineWidget extends Widget
         $this->loadTimelineData();
         $this->dispatch('date-changed', date: $this->selectedDate);
     }
+
+    #[On('timeline-updated')]
+    public function refreshOnTimelineUpdate($data): void
+    {
+        // 同じ店舗・日付のタイムラインのみ更新
+        if (isset($data['store_id']) && $data['store_id'] == $this->selectedStore &&
+            isset($data['date']) && $data['date'] == $this->selectedDate) {
+            $this->loadTimelineData();
+        }
+    }
     
     protected function getBaseQuery()
     {
@@ -337,6 +347,7 @@ class ReservationTimelineWidget extends Widget
 
             // 1. 未指定ラインを最初に追加
             $timeline['unassigned'] = [
+                'key' => 'unassigned',
                 'label' => '未指定',
                 'type' => 'unassigned',
                 'reservations' => [],
@@ -380,6 +391,7 @@ class ReservationTimelineWidget extends Widget
             foreach ($storeStaff as $staff) {
                 $hasShift = isset($staffShifts[$staff->id]);
                 $timeline['staff_' . $staff->id] = [
+                    'key' => 'staff_' . $staff->id,
                     'label' => $staff->name,
                     'type' => 'staff',
                     'staff_id' => $staff->id,
@@ -392,6 +404,7 @@ class ReservationTimelineWidget extends Widget
 
             // 3. サブ枠（シフトモードでも残す）
             $timeline['sub_1'] = [
+                'key' => 'sub_1',
                 'label' => 'サブ',
                 'type' => 'sub',
                 'reservations' => []
@@ -400,6 +413,7 @@ class ReservationTimelineWidget extends Widget
             // 営業時間ベースモードの場合は固定席数
             for ($seat = 1; $seat <= $mainSeats; $seat++) {
                 $timeline['seat_' . $seat] = [
+                    'key' => 'seat_' . $seat,
                     'label' => '席' . $seat,
                     'type' => 'main',
                     'reservations' => []
@@ -408,6 +422,7 @@ class ReservationTimelineWidget extends Widget
 
             // サブ枠（固定1席）
             $timeline['sub_1'] = [
+                'key' => 'sub_1',
                 'label' => 'サブ',
                 'type' => 'sub',
                 'reservations' => []
@@ -425,25 +440,47 @@ class ReservationTimelineWidget extends Widget
         }
 
         // ブロック時間帯をタイムラインに配置
-        $blockedSlots = [];
+        $blockedSlots = []; // 後方互換のため残す（全体ブロック用）
+        $lineBlockedSlots = []; // ライン別ブロック情報
+
         foreach ($blockedPeriods as $blocked) {
             // 終日休みの場合は全スロットをブロック
             if ($blocked->is_all_day) {
                 for ($i = 0; $i < count($slots); $i++) {
-                    $blockedSlots[] = $i;
+                    // line_typeがnullの場合は全ラインブロック
+                    if ($blocked->line_type === null) {
+                        $blockedSlots[] = $i;
+                    } else {
+                        // 特定ラインのブロック
+                        $seatKey = $this->getSeatKeyFromBlock($blocked);
+                        if (!isset($lineBlockedSlots[$seatKey])) {
+                            $lineBlockedSlots[$seatKey] = [];
+                        }
+                        $lineBlockedSlots[$seatKey][] = $i;
+                    }
                 }
             } else {
                 $blockStart = Carbon::parse($blocked->start_time);
                 $blockEnd = Carbon::parse($blocked->end_time);
-                
+
                 // 時間スロットのインデックスを計算（店舗設定の時間刻み）
                 $slotsPerHour = 60 / $slotDuration;
                 $startSlot = max(0, ($blockStart->hour - $startHour) * $slotsPerHour + ($blockStart->minute / $slotDuration));
                 $endSlot = min(count($slots), ($blockEnd->hour - $startHour) * $slotsPerHour + ($blockEnd->minute / $slotDuration));
-                
+
                 // ブロックされているスロットを記録
                 for ($i = floor($startSlot); $i < ceil($endSlot); $i++) {
-                    $blockedSlots[] = $i;
+                    // line_typeがnullの場合は全ラインブロック
+                    if ($blocked->line_type === null) {
+                        $blockedSlots[] = $i;
+                    } else {
+                        // 特定ラインのブロック
+                        $seatKey = $this->getSeatKeyFromBlock($blocked);
+                        if (!isset($lineBlockedSlots[$seatKey])) {
+                            $lineBlockedSlots[$seatKey] = [];
+                        }
+                        $lineBlockedSlots[$seatKey][] = $i;
+                    }
                 }
             }
         }
@@ -577,6 +614,7 @@ class ReservationTimelineWidget extends Widget
             'slots' => $slots,
             'timeline' => $timeline,
             'blockedSlots' => $blockedSlots,
+            'lineBlockedSlots' => $lineBlockedSlots,
             'conflictingReservations' => $conflictingReservations,
             'blockedPeriods' => $blockedPeriods->toArray(),
             'useStaffAssignment' => $useStaffAssignment,
@@ -1329,6 +1367,30 @@ class ReservationTimelineWidget extends Widget
                 return;
             }
 
+            // seatKeyを解析してline情報を取得
+            $lineType = null;
+            $lineNumber = null;
+            $staffId = null;
+
+            if (!empty($this->blockSettings['selected_lines']) && count($this->blockSettings['selected_lines']) > 0) {
+                $seatKey = $this->blockSettings['selected_lines'][0];
+
+                if (strpos($seatKey, 'staff_') === 0) {
+                    $lineType = 'staff';
+                    $staffId = intval(substr($seatKey, 6));
+                    $lineNumber = 1;
+                } elseif ($seatKey === 'unassigned') {
+                    $lineType = 'unassigned';
+                    $lineNumber = 1;
+                } elseif (strpos($seatKey, 'sub_') === 0) {
+                    $lineType = 'sub';
+                    $lineNumber = intval(substr($seatKey, 4));
+                } elseif (strpos($seatKey, 'seat_') === 0) {
+                    $lineType = 'main';
+                    $lineNumber = intval(substr($seatKey, 5));
+                }
+            }
+
             // 予約ブロックを作成
             \App\Models\BlockedTimePeriod::create([
                 'store_id' => $this->selectedStore,
@@ -1338,24 +1400,96 @@ class ReservationTimelineWidget extends Widget
                 'is_all_day' => false,
                 'reason' => $this->blockSettings['reason'],
                 'is_recurring' => false,
+                'line_type' => $lineType,
+                'line_number' => $lineNumber,
+                'staff_id' => $staffId,
             ]);
 
             // モーダルを閉じて、データをリロード
             $this->closeNewReservationModal();
             $this->loadTimelineData();
 
+            // 他のユーザーのタイムラインも更新するためのイベントをディスパッチ
+            $this->dispatch('timeline-updated', [
+                'store_id' => $this->selectedStore,
+                'date' => $this->selectedDate
+            ]);
+
             // 成功通知
-            session()->flash('success', '予約ブロックを設定しました。');
+            \Filament\Notifications\Notification::make()
+                ->success()
+                ->title('ブロック設定完了')
+                ->body('予約ブロックを設定しました')
+                ->send();
 
         } catch (\Exception $e) {
             \Log::error('Failed to create blocked time:', [
                 'error' => $e->getMessage(),
                 'blockSettings' => $this->blockSettings
             ]);
-            session()->flash('error', '予約ブロックの設定に失敗しました。');
+            \Filament\Notifications\Notification::make()
+                ->danger()
+                ->title('設定失敗')
+                ->body('予約ブロックの設定に失敗しました')
+                ->send();
         }
     }
-    
+
+    /**
+     * BlockedTimePeriodからseatKeyを生成
+     */
+    private function getSeatKeyFromBlock($blocked): string
+    {
+        if ($blocked->line_type === 'staff') {
+            return 'staff_' . $blocked->staff_id;
+        } elseif ($blocked->line_type === 'unassigned') {
+            return 'unassigned';
+        } elseif ($blocked->line_type === 'sub') {
+            return 'sub_' . $blocked->line_number;
+        } elseif ($blocked->line_type === 'main') {
+            return 'seat_' . $blocked->line_number;
+        }
+        return '';
+    }
+
+    /**
+     * ブロック終了時間の選択肢を生成
+     */
+    public function getBlockEndTimeOptions()
+    {
+        if (empty($this->blockSettings['start_time']) || empty($this->selectedStore)) {
+            return [];
+        }
+
+        $store = \App\Models\Store::find($this->selectedStore);
+        if (!$store) {
+            return [];
+        }
+
+        // 店舗の予約間隔を取得（デフォルト30分）
+        $interval = $store->reservation_slot_duration ?? 30;
+
+        $options = [];
+        $startTime = \Carbon\Carbon::parse($this->blockSettings['start_time']);
+
+        // 開始時間から最大6時間分（または営業終了時刻まで）の選択肢を生成
+        for ($i = 1; $i <= 12; $i++) {
+            $endTime = $startTime->copy()->addMinutes($interval * $i);
+
+            // 23:59を超えないようにする
+            if ($endTime->format('H:i') > '23:59') {
+                break;
+            }
+
+            $options[] = [
+                'value' => $endTime->format('H:i:s'),
+                'label' => $endTime->format('H:i') . ' (' . ($interval * $i) . '分間)'
+            ];
+        }
+
+        return $options;
+    }
+
     /**
      * 顧客選択モードが変更されたときにselectedCustomerをリセット
      */
@@ -1943,6 +2077,9 @@ class ReservationTimelineWidget extends Widget
             // 予約を作成
             $reservation = Reservation::create($reservationData);
 
+            // 管理者通知イベントをディスパッチ
+            \App\Events\ReservationCreated::dispatch($reservation);
+
             // オプションメニューを追加
             if (!empty($this->newReservation['option_menu_ids'])) {
                 foreach ($this->newReservation['option_menu_ids'] as $optionId) {
@@ -1966,6 +2103,12 @@ class ReservationTimelineWidget extends Widget
 
             // タイムラインを更新
             $this->loadTimelineData();
+
+            // 他のユーザーのタイムラインも更新
+            $this->dispatch('timeline-updated', [
+                'store_id' => $this->selectedStore,
+                'date' => $this->selectedDate
+            ]);
 
             // 成功通知（オプション数を含める）
             $optionCount = count($this->newReservation['option_menu_ids']);
