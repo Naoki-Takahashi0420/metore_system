@@ -56,23 +56,47 @@ class CustomerController extends Controller
      */
     public function getMedicalRecords(Request $request)
     {
-        $customer = $request->user();
-        
-        $medicalRecords = $customer->medicalRecords()
-            ->with([
-                'reservation.store',
-                'reservation.menu',
-                'createdBy',
-                'visibleImages', // 顧客に表示可能な画像のみ取得
-                'presbyopiaMeasurements' // 老眼詳細測定データ
-            ])
-            ->orderBy('record_date', 'desc')
-            ->get();
+        try {
+            $customer = $request->user();
 
-        return response()->json([
-            'message' => 'カルテを取得しました',
-            'data' => $medicalRecords
-        ]);
+            \Log::info('📋 getMedicalRecords called', [
+                'customer_id' => $customer->id,
+                'customer_name' => $customer->last_name . ' ' . $customer->first_name
+            ]);
+
+            $medicalRecords = $customer->medicalRecords()
+                ->with([
+                    'reservation.store',
+                    'reservation.menu',
+                    'createdBy',
+                    'visibleImages', // 顧客に表示可能な画像のみ取得
+                    'presbyopiaMeasurements' // 老眼詳細測定データ
+                ])
+                ->orderBy('record_date', 'desc')
+                ->get();
+
+            \Log::info('✅ getMedicalRecords success', [
+                'customer_id' => $customer->id,
+                'records_count' => $medicalRecords->count()
+            ]);
+
+            return response()->json([
+                'message' => 'カルテを取得しました',
+                'data' => $medicalRecords
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('❌ getMedicalRecords error', [
+                'customer_id' => $request->user()?->id ?? null,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'message' => 'カルテの取得に失敗しました',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
