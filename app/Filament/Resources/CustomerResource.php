@@ -848,6 +848,7 @@ class CustomerResource extends Resource
     public static function getRelations(): array
     {
         return [
+            RelationManagers\ImagesRelationManager::class,
             RelationManagers\MedicalRecordsRelationManager::class,
         ];
     }

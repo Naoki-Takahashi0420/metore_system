@@ -142,6 +142,14 @@ class MedicalRecordResource extends Resource
                                             ->label('施術日')
                                             ->default(now())
                                             ->required(),
+
+                                        Forms\Components\TextInput::make('age')
+                                            ->label('年齢')
+                                            ->numeric()
+                                            ->minValue(0)
+                                            ->maxValue(150)
+                                            ->suffix('歳')
+                                            ->placeholder('年齢を入力（任意）'),
                                     ]),
 
                                 // 顧客特性表示（スタッフ用情報）
@@ -660,7 +668,13 @@ class MedicalRecordResource extends Resource
                     ->label('施術日')
                     ->date('Y/m/d')
                     ->sortable(),
-                
+
+                Tables\Columns\TextColumn::make('age')
+                    ->label('年齢')
+                    ->suffix('歳')
+                    ->sortable()
+                    ->toggleable(),
+
                 Tables\Columns\TextColumn::make('session_number')
                     ->label('回数')
                     ->badge()

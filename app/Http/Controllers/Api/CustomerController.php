@@ -80,6 +80,11 @@ class CustomerController extends Controller
                 'records_count' => $medicalRecords->count()
             ]);
 
+            // 顧客APIでは年齢フィールドを除外
+            $medicalRecords->each(function ($record) {
+                $record->makeHidden(['age']);
+            });
+
             return response()->json([
                 'message' => 'カルテを取得しました',
                 'data' => $medicalRecords
@@ -250,6 +255,25 @@ class CustomerController extends Controller
             'data' => [
                 'encrypted_context' => $encryptedContext
             ]
+        ]);
+    }
+
+    /**
+     * 顧客の画像一覧を取得
+     */
+    public function getImages(Request $request)
+    {
+        $customer = $request->user('customer');
+
+        $images = $customer->images()
+            ->where('is_visible_to_customer', true)
+            ->orderBy('display_order', 'asc')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $images
         ]);
     }
 }

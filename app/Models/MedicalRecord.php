@@ -14,6 +14,7 @@ class MedicalRecord extends Model
         'staff_id',
         'reservation_id',
         'record_date',
+        'age',
         'chief_complaint',
         'symptoms',
         'diagnosis',

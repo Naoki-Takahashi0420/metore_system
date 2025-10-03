@@ -167,6 +167,14 @@ class Customer extends Model
     }
 
     /**
+     * リレーション: 顧客画像
+     */
+    public function images()
+    {
+        return $this->hasMany(CustomerImage::class);
+    }
+
+    /**
      * 指定された予約が初回予約かチェック（シンプル版）
      */
     public function isFirstReservation(Reservation $targetReservation): bool
