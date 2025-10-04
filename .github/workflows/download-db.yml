@@ -1,0 +1,31 @@
+name: Download Production DB
+
+on:
+  workflow_dispatch:
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download SQLite Database
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        # 本番DBをダウンロード
+        scp -o StrictHostKeyChecking=no -i deploy_key.pem \
+          ${EC2_USER}@${EC2_HOST}:/var/www/html/database/database.sqlite \
+          ./production.sqlite
+
+        ls -lh production.sqlite
+
+    - name: Upload as Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: production-database
+        path: production.sqlite
+        retention-days: 1
