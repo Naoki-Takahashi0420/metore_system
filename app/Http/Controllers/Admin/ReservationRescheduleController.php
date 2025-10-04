@@ -96,7 +96,8 @@ class ReservationRescheduleController extends Controller
             $dates,
             $timeSlots,
             $reservation->staff_id,
-            $reservation->id // 現在の予約IDを除外
+            $reservation->id, // 現在の予約IDを除外
+            $reservation // 元の予約情報を渡す
         );
 
         return view('admin.reservations.reschedule', compact(
@@ -250,7 +251,7 @@ class ReservationRescheduleController extends Controller
         return $slots;
     }
 
-    private function getAvailability($store, $menu, $dates, $timeSlots, $staffId = null, $excludeReservationId = null)
+    private function getAvailability($store, $menu, $dates, $timeSlots, $staffId = null, $excludeReservationId = null, $originalReservation = null)
     {
         $availability = [];
 
@@ -336,6 +337,16 @@ class ReservationRescheduleController extends Controller
                 $relevantReservations = $staffId
                     ? $dayReservations->where('staff_id', $staffId)
                     : $dayReservations;
+
+                // 元の予約と同じline_type（メイン/サブ）の予約のみをチェック
+                if ($originalReservation) {
+                    $relevantReservations = $relevantReservations->filter(function($reservation) use ($originalReservation) {
+                        // line_typeまたはis_subで判定（どちらかが一致すればOK）
+                        $originalIsSub = $originalReservation->is_sub || $originalReservation->line_type === 'sub';
+                        $reservationIsSub = $reservation->is_sub || $reservation->line_type === 'sub';
+                        return $originalIsSub === $reservationIsSub;
+                    });
+                }
 
                 $conflictingReservations = $relevantReservations->filter(function($reservation) use ($slotTime, $slotEnd, $dateStr) {
                     // 時間文字列を日付と結合してからパース

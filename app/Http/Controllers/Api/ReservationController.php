@@ -554,6 +554,34 @@ class ReservationController extends Controller
         $duration = $reservation->menu->duration_minutes ?? 60;
         $newEndTime = $newStartTime->copy()->addMinutes($duration);
 
+        // 空き状況チェック（元の予約と同じline_type/is_subの枠のみ）
+        $conflictingReservations = Reservation::where('store_id', $reservation->store_id)
+            ->whereDate('reservation_date', $validated['new_date'])
+            ->whereNotIn('status', ['cancelled', 'canceled', 'no_show'])
+            ->where('id', '!=', $reservation->id) // 自分の予約は除外
+            ->where(function($query) use ($validated, $newEndTime) {
+                // 時間重複チェック
+                $query->where(function($q) use ($validated, $newEndTime) {
+                    $q->where('start_time', '<', $newEndTime->format('H:i:s'))
+                      ->where('end_time', '>', $validated['new_time']);
+                });
+            })
+            ->get();
+
+        // 元の予約と同じline_type（メイン/サブ）の予約のみをフィルタ
+        $originalIsSub = $reservation->is_sub || $reservation->line_type === 'sub';
+        $conflictingReservations = $conflictingReservations->filter(function($r) use ($originalIsSub) {
+            $reservationIsSub = $r->is_sub || $r->line_type === 'sub';
+            return $originalIsSub === $reservationIsSub;
+        });
+
+        if ($conflictingReservations->count() > 0) {
+            return response()->json([
+                'success' => false,
+                'message' => '選択された時間帯は既に予約が入っています。別の時間をお選びください。'
+            ], 400);
+        }
+
         // 変更前の情報を保存（イベント用）
         $oldReservation = $reservation->replicate();
 
@@ -625,26 +653,59 @@ class ReservationController extends Controller
 
         // 変更前の予約情報を保存
         $oldReservation = $reservation->replicate();
-        
+
         // 変更実行
         if (isset($validated['reservation_date'])) {
             $reservation->reservation_date = $validated['reservation_date'];
         }
-        
+
         if (isset($validated['start_time'])) {
             $reservation->start_time = $validated['start_time'];
             $reservation->reservation_time = $validated['start_time'];
-            
+
             // 終了時間も更新
             $startTime = \Carbon\Carbon::parse($reservation->reservation_date . ' ' . $validated['start_time']);
             $duration = $reservation->menu->duration_minutes ?? 60;
             $reservation->end_time = $startTime->copy()->addMinutes($duration);
         }
-        
+
         if (isset($validated['menu_id'])) {
             $menu = \App\Models\Menu::find($validated['menu_id']);
             $reservation->menu_id = $menu->id;
             $reservation->total_amount = $menu->price;
+        }
+
+        // 日時変更がある場合は空き状況チェック
+        if (isset($validated['reservation_date']) || isset($validated['start_time'])) {
+            $checkDate = $reservation->reservation_date;
+            $checkStartTime = $reservation->start_time;
+            $checkEndTime = $reservation->end_time;
+
+            $conflictingReservations = Reservation::where('store_id', $reservation->store_id)
+                ->whereDate('reservation_date', $checkDate)
+                ->whereNotIn('status', ['cancelled', 'canceled', 'no_show'])
+                ->where('id', '!=', $reservation->id)
+                ->where(function($query) use ($checkStartTime, $checkEndTime) {
+                    $query->where(function($q) use ($checkStartTime, $checkEndTime) {
+                        $q->where('start_time', '<', $checkEndTime)
+                          ->where('end_time', '>', $checkStartTime);
+                    });
+                })
+                ->get();
+
+            // 元の予約と同じline_type（メイン/サブ）の予約のみをフィルタ
+            $originalIsSub = $oldReservation->is_sub || $oldReservation->line_type === 'sub';
+            $conflictingReservations = $conflictingReservations->filter(function($r) use ($originalIsSub) {
+                $reservationIsSub = $r->is_sub || $r->line_type === 'sub';
+                return $originalIsSub === $reservationIsSub;
+            });
+
+            if ($conflictingReservations->count() > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '選択された時間帯は既に予約が入っています。別の時間をお選びください。'
+                ], 400);
+            }
         }
 
         $reservation->save();
