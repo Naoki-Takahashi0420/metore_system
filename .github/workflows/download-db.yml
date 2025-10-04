@@ -24,7 +24,7 @@ jobs:
         ls -lh production.sqlite
 
     - name: Upload as Artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: production-database
         path: production.sqlite
