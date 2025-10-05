@@ -166,13 +166,18 @@ class ReservationRescheduleController extends Controller
             }
 
             // 予約を更新（店舗とメニューは変更しない）
-            $reservation->update([
+            // サブ枠からの変更の場合、常にメイン枠に移動する
+            $updateData = [
                 'reservation_date' => $validated['reservation_date'],
                 'start_time' => $validated['start_time'],
                 'end_time' => $endTime->format('H:i:s'),
                 'staff_id' => $validated['staff_id'],
+                'line_type' => 'main',  // 常にメイン枠に変更
+                'is_sub' => false,      // サブフラグをオフ
                 'updated_at' => now(),
-            ]);
+            ];
+
+            $reservation->update($updateData);
 
             DB::commit();
 
@@ -358,12 +363,10 @@ class ReservationRescheduleController extends Controller
                         }
                     }
 
-                    // 元の予約と同じline_typeのブロックをチェック
+                    // 常にメイン枠のブロックのみをチェック
+                    // （メイン→メイン、サブ→メインの移動を可能にする）
                     if ($originalReservation) {
-                        $originalIsSub = $originalReservation->is_sub || $originalReservation->line_type === 'sub';
-                        $originalLineType = $originalIsSub ? 'sub' : 'main';
-
-                        if ($blocked->line_type === $originalLineType) {
+                        if ($blocked->line_type === 'main') {
                             if (
                                 ($slotTime->gte($blockStart) && $slotTime->lt($blockEnd)) ||
                                 ($slotEnd->gt($blockStart) && $slotEnd->lte($blockEnd)) ||
@@ -398,13 +401,13 @@ class ReservationRescheduleController extends Controller
                     ? $dayReservations->where('staff_id', $staffId)
                     : $dayReservations;
 
-                // 元の予約と同じline_type（メイン/サブ）の予約のみをチェック
+                // 常にメイン枠の予約のみをチェック
+                // （メイン→メイン、サブ→メインの移動を可能にする）
                 if ($originalReservation) {
-                    $relevantReservations = $relevantReservations->filter(function($reservation) use ($originalReservation) {
-                        // line_typeまたはis_subで判定（どちらかが一致すればOK）
-                        $originalIsSub = $originalReservation->is_sub || $originalReservation->line_type === 'sub';
+                    $relevantReservations = $relevantReservations->filter(function($reservation) {
+                        // メイン枠の予約のみを対象とする
                         $reservationIsSub = $reservation->is_sub || $reservation->line_type === 'sub';
-                        return $originalIsSub === $reservationIsSub;
+                        return !$reservationIsSub;
                     });
                 }
 
