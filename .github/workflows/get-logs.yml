@@ -1,0 +1,29 @@
+name: Get Logs
+
+on:
+  workflow_dispatch:
+
+jobs:
+  get-logs:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Fetch Laravel Logs
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'LOGS'
+        echo "=== Email Notification Debug Logs ==="
+        sudo tail -n 300 /var/www/html/storage/logs/laravel.log | grep -B 2 -A 5 "Email notification check" || echo "No email notification logs found"
+
+        echo ""
+        echo "=== Recent Laravel Logs (last 50 lines) ==="
+        sudo tail -n 50 /var/www/html/storage/logs/laravel.log
+        LOGS
+
+        rm deploy_key.pem
