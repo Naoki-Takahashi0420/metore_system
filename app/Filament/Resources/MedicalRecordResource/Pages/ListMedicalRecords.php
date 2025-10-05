@@ -41,9 +41,27 @@ class ListMedicalRecords extends ListRecords
             Actions\CreateAction::make(),
         ];
     }
-    
-    // カスタムヘッダーを削除して、標準のFilamentヘッダーを使用
-    // これにより新規作成ボタンが常に表示される
+
+    public function getHeader(): ?\Illuminate\Contracts\View\View
+    {
+        return view('filament.resources.header-with-store-selector', [
+            'stores' => $this->getAvailableStores(),
+            'selectedStoreProperty' => 'storeFilter', // カスタムプロパティ名を指定
+        ]);
+    }
+
+    protected function getAvailableStores()
+    {
+        $user = auth()->user();
+
+        if ($user->hasRole('super_admin')) {
+            return Store::where('is_active', true)->orderBy('name')->get();
+        } elseif ($user->hasRole('owner')) {
+            return $user->manageableStores()->where('is_active', true)->orderBy('name')->get();
+        } else {
+            return $user->store ? collect([$user->store]) : collect();
+        }
+    }
     
     public function getTableQuery(): ?\Illuminate\Database\Eloquent\Builder
     {

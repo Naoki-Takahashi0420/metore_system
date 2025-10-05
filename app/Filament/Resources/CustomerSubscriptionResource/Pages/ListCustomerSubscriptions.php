@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\CustomerSubscriptionResource\Pages;
 
 use App\Filament\Resources\CustomerSubscriptionResource;
+use App\Models\Store;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Database\Eloquent\Builder;
@@ -11,6 +12,8 @@ class ListCustomerSubscriptions extends ListRecords
 {
     protected static string $resource = CustomerSubscriptionResource::class;
 
+    public $selectedStore = null;
+
     protected function getHeaderActions(): array
     {
         return [
@@ -18,31 +21,37 @@ class ListCustomerSubscriptions extends ListRecords
         ];
     }
 
+    public function getHeader(): ?\Illuminate\Contracts\View\View
+    {
+        return view('filament.resources.header-with-store-selector', [
+            'stores' => $this->getAvailableStores(),
+        ]);
+    }
+
+    protected function getAvailableStores()
+    {
+        $user = auth()->user();
+
+        if ($user->hasRole('super_admin')) {
+            return Store::where('is_active', true)->orderBy('name')->get();
+        } elseif ($user->hasRole('owner')) {
+            return $user->manageableStores()->where('is_active', true)->orderBy('name')->get();
+        } else {
+            return $user->store ? collect([$user->store]) : collect();
+        }
+    }
+
     public function getTableQuery(): ?Builder
     {
         $query = parent::getTableQuery();
-        $user = auth()->user();
 
-        if (!$user) {
-            return $query->whereRaw('1 = 0');
+        // 店舗選択によるフィルタリング
+        if ($this->selectedStore) {
+            $query->whereHas('menu', function($q) {
+                $q->where('store_id', $this->selectedStore);
+            });
         }
 
-        // スーパーアドミンは全て表示
-        if ($user->hasRole('super_admin')) {
-            return $query;
-        }
-
-        // オーナーは管理可能な店舗のサブスクのみ
-        if ($user->hasRole('owner')) {
-            $manageableStoreIds = $user->manageableStores()->pluck('stores.id')->toArray();
-            return $query->whereIn('store_id', $manageableStoreIds);
-        }
-
-        // 店長・スタッフは所属店舗のサブスクのみ
-        if ($user->hasRole(['manager', 'staff']) && $user->store_id) {
-            return $query->where('store_id', $user->store_id);
-        }
-
-        return $query->whereRaw('1 = 0');
+        return $query;
     }
 }

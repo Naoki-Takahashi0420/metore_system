@@ -124,14 +124,12 @@ class AdminNotificationService
         $adminIds = collect();
 
         // 店舗オーナーと管理者を取得
-        try {
-            if ($store->managers()->exists()) {
-                $storeManagerIds = $store->managers()->pluck('users.id');
-                $adminIds = $adminIds->merge($storeManagerIds);
-            }
-        } catch (\Exception $e) {
-            \Log::warning('店舗管理者の取得に失敗: ' . $e->getMessage());
-            // 代替として、store_idが一致するユーザーを取得
+        // store_managersテーブルに登録があればそこから、なければstore_idで検索
+        if ($store->managers()->exists()) {
+            $storeManagerIds = $store->managers()->pluck('users.id');
+            $adminIds = $adminIds->merge($storeManagerIds);
+        } else {
+            // store_managersテーブルが空の場合は、store_idが一致するユーザーを取得
             $storeUserIds = User::where('store_id', $store->id)->pluck('id');
             $adminIds = $adminIds->merge($storeUserIds);
         }
@@ -194,9 +192,20 @@ class AdminNotificationService
     private function shouldSendEmail(User $admin, string $type): bool
     {
         $preferences = $admin->notification_preferences ?? [];
-        
-        // 予約通知が無効の場合は送信しない
-        return $preferences['email_enabled'] ?? true;
+
+        // 予約通知が明示的にfalseの場合は送信しない
+        // 設定がない場合はデフォルトでtrueとして扱う（後方互換性）
+        $emailEnabled = $preferences['email_enabled'] ?? true;
+
+        // デバッグログ
+        \Log::info('Email notification check', [
+            'user_id' => $admin->id,
+            'email' => $admin->email,
+            'email_enabled' => $emailEnabled,
+            'preferences' => $preferences
+        ]);
+
+        return $emailEnabled === true;
     }
     
     /**

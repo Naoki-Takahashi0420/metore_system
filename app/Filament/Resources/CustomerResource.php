@@ -435,6 +435,10 @@ class CustomerResource extends Resource
                     ->falseIcon('heroicon-o-minus-circle')
                     ->trueColor('success')
                     ->falseColor('gray'),
+                Tables\Columns\TextColumn::make('store.name')
+                    ->label('店舗')
+                    ->sortable()
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('last_name')
                     ->label('顧客名')
                     ->formatStateUsing(function ($record) {
@@ -617,6 +621,10 @@ class CustomerResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('store_id')
+                    ->label('店舗')
+                    ->relationship('store', 'name')
+                    ->searchable(),
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('有効状態'),
                 Tables\Filters\Filter::make('high_risk')

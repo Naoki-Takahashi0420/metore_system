@@ -658,12 +658,16 @@ class MedicalRecordResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('reservation.store.name')
+                    ->label('店舗')
+                    ->sortable()
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('customer.last_name')
                     ->label('顧客名')
                     ->formatStateUsing(fn ($record) => $record->customer ? (($record->customer->last_name ?? '') . ' ' . ($record->customer->first_name ?? '')) : '-')
                     ->searchable(['customers.last_name', 'customers.first_name'])
                     ->sortable(),
-                
+
                 Tables\Columns\TextColumn::make('treatment_date')
                     ->label('施術日')
                     ->date('Y/m/d')
@@ -722,19 +726,9 @@ class MedicalRecordResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('store')
+                Tables\Filters\SelectFilter::make('store_id')
                     ->label('店舗')
-                    ->options(\App\Models\Store::where('is_active', true)->pluck('name', 'id'))
-                    ->query(function ($query, $data) {
-                        if ($data['value']) {
-                            return $query->whereHas('customer', function ($q) use ($data) {
-                                $q->whereHas('reservations', function ($r) use ($data) {
-                                    $r->where('store_id', $data['value']);
-                                });
-                            });
-                        }
-                        return $query;
-                    })
+                    ->relationship('reservation.store', 'name')
                     ->searchable(),
                     
                 Tables\Filters\SelectFilter::make('customer_id')

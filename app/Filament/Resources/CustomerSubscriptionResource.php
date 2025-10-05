@@ -294,9 +294,10 @@ class CustomerSubscriptionResource extends Resource
                     ->label('プラン')
                     ->searchable(),
                     
-                Tables\Columns\TextColumn::make('store.name')
+                Tables\Columns\TextColumn::make('menu.store.name')
                     ->label('店舗')
-                    ->sortable(),
+                    ->sortable()
+                    ->searchable(),
                     
                 Tables\Columns\TextColumn::make('monthly_limit')
                     ->label('月間制限')
@@ -345,7 +346,7 @@ class CustomerSubscriptionResource extends Resource
                     ->label('店舗')
                     ->options(function () {
                         $user = auth()->user();
-                        
+
                         if ($user->hasRole('super_admin')) {
                             return \App\Models\Store::where('is_active', true)->pluck('name', 'id');
                         } elseif ($user->hasRole('owner')) {
@@ -354,6 +355,14 @@ class CustomerSubscriptionResource extends Resource
                             // 店長・スタッフは自店舗のみ
                             return $user->store ? collect([$user->store->id => $user->store->name]) : collect();
                         }
+                    })
+                    ->query(function ($query, $data) {
+                        if (isset($data['value'])) {
+                            return $query->whereHas('menu', function($q) use ($data) {
+                                $q->where('store_id', $data['value']);
+                            });
+                        }
+                        return $query;
                     }),
             ])
             ->actions([
@@ -468,12 +477,16 @@ class CustomerSubscriptionResource extends Resource
         // オーナーは紐づいた店舗のサブスク契約のみ表示
         if ($user->hasRole('owner')) {
             $storeIds = $user->manageableStores()->pluck('stores.id')->toArray();
-            return $query->whereIn('store_id', $storeIds);
+            return $query->whereHas('menu', function($q) use ($storeIds) {
+                $q->whereIn('store_id', $storeIds);
+            });
         }
 
         // 店長・スタッフは自店舗のサブスク契約のみ表示
         if ($user->hasRole(['manager', 'staff'])) {
-            return $query->where('store_id', $user->store_id);
+            return $query->whereHas('menu', function($q) use ($user) {
+                $q->where('store_id', $user->store_id);
+            });
         }
 
         // 該当ロールがない場合は空の結果
