@@ -116,13 +116,12 @@ class ReservationRescheduleController extends Controller
     public function update(Request $request, Reservation $reservation)
     {
         $validated = $request->validate([
-            'reservation_date' => 'required|date|after_or_equal:today',
+            'reservation_date' => 'required|date',
             'start_time' => 'required',
             'staff_id' => 'nullable|exists:users,id',
         ], [
             'reservation_date.required' => '予約日を選択してください',
             'reservation_date.date' => '正しい日付を入力してください',
-            'reservation_date.after_or_equal' => '過去の日付は選択できません',
             'start_time.required' => '開始時間を選択してください',
         ]);
 
@@ -290,6 +289,14 @@ class ReservationRescheduleController extends Controller
                 });
         }
 
+        // ブロックされた時間帯を取得
+        $blockedPeriodsQuery = BlockedTimePeriod::where('store_id', $store->id)
+            ->whereIn(DB::raw('DATE(blocked_date)'), $dateStrings);
+
+        $blockedPeriods = $blockedPeriodsQuery->get()->groupBy(function($blocked) {
+            return Carbon::parse($blocked->blocked_date)->format('Y-m-d');
+        });
+
         foreach ($dates as $date) {
             $dateStr = $date['date']->format('Y-m-d');
             $dayOfWeek = $date['date']->dayOfWeek;
@@ -314,7 +321,7 @@ class ReservationRescheduleController extends Controller
             }
 
             foreach ($timeSlots as $slot) {
-                if (!$isBusinessDay || $date['is_past']) {
+                if (!$isBusinessDay) {
                     $availability[$dateStr][$slot] = false;
                     continue;
                 }
@@ -322,13 +329,66 @@ class ReservationRescheduleController extends Controller
                 $slotTime = Carbon::parse($date['date']->format('Y-m-d') . ' ' . $slot);
                 $slotEnd = $slotTime->copy()->addMinutes($menu->duration);
 
-                // 管理画面では過去の時間も選択可能（当日の過去時間も含む）
-
                 // 営業時間チェック - 終了時間が営業終了時刻を超えないかチェック
                 $openTimeCarbon = Carbon::parse($date['date']->format('Y-m-d') . ' ' . $openTime);
                 $closeTimeCarbon = Carbon::parse($date['date']->format('Y-m-d') . ' ' . $closeTime);
 
                 if ($slotTime->lt($openTimeCarbon) || $slotEnd->gt($closeTimeCarbon)) {
+                    $availability[$dateStr][$slot] = false;
+                    continue;
+                }
+
+                // ブロック時間帯チェック
+                $dayBlockedPeriods = $blockedPeriods->get($dateStr, collect());
+                $isBlocked = false;
+
+                foreach ($dayBlockedPeriods as $blocked) {
+                    $blockStart = Carbon::parse($dateStr . ' ' . $blocked->start_time);
+                    $blockEnd = Carbon::parse($dateStr . ' ' . $blocked->end_time);
+
+                    // 全体ブロック（line_typeがnull）の場合は必ずブロック
+                    if ($blocked->line_type === null) {
+                        if (
+                            ($slotTime->gte($blockStart) && $slotTime->lt($blockEnd)) ||
+                            ($slotEnd->gt($blockStart) && $slotEnd->lte($blockEnd)) ||
+                            ($slotTime->lte($blockStart) && $slotEnd->gte($blockEnd))
+                        ) {
+                            $isBlocked = true;
+                            break;
+                        }
+                    }
+
+                    // 元の予約と同じline_typeのブロックをチェック
+                    if ($originalReservation) {
+                        $originalIsSub = $originalReservation->is_sub || $originalReservation->line_type === 'sub';
+                        $originalLineType = $originalIsSub ? 'sub' : 'main';
+
+                        if ($blocked->line_type === $originalLineType) {
+                            if (
+                                ($slotTime->gte($blockStart) && $slotTime->lt($blockEnd)) ||
+                                ($slotEnd->gt($blockStart) && $slotEnd->lte($blockEnd)) ||
+                                ($slotTime->lte($blockStart) && $slotEnd->gte($blockEnd))
+                            ) {
+                                $isBlocked = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    // スタッフ指定がある場合、そのスタッフのブロックをチェック
+                    if ($staffId && $blocked->line_type === 'staff' && $blocked->staff_id == $staffId) {
+                        if (
+                            ($slotTime->gte($blockStart) && $slotTime->lt($blockEnd)) ||
+                            ($slotEnd->gt($blockStart) && $slotEnd->lte($blockEnd)) ||
+                            ($slotTime->lte($blockStart) && $slotEnd->gte($blockEnd))
+                        ) {
+                            $isBlocked = true;
+                            break;
+                        }
+                    }
+                }
+
+                if ($isBlocked) {
                     $availability[$dateStr][$slot] = false;
                     continue;
                 }
