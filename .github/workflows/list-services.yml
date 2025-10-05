@@ -1,0 +1,34 @@
+name: List Services Directory
+
+on:
+  workflow_dispatch:
+
+jobs:
+  list-services:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: List Services Directory
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'LISTDIR'
+        echo "=== Listing /var/www/html/app/Services/ directory ==="
+        sudo ls -lah /var/www/html/app/Services/
+
+        echo ""
+        echo "=== Checking if AdminNotificationService.php exists ==="
+        sudo find /var/www/html/app -name "AdminNotificationService.php" -type f
+
+        echo ""
+        echo "=== Last deployment info ==="
+        cd /var/www/html
+        sudo git log -1 --oneline
+        LISTDIR
+
+        rm deploy_key.pem
