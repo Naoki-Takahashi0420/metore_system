@@ -2,6 +2,42 @@
 
 ## 📝 開発メモ（2025-09-05）
 
+### 🚨 重要：メール通知重複バグ調査中（2025-10-06）
+
+**問題**: 同じメールアドレスに同じ内容の通知が2通届く
+
+**調査状況**:
+1. デバッグログを本番環境にデプロイ済み（commit: 6141fb9）
+2. 次回予約発生時に以下のログが記録される：
+   - 🔍 getStoreAdmins result: 通知対象の管理者リスト（user_id付き）
+   - Email notification check: 各ユーザーの通知設定
+   - 📧 Sending email: 実際のメール送信ログ
+
+**ログ確認方法**:
+```bash
+# GitHub Actionsワークフローを使用
+gh workflow run "Check Latest Logs"
+gh run watch $(gh run list --workflow="Check Latest Logs" --limit 1 --json databaseId -q '.[0].databaseId')
+gh run view <RUN_ID> --log | grep "🔍\|📧"
+```
+
+**確認すべきポイント**:
+1. `🔍 [DEBUG] getStoreAdmins result` のログで、同じuser_idが2回含まれていないか？
+2. `📧 [DEBUG] Sending email` のログで、同じemailに2回送信していないか？
+3. もし同じuser_idが2回あれば → `getStoreAdmins()` メソッドの重複除去ロジック（154行目の`unique()`）が機能していない
+4. もし異なるuser_idで同じemailなら → 同じメールアドレスを持つユーザーが複数存在している
+
+**修正候補の場所**:
+- `app/Services/AdminNotificationService.php` の `getStoreAdmins()` メソッド（122-157行目）
+- 特に154行目: `$uniqueAdminIds = $adminIds->unique()->filter();`
+
+**次のアクション**:
+1. 本番環境で予約が発生するのを待つ
+2. ログを確認して重複の原因を特定
+3. 原因に応じて修正を実施
+
+---
+
 ### 視力関連の用語
 - **裸眼矯正** → 正しくは以下の3分類：
   - **裸眼**: メガネ・コンタクトなしの視力
