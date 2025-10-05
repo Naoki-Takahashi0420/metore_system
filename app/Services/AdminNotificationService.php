@@ -30,16 +30,23 @@ class AdminNotificationService
     {
         $store = $reservation->store;
         $customer = $reservation->customer;
-        
+
         // 店舗管理者に通知
         $admins = $this->getStoreAdmins($store);
-        
+
+        \Log::info('🔍 [DEBUG] getStoreAdmins result', [
+            'reservation_id' => $reservation->id,
+            'store_id' => $store->id,
+            'admin_count' => $admins->count(),
+            'admin_emails' => $admins->pluck('email', 'id')->toArray()
+        ]);
+
         $message = $this->buildNewReservationMessage($reservation, $customer);
-        
+
         foreach ($admins as $admin) {
             $this->sendNotification($admin, $message, 'new_reservation');
         }
-        
+
         \Log::info('Admin notification sent for new reservation', [
             'reservation_id' => $reservation->id,
             'store_id' => $store->id,
@@ -214,7 +221,14 @@ class AdminNotificationService
     private function sendEmailNotification(User $admin, string $message, string $type): void
     {
         $subject = $this->getEmailSubject($type);
-        
+
+        \Log::info('📧 [DEBUG] Sending email', [
+            'user_id' => $admin->id,
+            'email' => $admin->email,
+            'subject' => $subject,
+            'type' => $type
+        ]);
+
         // HTMLメール用のフォーマット
         $htmlMessage = nl2br(htmlspecialchars($message));
         $htmlBody = <<<HTML
@@ -242,7 +256,7 @@ class AdminNotificationService
 </body>
 </html>
 HTML;
-        
+
         // EmailServiceを使用してメール送信
         $this->emailService->sendEmail($admin->email, $subject, $htmlBody, $message);
     }
