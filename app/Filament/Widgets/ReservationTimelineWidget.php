@@ -1525,21 +1525,42 @@ class ReservationTimelineWidget extends Widget
                 $dbDriver = DB::connection()->getDriverName();
                 $concatOperator = $dbDriver === 'sqlite' ? '||' : 'CONCAT';
 
+                // スペースを除去した検索キーワードも用意（フルネーム検索対応）
+                $searchNoSpace = str_replace([' ', '　'], '', $search); // 半角・全角スペースを削除
+
                 // 検索結果を取得して、関連度順にソート
-                $results = \App\Models\Customer::where(function($query) use ($search, $dbDriver) {
+                $results = \App\Models\Customer::where(function($query) use ($search, $searchNoSpace, $dbDriver) {
                         $query->where('phone', 'LIKE', '%' . $search . '%')
                               ->orWhere('last_name', 'LIKE', '%' . $search . '%')
                               ->orWhere('first_name', 'LIKE', '%' . $search . '%')
                               ->orWhere('last_name_kana', 'LIKE', '%' . $search . '%')
                               ->orWhere('first_name_kana', 'LIKE', '%' . $search . '%');
 
-                        // SQLite: last_name || first_name, MySQL: CONCAT(last_name, first_name)
+                        // フルネーム検索（スペースなし）
                         if ($dbDriver === 'sqlite') {
-                            $query->orWhereRaw('(last_name || first_name) LIKE ?', ['%' . $search . '%'])
-                                  ->orWhereRaw('(last_name_kana || first_name_kana) LIKE ?', ['%' . $search . '%']);
+                            $query->orWhereRaw('(last_name || first_name) LIKE ?', ['%' . $searchNoSpace . '%'])
+                                  ->orWhereRaw('(last_name_kana || first_name_kana) LIKE ?', ['%' . $searchNoSpace . '%']);
                         } else {
-                            $query->orWhereRaw('CONCAT(last_name, first_name) LIKE ?', ['%' . $search . '%'])
-                                  ->orWhereRaw('CONCAT(last_name_kana, first_name_kana) LIKE ?', ['%' . $search . '%']);
+                            $query->orWhereRaw('CONCAT(last_name, first_name) LIKE ?', ['%' . $searchNoSpace . '%'])
+                                  ->orWhereRaw('CONCAT(last_name_kana, first_name_kana) LIKE ?', ['%' . $searchNoSpace . '%']);
+                        }
+
+                        // フルネーム検索（スペースあり：半角スペース）
+                        if ($dbDriver === 'sqlite') {
+                            $query->orWhereRaw('(last_name || " " || first_name) LIKE ?', ['%' . $search . '%'])
+                                  ->orWhereRaw('(last_name_kana || " " || first_name_kana) LIKE ?', ['%' . $search . '%']);
+                        } else {
+                            $query->orWhereRaw('CONCAT(last_name, " ", first_name) LIKE ?', ['%' . $search . '%'])
+                                  ->orWhereRaw('CONCAT(last_name_kana, " ", first_name_kana) LIKE ?', ['%' . $search . '%']);
+                        }
+
+                        // フルネーム検索（スペースあり：全角スペース）
+                        if ($dbDriver === 'sqlite') {
+                            $query->orWhereRaw('(last_name || "　" || first_name) LIKE ?', ['%' . $search . '%'])
+                                  ->orWhereRaw('(last_name_kana || "　" || first_name_kana) LIKE ?', ['%' . $search . '%']);
+                        } else {
+                            $query->orWhereRaw('CONCAT(last_name, "　", first_name) LIKE ?', ['%' . $search . '%'])
+                                  ->orWhereRaw('CONCAT(last_name_kana, "　", first_name_kana) LIKE ?', ['%' . $search . '%']);
                         }
                     })
                     ->withCount(['reservations' => function($query) use ($storeId) {
@@ -1559,6 +1580,7 @@ class ReservationTimelineWidget extends Widget
                         // 関連度スコアを計算（完全一致 > 前方一致 > 部分一致）
                         $score = 0;
                         $searchLower = mb_strtolower($search);
+                        $searchNoSpace = str_replace([' ', '　'], '', $searchLower);
 
                         // 電話番号の完全一致（最優先）
                         if ($customer->phone === $search) {
@@ -1569,19 +1591,38 @@ class ReservationTimelineWidget extends Widget
                             $score += 100; // 部分一致
                         }
 
-                        // 名前の一致
+                        // フルネーム（スペースなし）
                         $fullName = $customer->last_name . $customer->first_name;
                         $fullNameLower = mb_strtolower($fullName);
-                        if ($fullNameLower === $searchLower) {
+
+                        // フルネーム（スペースあり：半角・全角）
+                        $fullNameWithSpace = $customer->last_name . ' ' . $customer->first_name;
+                        $fullNameWithZenkakuSpace = $customer->last_name . '　' . $customer->first_name;
+                        $fullNameWithSpaceLower = mb_strtolower($fullNameWithSpace);
+                        $fullNameWithZenkakuSpaceLower = mb_strtolower($fullNameWithZenkakuSpace);
+
+                        // 完全一致チェック（最高点）
+                        if ($fullNameLower === $searchNoSpace ||
+                            $fullNameWithSpaceLower === $searchLower ||
+                            $fullNameWithZenkakuSpaceLower === $searchLower) {
                             $score += 800;
-                        } elseif (strpos($fullNameLower, $searchLower) === 0) {
+                        }
+                        // 前方一致
+                        elseif (strpos($fullNameLower, $searchNoSpace) === 0 ||
+                                strpos($fullNameWithSpaceLower, $searchLower) === 0 ||
+                                strpos($fullNameWithZenkakuSpaceLower, $searchLower) === 0) {
                             $score += 400;
-                        } elseif (strpos($fullNameLower, $searchLower) !== false) {
+                        }
+                        // 部分一致
+                        elseif (strpos($fullNameLower, $searchNoSpace) !== false ||
+                                strpos($fullNameWithSpaceLower, $searchLower) !== false ||
+                                strpos($fullNameWithZenkakuSpaceLower, $searchLower) !== false) {
                             $score += 80;
                         }
 
                         // 姓名個別の一致
-                        if (mb_strtolower($customer->last_name) === $searchLower || mb_strtolower($customer->first_name) === $searchLower) {
+                        if (mb_strtolower($customer->last_name) === $searchNoSpace ||
+                            mb_strtolower($customer->first_name) === $searchNoSpace) {
                             $score += 600;
                         }
 

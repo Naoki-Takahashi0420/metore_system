@@ -42,11 +42,15 @@
                 <div class="space-y-6">
                     <div id="naked-vision-chart-wrapper" class="hidden">
                         <h3 class="text-base font-medium mb-3 text-gray-700">裸眼視力</h3>
-                        <canvas id="nakedVisionChart" width="400" height="200"></canvas>
+                        <div class="relative" style="height: 300px;">
+                            <canvas id="nakedVisionChart"></canvas>
+                        </div>
                     </div>
                     <div id="corrected-vision-chart-wrapper" class="hidden">
                         <h3 class="text-base font-medium mb-3 text-gray-700">矯正視力</h3>
-                        <canvas id="correctedVisionChart" width="400" height="200"></canvas>
+                        <div class="relative" style="height: 300px;">
+                            <canvas id="correctedVisionChart"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -689,12 +693,17 @@ function renderVisionCharts(records) {
         type: 'line',
         options: {
             responsive: true,
-            maintainAspectRatio: true,
+            maintainAspectRatio: false,
             plugins: {
                 legend: {
                     display: true,
                     position: 'top',
                     labels: {
+                        font: {
+                            size: window.innerWidth < 640 ? 10 : 12
+                        },
+                        padding: window.innerWidth < 640 ? 8 : 10,
+                        boxWidth: window.innerWidth < 640 ? 30 : 40,
                         filter: function(item) {
                             return item.text !== undefined && item.text !== null && item.text !== '';
                         }
@@ -710,17 +719,31 @@ function renderVisionCharts(records) {
                     beginAtZero: true,
                     max: 2.0,
                     ticks: {
-                        stepSize: 0.1
+                        stepSize: 0.1,
+                        font: {
+                            size: window.innerWidth < 640 ? 10 : 11
+                        }
                     },
                     title: {
                         display: true,
-                        text: '視力'
+                        text: '視力',
+                        font: {
+                            size: window.innerWidth < 640 ? 11 : 12
+                        }
                     }
                 },
                 x: {
+                    ticks: {
+                        font: {
+                            size: window.innerWidth < 640 ? 10 : 11
+                        }
+                    },
                     title: {
                         display: true,
-                        text: '測定日'
+                        text: '測定日',
+                        font: {
+                            size: window.innerWidth < 640 ? 11 : 12
+                        }
                     }
                 }
             },
