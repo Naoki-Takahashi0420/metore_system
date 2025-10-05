@@ -1,0 +1,29 @@
+name: Check Latest Logs
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-latest-logs:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Fetch Latest Laravel Logs
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'LOGS'
+        echo "=== Last 500 lines of Laravel log ===\"
+        sudo tail -n 500 /var/www/html/storage/logs/laravel.log
+
+        echo ""
+        echo "=== Email notification debug logs ===\"
+        sudo grep "Email notification check" /var/www/html/storage/logs/laravel.log || echo "No email notification logs yet"
+        LOGS
+
+        rm deploy_key.pem
