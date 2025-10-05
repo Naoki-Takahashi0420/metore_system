@@ -17,13 +17,9 @@ jobs:
         echo "$EC2_KEY" > deploy_key.pem
         chmod 600 deploy_key.pem
 
-        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'CHECK'
-        echo "=== Checking AdminNotificationService.php for debug logs ==="
-        sudo grep -n "Email notification check" /var/www/html/app/Services/AdminNotificationService.php || echo "Debug log NOT found"
-
-        echo ""
-        echo "=== shouldSendEmail method ==="
-        sudo sed -n '192,210p' /var/www/html/app/Services/AdminNotificationService.php
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} '<<' 'CHECK'
+        echo "=== Debug log check ==="
+        sudo grep -n "Email notification check" /var/www/html/app/Services/AdminNotificationService.php || echo "NOT FOUND"
         CHECK
 
         rm deploy_key.pem
