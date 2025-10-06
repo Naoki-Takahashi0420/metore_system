@@ -976,17 +976,13 @@ class CustomerResource extends Resource
         // オーナーは管理可能店舗に関連する顧客のみ表示
         if ($user->hasRole('owner')) {
             $manageableStoreIds = $user->manageableStores()->pluck('stores.id');
-            return $query->whereHas('reservations', function ($q) use ($manageableStoreIds) {
-                $q->whereIn('store_id', $manageableStoreIds);
-            });
+            return $query->whereIn('store_id', $manageableStoreIds);
         }
-        
+
         // 店長・スタッフは所属店舗に関連する顧客のみ表示
         if ($user->hasRole(['manager', 'staff'])) {
             if ($user->store_id) {
-                return $query->whereHas('reservations', function ($q) use ($user) {
-                    $q->where('store_id', $user->store_id);
-                });
+                return $query->where('store_id', $user->store_id);
             }
             return $query->whereRaw('1 = 0');
         }
