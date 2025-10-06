@@ -47,6 +47,7 @@ class ListMedicalRecords extends ListRecords
         return view('filament.resources.header-with-store-selector', [
             'stores' => $this->getAvailableStores(),
             'selectedStoreProperty' => 'storeFilter', // カスタムプロパティ名を指定
+            'actions' => $this->getCachedHeaderActions(),
         ]);
     }
 
