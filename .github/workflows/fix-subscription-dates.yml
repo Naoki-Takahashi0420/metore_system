@@ -1,0 +1,56 @@
+name: Fix Subscription End Dates
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: '実行確認 (yesを入力)'
+        required: true
+        default: ''
+
+jobs:
+  fix-subscription-dates:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'yes'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Install Dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/xsyumeno-ssh-key.pem
+          chmod 600 ~/.ssh/xsyumeno-ssh-key.pem
+
+      - name: Copy Script to Production Server
+        run: |
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/xsyumeno-ssh-key.pem \
+            fix-subscription-end-dates.php \
+            ubuntu@54.64.54.226:/var/www/html/
+
+      - name: Run Fix Script on Production
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/xsyumeno-ssh-key.pem ubuntu@54.64.54.226 << 'ENDSSH'
+            cd /var/www/html
+
+            # スクリプトを自動実行モードで実行
+            echo "=== サブスク契約終了日修正スクリプト実行 ==="
+            echo "yes" | php fix-subscription-end-dates.php
+
+            # 結果を保存
+            echo ""
+            echo "=== 実行完了 ==="
+          ENDSSH
+
+      - name: Cleanup
+        if: always()
+        run: rm -f ~/.ssh/xsyumeno-ssh-key.pem
