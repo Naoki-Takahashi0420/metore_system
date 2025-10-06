@@ -89,10 +89,12 @@ foreach ($updates as $update) {
     $subscription = CustomerSubscription::find($update['id']);
 
     if ($subscription) {
-        $subscription->update([
-            'end_date' => $update['new_end_date'],
-            'contract_months' => $update['new_contract_months'],
-        ]);
+        // bootイベントを無効化して直接更新
+        CustomerSubscription::unsetEventDispatcher();
+
+        $subscription->end_date = $update['new_end_date'];
+        $subscription->contract_months = $update['new_contract_months'];
+        $subscription->saveQuietly();
 
         echo "✅ ID: {$update['id']} ({$update['customer_name']}) を修正しました" . PHP_EOL;
         echo "   終了日: {$update['old_end_date']} → {$update['new_end_date']}" . PHP_EOL;
