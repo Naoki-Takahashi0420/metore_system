@@ -970,20 +970,26 @@ class CustomerResource extends Resource
         }
 
         // オーナーは管理可能店舗に関連する顧客のみ表示
-        // 予約を通じて店舗と関連がある顧客を表示
+        // 条件: store_idが管理店舗 OR 管理店舗で予約がある
         if ($user->hasRole('owner')) {
             $manageableStoreIds = $user->manageableStores()->pluck('stores.id')->toArray();
-            return $query->whereHas('reservations', function ($q) use ($manageableStoreIds) {
-                $q->whereIn('store_id', $manageableStoreIds);
+            return $query->where(function ($q) use ($manageableStoreIds) {
+                $q->whereIn('customers.store_id', $manageableStoreIds)
+                  ->orWhereHas('reservations', function ($subQ) use ($manageableStoreIds) {
+                      $subQ->whereIn('store_id', $manageableStoreIds);
+                  });
             });
         }
 
         // 店長・スタッフは所属店舗に関連する顧客のみ表示
-        // 予約を通じて店舗と関連がある顧客を表示
+        // 条件: store_idが所属店舗 OR 所属店舗で予約がある
         if ($user->hasRole(['manager', 'staff'])) {
             if ($user->store_id) {
-                return $query->whereHas('reservations', function ($q) use ($user) {
-                    $q->where('store_id', $user->store_id);
+                return $query->where(function ($q) use ($user) {
+                    $q->where('store_id', $user->store_id)
+                      ->orWhereHas('reservations', function ($subQ) use ($user) {
+                          $subQ->where('store_id', $user->store_id);
+                      });
                 });
             }
             return $query->whereRaw('1 = 0');
