@@ -55,7 +55,9 @@ class ListCustomers extends ListRecords
             }
             // オーナーは管理可能店舗のみ
             elseif ($user && $user->hasRole('owner')) {
-                $storeOptions = $user->manageableStores()->whereNotNull('name')->pluck('name', 'id');
+                $storeOptions = $user->manageableStores()
+                    ->whereNotNull('stores.name')
+                    ->pluck('stores.name', 'stores.id');
             }
             // その他は所属店舗のみ
             elseif ($user && $user->store) {

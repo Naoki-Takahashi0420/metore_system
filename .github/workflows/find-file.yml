@@ -1,0 +1,38 @@
+
+name: Find AdminNotificationService
+
+
+
+on:
+
+  workflow_dispatch:
+
+
+
+jobs:
+
+  find:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - name: Find file
+
+      env:
+
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+
+      run: |
+
+        echo "$EC2_KEY" > deploy_key.pem
+
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ubuntu@54.64.54.226 "sudo find /var/www/html -name AdminNotificationService.php"
+
+        rm deploy_key.pem
+
+git
+add
+.github/workflows/find-file.yml
