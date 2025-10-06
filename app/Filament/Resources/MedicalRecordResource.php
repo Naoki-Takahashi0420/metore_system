@@ -665,7 +665,28 @@ class MedicalRecordResource extends Resource
                 Tables\Columns\TextColumn::make('customer.last_name')
                     ->label('顧客名')
                     ->formatStateUsing(fn ($record) => $record->customer ? (($record->customer->last_name ?? '') . ' ' . ($record->customer->first_name ?? '')) : '-')
-                    ->searchable(['customers.last_name', 'customers.first_name'])
+                    ->searchable(query: function ($query, $search) {
+                        // 検索文字列をトリム
+                        $search = trim($search);
+
+                        return $query->whereHas('customer', function ($q) use ($search) {
+                            $q->where(function ($subQ) use ($search) {
+                                // 姓・名それぞれで検索
+                                $subQ->where('last_name', 'like', "%{$search}%")
+                                     ->orWhere('first_name', 'like', "%{$search}%")
+                                     ->orWhere('last_name_kana', 'like', "%{$search}%")
+                                     ->orWhere('first_name_kana', 'like', "%{$search}%")
+                                     // フルネーム（スペースなし）で検索
+                                     ->orWhereRaw('CONCAT(last_name, first_name) LIKE ?', ["%{$search}%"])
+                                     // フルネーム（スペースあり）で検索
+                                     ->orWhereRaw('CONCAT(last_name, " ", first_name) LIKE ?', ["%{$search}%"])
+                                     // カナフルネーム（スペースなし）で検索
+                                     ->orWhereRaw('CONCAT(last_name_kana, first_name_kana) LIKE ?', ["%{$search}%"])
+                                     // カナフルネーム（スペースあり）で検索
+                                     ->orWhereRaw('CONCAT(last_name_kana, " ", first_name_kana) LIKE ?', ["%{$search}%"]);
+                            });
+                        });
+                    })
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('treatment_date')
