@@ -992,8 +992,8 @@ class CustomerResource extends Resource
         
         // オーナーは管理可能店舗に関連する顧客のみ表示
         if ($user->hasRole('owner')) {
-            $manageableStoreIds = $user->manageableStores()->pluck('stores.id');
-            return $query->whereIn('store_id', $manageableStoreIds);
+            $manageableStoreIds = $user->manageableStores()->pluck('stores.id')->toArray();
+            return $query->whereIn('customers.store_id', $manageableStoreIds);
         }
 
         // 店長・スタッフは所属店舗に関連する顧客のみ表示
