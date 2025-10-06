@@ -72,7 +72,7 @@ class TodayReservationsWidget extends BaseWidget
         $date = Carbon::parse($date);
 
         $query = $this->getBaseQuery()
-            ->with(['customer', 'store', 'menu', 'staff'])
+            ->with(['customer', 'store', 'menu', 'staff', 'medicalRecords'])
             ->whereDate('reservation_date', $date)
             ->whereNotIn('status', ['cancelled', 'canceled']);
 
@@ -311,7 +311,7 @@ class TodayReservationsWidget extends BaseWidget
                     ->url(fn ($record) => "/admin/medical-records/create?reservation_id={$record->id}")
                     ->visible(fn ($record) =>
                         $record->status === 'completed' &&
-                        !$record->medicalRecords()->exists()
+                        !$record->medicalRecords->count()
                     ),
             ])
             ->bulkActions([])
