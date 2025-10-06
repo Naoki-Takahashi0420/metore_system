@@ -43,11 +43,9 @@ class UserResource extends Resource
                             ->maxLength(255),
                         Forms\Components\TextInput::make('password')
                             ->label('パスワード')
-                            ->password()
                             ->required(fn (string $operation): bool => $operation === 'create')
-                            ->dehydrateStateUsing(fn ($state) => Hash::make($state))
-                            ->dehydrated(fn ($state) => filled($state))
-                            ->maxLength(255),
+                            ->maxLength(255)
+                            ->helperText('管理者用：平文で保存・表示されます'),
                         Forms\Components\Select::make('store_id')
                             ->label('所属店舗')
                             ->options(function () {
