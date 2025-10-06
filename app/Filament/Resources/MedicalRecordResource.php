@@ -796,16 +796,18 @@ class MedicalRecordResource extends Resource
         }
 
         // オーナーは管理店舗に関連するカルテのみ表示
+        // 予約を通じて店舗と関連がある顧客のカルテを表示
         if ($user->hasRole('owner')) {
             $storeIds = $user->manageableStores()->pluck('stores.id')->toArray();
-            return $query->whereHas('customer', function ($q) use ($storeIds) {
+            return $query->whereHas('customer.reservations', function ($q) use ($storeIds) {
                 $q->whereIn('store_id', $storeIds);
             });
         }
 
         // 店長・スタッフは自店舗に関連するカルテのみ表示
+        // 予約を通じて店舗と関連がある顧客のカルテを表示
         if ($user->hasRole(['manager', 'staff']) && $user->store_id) {
-            return $query->whereHas('customer', function ($q) use ($user) {
+            return $query->whereHas('customer.reservations', function ($q) use ($user) {
                 $q->where('store_id', $user->store_id);
             });
         }

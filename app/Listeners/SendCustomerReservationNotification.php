@@ -29,6 +29,17 @@ class SendCustomerReservationNotification implements ShouldQueue
     {
         $reservation = $event->reservation;
 
+        // 店舗スタッフが対面で対応した予約は通知をスキップ
+        $skipSources = ['phone', 'walk_in', 'admin'];
+        if (in_array($reservation->source, $skipSources)) {
+            Log::info('顧客予約確認通知スキップ（店舗対応）', [
+                'reservation_id' => $reservation->id,
+                'customer_id' => $reservation->customer_id,
+                'source' => $reservation->source
+            ]);
+            return;
+        }
+
         // 既に確認通知送信済みの場合はスキップ（LINE連携時に送信済みの場合など）
         // confirmation_sent_at フラグで統一的にチェック
         if ($reservation->confirmation_sent_at) {

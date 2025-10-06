@@ -68,34 +68,32 @@ class ListMedicalRecords extends ListRecords
     {
         $query = parent::getTableQuery();
         $user = auth()->user();
-        
+
         if (!$user) {
             return $query->whereRaw('1 = 0');
         }
-        
+
         // スーパーアドミンは全カルテ表示（店舗フィルターがある場合は適用）
         if ($user->hasRole('super_admin')) {
             if ($this->storeFilter) {
-                $query->whereHas('customer', function ($q) {
-                    $q->whereHas('reservations', function ($r) {
-                        $r->where('store_id', $this->storeFilter);
-                    });
+                // 予約を通じて店舗と関連がある顧客のカルテを表示
+                $query->whereHas('customer.reservations', function ($q) {
+                    $q->where('store_id', $this->storeFilter);
                 });
             }
             return $query;
         }
-        
+
         // オーナーは管理可能店舗のカルテのみ表示
         if ($user->hasRole('owner')) {
             $manageableStoreIds = $user->manageableStores()->pluck('stores.id');
-            
+
             if ($this->storeFilter) {
                 // 特定店舗が選択されている場合
                 if (in_array($this->storeFilter, $manageableStoreIds->toArray())) {
-                    $query->whereHas('customer', function ($q) {
-                        $q->whereHas('reservations', function ($r) {
-                            $r->where('store_id', $this->storeFilter);
-                        });
+                    // 予約を通じて店舗と関連がある顧客のカルテを表示
+                    $query->whereHas('customer.reservations', function ($q) {
+                        $q->where('store_id', $this->storeFilter);
                     });
                 } else {
                     // 管理権限がない店舗が選択されている場合は空を返す
@@ -103,36 +101,34 @@ class ListMedicalRecords extends ListRecords
                 }
             } else {
                 // 全店舗の場合は管理可能店舗のカルテのみ
-                $query->whereHas('customer', function ($q) use ($manageableStoreIds) {
-                    $q->whereHas('reservations', function ($r) use ($manageableStoreIds) {
-                        $r->whereIn('store_id', $manageableStoreIds);
-                    });
+                // 予約を通じて店舗と関連がある顧客のカルテを表示
+                $query->whereHas('customer.reservations', function ($q) use ($manageableStoreIds) {
+                    $q->whereIn('store_id', $manageableStoreIds);
                 });
             }
             return $query;
         }
-        
+
         // 店長・スタッフは所属店舗のカルテのみ表示
         if ($user->hasRole(['manager', 'staff'])) {
             $storeId = $this->storeFilter ?: $user->store_id;
-            
+
             // 自分の所属店舗以外が選択されている場合は空を返す
             if ($this->storeFilter && $this->storeFilter != $user->store_id) {
                 return $query->whereRaw('1 = 0');
             }
-            
+
             if ($storeId) {
-                $query->whereHas('customer', function ($q) use ($storeId) {
-                    $q->whereHas('reservations', function ($r) use ($storeId) {
-                        $r->where('store_id', $storeId);
-                    });
+                // 予約を通じて店舗と関連がある顧客のカルテを表示
+                $query->whereHas('customer.reservations', function ($q) use ($storeId) {
+                    $q->where('store_id', $storeId);
                 });
             } else {
                 return $query->whereRaw('1 = 0');
             }
             return $query;
         }
-        
+
         return $query->whereRaw('1 = 0');
     }
 }

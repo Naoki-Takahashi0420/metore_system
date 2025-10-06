@@ -2073,7 +2073,7 @@ class ReservationTimelineWidget extends Widget
                 'end_time' => $endTime->format('H:i'),
                 'guest_count' => 1,
                 'status' => 'booked',
-                'source' => 'phone',
+                'source' => 'admin',
                 'notes' => $this->newReservation['notes'],
                 'total_amount' => $menu->price ?? 0,
                 'deposit_amount' => 0,
