@@ -25,32 +25,30 @@ jobs:
       - name: Install Dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
-      - name: Setup SSH Key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/xsyumeno-ssh-key.pem
-          chmod 600 ~/.ssh/xsyumeno-ssh-key.pem
-
-      - name: Copy Script to Production Server
-        run: |
-          scp -o StrictHostKeyChecking=no -i ~/.ssh/xsyumeno-ssh-key.pem \
-            fix-subscription-end-dates.php \
-            ubuntu@54.64.54.226:/var/www/html/
-
       - name: Run Fix Script on Production
+        env:
+          EC2_KEY: ${{ secrets.EC2_KEY }}
+          EC2_HOST: 54.64.54.226
+          EC2_USER: ubuntu
         run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/xsyumeno-ssh-key.pem ubuntu@54.64.54.226 << 'ENDSSH'
+          echo "$EC2_KEY" > deploy_key.pem
+          chmod 600 deploy_key.pem
+
+          # スクリプトをサーバーにコピー
+          scp -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem \
+            fix-subscription-end-dates.php \
+            ${EC2_USER}@${EC2_HOST}:/var/www/html/
+
+          # サーバーでスクリプト実行
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'ENDSSH'
             cd /var/www/html
 
-            # スクリプトを自動実行モードで実行
             echo "=== サブスク契約終了日修正スクリプト実行 ==="
-            echo "yes" | php fix-subscription-end-dates.php
+            echo "yes" | sudo php fix-subscription-end-dates.php
 
-            # 結果を保存
             echo ""
             echo "=== 実行完了 ==="
           ENDSSH
 
-      - name: Cleanup
-        if: always()
-        run: rm -f ~/.ssh/xsyumeno-ssh-key.pem
+          rm deploy_key.pem
+          echo "✅ 修正完了"
