@@ -631,8 +631,8 @@ class CustomerResource extends Resource
                                 ->pluck('name', 'id');
                         } elseif ($user->hasRole('owner')) {
                             return $user->manageableStores()
-                                ->where('is_active', true)
-                                ->pluck('name', 'id');
+                                ->where('stores.is_active', true)
+                                ->pluck('stores.name', 'stores.id');
                         } elseif ($user->hasRole(['manager', 'staff'])) {
                             return $user->store
                                 ? collect([$user->store_id => $user->store->name])
