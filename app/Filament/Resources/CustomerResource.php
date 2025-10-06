@@ -623,7 +623,24 @@ class CustomerResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('store_id')
                     ->label('店舗')
-                    ->relationship('store', 'name')
+                    ->options(function () {
+                        $user = auth()->user();
+
+                        if ($user->hasRole('super_admin')) {
+                            return \App\Models\Store::where('is_active', true)
+                                ->pluck('name', 'id');
+                        } elseif ($user->hasRole('owner')) {
+                            return $user->manageableStores()
+                                ->where('is_active', true)
+                                ->pluck('name', 'id');
+                        } elseif ($user->hasRole(['manager', 'staff'])) {
+                            return $user->store
+                                ? collect([$user->store_id => $user->store->name])
+                                : collect();
+                        }
+
+                        return collect();
+                    })
                     ->searchable(),
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('有効状態'),
