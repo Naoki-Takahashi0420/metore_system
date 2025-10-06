@@ -25,6 +25,7 @@ class ListCustomerSubscriptions extends ListRecords
     {
         return view('filament.resources.header-with-store-selector', [
             'stores' => $this->getAvailableStores(),
+            'actions' => $this->getCachedHeaderActions(),
         ]);
     }
 

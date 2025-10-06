@@ -9,9 +9,11 @@
         </select>
     </div>
 
-    @if(isset($actions))
-        <div>
-            {{ $actions }}
+    @if(isset($actions) && count($actions) > 0)
+        <div class="flex gap-2">
+            @foreach($actions as $action)
+                {{ $action }}
+            @endforeach
         </div>
     @endif
 </div>
