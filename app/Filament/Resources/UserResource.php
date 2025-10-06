@@ -30,11 +30,6 @@ class UserResource extends Resource
         return auth()->user()?->hasRole('super_admin') ?? false;
     }
 
-    public static function canViewAny(): bool
-    {
-        return auth()->user()?->hasRole('super_admin') ?? false;
-    }
-
     public static function form(Form $form): Form
     {
         return $form
@@ -272,8 +267,8 @@ class UserResource extends Resource
             return false;
         }
 
-        // スーパー管理者とオーナーがユーザー管理可能
-        return $user->hasRole(['super_admin', 'owner']);
+        // スーパー管理者のみがユーザー管理可能
+        return $user->hasRole('super_admin');
     }
 
     public static function canCreate(): bool
@@ -284,8 +279,8 @@ class UserResource extends Resource
             return false;
         }
 
-        // スーパー管理者とオーナーがユーザー作成可能
-        return $user->hasRole(['super_admin', 'owner']);
+        // スーパー管理者のみがユーザー作成可能
+        return $user->hasRole('super_admin');
     }
     
     public static function canEdit($record): bool
