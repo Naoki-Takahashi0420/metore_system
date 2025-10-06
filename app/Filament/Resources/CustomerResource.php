@@ -896,13 +896,14 @@ class CustomerResource extends Resource
         } elseif ($user->hasRole(['manager', 'staff']) && $user->store_id) {
             $storeIds = [$user->store_id];
         }
-        
+
         if (empty($storeIds)) {
             return false;
         }
-        
-        // 該当店舗で予約がある顧客のみ閲覧可能
-        return $record->reservations()->whereIn('store_id', $storeIds)->exists();
+
+        // store_idが一致 OR 該当店舗で予約がある顧客のみ閲覧可能
+        return in_array($record->store_id, $storeIds) ||
+               $record->reservations()->whereIn('store_id', $storeIds)->exists();
     }
     
     public static function canCreate(): bool
