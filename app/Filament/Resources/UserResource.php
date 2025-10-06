@@ -44,8 +44,9 @@ class UserResource extends Resource
                         Forms\Components\TextInput::make('password')
                             ->label('パスワード')
                             ->required(fn (string $operation): bool => $operation === 'create')
+                            ->dehydrated(fn ($state) => filled($state))
                             ->maxLength(255)
-                            ->helperText('管理者用：平文で保存・表示されます'),
+                            ->helperText('管理者用：平文で保存・表示されます。変更しない場合は空欄のままにしてください。'),
                         Forms\Components\Select::make('store_id')
                             ->label('所属店舗')
                             ->options(function () {
