@@ -34,13 +34,15 @@ jobs:
           echo "$EC2_KEY" > deploy_key.pem
           chmod 600 deploy_key.pem
 
-          # スクリプトをサーバーにコピー
+          # スクリプトを/tmpにコピー
           scp -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem \
             fix-subscription-end-dates.php \
-            ${EC2_USER}@${EC2_HOST}:/var/www/html/
+            ${EC2_USER}@${EC2_HOST}:/tmp/
 
           # サーバーでスクリプト実行
           ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'ENDSSH'
+            # スクリプトを/var/www/htmlに移動
+            sudo cp /tmp/fix-subscription-end-dates.php /var/www/html/
             cd /var/www/html
 
             echo "=== サブスク契約終了日修正スクリプト実行 ==="
