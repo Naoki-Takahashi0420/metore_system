@@ -120,6 +120,7 @@ class CustomerSubscription extends Model
                 
                 $subscription->end_date = Carbon::parse($subscription->service_start_date)
                     ->addMonths($contractMonths)
+                    ->subDay()
                     ->format('Y-m-d');
             }
         });
@@ -131,6 +132,7 @@ class CustomerSubscription extends Model
                     $contractMonths = $subscription->contract_months ?? 12;
                     $subscription->end_date = Carbon::parse($subscription->service_start_date)
                         ->addMonths($contractMonths)
+                        ->subDay()
                         ->format('Y-m-d');
                 }
             }

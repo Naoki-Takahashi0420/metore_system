@@ -111,7 +111,7 @@ class CustomerSubscriptionResource extends Resource
                                         // 契約期間を自動計算
                                         $serviceStartDate = $get('service_start_date');
                                         if ($serviceStartDate) {
-                                            $contractMonths = $menu->subscription_contract_months ?? 12; // デフォルト12ヶ月
+                                            $contractMonths = $menu->contract_months ?? 12; // デフォルト12ヶ月
                                             $endDate = \Carbon\Carbon::parse($serviceStartDate)->addMonths($contractMonths)->subDay();
                                             $set('end_date', $endDate->format('Y-m-d'));
                                         }
@@ -209,7 +209,7 @@ class CustomerSubscriptionResource extends Resource
                                     if ($menuId) {
                                         $menu = \App\Models\Menu::find($menuId);
                                         if ($menu) {
-                                            $contractMonths = $menu->subscription_contract_months ?? 12;
+                                            $contractMonths = $menu->contract_months ?? 12;
                                             $endDate = \Carbon\Carbon::parse($state)->addMonths($contractMonths)->subDay();
                                             $set('end_date', $endDate->format('Y-m-d'));
                                         }
