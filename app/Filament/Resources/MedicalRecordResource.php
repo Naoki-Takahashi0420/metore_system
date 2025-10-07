@@ -42,44 +42,7 @@ class MedicalRecordResource extends Resource
                                     ->schema([
                                         Forms\Components\Select::make('customer_id')
                                             ->label('顧客')
-                                            ->relationship(
-                                                name: 'customer',
-                                                titleAttribute: 'last_name',
-                                                modifyQueryUsing: function (Builder $query) {
-                                                    $user = auth()->user();
-
-                                                    // スーパーアドミンは全顧客にアクセス可能
-                                                    if ($user->hasRole('super_admin')) {
-                                                        return $query;
-                                                    }
-
-                                                    // オーナーは管理店舗の顧客（予約あり + 予約なし顧客）
-                                                    if ($user->hasRole('owner')) {
-                                                        $storeIds = $user->manageableStores()->pluck('stores.id')->toArray();
-                                                        return $query->where(function ($subQuery) use ($storeIds) {
-                                                            $subQuery->whereHas('reservations', function ($q) use ($storeIds) {
-                                                                $q->whereIn('store_id', $storeIds);
-                                                            })->orWhereDoesntHave('reservations');
-                                                        });
-                                                    }
-
-                                                    // 店長・スタッフは自店舗の顧客（予約あり + 予約なし顧客）
-                                                    if ($user->store_id) {
-                                                        return $query->where(function ($subQuery) use ($user) {
-                                                            $subQuery->whereHas('reservations', function ($q) use ($user) {
-                                                                $q->where('store_id', $user->store_id);
-                                                            })->orWhereDoesntHave('reservations');
-                                                        });
-                                                    }
-
-                                                    // 権限なし
-                                                    return $query->whereRaw('1 = 0');
-                                                }
-                                            )
-                                            ->getOptionLabelFromRecordUsing(fn ($record) =>
-                                                ($record->last_name ?? '') . ' ' . ($record->first_name ?? '') . ' (' . ($record->phone ?? '') . ')'
-                                            )
-                                            ->searchable(['last_name', 'first_name', 'phone', 'last_name_kana', 'first_name_kana'])
+                                            ->searchable()
                                             ->getSearchResultsUsing(function (string $search) {
                                                 $user = auth()->user();
                                                 $query = Customer::query();
@@ -93,21 +56,17 @@ class MedicalRecordResource extends Resource
                                                       ->orWhere('first_name_kana', 'like', "%{$search}%");
                                                 });
 
-                                                // 権限による絞り込み
+                                                // 権限による絞り込み（顧客一覧と同じロジック）
                                                 if (!$user->hasRole('super_admin')) {
                                                     if ($user->hasRole('owner')) {
                                                         $storeIds = $user->manageableStores()->pluck('stores.id')->toArray();
-                                                        $query->where(function ($subQuery) use ($storeIds) {
-                                                            $subQuery->whereHas('reservations', function ($q) use ($storeIds) {
-                                                                $q->whereIn('store_id', $storeIds);
-                                                            })->orWhereDoesntHave('reservations');
-                                                        });
+                                                        // 管理店舗に所属する顧客のみ
+                                                        $query->whereIn('store_id', $storeIds);
                                                     } elseif ($user->store_id) {
-                                                        $query->where(function ($subQuery) use ($user) {
-                                                            $subQuery->whereHas('reservations', function ($q) use ($user) {
-                                                                $q->where('store_id', $user->store_id);
-                                                            })->orWhereDoesntHave('reservations');
-                                                        });
+                                                        // 自店舗に所属する顧客のみ
+                                                        $query->where('store_id', $user->store_id);
+                                                    } else {
+                                                        return [];
                                                     }
                                                 }
 
@@ -115,6 +74,11 @@ class MedicalRecordResource extends Resource
                                                     $label = ($customer->last_name ?? '') . ' ' . ($customer->first_name ?? '') . ' (' . ($customer->phone ?? '') . ')';
                                                     return [$customer->id => $label];
                                                 });
+                                            })
+                                            ->getOptionLabelUsing(function ($value) {
+                                                $customer = Customer::find($value);
+                                                if (!$customer) return $value;
+                                                return ($customer->last_name ?? '') . ' ' . ($customer->first_name ?? '') . ' (' . ($customer->phone ?? '') . ')';
                                             })
                                             ->required()
                                             ->reactive()
