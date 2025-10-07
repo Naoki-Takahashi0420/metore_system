@@ -1,9 +1,9 @@
 <div>
     @if($isOpen)
-    <div class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div style="position: fixed !important; inset: 0 !important; z-index: 99998 !important; overflow-y: auto;" aria-labelledby="modal-title" role="dialog" aria-modal="true">
         <!-- 背景オーバーレイ -->
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" wire:click="close"></div>
+            <div style="position: fixed !important; inset: 0 !important; background-color: rgba(0, 0, 0, 0.5) !important; transition: opacity 0.3s;" wire:click="close"></div>
 
             <!-- モーダルパネル -->
             <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
