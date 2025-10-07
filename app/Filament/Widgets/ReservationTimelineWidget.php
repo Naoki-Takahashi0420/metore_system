@@ -1663,6 +1663,7 @@ class ReservationTimelineWidget extends Widget
     public function selectCustomer($customerId): void
     {
         $this->selectedCustomer = \App\Models\Customer::find($customerId);
+        $this->newReservation['customer_id'] = $customerId; // 顧客IDを設定
         $this->reservationStep = 3; // 予約詳細入力へ
 
         // ステップ3に移行したことをブラウザに通知

@@ -1919,7 +1919,7 @@
                         @endif
 
                         <!-- メニュー選択を先に配置 -->
-                        <div>
+                        <div wire:key="menu-selection-{{ $newReservation['customer_id'] ?? 'none' }}">
                             <label class="block text-sm font-medium mb-2">メニュー</label>
 
                             <!-- 顧客の契約中プラン（回数券・サブスク）を取得 -->
@@ -1930,6 +1930,11 @@
                                     $customer = \App\Models\Customer::find($newReservation['customer_id']);
 
                                     if ($customer) {
+                                        \Log::info('🔍 [DEBUG] 契約メニュー取得開始', [
+                                            'customer_id' => $customer->id,
+                                            'customer_name' => $customer->full_name
+                                        ]);
+
                                         // アクティブなサブスクリプション
                                         $activeSubscriptions = \App\Models\CustomerSubscription::where('customer_id', $customer->id)
                                             ->where('status', 'active')
@@ -1937,10 +1942,20 @@
                                             ->with('menu')
                                             ->get();
 
+                                        \Log::info('📊 サブスク取得結果', [
+                                            'count' => $activeSubscriptions->count()
+                                        ]);
+
                                         foreach ($activeSubscriptions as $sub) {
+                                            \Log::info('🔄 サブスクチェック', [
+                                                'sub_id' => $sub->id,
+                                                'has_menu' => $sub->menu ? 'Yes' : 'No',
+                                                'menu_available' => $sub->menu ? ($sub->menu->is_available ? 'Yes' : 'No') : 'N/A'
+                                            ]);
+
                                             if ($sub->menu && $sub->menu->is_available) {
                                                 $menu = $sub->menu;
-                                                $menu->contract_label = '🔄 契約中のサブスク';
+                                                $menu->contract_label = '契約中のサブスク';
                                                 $menu->remaining_info = "{$sub->remaining_visits}/{$sub->monthly_limit}回";
                                                 $customerContractMenus->push($menu);
                                             }
@@ -1953,14 +1968,29 @@
                                             ->with(['ticketPlan.menu'])
                                             ->get();
 
+                                        \Log::info('🎫 回数券取得結果', [
+                                            'count' => $activeTickets->count()
+                                        ]);
+
                                         foreach ($activeTickets as $ticket) {
+                                            \Log::info('🎫 回数券チェック', [
+                                                'ticket_id' => $ticket->id,
+                                                'has_plan' => $ticket->ticketPlan ? 'Yes' : 'No',
+                                                'has_menu' => ($ticket->ticketPlan && $ticket->ticketPlan->menu) ? 'Yes' : 'No',
+                                                'menu_available' => ($ticket->ticketPlan && $ticket->ticketPlan->menu) ? ($ticket->ticketPlan->menu->is_available ? 'Yes' : 'No') : 'N/A'
+                                            ]);
+
                                             if ($ticket->ticketPlan && $ticket->ticketPlan->menu && $ticket->ticketPlan->menu->is_available) {
                                                 $menu = $ticket->ticketPlan->menu;
-                                                $menu->contract_label = '🎫 契約中の回数券';
+                                                $menu->contract_label = '契約中の回数券';
                                                 $menu->remaining_info = "{$ticket->remaining_count}回分";
                                                 $customerContractMenus->push($menu);
                                             }
                                         }
+
+                                        \Log::info('✅ 契約メニュー取得完了', [
+                                            'total_contract_menus' => $customerContractMenus->count()
+                                        ]);
                                     }
                                 }
 
@@ -1984,7 +2014,10 @@
                             <!-- 契約中メニュー -->
                             @if($customerContractMenus->count() > 0)
                                 <div class="mb-3 p-3 bg-blue-50 border-2 border-blue-300 rounded-lg">
-                                    <p class="text-sm font-semibold text-blue-800 mb-2">✨ この顧客の契約中プラン</p>
+                                    <p class="text-sm font-semibold text-blue-800 mb-2 flex items-center gap-2">
+                                        <i class="fas fa-star"></i>
+                                        この顧客の契約中プラン
+                                    </p>
                                     <div class="flex flex-wrap gap-2">
                                         @foreach($customerContractMenus as $menu)
                                             <button
@@ -1992,14 +2025,19 @@
                                                 wire:click="selectMenu({{ $menu->id }})"
                                                 class="px-4 py-3 text-sm border-2 rounded-lg transition-all {{ $newReservation['menu_id'] == $menu->id ? 'bg-blue-500 border-blue-600 text-white shadow-md' : 'bg-white border-blue-400 text-blue-900 hover:bg-blue-100' }}">
                                                 <div class="flex flex-col items-start">
-                                                    <div class="text-xs font-medium text-blue-700 {{ $newReservation['menu_id'] == $menu->id ? 'text-blue-100' : '' }}">
+                                                    <div class="text-xs font-medium text-blue-700 {{ $newReservation['menu_id'] == $menu->id ? 'text-blue-100' : '' }} flex items-center gap-1">
+                                                        @if(str_contains($menu->contract_label, 'サブスク'))
+                                                            <i class="fas fa-sync-alt"></i>
+                                                        @else
+                                                            <i class="fas fa-ticket-alt"></i>
+                                                        @endif
                                                         {{ $menu->contract_label }}
                                                     </div>
                                                     <div class="font-semibold mt-1">
                                                         {{ Str::limit($menu->name, 20) }}
                                                     </div>
                                                     <div class="text-xs mt-1 flex items-center gap-2">
-                                                        <span>{{ $menu->duration_minutes }}分</span>
+                                                        <span><i class="far fa-clock"></i> {{ $menu->duration_minutes }}分</span>
                                                         <span class="px-2 py-0.5 bg-green-100 text-green-800 rounded {{ $newReservation['menu_id'] == $menu->id ? 'bg-green-200' : '' }}">
                                                             残り{{ $menu->remaining_info }}
                                                         </span>
