@@ -51,7 +51,12 @@ class CustomerTicketResource extends Resource
                                 modifyQueryUsing: fn (Builder $query, callable $get) =>
                                     $query->when(
                                         $get('store_id'),
-                                        fn ($q, $storeId) => $q->where('store_id', $storeId)
+                                        fn ($q, $storeId) => $q->where(function ($subQ) use ($storeId) {
+                                            $subQ->where('store_id', $storeId)
+                                                ->orWhereHas('reservations', function ($resQ) use ($storeId) {
+                                                    $resQ->where('store_id', $storeId);
+                                                });
+                                        })
                                     )
                                     ->orderBy('last_name')
                                     ->orderBy('first_name')
