@@ -333,13 +333,33 @@
             </script>
         @endif
         
+        {{-- エラーモーダル --}}
         @if($errors->any())
-            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                <ul class="list-disc list-inside">
-                    @foreach($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
+            <div id="errorModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4" onclick="closeErrorModalOnBackdrop(event)">
+                <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+                    <div class="p-6">
+                        <div class="flex items-start gap-4 mb-4">
+                            <div class="flex-shrink-0 w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                                <svg class="w-7 h-7 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="text-xl font-bold text-gray-900 mb-2">予約の注意事項</h3>
+                                <ul class="text-gray-700 space-y-2">
+                                    @foreach($errors->all() as $error)
+                                        <li class="text-base leading-relaxed">{{ $error }}</li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="flex justify-end mt-6">
+                            <button onclick="closeErrorModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg transition-colors">
+                                閉じる
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         @endif
         
@@ -924,6 +944,20 @@
                 closeModal();
             }
         });
+
+        // エラーモーダル制御
+        function closeErrorModal() {
+            const modal = document.getElementById('errorModal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+        }
+
+        function closeErrorModalOnBackdrop(event) {
+            if (event.target.id === 'errorModal') {
+                closeErrorModal();
+            }
+        }
     </script>
     @endif
 
