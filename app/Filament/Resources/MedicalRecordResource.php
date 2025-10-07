@@ -51,16 +51,20 @@ class MedicalRecordResource extends Resource
                                                 if ($user->hasRole('super_admin')) {
                                                     // 全顧客
                                                 } elseif ($user->hasRole('owner')) {
-                                                    // オーナーは管理店舗の予約がある顧客
+                                                    // オーナーは管理店舗の顧客（予約あり + 予約なし顧客）
                                                     $storeIds = $user->manageableStores()->pluck('stores.id')->toArray();
-                                                    $query->whereHas('reservations', function ($q) use ($storeIds) {
-                                                        $q->whereIn('store_id', $storeIds);
+                                                    $query->where(function ($subQuery) use ($storeIds) {
+                                                        $subQuery->whereHas('reservations', function ($q) use ($storeIds) {
+                                                            $q->whereIn('store_id', $storeIds);
+                                                        })->orWhereDoesntHave('reservations');
                                                     });
                                                 } else {
-                                                    // 店長・スタッフは自店舗の予約がある顧客のみ
+                                                    // 店長・スタッフは自店舗の顧客（予約あり + 予約なし顧客）
                                                     if ($user->store_id) {
-                                                        $query->whereHas('reservations', function ($q) use ($user) {
-                                                            $q->where('store_id', $user->store_id);
+                                                        $query->where(function ($subQuery) use ($user) {
+                                                            $subQuery->whereHas('reservations', function ($q) use ($user) {
+                                                                $q->where('store_id', $user->store_id);
+                                                            })->orWhereDoesntHave('reservations');
                                                         });
                                                     } else {
                                                         return [];
