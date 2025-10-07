@@ -136,8 +136,10 @@ class ClaudeHelpService
     private function buildSystemPrompt(string $manualContent, array $context = []): string
     {
         $contextSection = '';
+        $pageName = '不明';
 
         if (!empty($context)) {
+            $pageName = $context['page_name'] ?? '不明';
             $contextSection = "\n\n【現在のユーザー状況】\n";
             $contextSection .= "- 閲覧中のページ: {$context['page_name']}\n";
             $contextSection .= "- ユーザー権限: {$context['role']}\n";
@@ -154,7 +156,7 @@ class ClaudeHelpService
 {$contextSection}
 
 【重要なルール】
-1. ユーザーが今見ている画面（{$context['page_name'] ?? '不明'}）に関連する説明を優先する
+1. ユーザーが今見ている画面（{$pageName}）に関連する説明を優先する
 2. 以下のマニュアル内容のみを参照して回答してください
 3. マニュアルに記載がない内容は「マニュアルに記載がありません。管理者にお問い合わせください」と正直に答える
 4. 推測や想像で回答しない
