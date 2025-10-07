@@ -200,7 +200,24 @@ class CustomerTicketResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('customer.full_name')
                     ->label('顧客名')
-                    ->searchable(['customers.last_name', 'customers.first_name']),
+                    ->searchable(query: function ($query, $search) {
+                        $search = trim($search);
+
+                        return $query->whereHas('customer', function ($q) use ($search) {
+                            $q->where(function ($subQ) use ($search) {
+                                $subQ->where('last_name', 'like', "%{$search}%")
+                                     ->orWhere('first_name', 'like', "%{$search}%")
+                                     ->orWhere('last_name_kana', 'like', "%{$search}%")
+                                     ->orWhere('first_name_kana', 'like', "%{$search}%")
+                                     ->orWhere('phone', 'like', "%{$search}%")
+                                     ->orWhere('email', 'like', "%{$search}%")
+                                     ->orWhereRaw('CONCAT(last_name, first_name) LIKE ?', ["%{$search}%"])
+                                     ->orWhereRaw('CONCAT(last_name, " ", first_name) LIKE ?', ["%{$search}%"])
+                                     ->orWhereRaw('CONCAT(last_name_kana, first_name_kana) LIKE ?', ["%{$search}%"])
+                                     ->orWhereRaw('CONCAT(last_name_kana, " ", first_name_kana) LIKE ?', ["%{$search}%"]);
+                            });
+                        });
+                    }),
 
                 Tables\Columns\BadgeColumn::make('status')
                     ->label('ステータス')
