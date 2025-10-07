@@ -120,6 +120,8 @@ class MedicalRecordResource extends Resource
                                         Forms\Components\Select::make('handled_by')
                                             ->label('対応者')
                                             ->options(function ($get) {
+                                                $user = Auth::user();
+
                                                 // 予約から店舗情報を取得
                                                 $reservationId = $get('reservation_id');
                                                 if ($reservationId) {
@@ -131,10 +133,28 @@ class MedicalRecordResource extends Resource
                                                             ->pluck('name', 'name');
                                                     }
                                                 }
-                                                
-                                                // 予約が未選択の場合は全スタッフを表示
-                                                return \App\Models\User::where('is_active', true)
-                                                    ->pluck('name', 'name');
+
+                                                // 予約が未選択の場合は、ユーザーの権限に応じて制限
+                                                $query = \App\Models\User::where('is_active', true);
+
+                                                // スーパーアドミンは全スタッフ表示
+                                                if ($user && $user->hasRole('super_admin')) {
+                                                    return $query->pluck('name', 'name');
+                                                }
+
+                                                // オーナーは管理可能店舗のスタッフのみ
+                                                if ($user && $user->hasRole('owner')) {
+                                                    $manageableStoreIds = $user->manageableStores()->pluck('stores.id');
+                                                    return $query->whereIn('store_id', $manageableStoreIds)->pluck('name', 'name');
+                                                }
+
+                                                // 店長・スタッフは所属店舗のスタッフのみ
+                                                if ($user && $user->store_id) {
+                                                    return $query->where('store_id', $user->store_id)->pluck('name', 'name');
+                                                }
+
+                                                // デフォルトは全スタッフ（念のため）
+                                                return $query->pluck('name', 'name');
                                             })
                                             ->default(Auth::user()->name)
                                             ->searchable()
