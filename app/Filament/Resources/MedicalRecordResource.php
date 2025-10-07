@@ -56,15 +56,25 @@ class MedicalRecordResource extends Resource
                                                       ->orWhere('first_name_kana', 'like', "%{$search}%");
                                                 });
 
-                                                // 権限による絞り込み（顧客一覧と同じロジック）
+                                                // 権限による絞り込み
                                                 if (!$user->hasRole('super_admin')) {
                                                     if ($user->hasRole('owner')) {
                                                         $storeIds = $user->manageableStores()->pluck('stores.id')->toArray();
-                                                        // 管理店舗に所属する顧客のみ
-                                                        $query->whereIn('store_id', $storeIds);
+                                                        // 管理店舗に所属する顧客 OR 管理店舗で予約履歴がある顧客
+                                                        $query->where(function ($q) use ($storeIds) {
+                                                            $q->whereIn('store_id', $storeIds)
+                                                              ->orWhereHas('reservations', function ($subQ) use ($storeIds) {
+                                                                  $subQ->whereIn('store_id', $storeIds);
+                                                              });
+                                                        });
                                                     } elseif ($user->store_id) {
-                                                        // 自店舗に所属する顧客のみ
-                                                        $query->where('store_id', $user->store_id);
+                                                        // 自店舗に所属する顧客 OR 自店舗で予約履歴がある顧客
+                                                        $query->where(function ($q) use ($user) {
+                                                            $q->where('store_id', $user->store_id)
+                                                              ->orWhereHas('reservations', function ($subQ) use ($user) {
+                                                                  $subQ->where('store_id', $user->store_id);
+                                                              });
+                                                        });
                                                     } else {
                                                         return [];
                                                     }
