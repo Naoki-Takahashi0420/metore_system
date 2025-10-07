@@ -478,6 +478,8 @@ class CustomerResource extends Resource
                                   ->orWhere('first_name', 'like', "%{$search}%")
                                   ->orWhere('last_name_kana', 'like', "%{$search}%")
                                   ->orWhere('first_name_kana', 'like', "%{$search}%")
+                                  ->orWhere('phone', 'like', "%{$search}%")
+                                  ->orWhere('email', 'like', "%{$search}%")
                                   ->orWhereRaw('CONCAT(last_name, first_name) LIKE ?', ["%{$search}%"])
                                   ->orWhereRaw('CONCAT(last_name, " ", first_name) LIKE ?', ["%{$search}%"])
                                   ->orWhereRaw('CONCAT(last_name_kana, first_name_kana) LIKE ?', ["%{$search}%"])
@@ -490,6 +492,8 @@ class CustomerResource extends Resource
                                   ->orWhere('first_name', 'like', "%{$search}%")
                                   ->orWhere('last_name_kana', 'like', "%{$search}%")
                                   ->orWhere('first_name_kana', 'like', "%{$search}%")
+                                  ->orWhere('phone', 'like', "%{$search}%")
+                                  ->orWhere('email', 'like', "%{$search}%")
                                   ->orWhereRaw('(last_name || first_name) LIKE ?', ["%{$search}%"])
                                   ->orWhereRaw('(last_name || " " || first_name) LIKE ?', ["%{$search}%"])
                                   ->orWhereRaw('(last_name_kana || first_name_kana) LIKE ?', ["%{$search}%"])
@@ -724,6 +728,14 @@ class CustomerResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\Action::make('create_medical_record')
+                    ->label('カルテ作成')
+                    ->icon('heroicon-o-document-text')
+                    ->color('success')
+                    ->url(fn ($record) => route('filament.admin.resources.medical-records.create', [
+                        'customer_id' => $record->id
+                    ]))
+                    ->openUrlInNewTab(),
                 Tables\Actions\Action::make('find_similar')
                     ->label('類似顧客を探す')
                     ->icon('heroicon-o-magnifying-glass')

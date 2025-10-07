@@ -60,7 +60,9 @@ class ReservationTimelineWidget extends Widget
         'line_number' => 1,
         'staff_id' => '',
         'notes' => '電話予約',
-        'option_menu_ids' => [] // オプションメニューID配列
+        'option_menu_ids' => [], // オプションメニューID配列
+        'customer_ticket_id' => null, // 回数券ID
+        'customer_subscription_id' => null // サブスクリプションID
     ];
     // 予約ブロック用のプロパティ
     public $blockSettings = [
@@ -2080,6 +2082,16 @@ class ReservationTimelineWidget extends Widget
                 'payment_method' => 'cash',
                 'payment_status' => 'unpaid',
             ];
+
+            // 回数券IDがある場合は設定
+            if (!empty($this->newReservation['customer_ticket_id'])) {
+                $reservationData['customer_ticket_id'] = $this->newReservation['customer_ticket_id'];
+            }
+
+            // サブスクリプションIDがある場合は設定
+            if (!empty($this->newReservation['customer_subscription_id'])) {
+                $reservationData['customer_subscription_id'] = $this->newReservation['customer_subscription_id'];
+            }
 
             // スタッフシフトモードの場合
             if ($useStaffAssignment) {

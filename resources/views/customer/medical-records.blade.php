@@ -77,6 +77,44 @@
                 初回予約を取る
             </a>
         </div>
+
+    </div>
+</div>
+
+<!-- 画像詳細モーダル -->
+<div id="imageModal" class="hidden fixed inset-0 bg-black overflow-y-auto h-full w-full z-50 transition-opacity duration-300 opacity-0" onclick="closeImageModalGallery()">
+    <div id="imageModalContent" class="relative top-10 mx-auto p-5 max-w-4xl transform transition-all duration-300 scale-95 opacity-0" onclick="event.stopPropagation()">
+        <div class="bg-white rounded-lg shadow-xl overflow-hidden">
+            <div class="flex justify-between items-center p-4 border-b">
+                <div class="flex-1">
+                    <h3 id="imageModalTitle" class="text-lg font-semibold text-gray-900"></h3>
+                    <p id="imageModalCounter" class="text-sm text-gray-500 mt-1"></p>
+                </div>
+                <button onclick="closeImageModalGallery()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="p-4 relative">
+                <!-- 画像ナビゲーションボタン（画像エリア内に配置） -->
+                <button id="prevImageBtn" onclick="event.stopPropagation(); navigateImage(-1)" class="absolute left-2 top-1/2 -translate-y-1/2 bg-white bg-opacity-90 hover:bg-opacity-100 text-gray-800 rounded-full p-2 md:p-3 shadow-lg transition-all duration-200 hover:scale-110 z-10">
+                    <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                </button>
+
+                <button id="nextImageBtn" onclick="event.stopPropagation(); navigateImage(1)" class="absolute right-2 top-1/2 -translate-y-1/2 bg-white bg-opacity-90 hover:bg-opacity-100 text-gray-800 rounded-full p-2 md:p-3 shadow-lg transition-all duration-200 hover:scale-110 z-10">
+                    <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </button>
+
+                <img id="imageModalImg" src="" alt="" class="w-full h-auto max-h-[70vh] object-contain rounded-lg mb-4 transition-transform duration-200">
+                <div id="imageModalDescription" class="text-gray-600"></div>
+                <div id="imageModalType" class="text-sm text-gray-500 mt-2"></div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -157,6 +195,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 'Content-Type': 'application/json'
             }
         });
+
         
         if (!response.ok) {
             if (response.status === 401) {
@@ -300,13 +339,13 @@ function displayMedicalRecords(records) {
                     </div>
                 ` : ''}
                 
-                ${record.visible_images && record.visible_images.length > 0 ? `
+                ${(record.visible_images || record.visibleImages) && (record.visible_images?.length > 0 || record.visibleImages?.length > 0) ? `
                     <div class="mt-4">
                         <h4 class="text-sm font-medium text-gray-900 mb-2">添付画像</h4>
                         <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                            ${record.visible_images.map(image => `
-                                <div class="relative group cursor-pointer" onclick="openImageModal('${image.url}', '${escapeHtml(image.title || '')}', '${escapeHtml(image.description || '')}')">
-                                    <img src="${image.url}" 
+                            ${(record.visible_images || record.visibleImages).map(image => `
+                                <div class="relative group cursor-pointer" onclick="openRecordImageModal(${JSON.stringify(image).replace(/"/g, '&quot;')})">
+                                    <img src="/storage/${image.file_path}" 
                                          alt="${escapeHtml(image.title || '画像')}" 
                                          class="w-full h-32 object-cover rounded-lg">
                                     <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity rounded-lg flex items-center justify-center">
@@ -887,6 +926,114 @@ function renderVisionCharts(records) {
     if (hasNakedData || hasCorrectedData) {
         chartContainer.classList.remove('hidden');
     }
+}
+
+// グローバル変数で画像リストと現在のインデックスを保持
+let currentImageIndex = 0;
+let imagesList = [];
+
+// カルテ画像モーダルを開く
+function openRecordImageModal(image) {
+    const imageTypeLabels = {
+        'vision_test': '視力検査',
+        'before': '施術前',
+        'after': '施術後',
+        'progress': '経過',
+        'reference': '参考資料',
+        'other': 'その他'
+    };
+
+    // 現在の画像のインデックスを見つける
+    currentImageIndex = imagesList.findIndex(img => img.id === image.id);
+
+    const modal = document.getElementById('imageModal');
+    const modalContent = document.getElementById('imageModalContent');
+
+    // 画像データを設定
+    updateModalContent(image, imageTypeLabels);
+
+    // ナビゲーションボタンの表示/非表示
+    updateNavigationButtons();
+
+    // モーダルを表示
+    modal.classList.remove('hidden');
+
+    // アニメーション開始（次のフレームで実行）
+    requestAnimationFrame(() => {
+        modal.classList.remove('opacity-0');
+        modal.classList.add('bg-opacity-75');
+        modalContent.classList.remove('scale-95', 'opacity-0');
+        modalContent.classList.add('scale-100', 'opacity-100');
+    });
+
+    // bodyのスクロールを無効化
+    document.body.style.overflow = 'hidden';
+}
+
+// モーダルコンテンツを更新
+function updateModalContent(image, imageTypeLabels) {
+    document.getElementById('imageModalTitle').textContent = image.title || '画像';
+    document.getElementById('imageModalImg').src = `/storage/${image.file_path}`;
+    document.getElementById('imageModalImg').alt = image.title || '画像';
+    document.getElementById('imageModalDescription').textContent = image.description || '';
+    document.getElementById('imageModalType').textContent = `タイプ: ${imageTypeLabels[image.image_type] || 'その他'}`;
+    document.getElementById('imageModalCounter').textContent = `${currentImageIndex + 1} / ${imagesList.length}`;
+}
+
+// 画像を前後に移動
+function navigateImage(direction) {
+    const imageTypeLabels = {
+        'vision_test': '視力検査',
+        'before': '施術前',
+        'after': '施術後',
+        'progress': '経過',
+        'reference': '参考資料',
+        'other': 'その他'
+    };
+
+    currentImageIndex += direction;
+
+    // 範囲チェック
+    if (currentImageIndex < 0) currentImageIndex = imagesList.length - 1;
+    if (currentImageIndex >= imagesList.length) currentImageIndex = 0;
+
+    const image = imagesList[currentImageIndex];
+    updateModalContent(image, imageTypeLabels);
+    updateNavigationButtons();
+}
+
+// ナビゲーションボタンの表示/非表示を更新
+function updateNavigationButtons() {
+    const prevBtn = document.getElementById('prevImageBtn');
+    const nextBtn = document.getElementById('nextImageBtn');
+
+    // 画像が1枚しかない場合はボタンを非表示
+    if (imagesList.length <= 1) {
+        prevBtn.style.display = 'none';
+        nextBtn.style.display = 'none';
+    } else {
+        prevBtn.style.display = 'block';
+        nextBtn.style.display = 'block';
+    }
+}
+
+// 画像モーダルを閉じる (カルテ用)
+function closeImageModalGallery() {
+    const modal = document.getElementById('imageModal');
+    const modalContent = document.getElementById('imageModalContent');
+
+    // アニメーション開始
+    modal.classList.add('opacity-0');
+    modal.classList.remove('bg-opacity-75');
+    modalContent.classList.add('scale-95', 'opacity-0');
+    modalContent.classList.remove('scale-100', 'opacity-100');
+
+    // アニメーション終了後に非表示
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        // bodyのスクロールを有効化
+        document.body.style.overflow = '';
+    }, 300);
 }
 </script>
 

@@ -122,7 +122,11 @@ Route::prefix('customer')->group(function () {
     Route::get('/reservations/{id}', function ($id) {
         return view('customer.reservation-detail', compact('id'));
     });
-    
+
+    Route::get('/tickets', function () {
+        return view('customer.tickets');
+    })->name('customer.tickets');
+
     Route::get('/medical-records', function () {
         return view('customer.medical-records');
     });

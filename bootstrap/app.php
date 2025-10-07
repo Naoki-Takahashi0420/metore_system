@@ -16,17 +16,24 @@ return Application::configure(basePath: dirname(__DIR__))
             'auth.basic' => \App\Http\Middleware\BasicAuth::class,
             'cors' => \App\Http\Middleware\CorsMiddleware::class,
         ]);
-        
+
         // LINE連携API用のCORS設定
         $middleware->group('api', [
             \App\Http\Middleware\CorsMiddleware::class,
         ]);
-        
+
         // Livewireファイルアップロード用のCSRF除外
         $middleware->validateCsrfTokens(except: [
             'livewire/upload-file',
             'livewire/preview-file/*',
         ]);
+
+        // API認証失敗時にJSONレスポンスを返す（リダイレクトしない）
+        $middleware->redirectGuestsTo(fn ($request) =>
+            $request->expectsJson()
+                ? response()->json(['error' => 'Unauthenticated'], 401)
+                : route('filament.admin.auth.login')
+        );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

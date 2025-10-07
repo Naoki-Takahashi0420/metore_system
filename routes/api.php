@@ -47,12 +47,19 @@ Route::post('customer/check-phone', [CustomerCheckController::class, 'checkPhone
 Route::get('customer/subscriptions-token', [\App\Http\Controllers\Api\CustomerSubscriptionController::class, 'getSubscriptions']);
 Route::post('subscription/setup-session', [\App\Http\Controllers\Api\CustomerSubscriptionController::class, 'setupSession']);
 
+// 顧客向け回数券情報（Sanctum認証）
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('customer/tickets-token', [\App\Http\Controllers\CustomerTicketController::class, 'index']);
+    Route::get('customer/tickets/{ticketId}/history', [\App\Http\Controllers\CustomerTicketController::class, 'history']);
+});
+
 // 予約作成（認証不要）
 // Public reservation functionality moved to web routes
 
 // 顧客向けAPI（認証必須）
 Route::middleware('auth:sanctum')->prefix('customer')->group(function () {
     // 予約管理
+    Route::get('reservations/stats', [ReservationController::class, 'customerReservationStats']);
     Route::get('reservations', [ReservationController::class, 'customerReservations']);
     Route::post('reservations', [ReservationController::class, 'createReservation']); // 予約作成
     Route::get('reservations/{id}', [ReservationController::class, 'customerReservationDetail']);

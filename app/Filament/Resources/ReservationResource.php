@@ -576,6 +576,36 @@ class ReservationResource extends Resource
 
                 Infolists\Components\Section::make('予約詳細')
                     ->schema([
+                        Infolists\Components\TextEntry::make('reservation_type')
+                            ->label('予約タイプ')
+                            ->badge()
+                            ->getStateUsing(function ($record) {
+                                if ($record->customer_ticket_id) {
+                                    return 'ticket';
+                                } elseif ($record->customer_subscription_id) {
+                                    return 'subscription';
+                                } else {
+                                    return 'normal';
+                                }
+                            })
+                            ->color(fn (string $state): string => match ($state) {
+                                'ticket' => 'success',
+                                'subscription' => 'info',
+                                'normal' => 'gray',
+                                default => 'gray',
+                            })
+                            ->icon(fn (string $state): string => match ($state) {
+                                'ticket' => 'heroicon-o-ticket',
+                                'subscription' => 'heroicon-o-arrow-path',
+                                'normal' => 'heroicon-o-calendar',
+                                default => 'heroicon-o-calendar',
+                            })
+                            ->formatStateUsing(fn (string $state): string => match ($state) {
+                                'ticket' => '回数券予約',
+                                'subscription' => 'サブスク予約',
+                                'normal' => '通常予約',
+                                default => $state,
+                            }),
                         Infolists\Components\TextEntry::make('reservation_date')
                             ->label('予約日')
                             ->dateTime('Y年m月d日'),

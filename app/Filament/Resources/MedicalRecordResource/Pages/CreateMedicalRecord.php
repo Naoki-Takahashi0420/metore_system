@@ -111,4 +111,10 @@ class CreateMedicalRecord extends CreateRecord
         }
         return false;
     }
+
+    protected function getRedirectUrl(): string
+    {
+        // カルテ作成後は一覧ページに戻る
+        return $this->getResource()::getUrl('index');
+    }
 }

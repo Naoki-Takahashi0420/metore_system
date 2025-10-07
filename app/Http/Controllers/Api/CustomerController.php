@@ -263,7 +263,7 @@ class CustomerController extends Controller
      */
     public function getImages(Request $request)
     {
-        $customer = $request->user('customer');
+        $customer = $request->user();
 
         $images = $customer->images()
             ->where('is_visible_to_customer', true)

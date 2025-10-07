@@ -1,6 +1,6 @@
 @php
-    // $record は viewData から渡される
-    $visionRecords = $record->vision_records ?? [];
+    // 顧客の全カルテから視力データを集約
+    $allRecords = $allRecords ?? collect([$record]); // フォールバック: allRecordsがない場合は現在のカルテのみ
 
     // 一意なIDを生成
     $chartId = 'chart_' . $record->id . '_' . uniqid();
@@ -16,18 +16,29 @@
     $rightCorrectedBefore = [];
     $rightCorrectedAfter = [];
 
-    foreach ($visionRecords as $index => $vision) {
-        $dates[] = isset($vision['date']) ? \Carbon\Carbon::parse($vision['date'])->format('m/d') : ($index + 1) . '回目';
+    foreach ($allRecords as $medicalRecord) {
+        // 各カルテのvision_recordsを処理
+        $visionRecords = $medicalRecord->vision_records ?? [];
 
-        $leftNakedBefore[] = isset($vision['before_naked_left']) ? (float)$vision['before_naked_left'] : null;
-        $leftNakedAfter[] = isset($vision['after_naked_left']) ? (float)$vision['after_naked_left'] : null;
-        $rightNakedBefore[] = isset($vision['before_naked_right']) ? (float)$vision['before_naked_right'] : null;
-        $rightNakedAfter[] = isset($vision['after_naked_right']) ? (float)$vision['after_naked_right'] : null;
+        if (empty($visionRecords)) {
+            continue; // 視力データがないカルテはスキップ
+        }
 
-        $leftCorrectedBefore[] = isset($vision['before_corrected_left']) ? (float)$vision['before_corrected_left'] : null;
-        $leftCorrectedAfter[] = isset($vision['after_corrected_left']) ? (float)$vision['after_corrected_left'] : null;
-        $rightCorrectedBefore[] = isset($vision['before_corrected_right']) ? (float)$vision['before_corrected_right'] : null;
-        $rightCorrectedAfter[] = isset($vision['after_corrected_right']) ? (float)$vision['after_corrected_right'] : null;
+        foreach ($visionRecords as $vision) {
+            // 日付を取得（vision_recordsのdate、なければmedical_recordのtreatment_date）
+            $date = $vision['date'] ?? $medicalRecord->treatment_date?->format('Y-m-d');
+            $dates[] = $date ? \Carbon\Carbon::parse($date)->format('m/d') : '不明';
+
+            $leftNakedBefore[] = isset($vision['before_naked_left']) ? (float)$vision['before_naked_left'] : null;
+            $leftNakedAfter[] = isset($vision['after_naked_left']) ? (float)$vision['after_naked_left'] : null;
+            $rightNakedBefore[] = isset($vision['before_naked_right']) ? (float)$vision['before_naked_right'] : null;
+            $rightNakedAfter[] = isset($vision['after_naked_right']) ? (float)$vision['after_naked_right'] : null;
+
+            $leftCorrectedBefore[] = isset($vision['before_corrected_left']) ? (float)$vision['before_corrected_left'] : null;
+            $leftCorrectedAfter[] = isset($vision['after_corrected_left']) ? (float)$vision['after_corrected_left'] : null;
+            $rightCorrectedBefore[] = isset($vision['before_corrected_right']) ? (float)$vision['before_corrected_right'] : null;
+            $rightCorrectedAfter[] = isset($vision['after_corrected_right']) ? (float)$vision['after_corrected_right'] : null;
+        }
     }
 
     $hasNakedData = !empty(array_filter(array_merge($leftNakedBefore, $leftNakedAfter, $rightNakedBefore, $rightNakedAfter)));

@@ -194,6 +194,35 @@ class PublicReservationController extends Controller
      */
     public function selectCategory(Request $request, ReservationContextService $contextService)
     {
+        // 回数券からの予約の場合
+        if ($request->has('ticket_id')) {
+            $ticket = \App\Models\CustomerTicket::find($request->ticket_id);
+
+            if (!$ticket || $ticket->status !== 'active' || $ticket->remaining_count <= 0) {
+                return redirect()->route('customer.tickets')->withErrors(['error' => '有効な回数券が見つかりません']);
+            }
+
+            // 回数券のメニューを取得
+            $plan = $ticket->ticketPlan;
+            if (!$plan || !$plan->menu_id) {
+                return redirect()->route('customer.tickets')->withErrors(['error' => '回数券にメニューが設定されていません']);
+            }
+
+            // コンテキストを作成してカレンダーに遷移
+            $context = [
+                'store_id' => $ticket->store_id,
+                'customer_id' => $ticket->customer_id,
+                'menu_id' => $plan->menu_id,
+                'ticket_id' => $ticket->id,
+                'type' => 'ticket',
+                'source' => 'ticket',
+                'is_existing_customer' => true,
+            ];
+
+            $encryptedContext = $contextService->encryptContext($context);
+            return redirect()->route('reservation.index', ['ctx' => $encryptedContext]);
+        }
+
         // パラメータベース: 暗号化されたコンテキストを取得
         $context = $contextService->extractContextFromRequest($request);
 
@@ -1710,10 +1739,10 @@ class PublicReservationController extends Controller
         // 既存顧客の判定（カルテまたはマイページからの予約）
         $isExistingCustomer = false;
         $existingCustomer = null;
-        $isFromMyPage = $context && isset($context['source']) && $context['source'] === 'mypage';
+        $isFromMyPage = $context && isset($context['source']) && in_array($context['source'], ['mypage', 'ticket']);
         $isFromMedicalRecord = $context && isset($context['source']) && in_array($context['source'], ['medical_record', 'medical_record_legacy']);
 
-        // マイページまたはカルテからの予約は既存顧客として扱う
+        // マイページ・回数券・カルテからの予約は既存顧客として扱う
         if (($isFromMyPage || $isFromMedicalRecord) && $context && isset($context['customer_id'])) {
             // デバッグ: 全顧客数を確認
             $totalCustomers = Customer::count();
@@ -2165,8 +2194,16 @@ class PublicReservationController extends Controller
                 $reservationData['staff_id'] = $validated['staff_id'];
             }
 
+            // 回数券IDがある場合は予約作成時に設定
+            if ($context && isset($context['ticket_id'])) {
+                $reservationData['customer_ticket_id'] = $context['ticket_id'];
+                \Log::info('回数券を予約に紐付け（使用は完了時）', [
+                    'ticket_id' => $context['ticket_id']
+                ]);
+            }
+
             $reservation = Reservation::create($reservationData);
-            
+
             // オプションメニューを関連付け
             foreach ($selectedOptions as $option) {
                 $reservation->optionMenus()->attach($option->id, [
@@ -2174,7 +2211,7 @@ class PublicReservationController extends Controller
                     'duration' => $option->duration_minutes ?? 0,
                 ]);
             }
-            
+
             // 予約関連のセッションをクリア（完了画面表示後にクリアする）
             // ここではクリアしない - 完了画面表示後にクリアする
             \Log::info('予約作成完了時のセッション', [
@@ -2380,19 +2417,40 @@ class PublicReservationController extends Controller
         ]);
             
         $targetDateTime = Carbon::parse($targetDate);
-        
+
+        // まず、同じ日の予約が既にあるかチェック
+        $sameDayReservations = $existingReservations->filter(function ($reservation) use ($targetDateTime) {
+            return Carbon::parse($reservation->reservation_date)->isSameDay($targetDateTime);
+        });
+
+        if ($sameDayReservations->count() > 0) {
+            \Log::warning('同じ日に既に予約あり', [
+                'customer_id' => $customerId,
+                'target_date' => $targetDateTime->format('Y-m-d'),
+                'existing_reservations' => $sameDayReservations->pluck('id')->toArray()
+            ]);
+
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'date' => sprintf(
+                    '%sには既に予約があります。別の日をお選びください。',
+                    $targetDateTime->format('Y年m月d日')
+                )
+            ]);
+        }
+
+        // 次に、1-5日以内の予約をチェック
         foreach ($existingReservations as $reservation) {
             $reservationDate = Carbon::parse($reservation->reservation_date);
             $daysDiff = abs($targetDateTime->diffInDays($reservationDate));
-            
+
             \Log::info('予約日間隔チェック', [
                 'reservation_id' => $reservation->id,
                 'reservation_date' => $reservationDate->format('Y-m-d'),
                 'target_date' => $targetDateTime->format('Y-m-d'),
                 'days_diff' => $daysDiff
             ]);
-            
-            // 同じ日は除外、1-5日以内をチェック
+
+            // 1-5日以内をチェック
             if ($daysDiff > 0 && $daysDiff <= 5) {
                 \Log::warning('5日間隔制限違反', [
                     'customer_id' => $customerId,

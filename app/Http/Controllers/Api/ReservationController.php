@@ -85,6 +85,20 @@ class ReservationController extends Controller
             $reservation->customer->update(['last_cancelled_at' => now()]);
         }
 
+        // 回数券を使用（キャンセルでも使用扱い）
+        if ($reservation->customer_ticket_id) {
+            $ticket = \App\Models\CustomerTicket::find($reservation->customer_ticket_id);
+            if ($ticket && $ticket->canUse()) {
+                $ticket->use($reservation->id);
+                \Log::info('予約キャンセル：回数券使用', [
+                    'reservation_id' => $reservation->id,
+                    'ticket_id' => $ticket->id,
+                    'remaining_count' => $ticket->fresh()->remaining_count,
+                    'reason' => 'キャンセルでも使用扱い'
+                ]);
+            }
+        }
+
         // キャンセル通知を送信
         event(new ReservationCancelled($reservation));
 
@@ -125,6 +139,19 @@ class ReservationController extends Controller
             $subscription = $customer->activeSubscription;
             if ($subscription) {
                 $subscription->recordVisit();
+            }
+        }
+
+        // 回数券を使用
+        if ($reservation->customer_ticket_id) {
+            $ticket = \App\Models\CustomerTicket::find($reservation->customer_ticket_id);
+            if ($ticket && $ticket->canUse()) {
+                $ticket->use($reservation->id);
+                \Log::info('予約完了：回数券使用', [
+                    'reservation_id' => $reservation->id,
+                    'ticket_id' => $ticket->id,
+                    'remaining_count' => $ticket->fresh()->remaining_count
+                ]);
             }
         }
 
@@ -267,21 +294,23 @@ class ReservationController extends Controller
             'menu_id' => 'required|exists:menus,id',
             'reservation_date' => 'required|date|after_or_equal:today',
             'start_time' => 'required',
-            'is_subscription' => 'boolean'
+            'is_subscription' => 'boolean',
+            'customer_ticket_id' => 'nullable|exists:customer_tickets,id',
+            'customer_subscription_id' => 'nullable|exists:customer_subscriptions,id'
         ]);
-        
+
         // メニュー情報取得
         $menu = \App\Models\Menu::find($validated['menu_id']);
-        
+
         // 予約番号生成
         $reservationNumber = 'R' . date('YmdHis') . rand(100, 999);
-        
+
         // 終了時間計算
         $startTime = \Carbon\Carbon::parse($validated['reservation_date'] . ' ' . $validated['start_time']);
         $endTime = $startTime->copy()->addMinutes($menu->duration_minutes ?? 60);
-        
-        // 予約作成（既存システムと同じフィールド形式）
-        $reservation = Reservation::create([
+
+        // 予約作成データ準備
+        $reservationData = [
             'reservation_number' => $reservationNumber,
             'customer_id' => $customer->id,
             'store_id' => $validated['store_id'],
@@ -299,13 +328,49 @@ class ReservationController extends Controller
             'email' => $customer->email,
             'source' => 'online', // 既存システムと同じ
             'notes' => 'サブスクリプション予約'
-        ]);
+        ];
+
+        // 回数券IDがある場合は設定
+        if (!empty($validated['customer_ticket_id'])) {
+            $reservationData['customer_ticket_id'] = $validated['customer_ticket_id'];
+        }
+
+        // サブスクリプションIDがある場合は設定
+        if (!empty($validated['customer_subscription_id'])) {
+            $reservationData['customer_subscription_id'] = $validated['customer_subscription_id'];
+        }
+
+        // 予約作成（既存システムと同じフィールド形式）
+        $reservation = Reservation::create($reservationData);
         
         return response()->json([
             'success' => true,
             'message' => '予約が完了しました',
             'data' => $reservation->load(['store', 'menu'])
         ], 201);
+    }
+
+    /**
+     * 顧客の予約統計取得
+     */
+    public function customerReservationStats(Request $request)
+    {
+        $customer = $request->user();
+
+        $totalReservations = Reservation::where('customer_id', $customer->id)->count();
+        $upcomingReservations = Reservation::where('customer_id', $customer->id)
+            ->where('status', 'booked')
+            ->where('reservation_date', '>=', now()->format('Y-m-d'))
+            ->count();
+        $completedReservations = Reservation::where('customer_id', $customer->id)
+            ->where('status', 'completed')
+            ->count();
+
+        return response()->json([
+            'total' => $totalReservations,
+            'upcoming' => $upcomingReservations,
+            'completed' => $completedReservations
+        ]);
     }
 
     /**
