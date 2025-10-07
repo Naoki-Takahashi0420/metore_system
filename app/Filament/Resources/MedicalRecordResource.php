@@ -721,10 +721,34 @@ class MedicalRecordResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('reservation.store.name')
+                Tables\Columns\TextColumn::make('store_name')
                     ->label('店舗')
-                    ->sortable()
-                    ->searchable(),
+                    ->getStateUsing(function ($record) {
+                        // 予約がある場合は予約の店舗、ない場合は顧客の店舗
+                        if ($record->reservation && $record->reservation->store) {
+                            return $record->reservation->store->name;
+                        } elseif ($record->customer && $record->customer->store) {
+                            return $record->customer->store->name;
+                        }
+                        return '-';
+                    })
+                    ->sortable(query: function ($query, string $direction) {
+                        // 予約の店舗 > 顧客の店舗の優先順でソート
+                        return $query->leftJoin('reservations', 'medical_records.reservation_id', '=', 'reservations.id')
+                            ->leftJoin('stores as reservation_stores', 'reservations.store_id', '=', 'reservation_stores.id')
+                            ->leftJoin('customers', 'medical_records.customer_id', '=', 'customers.id')
+                            ->leftJoin('stores as customer_stores', 'customers.store_id', '=', 'customer_stores.id')
+                            ->orderByRaw("COALESCE(reservation_stores.name, customer_stores.name) {$direction}");
+                    })
+                    ->searchable(query: function ($query, $search) {
+                        return $query->where(function ($q) use ($search) {
+                            $q->whereHas('reservation.store', function ($subQ) use ($search) {
+                                $subQ->where('name', 'like', "%{$search}%");
+                            })->orWhereHas('customer.store', function ($subQ) use ($search) {
+                                $subQ->where('name', 'like', "%{$search}%");
+                            });
+                        });
+                    }),
                 Tables\Columns\TextColumn::make('customer.last_name')
                     ->label('顧客名')
                     ->formatStateUsing(fn ($record) => $record->customer ? (($record->customer->last_name ?? '') . ' ' . ($record->customer->first_name ?? '')) : '-')
