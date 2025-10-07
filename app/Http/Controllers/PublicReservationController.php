@@ -2430,10 +2430,14 @@ class PublicReservationController extends Controller
                 'existing_reservations' => $sameDayReservations->pluck('id')->toArray()
             ]);
 
+            // 次回予約可能日を計算（選択した日付から6日後）
+            $nextAvailableDate = $targetDateTime->copy()->addDays(6);
+
             throw \Illuminate\Validation\ValidationException::withMessages([
                 'date' => sprintf(
-                    '%sには既に予約があります。別の日をお選びください。',
-                    $targetDateTime->format('Y年m月d日')
+                    '%sには既に予約があります。次回予約可能日: %s以降',
+                    $targetDateTime->format('Y年m月d日'),
+                    $nextAvailableDate->format('Y年m月d日')
                 )
             ]);
         }
