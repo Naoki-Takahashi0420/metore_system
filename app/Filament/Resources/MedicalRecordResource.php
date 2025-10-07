@@ -215,38 +215,64 @@ class MedicalRecordResource extends Resource
                                         Forms\Components\Select::make('payment_method')
                                             ->label('支払い方法')
                                             ->options(function ($get) {
-                                                // 予約から店舗情報を取得
+                                                $store = null;
+
+                                                // 1. 予約から店舗情報を取得
                                                 $reservationId = $get('reservation_id');
                                                 if ($reservationId) {
                                                     $reservation = Reservation::with(['store'])->find($reservationId);
-                                                    if ($reservation && $reservation->store && $reservation->store->payment_methods) {
-                                                        $options = [];
-                                                        foreach ($reservation->store->payment_methods as $method) {
-                                                            // 新しいシンプル構造: ['name' => '現金']
-                                                            if (is_array($method) && isset($method['name'])) {
-                                                                $options[$method['name']] = $method['name'];
-                                                            }
-                                                            // 旧キー・ラベル構造: ['key' => 'cash', 'label' => '現金']
-                                                            elseif (is_array($method) && isset($method['key']) && isset($method['label'])) {
-                                                                $options[$method['key']] = $method['label'];
-                                                            }
-                                                            // 古い構造: 'cash'
-                                                            elseif (is_string($method)) {
-                                                                $legacyLabels = [
-                                                                    'cash' => '現金',
-                                                                    'credit' => 'クレジットカード',
-                                                                    'paypay' => 'PayPay',
-                                                                    'bank_transfer' => '銀行振込',
-                                                                    'subscription' => 'サブスク',
-                                                                ];
-                                                                $options[$method] = $legacyLabels[$method] ?? $method;
-                                                            }
-                                                        }
-                                                        return $options;
+                                                    if ($reservation && $reservation->store) {
+                                                        $store = $reservation->store;
                                                     }
                                                 }
-                                                
-                                                // デフォルト（店舗未選択時）
+
+                                                // 2. 予約がない場合は、顧客から店舗を取得
+                                                if (!$store) {
+                                                    $customerId = $get('customer_id');
+                                                    if ($customerId) {
+                                                        $customer = \App\Models\Customer::with('store')->find($customerId);
+                                                        if ($customer && $customer->store) {
+                                                            $store = $customer->store;
+                                                        }
+                                                    }
+                                                }
+
+                                                // 3. それでもない場合は、ログインユーザーの店舗を取得
+                                                if (!$store) {
+                                                    $user = Auth::user();
+                                                    if ($user && $user->store) {
+                                                        $store = $user->store;
+                                                    }
+                                                }
+
+                                                // 店舗の支払い方法設定を使用
+                                                if ($store && $store->payment_methods) {
+                                                    $options = [];
+                                                    foreach ($store->payment_methods as $method) {
+                                                        // 新しいシンプル構造: ['name' => '現金']
+                                                        if (is_array($method) && isset($method['name'])) {
+                                                            $options[$method['name']] = $method['name'];
+                                                        }
+                                                        // 旧キー・ラベル構造: ['key' => 'cash', 'label' => '現金']
+                                                        elseif (is_array($method) && isset($method['key']) && isset($method['label'])) {
+                                                            $options[$method['key']] = $method['label'];
+                                                        }
+                                                        // 古い構造: 'cash'
+                                                        elseif (is_string($method)) {
+                                                            $legacyLabels = [
+                                                                'cash' => '現金',
+                                                                'credit' => 'クレジットカード',
+                                                                'paypay' => 'PayPay',
+                                                                'bank_transfer' => '銀行振込',
+                                                                'subscription' => 'サブスク',
+                                                            ];
+                                                            $options[$method] = $legacyLabels[$method] ?? $method;
+                                                        }
+                                                    }
+                                                    return $options;
+                                                }
+
+                                                // デフォルト（店舗が取得できない場合のみ）
                                                 return [
                                                     'cash' => '現金',
                                                     'credit' => 'クレジットカード',
