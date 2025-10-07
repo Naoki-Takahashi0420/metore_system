@@ -198,6 +198,10 @@ class AdminPanelProvider extends PanelProvider
                 'panels::footer',
                 fn () => view('components.version-footer')
             )
+            ->renderHook(
+                'panels::body.end',
+                fn () => view('components.help-button')
+            )
             ->theme(asset('css/filament/admin/theme.css'));
     }
 }
