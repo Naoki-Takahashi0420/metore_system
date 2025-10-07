@@ -80,7 +80,42 @@ class MedicalRecordResource extends Resource
                                                 ($record->last_name ?? '') . ' ' . ($record->first_name ?? '') . ' (' . ($record->phone ?? '') . ')'
                                             )
                                             ->searchable(['last_name', 'first_name', 'phone', 'last_name_kana', 'first_name_kana'])
-                                            ->preload()
+                                            ->getSearchResultsUsing(function (string $search) {
+                                                $user = auth()->user();
+                                                $query = Customer::query();
+
+                                                // 検索条件
+                                                $query->where(function ($q) use ($search) {
+                                                    $q->where('last_name', 'like', "%{$search}%")
+                                                      ->orWhere('first_name', 'like', "%{$search}%")
+                                                      ->orWhere('phone', 'like', "%{$search}%")
+                                                      ->orWhere('last_name_kana', 'like', "%{$search}%")
+                                                      ->orWhere('first_name_kana', 'like', "%{$search}%");
+                                                });
+
+                                                // 権限による絞り込み
+                                                if (!$user->hasRole('super_admin')) {
+                                                    if ($user->hasRole('owner')) {
+                                                        $storeIds = $user->manageableStores()->pluck('stores.id')->toArray();
+                                                        $query->where(function ($subQuery) use ($storeIds) {
+                                                            $subQuery->whereHas('reservations', function ($q) use ($storeIds) {
+                                                                $q->whereIn('store_id', $storeIds);
+                                                            })->orWhereDoesntHave('reservations');
+                                                        });
+                                                    } elseif ($user->store_id) {
+                                                        $query->where(function ($subQuery) use ($user) {
+                                                            $subQuery->whereHas('reservations', function ($q) use ($user) {
+                                                                $q->where('store_id', $user->store_id);
+                                                            })->orWhereDoesntHave('reservations');
+                                                        });
+                                                    }
+                                                }
+
+                                                return $query->limit(50)->get()->mapWithKeys(function ($customer) {
+                                                    $label = ($customer->last_name ?? '') . ' ' . ($customer->first_name ?? '') . ' (' . ($customer->phone ?? '') . ')';
+                                                    return [$customer->id => $label];
+                                                });
+                                            })
                                             ->required()
                                             ->reactive()
                                             ->afterStateUpdated(fn ($state, callable $set) => $set('customer_characteristics',
