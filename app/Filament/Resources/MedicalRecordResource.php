@@ -42,44 +42,45 @@ class MedicalRecordResource extends Resource
                                     ->schema([
                                         Forms\Components\Select::make('customer_id')
                                             ->label('顧客')
-                                            ->options(function () {
-                                                $user = auth()->user();
+                                            ->relationship(
+                                                name: 'customer',
+                                                titleAttribute: 'last_name',
+                                                modifyQueryUsing: function (Builder $query) {
+                                                    $user = auth()->user();
 
-                                                $query = Customer::query();
+                                                    // スーパーアドミンは全顧客にアクセス可能
+                                                    if ($user->hasRole('super_admin')) {
+                                                        return $query;
+                                                    }
 
-                                                // スーパーアドミンは全顧客にアクセス可能
-                                                if ($user->hasRole('super_admin')) {
-                                                    // 全顧客
-                                                } elseif ($user->hasRole('owner')) {
                                                     // オーナーは管理店舗の顧客（予約あり + 予約なし顧客）
-                                                    $storeIds = $user->manageableStores()->pluck('stores.id')->toArray();
-                                                    $query->where(function ($subQuery) use ($storeIds) {
-                                                        $subQuery->whereHas('reservations', function ($q) use ($storeIds) {
-                                                            $q->whereIn('store_id', $storeIds);
-                                                        })->orWhereDoesntHave('reservations');
-                                                    });
-                                                } else {
+                                                    if ($user->hasRole('owner')) {
+                                                        $storeIds = $user->manageableStores()->pluck('stores.id')->toArray();
+                                                        return $query->where(function ($subQuery) use ($storeIds) {
+                                                            $subQuery->whereHas('reservations', function ($q) use ($storeIds) {
+                                                                $q->whereIn('store_id', $storeIds);
+                                                            })->orWhereDoesntHave('reservations');
+                                                        });
+                                                    }
+
                                                     // 店長・スタッフは自店舗の顧客（予約あり + 予約なし顧客）
                                                     if ($user->store_id) {
-                                                        $query->where(function ($subQuery) use ($user) {
+                                                        return $query->where(function ($subQuery) use ($user) {
                                                             $subQuery->whereHas('reservations', function ($q) use ($user) {
                                                                 $q->where('store_id', $user->store_id);
                                                             })->orWhereDoesntHave('reservations');
                                                         });
-                                                    } else {
-                                                        return [];
                                                     }
-                                                }
 
-                                                return $query->get()->mapWithKeys(function ($customer) {
-                                                    $name = ($customer->last_name ?? '') . ' ' . ($customer->first_name ?? '') . ' (' . ($customer->phone ?? '') . ')';
-                                                    return [$customer->id => $name];
-                                                });
-                                            })
+                                                    // 権限なし
+                                                    return $query->whereRaw('1 = 0');
+                                                }
+                                            )
                                             ->getOptionLabelFromRecordUsing(fn ($record) =>
                                                 ($record->last_name ?? '') . ' ' . ($record->first_name ?? '') . ' (' . ($record->phone ?? '') . ')'
                                             )
-                                            ->searchable()
+                                            ->searchable(['last_name', 'first_name', 'phone', 'last_name_kana', 'first_name_kana'])
+                                            ->preload()
                                             ->required()
                                             ->reactive()
                                             ->afterStateUpdated(fn ($state, callable $set) => $set('customer_characteristics',
