@@ -763,6 +763,10 @@ class MedicalRecordResource extends Resource
                                      ->orWhere('first_name', 'like', "%{$search}%")
                                      ->orWhere('last_name_kana', 'like', "%{$search}%")
                                      ->orWhere('first_name_kana', 'like', "%{$search}%")
+                                     // 電話番号で検索
+                                     ->orWhere('phone', 'like', "%{$search}%")
+                                     // メールアドレスで検索
+                                     ->orWhere('email', 'like', "%{$search}%")
                                      // フルネーム（スペースなし）で検索
                                      ->orWhereRaw('CONCAT(last_name, first_name) LIKE ?', ["%{$search}%"])
                                      // フルネーム（スペースあり）で検索
