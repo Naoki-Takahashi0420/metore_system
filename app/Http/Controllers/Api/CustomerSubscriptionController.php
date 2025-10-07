@@ -179,6 +179,9 @@ class CustomerSubscriptionController extends Controller
                 return [
                     'id' => $sub->id,
                     'status' => $sub->status,
+                    'is_paused' => $sub->is_paused,
+                    'pause_start_date' => $sub->pause_start_date?->format('Y-m-d'),
+                    'pause_end_date' => $sub->pause_end_date?->format('Y-m-d'),
                     'store_id' => $sub->store_id,
                     'menu_id' => $sub->menu_id ?? ($menu ? $menu->id : null),
                     'plan_name' => $sub->plan_name ?? 'プラン',
