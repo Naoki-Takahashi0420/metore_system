@@ -1882,6 +1882,7 @@ class ReservationTimelineWidget extends Widget
         ]);
 
         $this->selectedCustomer = $this->conflictingCustomer;
+        $this->newReservation['customer_id'] = $this->conflictingCustomer->id; // 顧客IDを設定
         $this->reservationStep = 3;
         $this->showCustomerConflictConfirmation = false;
         $this->conflictingCustomer = null;
