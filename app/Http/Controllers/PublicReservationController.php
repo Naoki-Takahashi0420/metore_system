@@ -2211,6 +2211,12 @@ class PublicReservationController extends Controller
                 \Log::warning('⚠️ 回数券コンテキストが見つかりません');
             }
 
+            \Log::info('🎫 [DEBUG] Reservation::create直前のデータ', [
+                'has_customer_ticket_id' => isset($reservationData['customer_ticket_id']),
+                'customer_ticket_id_value' => $reservationData['customer_ticket_id'] ?? 'not set',
+                'reservation_data_keys' => array_keys($reservationData)
+            ]);
+
             $reservation = Reservation::create($reservationData);
 
             // オプションメニューを関連付け
