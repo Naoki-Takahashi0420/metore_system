@@ -37,7 +37,7 @@ class ReservationRescheduleController extends Controller
             $stores = Store::where('is_active', true)->get();
         } elseif ($user->hasRole('owner')) {
             $stores = $user->manageableStores()->where('is_active', true)->get();
-        } elseif ($user->hasRole('staff')) {
+        } elseif ($user->hasRole(['manager', 'staff'])) {
             $stores = collect([$user->store])->filter();
         } else {
             abort(403);
@@ -136,7 +136,7 @@ class ReservationRescheduleController extends Controller
         $menu = $reservation->menu;
 
         // アクセス権限チェック
-        if ($user->hasRole('staff') && $user->store_id !== $store->id) {
+        if ($user->hasRole(['manager', 'staff']) && $user->store_id !== $store->id) {
             abort(403, 'この店舗の予約を変更する権限がありません');
         } elseif ($user->hasRole('owner')) {
             $manageableStoreIds = $user->manageableStores()->pluck('stores.id');
