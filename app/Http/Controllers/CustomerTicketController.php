@@ -14,11 +14,39 @@ class CustomerTicketController extends Controller
      */
     public function index(Request $request)
     {
-        // Sanctum認証を使用
-        $customer = $request->user();
+        $token = str_replace('Bearer ', '', $request->header('Authorization'));
+
+        if (!$token) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $customer = null;
+
+        // Sanctumトークンかどうかをチェック（パイプが含まれている場合）
+        if (strpos($token, '|') !== false) {
+            // Sanctumトークンの場合
+            $personalAccessToken = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
+            if ($personalAccessToken) {
+                $customer = $personalAccessToken->tokenable;
+            }
+        } else {
+            // Base64エンコードされた顧客データの場合（従来の方式）
+            $customerData = json_decode(base64_decode($token), true);
+            $customerId = $customerData['id'] ?? null;
+
+            if (!$customerId) {
+                // トークンから取得できない場合、電話番号で検索（テスト用）
+                $phone = $customerData['phone'] ?? null;
+                if ($phone) {
+                    $customer = Customer::where('phone', $phone)->first();
+                }
+            } else {
+                $customer = Customer::find($customerId);
+            }
+        }
 
         if (!$customer) {
-            return response()->json(['error' => '認証が必要です'], 401);
+            return response()->json(['error' => 'Invalid token'], 401);
         }
 
         // 顧客の全回数券を取得（有効・期限切れ・使い切り全て）

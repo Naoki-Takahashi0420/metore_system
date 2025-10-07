@@ -42,6 +42,8 @@ class Reservation extends Model
         'confirmation_sent_at',
         'confirmation_method',
         'line_confirmation_sent_at',
+        'customer_subscription_id',
+        'customer_ticket_id',
     ];
 
     protected $casts = [

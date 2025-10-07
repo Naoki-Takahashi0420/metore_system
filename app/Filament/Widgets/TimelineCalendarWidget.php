@@ -12,13 +12,16 @@ use Livewire\Attributes\Reactive;
 class TimelineCalendarWidget extends Widget
 {
     protected static ?int $sort = 1;
-    
+
     protected int | string | array $columnSpan = 'full';
-    
+
     protected static string $view = 'filament.widgets.timeline-calendar-widget';
-    
+
     protected static ?string $heading = '予約タイムライン';
-    
+
+    // 60秒ごとに自動更新
+    protected static ?string $pollingInterval = '60s';
+
     public ?int $selectedStoreId = null;
     public string $currentDate;
     public array $timeSlots = [];
@@ -56,7 +59,13 @@ class TimelineCalendarWidget extends Widget
     {
         $this->loadReservations();
     }
-    
+
+    public function refreshData()
+    {
+        $this->loadReservations();
+        $this->dispatch('refreshed');
+    }
+
     public function changeDate($direction)
     {
         $currentDate = Carbon::parse($this->currentDate);

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - ページが見つかりません - MEO SaaS Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8">
+        <div class="max-w-lg w-full">
+            <!-- エラーコンテンツ -->
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                <div class="bg-yellow-500 p-8 text-center">
+                    <div class="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-yellow-600">
+                        <svg class="h-12 w-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+</svg>
+                    </div>
+                </div>
+                
+                <div class="px-8 py-6">
+                    <h1 class="text-3xl font-bold text-gray-900 text-center mb-2">
+                        404                    </h1>
+                    <h2 class="text-xl font-semibold text-gray-700 text-center mb-4">
+                        ページが見つかりません                    </h2>
+                    <p class="text-gray-600 text-center mb-6">
+                        お探しのページは存在しないか、移動・削除された可能性があります。URLをご確認ください。                    </p>
+                    
+                    <!-- エラー詳細情報 -->
+                                        <div class="bg-gray-100 rounded-lg p-4 mb-6">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">エラー詳細情報</h3>
+                        <div id="error-details" class="bg-white rounded border border-gray-200 p-3 font-mono text-xs overflow-x-auto">
+                            <div><strong>エラーコード:</strong> 404</div>
+                            <div><strong>URL:</strong> http://localhost:8888/admin/login</div>
+                            <div><strong>メソッド:</strong> GET</div>
+                            <div><strong>IP:</strong> 127.0.0.1</div>
+                            <div><strong>ユーザーエージェント:</strong> Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.7339.16 Safari/537.36</div>
+                            <div><strong>日時:</strong> 2025-10-07 16:42:27</div>
+                                                    </div>
+                        <button onclick="copyErrorDetails()" 
+                                class="mt-3 w-full bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded text-sm transition duration-150 ease-in-out">
+                            エラー情報をコピー
+                        </button>
+                        <div id="copy-feedback" class="hidden mt-2 text-sm text-green-600 text-center">
+                            ✓ エラー情報をコピーしました
+                        </div>
+                    </div>
+                                        
+                    <!-- アクションボタン -->
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <a href="http://localhost:8888" 
+                           class="flex-1 text-center bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-4 rounded-lg transition duration-150 ease-in-out">
+                            前のページに戻る
+                        </a>
+                        <a href="http://localhost:8888/dashboard" 
+                           class="flex-1 text-center bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition duration-150 ease-in-out">
+                            ダッシュボードへ
+                        </a>
+                    </div>
+                    
+                    <!-- ヘルプテキスト -->
+                    <p class="mt-6 text-sm text-gray-500 text-center">
+                        問題が解決しない場合は、エラー情報をコピーして<br>
+                        システム管理者にお問い合わせください。
+                    </p>
+                </div>
+            </div>
+            
+            <!-- フッター -->
+            <div class="mt-8 text-center">
+                <p class="text-sm text-gray-500">
+                    MEO SaaS Platform &copy; 2025
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function copyErrorDetails() {
+            const errorDetails = document.getElementById('error-details');
+            const textToCopy = errorDetails.innerText;
+            
+            // テキストエリアを作成してコピー
+            const textarea = document.createElement('textarea');
+            textarea.value = textToCopy;
+            textarea.style.position = 'absolute';
+            textarea.style.left = '-9999px';
+            document.body.appendChild(textarea);
+            
+            try {
+                textarea.select();
+                textarea.setSelectionRange(0, 99999); // モバイル対応
+                document.execCommand('copy');
+                
+                // フィードバック表示
+                const feedback = document.getElementById('copy-feedback');
+                feedback.classList.remove('hidden');
+                
+                setTimeout(() => {
+                    feedback.classList.add('hidden');
+                }, 3000);
+            } catch (err) {
+                alert('エラー情報のコピーに失敗しました。手動でコピーしてください。');
+            } finally {
+                document.body.removeChild(textarea);
+            }
+        }
+    </script>
+</body>
+</html>

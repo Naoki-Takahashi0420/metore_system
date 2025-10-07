@@ -125,7 +125,8 @@ class MenuResource extends Resource
                             ->label('月間利用回数上限')
                             ->numeric()
                             ->suffix('回')
-                            ->helperText('空欄の場合は無制限'),
+                            ->required(fn (Forms\Get $get) => $get('is_subscription'))
+                            ->helperText('サブスクメニューの場合は必須。空欄の場合は無制限'),
                         Forms\Components\Select::make('duration_minutes')
                             ->label('所要時間')
                             ->options(function (Forms\Get $get) {

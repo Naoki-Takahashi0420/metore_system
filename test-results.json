@@ -10,9 +10,7 @@
     "grep": {},
     "grepInvert": null,
     "maxFailures": 0,
-    "metadata": {
-      "actualWorkers": 1
-    },
+    "metadata": {},
     "preserveOutput": "always",
     "reporter": [
       [
@@ -42,9 +40,7 @@
         "outputDir": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results",
         "repeatEach": 1,
         "retries": 1,
-        "metadata": {
-          "actualWorkers": 1
-        },
+        "metadata": {},
         "id": "chromium",
         "name": "chromium",
         "testDir": "/Applications/MAMP/htdocs/Xsyumeno-main/tests",
@@ -66,199 +62,17 @@
       "reuseExistingServer": true
     }
   },
-  "suites": [
+  "suites": [],
+  "errors": [
     {
-      "title": "e2e/fix-verification-test.spec.js",
-      "file": "e2e/fix-verification-test.spec.js",
-      "column": 0,
-      "line": 0,
-      "specs": [
-        {
-          "title": "修正内容の確認: スタッフがカルテ管理にアクセスできる",
-          "ok": true,
-          "tags": [],
-          "tests": [
-            {
-              "timeout": 60000,
-              "annotations": [],
-              "expectedStatus": "passed",
-              "projectId": "chromium",
-              "projectName": "chromium",
-              "results": [
-                {
-                  "workerIndex": 0,
-                  "parallelIndex": 0,
-                  "status": "passed",
-                  "duration": 8818,
-                  "errors": [],
-                  "stdout": [
-                    {
-                      "text": "🔧 テスト開始: スタッフ権限でカルテ管理にアクセス\n"
-                    },
-                    {
-                      "text": "✅ ログイン成功\n"
-                    },
-                    {
-                      "text": "✅ カルテ管理ページにアクセス\n"
-                    },
-                    {
-                      "text": "📄 ページタイトル: カルテ - 目のトレーニング 管理画面\n"
-                    },
-                    {
-                      "text": "見出し表示: ❌\n"
-                    },
-                    {
-                      "text": "テーブル表示: ✅\n"
-                    },
-                    {
-                      "text": "空メッセージ: ❌\n"
-                    },
-                    {
-                      "text": "📸 スクリーンショット保存: fix-verification-medical-records.png\n"
-                    },
-                    {
-                      "text": "✅ テスト成功: カルテ管理ページは正常に表示されています\n"
-                    },
-                    {
-                      "text": "\n📋 修正内容の確認\n"
-                    },
-                    {
-                      "text": "1. ✅ カルテフィルタリングを予約ベースに変更済み\n"
-                    },
-                    {
-                      "text": "   - MedicalRecordResource: customer.reservations を使用\n"
-                    },
-                    {
-                      "text": "   - ListMedicalRecords: customer.reservations を使用\n"
-                    },
-                    {
-                      "text": "\n2. ✅ 通知制御ロジックを追加済み\n"
-                    },
-                    {
-                      "text": "   - source=\"admin\" の予約では顧客通知をスキップ\n"
-                    },
-                    {
-                      "text": "   - ReservationTimelineWidget: source を \"admin\" に変更\n"
-                    },
-                    {
-                      "text": "\n3. ✅ テスト結果\n"
-                    },
-                    {
-                      "text": "   - スタッフ権限でカルテ管理にアクセス可能\n"
-                    },
-                    {
-                      "text": "   - 今後、タイムラインから新規顧客を作成した予約のカルテが表示される\n"
-                    }
-                  ],
-                  "stderr": [],
-                  "retry": 0,
-                  "startTime": "2025-10-06T12:57:39.654Z",
-                  "annotations": [],
-                  "attachments": []
-                }
-              ],
-              "status": "expected"
-            }
-          ],
-          "id": "241d48ee68ae2bf56e44-9a64f7d94c863d9cd3da",
-          "file": "e2e/fix-verification-test.spec.js",
-          "line": 3,
-          "column": 1
-        },
-        {
-          "title": "修正内容の理論的検証",
-          "ok": true,
-          "tags": [],
-          "tests": [
-            {
-              "timeout": 60000,
-              "annotations": [],
-              "expectedStatus": "passed",
-              "projectId": "chromium",
-              "projectName": "chromium",
-              "results": [
-                {
-                  "workerIndex": 0,
-                  "parallelIndex": 0,
-                  "status": "passed",
-                  "duration": 301,
-                  "errors": [],
-                  "stdout": [
-                    {
-                      "text": "\n🔍 修正内容の理論的検証\n"
-                    },
-                    {
-                      "text": "\n【問題1の修正】\n"
-                    },
-                    {
-                      "text": "❌ 修正前: customer.store_id でフィルタリング（新規顧客は store_id が null）\n"
-                    },
-                    {
-                      "text": "✅ 修正後: customer.reservations 経由でフィルタリング（予約があればカルテ表示）\n"
-                    },
-                    {
-                      "text": "\n【問題2の修正】\n"
-                    },
-                    {
-                      "text": "❌ 修正前: 全ての予約で顧客通知が送信される\n"
-                    },
-                    {
-                      "text": "✅ 修正後: source=\"admin\" の予約では顧客通知をスキップ\n"
-                    },
-                    {
-                      "text": "\n【修正ファイル一覧】\n"
-                    },
-                    {
-                      "text": "1. app/Filament/Resources/MedicalRecordResource.php\n"
-                    },
-                    {
-                      "text": "   - getEloquentQuery() を修正\n"
-                    },
-                    {
-                      "text": "2. app/Filament/Resources/MedicalRecordResource/Pages/ListMedicalRecords.php\n"
-                    },
-                    {
-                      "text": "   - getTableQuery() を修正\n"
-                    },
-                    {
-                      "text": "3. app/Listeners/SendCustomerReservationNotification.php\n"
-                    },
-                    {
-                      "text": "   - handle() に通知スキップロジックを追加\n"
-                    },
-                    {
-                      "text": "4. app/Filament/Widgets/ReservationTimelineWidget.php\n"
-                    },
-                    {
-                      "text": "   - source を \"phone\" → \"admin\" に変更\n"
-                    },
-                    {
-                      "text": "\n✅ 全ての修正が正常に適用されています\n"
-                    }
-                  ],
-                  "stderr": [],
-                  "retry": 0,
-                  "startTime": "2025-10-06T12:57:48.879Z",
-                  "annotations": [],
-                  "attachments": []
-                }
-              ],
-              "status": "expected"
-            }
-          ],
-          "id": "241d48ee68ae2bf56e44-1b8fe01079b401b3b181",
-          "file": "e2e/fix-verification-test.spec.js",
-          "line": 59,
-          "column": 1
-        }
-      ]
+      "message": "Error: No tests found.\nMake sure that arguments are regular expressions matching test files.\nYou may need to escape symbols like \"$\" or \"*\" and quote the arguments.",
+      "stack": "Error: No tests found.\nMake sure that arguments are regular expressions matching test files.\nYou may need to escape symbols like \"$\" or \"*\" and quote the arguments."
     }
   ],
-  "errors": [],
   "stats": {
-    "startTime": "2025-10-06T12:57:38.342Z",
-    "duration": 10979.11,
-    "expected": 2,
+    "startTime": "2025-10-07T16:41:42.429Z",
+    "duration": 910.2720000000002,
+    "expected": 0,
     "skipped": 0,
     "unexpected": 0,
     "flaky": 0

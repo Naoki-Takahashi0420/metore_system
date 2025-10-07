@@ -17,10 +17,12 @@
 @livewire('help-chat-modal')
 
 <!-- ヘルプボタン（右下固定） -->
-<div class="fixed bottom-6 right-6 z-40">
+<div style="position:fixed !important; bottom:24px !important; right:24px !important; z-index:99999 !important;">
     <button
-        onclick="Livewire.dispatch('open-help-chat')"
-        class="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4 shadow-lg transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        onclick="window.Livewire.dispatch('open-help-chat')"
+        onmouseover="this.style.transform='scale(1.1)'"
+        onmouseout="this.style.transform='scale(1)'"
+        style="background:#2563eb; color:white; border-radius:9999px; padding:1rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); transition: all 0.2s; cursor: pointer;"
         title="AIヘルプチャット"
     >
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

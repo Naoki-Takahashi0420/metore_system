@@ -2195,11 +2195,20 @@ class PublicReservationController extends Controller
             }
 
             // 回数券IDがある場合は予約作成時に設定
+            \Log::info('🎫 [DEBUG] 回数券コンテキストチェック', [
+                'has_context' => $context !== null,
+                'context_keys' => $context ? array_keys($context) : [],
+                'ticket_id_in_context' => $context && isset($context['ticket_id']) ? $context['ticket_id'] : 'not found'
+            ]);
+
             if ($context && isset($context['ticket_id'])) {
                 $reservationData['customer_ticket_id'] = $context['ticket_id'];
-                \Log::info('回数券を予約に紐付け（使用は完了時）', [
-                    'ticket_id' => $context['ticket_id']
+                \Log::info('🎫 回数券を予約に紐付け（使用は完了時）', [
+                    'ticket_id' => $context['ticket_id'],
+                    'reservation_data_includes_ticket' => isset($reservationData['customer_ticket_id'])
                 ]);
+            } else {
+                \Log::warning('⚠️ 回数券コンテキストが見つかりません');
             }
 
             // サブスクリプションIDがある場合は予約作成時に設定
@@ -2216,6 +2225,12 @@ class PublicReservationController extends Controller
                     'subscription_id' => $subscriptionId
                 ]);
             }
+
+            \Log::info('🎫 [DEBUG] Reservation::create直前のデータ', [
+                'has_customer_ticket_id' => isset($reservationData['customer_ticket_id']),
+                'customer_ticket_id_value' => $reservationData['customer_ticket_id'] ?? 'not set',
+                'reservation_data_keys' => array_keys($reservationData)
+            ]);
 
             $reservation = Reservation::create($reservationData);
 

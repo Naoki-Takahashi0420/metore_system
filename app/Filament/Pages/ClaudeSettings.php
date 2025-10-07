@@ -39,15 +39,32 @@ class ClaudeSettings extends Page implements HasForms
     protected function loadSettings(): void
     {
         // データベースから設定を読み込み
-        $settings = DB::table('settings')
-            ->where('key', 'like', 'claude.%')
-            ->pluck('value', 'key');
+        try {
+            if (!DB::getSchemaBuilder()->hasTable('settings')) {
+                // テーブルが存在しない場合はデフォルト値を使用
+                $this->api_key = config('claude.api_key');
+                $this->enabled = config('claude.enabled');
+                $this->daily_limit_per_user = config('claude.rate_limit.daily_per_user');
+                $this->monthly_limit_total = config('claude.rate_limit.monthly_total');
+                return;
+            }
 
-        $this->api_key = $settings['claude.api_key'] ?? config('claude.api_key');
-        $this->enabled = ($settings['claude.enabled'] ?? config('claude.enabled')) === '1' ||
-                        ($settings['claude.enabled'] ?? config('claude.enabled')) === true;
-        $this->daily_limit_per_user = (int)($settings['claude.daily_limit_per_user'] ?? config('claude.rate_limit.daily_per_user'));
-        $this->monthly_limit_total = (int)($settings['claude.monthly_limit_total'] ?? config('claude.rate_limit.monthly_total'));
+            $settings = DB::table('settings')
+                ->where('key', 'like', 'claude.%')
+                ->pluck('value', 'key');
+
+            $this->api_key = $settings['claude.api_key'] ?? config('claude.api_key');
+            $this->enabled = ($settings['claude.enabled'] ?? config('claude.enabled')) === '1' ||
+                            ($settings['claude.enabled'] ?? config('claude.enabled')) === true;
+            $this->daily_limit_per_user = (int)($settings['claude.daily_limit_per_user'] ?? config('claude.rate_limit.daily_per_user'));
+            $this->monthly_limit_total = (int)($settings['claude.monthly_limit_total'] ?? config('claude.rate_limit.monthly_total'));
+        } catch (\Exception $e) {
+            // エラー時はデフォルト値を使用
+            $this->api_key = config('claude.api_key');
+            $this->enabled = config('claude.enabled');
+            $this->daily_limit_per_user = config('claude.rate_limit.daily_per_user');
+            $this->monthly_limit_total = config('claude.rate_limit.monthly_total');
+        }
     }
 
     public function save(): void
@@ -101,14 +118,25 @@ class ClaudeSettings extends Page implements HasForms
 
     protected function upsertSetting(string $key, string $value): void
     {
-        DB::table('settings')->updateOrInsert(
-            ['key' => $key],
-            [
+        $existing = DB::table('settings')->where('key', $key)->first();
+
+        if ($existing) {
+            // 更新
+            DB::table('settings')
+                ->where('key', $key)
+                ->update([
+                    'value' => $value,
+                    'updated_at' => now(),
+                ]);
+        } else {
+            // 新規作成
+            DB::table('settings')->insert([
+                'key' => $key,
                 'value' => $value,
+                'created_at' => now(),
                 'updated_at' => now(),
-                'created_at' => DB::raw('COALESCE(created_at, NOW())')
-            ]
-        );
+            ]);
+        }
     }
 
     public function testConnection(): void

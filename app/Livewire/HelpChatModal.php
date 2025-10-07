@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use Livewire\Component;
 use App\Services\ClaudeHelpService;
+use App\Models\HelpChatLog;
 
 class HelpChatModal extends Component
 {
@@ -12,6 +13,9 @@ class HelpChatModal extends Component
     public array $conversationHistory = [];
     public bool $isLoading = false;
     public ?string $errorMessage = null;
+    public ?int $currentLogId = null; // 最新のログID
+    public bool $showFeedbackForm = false;
+    public string $feedbackMessage = '';
 
     protected $listeners = ['open-help-chat' => 'open'];
 
@@ -60,11 +64,19 @@ class HelpChatModal extends Component
         $this->isLoading = true;
 
         // コンテキスト情報を収集
+        $user = auth()->user();
+
         $context = [
             'page_name' => $this->getCurrentPageName(),
-            'role' => auth()->user()->roles->pluck('name')->first() ?? 'staff',
-            'store_name' => auth()->user()->store?->name ?? null,
             'url' => url()->current(),
+            'route' => request()->route()?->getName() ?? null,
+            'user_name' => $user->name,
+            'user_email' => $user->email,
+            'role' => $user->roles->pluck('name')->first() ?? 'staff',
+            'store_id' => $user->store_id ?? null,
+            'store_name' => $user->store?->name ?? null,
+            'browser' => request()->header('User-Agent'),
+            'timestamp' => now()->format('Y-m-d H:i:s'),
         ];
 
         try {
@@ -80,6 +92,18 @@ class HelpChatModal extends Component
                 'role' => 'assistant',
                 'content' => $result['response']
             ];
+
+            // データベースに保存
+            $log = HelpChatLog::create([
+                'user_id' => auth()->id(),
+                'page_name' => $context['page_name'] ?? '不明',
+                'question' => $userMessage,
+                'answer' => $result['response'],
+                'context' => $context,
+                'usage' => $result['usage'] ?? null,
+            ]);
+
+            $this->currentLogId = $log->id;
 
         } catch (\Exception $e) {
             $this->errorMessage = 'エラーが発生しました: ' . $e->getMessage();
@@ -98,7 +122,51 @@ class HelpChatModal extends Component
     {
         $this->conversationHistory = [];
         $this->errorMessage = null;
+        $this->currentLogId = null;
+        $this->showFeedbackForm = false;
+        $this->feedbackMessage = '';
         $this->open(); // 初回メッセージを表示
+    }
+
+    public function markResolved(): void
+    {
+        if ($this->currentLogId) {
+            HelpChatLog::find($this->currentLogId)->update([
+                'is_resolved' => true,
+            ]);
+            $this->showFeedbackForm = false;
+            $this->currentLogId = null;
+        }
+    }
+
+    public function showFeedback(): void
+    {
+        $this->showFeedbackForm = true;
+    }
+
+    public function submitFeedback(): void
+    {
+        if ($this->currentLogId && !empty(trim($this->feedbackMessage))) {
+            HelpChatLog::find($this->currentLogId)->update([
+                'is_resolved' => false,
+                'feedback' => $this->feedbackMessage,
+            ]);
+            $this->showFeedbackForm = false;
+            $this->feedbackMessage = '';
+            $this->currentLogId = null;
+
+            // 成功メッセージを履歴に追加
+            $this->conversationHistory[] = [
+                'role' => 'assistant',
+                'content' => 'フィードバックありがとうございます。管理者に報告されました。'
+            ];
+        }
+    }
+
+    public function cancelFeedback(): void
+    {
+        $this->showFeedbackForm = false;
+        $this->feedbackMessage = '';
     }
 
     private function getCurrentPageName(): string
@@ -110,10 +178,15 @@ class HelpChatModal extends Component
             str_contains($route, 'customers') || str_contains($url, 'customers') => '顧客管理',
             str_contains($route, 'reservations') || str_contains($url, 'reservations') => '予約管理',
             str_contains($route, 'medical-records') || str_contains($url, 'medical-records') => 'カルテ管理',
-            str_contains($route, 'menu') || str_contains($url, 'menu') => 'メニュー管理',
+            str_contains($route, 'menu-categories') || str_contains($url, 'menu-categories') => 'メニューカテゴリ管理',
+            str_contains($route, 'menus') || str_contains($url, 'menus') => 'メニュー管理',
             str_contains($route, 'shift') || str_contains($url, 'shift') => 'シフト管理',
             str_contains($route, 'subscriptions') || str_contains($url, 'subscriptions') => 'サブスク管理',
             str_contains($route, 'tickets') || str_contains($url, 'tickets') => 'チケット管理',
+            str_contains($route, 'stores') || str_contains($url, 'stores') => '店舗管理',
+            str_contains($route, 'users') || str_contains($url, 'users') => 'ユーザー管理',
+            str_contains($route, 'settings') || str_contains($url, 'settings') => '設定',
+            str_contains($route, 'help-chat-logs') || str_contains($url, 'help-chat-logs') => 'ヘルプ質問履歴',
             str_contains($route, 'dashboard') || str_contains($url, 'dashboard') => 'ダッシュボード',
             default => '管理画面',
         };
