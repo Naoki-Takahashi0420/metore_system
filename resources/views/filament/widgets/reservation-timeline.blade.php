@@ -1926,7 +1926,7 @@
                             @php
                                 $customerContractMenus = collect();
 
-                                if ($newReservation['customer_id']) {
+                                if (isset($newReservation['customer_id']) && $newReservation['customer_id']) {
                                     $customer = \App\Models\Customer::find($newReservation['customer_id']);
 
                                     if ($customer) {
