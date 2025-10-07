@@ -866,6 +866,7 @@ class CustomerResource extends Resource
         return [
             RelationManagers\ImagesRelationManager::class,
             RelationManagers\MedicalRecordsRelationManager::class,
+            RelationManagers\TicketsRelationManager::class,
         ];
     }
 

@@ -32,6 +32,35 @@ class CreateReservation extends CreateRecord
 
     protected function afterCreate(): void
     {
+        // 回数券での支払いの場合、自動的に回数券を消費
+        if ($this->record->payment_method === 'ticket' && $this->record->customer_ticket_id) {
+            $ticket = \App\Models\CustomerTicket::find($this->record->customer_ticket_id);
+
+            if ($ticket && $ticket->canUse()) {
+                $result = $ticket->use($this->record->id);
+
+                if ($result) {
+                    // 支払い済みに設定
+                    $this->record->update([
+                        'paid_with_ticket' => true,
+                        'payment_status' => 'paid',
+                    ]);
+
+                    Notification::make()
+                        ->title('回数券を使用しました')
+                        ->body("{$ticket->plan_name} - 残り{$ticket->fresh()->remaining_count}回")
+                        ->success()
+                        ->send();
+                } else {
+                    Notification::make()
+                        ->title('回数券の使用に失敗しました')
+                        ->body('回数券が期限切れまたは使い切りです')
+                        ->warning()
+                        ->send();
+                }
+            }
+        }
+
         // 予約確認の通知
         if ($this->record->source === 'phone') {
             Notification::make()

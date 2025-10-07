@@ -26,3 +26,18 @@ Schedule::command('line:send-reminders')
 Schedule::command('line:send-followup')
     ->dailyAt('10:00') // 毎日午前10時に実行
     ->description('LINE 7日・15日フォローアップ送信');
+
+// 回数券期限切れ通知（7日前）
+Schedule::command('tickets:notify-expiring --days=7')
+    ->dailyAt('09:00') // 毎日午前9時に実行
+    ->description('回数券期限切れ7日前通知');
+
+// 回数券期限切れ通知（3日前）
+Schedule::command('tickets:notify-expiring --days=3')
+    ->dailyAt('09:00') // 毎日午前9時に実行
+    ->description('回数券期限切れ3日前通知');
+
+// 回数券期限切れステータス更新
+Schedule::command('tickets:update-expired')
+    ->dailyAt('01:00') // 毎日午前1時に実行（深夜に実行）
+    ->description('期限切れ回数券のステータス自動更新');

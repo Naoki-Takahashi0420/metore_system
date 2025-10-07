@@ -526,11 +526,74 @@ class ReservationResource extends Resource
                     ])
                     ->columns(3),
 
-                // 支払い情報は美容サロンには複雑すぎるため非表示
-                Forms\Components\Hidden::make('total_amount')->default(0),
-                Forms\Components\Hidden::make('deposit_amount')->default(0),
-                Forms\Components\Hidden::make('payment_method')->default('cash'),
-                Forms\Components\Hidden::make('payment_status')->default('unpaid'),
+                // 支払い情報
+                Forms\Components\Section::make('支払い情報')
+                    ->schema([
+                        Forms\Components\Select::make('payment_method')
+                            ->label('支払い方法')
+                            ->options([
+                                'cash' => '現金',
+                                'credit' => 'クレジットカード',
+                                'ticket' => '回数券',
+                                'subscription' => 'サブスク',
+                            ])
+                            ->default('cash')
+                            ->reactive()
+                            ->required(),
+
+                        Forms\Components\Select::make('customer_ticket_id')
+                            ->label('利用する回数券')
+                            ->options(function (callable $get) {
+                                $customerId = $get('customer_id');
+                                $storeId = $get('store_id');
+
+                                if (!$customerId || !$storeId) {
+                                    return [];
+                                }
+
+                                $customer = \App\Models\Customer::find($customerId);
+                                if (!$customer) {
+                                    return [];
+                                }
+
+                                $tickets = $customer->getAvailableTicketsForStore($storeId);
+
+                                if ($tickets->isEmpty()) {
+                                    return [];
+                                }
+
+                                $options = [];
+                                foreach ($tickets as $ticket) {
+                                    $label = "{$ticket->plan_name} - 残り{$ticket->remaining_count}回";
+                                    if ($ticket->expires_at) {
+                                        $label .= " (期限: {$ticket->expires_at->format('Y/m/d')})";
+                                    }
+                                    if ($ticket->is_expiring_soon) {
+                                        $label = "⚠️ " . $label;
+                                    }
+                                    $options[$ticket->id] = $label;
+                                }
+
+                                return $options;
+                            })
+                            ->visible(fn (callable $get) => $get('payment_method') === 'ticket')
+                            ->required(fn (callable $get) => $get('payment_method') === 'ticket')
+                            ->reactive()
+                            ->helperText('顧客と店舗を選択すると、利用可能な回数券が表示されます')
+                            ->placeholder('回数券を選択'),
+
+                        Forms\Components\Toggle::make('paid_with_ticket')
+                            ->label('回数券で支払い済み')
+                            ->default(false)
+                            ->reactive()
+                            ->visible(fn (callable $get) => $get('payment_method') === 'ticket'),
+
+                        Forms\Components\Hidden::make('total_amount')->default(0),
+                        Forms\Components\Hidden::make('deposit_amount')->default(0),
+                        Forms\Components\Hidden::make('payment_status')->default('unpaid'),
+                    ])
+                    ->columns(2)
+                    ->collapsible(),
 
                 Forms\Components\Section::make('その他')
                     ->schema([

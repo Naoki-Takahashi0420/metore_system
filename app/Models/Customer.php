@@ -224,6 +224,42 @@ class Customer extends Model
     }
 
     /**
+     * 回数券（複数可）
+     */
+    public function tickets(): HasMany
+    {
+        return $this->hasMany(CustomerTicket::class);
+    }
+
+    /**
+     * 利用可能な回数券（有効期限内 & 残回数あり）
+     */
+    public function activeTickets(): HasMany
+    {
+        return $this->hasMany(CustomerTicket::class)
+            ->where('status', 'active')
+            ->where(function ($query) {
+                $query->whereNull('expires_at')
+                      ->orWhere('expires_at', '>', now());
+            })
+            ->whereColumn('used_count', '<', 'total_count');
+    }
+
+    /**
+     * 特定店舗で利用可能な回数券を取得（優先順位順）
+     */
+    public function getAvailableTicketsForStore(int $storeId)
+    {
+        return $this->activeTickets()
+            ->where('store_id', $storeId)
+            ->orderByRaw('expires_at IS NULL')  // 無期限を最後に
+            ->orderBy('expires_at', 'asc')      // 期限が近い順
+            ->orderBy('total_count', 'desc')     // 残回数が少ない順（total_countで代用）
+            ->orderBy('purchased_at', 'asc')    // 購入日が古い順
+            ->get();
+    }
+
+    /**
      * アクティブなサブスクリプション
      */
     public function activeSubscription(): HasOne

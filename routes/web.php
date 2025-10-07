@@ -130,7 +130,11 @@ Route::prefix('customer')->group(function () {
     Route::get('/medical-records', function () {
         return view('customer.medical-records');
     });
-    
+
+    // 回数券
+    Route::get('/tickets', [App\Http\Controllers\CustomerTicketController::class, 'show'])
+        ->name('customer.tickets');
+
     // サブスク専用予約
     Route::get('/subscription-booking', function () {
         return view('reservation.subscription-booking');

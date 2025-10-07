@@ -123,6 +123,20 @@ class Reservation extends Model
         });
         
         static::updating(function ($reservation) {
+            // ステータスがキャンセルに変更された場合、回数券を返却
+            if ($reservation->isDirty('status') &&
+                in_array($reservation->status, ['cancelled', 'canceled']) &&
+                !in_array($reservation->getOriginal('status'), ['cancelled', 'canceled']) &&
+                $reservation->paid_with_ticket &&
+                $reservation->customer_ticket_id) {
+
+                $ticket = CustomerTicket::find($reservation->customer_ticket_id);
+                if ($ticket) {
+                    $ticket->refund($reservation->id, 1);
+                    \Log::info("Ticket refunded for reservation {$reservation->id}: {$ticket->plan_name}");
+                }
+            }
+
             // 更新時も重複チェック（キャンセル済み以外）
             if (!in_array($reservation->status, ['cancelled', 'canceled']) &&
                 $reservation->isDirty(['start_time', 'end_time', 'seat_number', 'is_sub', 'reservation_date', 'staff_id'])) {
@@ -177,6 +191,14 @@ class Reservation extends Model
     public function menu()
     {
         return $this->belongsTo(Menu::class);
+    }
+
+    /**
+     * リレーション: 使用した回数券
+     */
+    public function customerTicket()
+    {
+        return $this->belongsTo(CustomerTicket::class);
     }
 
     /**
