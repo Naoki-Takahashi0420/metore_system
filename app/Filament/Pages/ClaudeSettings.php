@@ -118,14 +118,25 @@ class ClaudeSettings extends Page implements HasForms
 
     protected function upsertSetting(string $key, string $value): void
     {
-        DB::table('settings')->updateOrInsert(
-            ['key' => $key],
-            [
+        $existing = DB::table('settings')->where('key', $key)->first();
+
+        if ($existing) {
+            // 更新
+            DB::table('settings')
+                ->where('key', $key)
+                ->update([
+                    'value' => $value,
+                    'updated_at' => now(),
+                ]);
+        } else {
+            // 新規作成
+            DB::table('settings')->insert([
+                'key' => $key,
                 'value' => $value,
+                'created_at' => now(),
                 'updated_at' => now(),
-                'created_at' => DB::raw('COALESCE(created_at, NOW())')
-            ]
-        );
+            ]);
+        }
     }
 
     public function testConnection(): void
