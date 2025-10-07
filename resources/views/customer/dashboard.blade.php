@@ -439,10 +439,10 @@ async function fetchStats() {
             console.log('Subscription data.data:', subscriptionData.data);
             console.log('Subscription data.data length:', subscriptionData.data ? subscriptionData.data.length : 'undefined');
             
-            const activeSubscription = subscriptionData.data?.find(s => s.status === 'active');
+            const activeSubscription = subscriptionData.data?.find(s => s.status === 'active' && !s.is_paused);
             console.log('Active subscription:', activeSubscription);
             console.log('Found active subscription?', !!activeSubscription);
-            
+
             if (activeSubscription) {
                 console.log('=== サブスクセクション表示開始 ===');
                 const subscriptionSection = document.getElementById('subscription-section');
