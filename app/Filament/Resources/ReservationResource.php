@@ -637,7 +637,11 @@ class ReservationResource extends Resource
                 Tables\Columns\TextColumn::make('customer.last_name')
                     ->label('顧客')
                     ->formatStateUsing(fn ($record) => $record->customer->last_name . ' ' . $record->customer->first_name)
-                    ->searchable(['customers.last_name', 'customers.first_name']),
+                    ->searchable(query: function ($query, $search) {
+                        return $query->whereHas('customer', function ($query) use ($search) {
+                            $query->searchByName($search);
+                        });
+                    }),
                 Tables\Columns\TextColumn::make('store.name')
                     ->label('店舗')
                     ->searchable(),

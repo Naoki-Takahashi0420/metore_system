@@ -96,6 +96,34 @@ class Customer extends Model
     }
 
     /**
+     * 名前・カナ検索用スコープ（フルネーム対応）
+     */
+    public function scopeSearchByName($query, $search)
+    {
+        // スペースを除去した検索語
+        $searchNoSpace = str_replace(' ', '', $search);
+
+        return $query->where(function ($q) use ($search, $searchNoSpace) {
+            // 姓での検索
+            $q->where('last_name', 'like', "%{$search}%")
+              // 名での検索
+              ->orWhere('first_name', 'like', "%{$search}%")
+              // 姓（カナ）での検索
+              ->orWhere('last_name_kana', 'like', "%{$search}%")
+              // 名（カナ）での検索
+              ->orWhere('first_name_kana', 'like', "%{$search}%")
+              // フルネーム（スペースあり）での検索
+              ->orWhereRaw("CONCAT(last_name, ' ', first_name) LIKE ?", ["%{$search}%"])
+              // フルネーム（スペースなし）での検索
+              ->orWhereRaw("CONCAT(last_name, first_name) LIKE ?", ["%{$searchNoSpace}%"])
+              // フルネームカナ（スペースあり）での検索
+              ->orWhereRaw("CONCAT(last_name_kana, ' ', first_name_kana) LIKE ?", ["%{$search}%"])
+              // フルネームカナ（スペースなし）での検索
+              ->orWhereRaw("CONCAT(last_name_kana, first_name_kana) LIKE ?", ["%{$searchNoSpace}%"]);
+        });
+    }
+
+    /**
      * フルネーム取得
      */
     public function getFullNameAttribute(): string
