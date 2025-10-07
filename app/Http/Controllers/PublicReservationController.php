@@ -2202,6 +2202,21 @@ class PublicReservationController extends Controller
                 ]);
             }
 
+            // サブスクリプションIDがある場合は予約作成時に設定
+            $subscriptionId = null;
+            if ($context && isset($context['subscription_id'])) {
+                $subscriptionId = $context['subscription_id'];
+            } elseif (Session::has('subscription_id')) {
+                $subscriptionId = Session::get('subscription_id');
+            }
+
+            if ($subscriptionId) {
+                $reservationData['customer_subscription_id'] = $subscriptionId;
+                \Log::info('サブスクリプションを予約に紐付け', [
+                    'subscription_id' => $subscriptionId
+                ]);
+            }
+
             $reservation = Reservation::create($reservationData);
 
             // オプションメニューを関連付け
