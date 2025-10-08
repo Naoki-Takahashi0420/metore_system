@@ -760,28 +760,32 @@ class MedicalRecordResource extends Resource
                     ->label('顧客名')
                     ->formatStateUsing(fn ($record) => $record->customer ? (($record->customer->last_name ?? '') . ' ' . ($record->customer->first_name ?? '')) : '-')
                     ->searchable(query: function ($query, $search) {
-                        // 検索文字列をトリム
+                        $dbDriver = \DB::connection()->getDriverName();
                         $search = trim($search);
 
-                        return $query->whereHas('customer', function ($q) use ($search) {
-                            $q->where(function ($subQ) use ($search) {
+                        return $query->whereHas('customer', function ($q) use ($search, $dbDriver) {
+                            $q->where(function ($subQ) use ($search, $dbDriver) {
                                 // 姓・名それぞれで検索
                                 $subQ->where('last_name', 'like', "%{$search}%")
                                      ->orWhere('first_name', 'like', "%{$search}%")
                                      ->orWhere('last_name_kana', 'like', "%{$search}%")
                                      ->orWhere('first_name_kana', 'like', "%{$search}%")
-                                     // 電話番号で検索
                                      ->orWhere('phone', 'like', "%{$search}%")
-                                     // メールアドレスで検索
-                                     ->orWhere('email', 'like', "%{$search}%")
-                                     // フルネーム（スペースなし）で検索
-                                     ->orWhereRaw('CONCAT(last_name, first_name) LIKE ?', ["%{$search}%"])
-                                     // フルネーム（スペースあり）で検索
-                                     ->orWhereRaw('CONCAT(last_name, " ", first_name) LIKE ?', ["%{$search}%"])
-                                     // カナフルネーム（スペースなし）で検索
-                                     ->orWhereRaw('CONCAT(last_name_kana, first_name_kana) LIKE ?', ["%{$search}%"])
-                                     // カナフルネーム（スペースあり）で検索
-                                     ->orWhereRaw('CONCAT(last_name_kana, " ", first_name_kana) LIKE ?', ["%{$search}%"]);
+                                     ->orWhere('email', 'like', "%{$search}%");
+
+                                // フルネーム検索（DB種別で分岐）
+                                if ($dbDriver === 'mysql') {
+                                    $subQ->orWhereRaw('CONCAT(last_name, first_name) LIKE ?', ["%{$search}%"])
+                                         ->orWhereRaw('CONCAT(last_name, " ", first_name) LIKE ?', ["%{$search}%"])
+                                         ->orWhereRaw('CONCAT(last_name_kana, first_name_kana) LIKE ?', ["%{$search}%"])
+                                         ->orWhereRaw('CONCAT(last_name_kana, " ", first_name_kana) LIKE ?', ["%{$search}%"]);
+                                } else {
+                                    // SQLiteの場合は || 演算子
+                                    $subQ->orWhereRaw('(last_name || first_name) LIKE ?', ["%{$search}%"])
+                                         ->orWhereRaw('(last_name || " " || first_name) LIKE ?', ["%{$search}%"])
+                                         ->orWhereRaw('(last_name_kana || first_name_kana) LIKE ?', ["%{$search}%"])
+                                         ->orWhereRaw('(last_name_kana || " " || first_name_kana) LIKE ?', ["%{$search}%"]);
+                                }
                             });
                         });
                     })
