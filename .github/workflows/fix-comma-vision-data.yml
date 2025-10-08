@@ -71,5 +71,5 @@ jobs:
           echo "修正完了: {$fixedCount}件のカルテを更新しました\n";
           PHPEOF
 
-          php /tmp/fix_comma_vision_data.php
+          sudo php /tmp/fix_comma_vision_data.php
           EOF
