@@ -93,6 +93,7 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: true,
+                spanGaps: false, // nullデータをスキップ
                 plugins: {
                     legend: {
                         display: true,
@@ -101,6 +102,20 @@
                     tooltip: {
                         mode: 'index',
                         intersect: false,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += context.parsed.y.toFixed(1);
+                                } else {
+                                    label += '未測定';
+                                }
+                                return label;
+                            }
+                        }
                     }
                 },
                 scales: {
@@ -145,14 +160,16 @@
                                 borderColor: 'rgb(255, 99, 132)',
                                 backgroundColor: 'rgba(255, 99, 132, 0.1)',
                                 borderDash: [5, 5],
-                                tension: 0.4
+                                tension: 0.4,
+                                spanGaps: false
                             },
                             {
                                 label: '左眼（施術後）',
                                 data: chartData{{ $chartId }}.leftNakedAfter,
                                 borderColor: 'rgb(255, 99, 132)',
                                 backgroundColor: 'rgba(255, 99, 132, 0.1)',
-                                tension: 0.4
+                                tension: 0.4,
+                                spanGaps: false
                             },
                             {
                                 label: '右眼（施術前）',
@@ -160,14 +177,16 @@
                                 borderColor: 'rgb(54, 162, 235)',
                                 backgroundColor: 'rgba(54, 162, 235, 0.1)',
                                 borderDash: [5, 5],
-                                tension: 0.4
+                                tension: 0.4,
+                                spanGaps: false
                             },
                             {
                                 label: '右眼（施術後）',
                                 data: chartData{{ $chartId }}.rightNakedAfter,
                                 borderColor: 'rgb(54, 162, 235)',
                                 backgroundColor: 'rgba(54, 162, 235, 0.1)',
-                                tension: 0.4
+                                tension: 0.4,
+                                spanGaps: false
                             }
                         ]
                     },
@@ -191,14 +210,16 @@
                                 borderColor: 'rgb(255, 159, 64)',
                                 backgroundColor: 'rgba(255, 159, 64, 0.1)',
                                 borderDash: [5, 5],
-                                tension: 0.4
+                                tension: 0.4,
+                                spanGaps: false
                             },
                             {
                                 label: '左眼（施術後）',
                                 data: chartData{{ $chartId }}.leftCorrectedAfter,
                                 borderColor: 'rgb(255, 159, 64)',
                                 backgroundColor: 'rgba(255, 159, 64, 0.1)',
-                                tension: 0.4
+                                tension: 0.4,
+                                spanGaps: false
                             },
                             {
                                 label: '右眼（施術前）',
@@ -206,14 +227,16 @@
                                 borderColor: 'rgb(75, 192, 192)',
                                 backgroundColor: 'rgba(75, 192, 192, 0.1)',
                                 borderDash: [5, 5],
-                                tension: 0.4
+                                tension: 0.4,
+                                spanGaps: false
                             },
                             {
                                 label: '右眼（施術後）',
                                 data: chartData{{ $chartId }}.rightCorrectedAfter,
                                 borderColor: 'rgb(75, 192, 192)',
                                 backgroundColor: 'rgba(75, 192, 192, 0.1)',
-                                tension: 0.4
+                                tension: 0.4,
+                                spanGaps: false
                             }
                         ]
                     },
