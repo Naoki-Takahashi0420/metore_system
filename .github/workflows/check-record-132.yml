@@ -1,0 +1,54 @@
+name: Check Record 132
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check record 132
+        env:
+          EC2_KEY: ${{ secrets.EC2_KEY }}
+          EC2_HOST: 54.64.54.226
+          EC2_USER: ubuntu
+        run: |
+          echo "$EC2_KEY" > deploy_key.pem
+          chmod 600 deploy_key.pem
+
+          ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+          cat > /tmp/check_record_132.php << 'PHPEOF'
+          <?php
+          require '/var/www/html/vendor/autoload.php';
+          $app = require_once '/var/www/html/bootstrap/app.php';
+          $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+          $kernel->bootstrap();
+
+          use App\Models\MedicalRecord;
+
+          echo "=== カルテID 132の全データ確認 ===\n\n";
+
+          $record = MedicalRecord::find(132);
+
+          if (!$record) {
+              echo "❌ カルテが見つかりません！\n";
+              exit(1);
+          }
+
+          echo "✓ カルテID: {$record->id}\n";
+          echo "✓ 顧客ID: {$record->customer_id}\n";
+          echo "✓ 施術日: {$record->treatment_date}\n";
+          echo "✓ 作成日時: {$record->created_at}\n";
+          echo "✓ 更新日時: {$record->updated_at}\n\n";
+
+          echo "=== vision_records ===\n";
+          echo json_encode($record->vision_records, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+          echo "\n\n";
+
+          echo "=== その他のフィールド ===\n";
+          echo "main_complaint: " . ($record->main_complaint ?? 'null') . "\n";
+          echo "medical_history: " . ($record->medical_history ?? 'null') . "\n";
+          echo "treatment_content: " . ($record->treatment_content ?? 'null') . "\n";
+          PHPEOF
+
+          sudo php /tmp/check_record_132.php
+          EOF
