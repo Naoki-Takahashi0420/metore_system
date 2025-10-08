@@ -1415,13 +1415,13 @@ class PublicReservationController extends Controller
                 
                 // ブロックされた時間帯との重複チェック
                 // 1. 全体ブロック（line_typeがnull）のチェック
-                $hasGlobalBlock = $dayBlocks->contains(function ($block) use ($slotTime, $slotEnd) {
+                $hasGlobalBlock = $dayBlocks->contains(function ($block) use ($slotTime, $slotEnd, $dateStr) {
                     if ($block->line_type !== null) {
                         return false;
                     }
 
-                    $blockStart = Carbon::parse($block->start_time);
-                    $blockEnd = Carbon::parse($block->end_time);
+                    $blockStart = Carbon::parse($dateStr . ' ' . $block->start_time);
+                    $blockEnd = Carbon::parse($dateStr . ' ' . $block->end_time);
 
                     return (
                         ($slotTime->gte($blockStart) && $slotTime->lt($blockEnd)) ||
@@ -1437,13 +1437,13 @@ class PublicReservationController extends Controller
 
                 // 2. スタッフ指定がある場合は、そのスタッフのライン専用ブロックをチェック
                 if ($selectedStaffId) {
-                    $hasStaffLineBlock = $dayBlocks->contains(function ($block) use ($slotTime, $slotEnd, $selectedStaffId) {
+                    $hasStaffLineBlock = $dayBlocks->contains(function ($block) use ($slotTime, $slotEnd, $selectedStaffId, $dateStr) {
                         if ($block->line_type !== 'staff' || $block->staff_id != $selectedStaffId) {
                             return false;
                         }
 
-                        $blockStart = Carbon::parse($block->start_time);
-                        $blockEnd = Carbon::parse($block->end_time);
+                        $blockStart = Carbon::parse($dateStr . ' ' . $block->start_time);
+                        $blockEnd = Carbon::parse($dateStr . ' ' . $block->end_time);
 
                         return (
                             ($slotTime->gte($blockStart) && $slotTime->lt($blockEnd)) ||
@@ -1460,13 +1460,13 @@ class PublicReservationController extends Controller
 
                 // 3. メインラインのブロック数をカウント（営業時間ベース時のみ）
                 if (!$store->use_staff_assignment && !$selectedStaffId) {
-                    $blockedMainLinesCount = $dayBlocks->filter(function ($block) use ($slotTime, $slotEnd) {
+                    $blockedMainLinesCount = $dayBlocks->filter(function ($block) use ($slotTime, $slotEnd, $dateStr) {
                         if ($block->line_type !== 'main') {
                             return false;
                         }
 
-                        $blockStart = Carbon::parse($block->start_time);
-                        $blockEnd = Carbon::parse($block->end_time);
+                        $blockStart = Carbon::parse($dateStr . ' ' . $block->start_time);
+                        $blockEnd = Carbon::parse($dateStr . ' ' . $block->end_time);
 
                         return (
                             ($slotTime->gte($blockStart) && $slotTime->lt($blockEnd)) ||
