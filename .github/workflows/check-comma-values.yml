@@ -1,0 +1,49 @@
+name: Check Comma Values
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Check Comma Values in Production
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > check_key.pem
+        chmod 600 check_key.pem
+
+        # スクリプトを本番環境にコピー
+        scp -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i check_key.pem \
+          check-comma-values.php ${EC2_USER}@${EC2_HOST}:/tmp/
+
+        # SSH接続して実行
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i check_key.pem ${EC2_USER}@${EC2_HOST} << 'CHECK'
+        set -e
+        APP_DIR="/var/www/html"
+
+        echo "=== Comma Values Check ==="
+
+        # スクリプトを実行
+        cd $APP_DIR
+        sudo cp /tmp/check-comma-values.php .
+        sudo chown www-data:www-data check-comma-values.php
+        sudo php check-comma-values.php
+
+        # クリーンアップ
+        sudo rm check-comma-values.php
+        rm /tmp/check-comma-values.php
+
+        echo "=== Check Complete ==="
+        CHECK
+
+        rm check_key.pem
+
+        echo "✅ Check completed successfully!"
