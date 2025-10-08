@@ -2114,12 +2114,81 @@ class PublicReservationController extends Controller
             
             // 店舗設定を取得
             $store = Store::find($validated['store_id']);
-            
+
+            // ブロック時間チェック
+            $reservationDateTime = Carbon::parse($validated['date'] . ' ' . $validated['time']);
+            $endTime = $reservationDateTime->copy()->addMinutes($totalDuration);
+
+            $blockedPeriods = BlockedTimePeriod::where('store_id', $validated['store_id'])
+                ->whereDate('blocked_date', $validated['date'])
+                ->get();
+
+            foreach ($blockedPeriods as $block) {
+                $blockStart = Carbon::parse($validated['date'] . ' ' . $block->start_time);
+                $blockEnd = Carbon::parse($validated['date'] . ' ' . $block->end_time);
+
+                // ブロック時間と予約時間が重複しているかチェック
+                $isOverlapping = (
+                    ($reservationDateTime->gte($blockStart) && $reservationDateTime->lt($blockEnd)) ||
+                    ($endTime->gt($blockStart) && $endTime->lte($blockEnd)) ||
+                    ($reservationDateTime->lte($blockStart) && $endTime->gte($blockEnd))
+                );
+
+                if ($isOverlapping) {
+                    // 全体ブロック（line_typeがnull）の場合
+                    if ($block->line_type === null) {
+                        \Log::warning('予約作成: 全体ブロック時間帯への予約試行', [
+                            'block_id' => $block->id,
+                            'reason' => $block->reason,
+                            'block_time' => $blockStart->format('H:i') . '-' . $blockEnd->format('H:i'),
+                            'reservation_time' => $reservationDateTime->format('H:i') . '-' . $endTime->format('H:i')
+                        ]);
+                        return back()->with('error', '申し訳ございません。選択された時間帯は予約をお受けできません。別の時間帯をお選びください。');
+                    }
+
+                    // スタッフ指定のブロックの場合
+                    if ($block->line_type === 'staff' && isset($validated['staff_id']) && $block->staff_id == $validated['staff_id']) {
+                        \Log::warning('予約作成: スタッフラインブロック時間帯への予約試行', [
+                            'block_id' => $block->id,
+                            'staff_id' => $block->staff_id,
+                            'reason' => $block->reason,
+                            'block_time' => $blockStart->format('H:i') . '-' . $blockEnd->format('H:i')
+                        ]);
+                        return back()->with('error', '申し訳ございません。選択されたスタッフは指定の時間帯にご対応できません。別の時間帯またはスタッフをお選びください。');
+                    }
+
+                    // メインラインのブロック（営業時間ベースの場合）
+                    if ($block->line_type === 'main' && !$store->use_staff_assignment) {
+                        // ブロックされたメインラインの数をカウント
+                        $blockedMainLinesCount = $blockedPeriods->filter(function($b) use ($reservationDateTime, $endTime, $validated) {
+                            if ($b->line_type !== 'main') {
+                                return false;
+                            }
+                            $bStart = Carbon::parse($validated['date'] . ' ' . $b->start_time);
+                            $bEnd = Carbon::parse($validated['date'] . ' ' . $b->end_time);
+                            return (
+                                ($reservationDateTime->gte($bStart) && $reservationDateTime->lt($bEnd)) ||
+                                ($endTime->gt($bStart) && $endTime->lte($bEnd)) ||
+                                ($reservationDateTime->lte($bStart) && $endTime->gte($bEnd))
+                            );
+                        })->count();
+
+                        // 全てのメインラインがブロックされている場合は予約不可
+                        $mainLinesCount = $store->main_lines_count ?? 1;
+                        if ($blockedMainLinesCount >= $mainLinesCount) {
+                            \Log::warning('予約作成: 全メインラインブロックにより予約不可', [
+                                'blocked_lines' => $blockedMainLinesCount,
+                                'total_lines' => $mainLinesCount,
+                                'block_time' => $blockStart->format('H:i') . '-' . $blockEnd->format('H:i')
+                            ]);
+                            return back()->with('error', '申し訳ございません。選択された時間帯は満席です。別の時間帯をお選びください。');
+                        }
+                    }
+                }
+            }
+
             // シフトチェック: スタッフシフトベースの場合のみチェック
             if ($store->use_staff_assignment) {
-                $reservationDateTime = Carbon::parse($validated['date'] . ' ' . $validated['time']);
-                $endTime = $reservationDateTime->copy()->addMinutes($totalDuration);
-
                 // 特定のスタッフが選択されている場合は、そのスタッフの可用性をチェック
                 if (isset($validated['staff_id'])) {
                     \Log::info('スタッフシフトチェック', [
@@ -2706,6 +2775,75 @@ class PublicReservationController extends Controller
 
         if ($startDateTime < $openTime || $endDateTime > $closeTime) {
             return response()->json(['available' => false, 'reason' => 'outside_hours']);
+        }
+
+        // ブロックされた時間帯をチェック
+        $blockedPeriods = BlockedTimePeriod::where('store_id', $validated['store_id'])
+            ->whereDate('blocked_date', $validated['date'])
+            ->get();
+
+        foreach ($blockedPeriods as $block) {
+            $blockStart = Carbon::parse($validated['date'] . ' ' . $block->start_time);
+            $blockEnd = Carbon::parse($validated['date'] . ' ' . $block->end_time);
+
+            // ブロック時間と予約時間が重複しているかチェック
+            $isOverlapping = (
+                ($startDateTime->gte($blockStart) && $startDateTime->lt($blockEnd)) ||
+                ($endDateTime->gt($blockStart) && $endDateTime->lte($blockEnd)) ||
+                ($startDateTime->lte($blockStart) && $endDateTime->gte($blockEnd))
+            );
+
+            if ($isOverlapping) {
+                // 全体ブロック（line_typeがnull）の場合は即座に予約不可
+                if ($block->line_type === null) {
+                    \Log::info('checkAvailability: 全体ブロックにより予約不可', [
+                        'block_id' => $block->id,
+                        'block_start' => $blockStart->format('H:i'),
+                        'block_end' => $blockEnd->format('H:i'),
+                        'reservation_start' => $startDateTime->format('H:i'),
+                        'reservation_end' => $endDateTime->format('H:i')
+                    ]);
+                    return response()->json(['available' => false, 'reason' => 'blocked_time']);
+                }
+
+                // スタッフ指定のブロックの場合、該当スタッフをチェック
+                if ($block->line_type === 'staff' && $request->has('staff_id') && $block->staff_id == $request->staff_id) {
+                    \Log::info('checkAvailability: スタッフラインブロックにより予約不可', [
+                        'block_id' => $block->id,
+                        'staff_id' => $block->staff_id,
+                        'block_start' => $blockStart->format('H:i'),
+                        'block_end' => $blockEnd->format('H:i')
+                    ]);
+                    return response()->json(['available' => false, 'reason' => 'blocked_time']);
+                }
+
+                // メインラインのブロック（営業時間ベースの場合）
+                if ($block->line_type === 'main' && !$store->use_staff_assignment) {
+                    // ブロックされたメインラインの数をカウント
+                    $blockedMainLinesCount = $blockedPeriods->filter(function($b) use ($startDateTime, $endDateTime, $validated) {
+                        if ($b->line_type !== 'main') {
+                            return false;
+                        }
+                        $bStart = Carbon::parse($validated['date'] . ' ' . $b->start_time);
+                        $bEnd = Carbon::parse($validated['date'] . ' ' . $b->end_time);
+                        return (
+                            ($startDateTime->gte($bStart) && $startDateTime->lt($bEnd)) ||
+                            ($endDateTime->gt($bStart) && $endDateTime->lte($bEnd)) ||
+                            ($startDateTime->lte($bStart) && $endDateTime->gte($bEnd))
+                        );
+                    })->count();
+
+                    // 全てのメインラインがブロックされている場合は予約不可
+                    $mainLinesCount = $store->main_lines_count ?? 1;
+                    if ($blockedMainLinesCount >= $mainLinesCount) {
+                        \Log::info('checkAvailability: 全メインラインブロックにより予約不可', [
+                            'blocked_lines' => $blockedMainLinesCount,
+                            'total_lines' => $mainLinesCount
+                        ]);
+                        return response()->json(['available' => false, 'reason' => 'blocked_time']);
+                    }
+                }
+            }
         }
 
         // 既存の予約との重複をチェック
