@@ -1,0 +1,36 @@
+name: Check Blocked Periods
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check blocked periods on production
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+        
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'ENDSSH'
+        cd /var/www/html
+        
+        php artisan tinker --execute="
+        \$blocks = App\Models\BlockedTimePeriod::whereDate('blocked_date', '2025-10-11')->get();
+        echo '=== 2025-10-11の予約ブロック ===\n';
+        foreach (\$blocks as \$block) {
+            echo 'ID: ' . \$block->id . '\n';
+            echo '店舗ID: ' . \$block->store_id . '\n';
+            echo '時間: ' . \$block->start_time . ' - ' . \$block->end_time . '\n';
+            echo 'ラインタイプ: ' . (\$block->line_type ?? '全体') . '\n';
+            echo '---\n';
+        }
+        echo '合計: ' . \$blocks->count() . '件\n';
+        "
+        ENDSSH
+        
+        rm deploy_key.pem
