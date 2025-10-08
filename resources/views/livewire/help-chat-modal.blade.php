@@ -59,12 +59,15 @@
 
                     @if($isLoading)
                         <div class="text-left mb-4">
-                            <div class="inline-block bg-blue-50 rounded-lg px-6 py-4 shadow">
+                            <div class="inline-block bg-white rounded-lg px-6 py-4 shadow">
                                 <div class="flex items-center space-x-3">
-                                    <div class="w-8 h-8 border-3 border-blue-200 rounded-full animate-spin border-t-blue-600"></div>
+                                    <div class="relative w-8 h-8">
+                                        <div class="absolute inset-0 border-4 border-blue-200 rounded-full"></div>
+                                        <div class="absolute inset-0 border-4 border-transparent border-t-blue-600 rounded-full animate-spin"></div>
+                                    </div>
                                     <div>
-                                        <p class="text-sm font-medium text-blue-900">回答を作成中...</p>
-                                        <p class="text-xs text-blue-600 mt-1">AIが考えています</p>
+                                        <p class="text-sm font-medium text-gray-800">回答を作成中...</p>
+                                        <p class="text-xs text-gray-500 mt-1">AIが考えています</p>
                                     </div>
                                 </div>
                             </div>
@@ -146,19 +149,19 @@
                                 </div>
                                 <button
                                     type="submit"
-                                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    class="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed min-w-[44px]"
                                     wire:loading.attr="disabled"
                                 >
-                                    <span wire:loading.remove wire:target="sendMessage">
+                                    <span wire:loading.remove wire:target="sendMessage" class="inline-flex items-center">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
                                         </svg>
                                     </span>
-                                    <span wire:loading wire:target="sendMessage">
-                                        <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
+                                    <span wire:loading wire:target="sendMessage" class="inline-flex items-center">
+                                        <div class="relative w-5 h-5">
+                                            <div class="absolute inset-0 border-2 border-white/30 rounded-full"></div>
+                                            <div class="absolute inset-0 border-2 border-transparent border-t-white rounded-full animate-spin"></div>
+                                        </div>
                                     </span>
                                 </button>
                             </div>
