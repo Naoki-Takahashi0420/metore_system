@@ -1,0 +1,49 @@
+name: Debug Vision Chart
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Debug Script on Production
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > debug_key.pem
+        chmod 600 debug_key.pem
+
+        # デバッグスクリプトを本番環境にコピー
+        scp -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i debug_key.pem \
+          debug-vision-data.php ${EC2_USER}@${EC2_HOST}:/tmp/
+
+        # SSH接続して実行
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i debug_key.pem ${EC2_USER}@${EC2_HOST} << 'DEBUG'
+        set -e
+        APP_DIR="/var/www/html"
+
+        echo "=== Vision Chart Debug ==="
+
+        # デバッグスクリプトを実行
+        cd $APP_DIR
+        sudo cp /tmp/debug-vision-data.php .
+        sudo chown www-data:www-data debug-vision-data.php
+        sudo php debug-vision-data.php
+
+        # クリーンアップ
+        sudo rm debug-vision-data.php
+        rm /tmp/debug-vision-data.php
+
+        echo "=== Debug Complete ==="
+        DEBUG
+
+        rm debug_key.pem
+
+        echo "✅ Debug script executed successfully!"
