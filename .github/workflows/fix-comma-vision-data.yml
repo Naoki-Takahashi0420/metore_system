@@ -1,0 +1,71 @@
+name: Fix Comma Vision Data
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fix comma vision data
+        uses: appleboy/ssh-action@master
+        with:
+          host: 54.64.54.226
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cat > /tmp/fix_comma_vision_data.php << 'PHPEOF'
+            <?php
+            require '/var/www/html/vendor/autoload.php';
+            $app = require_once '/var/www/html/bootstrap/app.php';
+            $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+            $kernel->bootstrap();
+
+            use App\Models\MedicalRecord;
+
+            echo "=== カンマ区切り視力データの修正 ===\n\n";
+
+            $records = MedicalRecord::whereNotNull('vision_records')->get();
+            $fixedCount = 0;
+
+            foreach ($records as $record) {
+                $visionRecords = $record->vision_records;
+                $hasComma = false;
+
+                if (!is_array($visionRecords)) {
+                    continue;
+                }
+
+                foreach ($visionRecords as &$vision) {
+                    $fields = [
+                        'before_naked_left',
+                        'after_naked_left',
+                        'before_naked_right',
+                        'after_naked_right',
+                        'before_corrected_left',
+                        'after_corrected_left',
+                        'before_corrected_right',
+                        'after_corrected_right',
+                    ];
+
+                    foreach ($fields as $field) {
+                        if (isset($vision[$field]) && is_string($vision[$field]) && strpos($vision[$field], ',') !== false) {
+                            echo "カルテID {$record->id}: {$field} = '{$vision[$field]}' -> ";
+                            $vision[$field] = str_replace(',', '.', $vision[$field]);
+                            echo "'{$vision[$field]}'\n";
+                            $hasComma = true;
+                        }
+                    }
+                }
+
+                if ($hasComma) {
+                    $record->vision_records = $visionRecords;
+                    $record->save();
+                    $fixedCount++;
+                    echo "  → カルテID {$record->id} を更新しました\n\n";
+                }
+            }
+
+            echo "修正完了: {$fixedCount}件のカルテを更新しました\n";
+            PHPEOF
+
+            php /tmp/fix_comma_vision_data.php
