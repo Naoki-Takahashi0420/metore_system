@@ -87,6 +87,22 @@ jobs:
         else
           echo "✅ LINE_TEST_USER_ID already exists in .env"
         fi
+
+        # AWS SNS設定を.envに追加
+        echo "Checking AWS SNS settings in .env..."
+        if ! grep -q "AWS_ACCESS_KEY_ID" $APP_DIR/.env 2>/dev/null; then
+          echo "Adding AWS SNS settings to .env..."
+          echo "" | sudo tee -a $APP_DIR/.env > /dev/null
+          echo "# AWS SNS (SMS送信用)" | sudo tee -a $APP_DIR/.env > /dev/null
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" | sudo tee -a $APP_DIR/.env > /dev/null
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" | sudo tee -a $APP_DIR/.env > /dev/null
+          echo "AWS_DEFAULT_REGION=ap-northeast-1" | sudo tee -a $APP_DIR/.env > /dev/null
+          echo "SMS_ENABLED=true" | sudo tee -a $APP_DIR/.env > /dev/null
+          echo "SMS_FROM_NAME=METORE" | sudo tee -a $APP_DIR/.env > /dev/null
+          echo "✅ AWS SNS settings added to .env"
+        else
+          echo "✅ AWS SNS settings already exist in .env"
+        fi
         
         # SQLiteデータベース設定（新規作成しない）
         cd $APP_DIR
