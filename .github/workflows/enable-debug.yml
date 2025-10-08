@@ -1,0 +1,42 @@
+name: Enable Debug Mode
+
+on:
+  workflow_dispatch:
+
+jobs:
+  enable-debug:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Enable Debug on Production
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        set -e
+        cd /var/www/html
+
+        # .envにAPP_DEBUGを設定
+        if grep -q "APP_DEBUG" .env; then
+          sudo sed -i 's/APP_DEBUG=false/APP_DEBUG=true/' .env
+          echo "✅ APP_DEBUG changed to true"
+        else
+          echo "" | sudo tee -a .env > /dev/null
+          echo "APP_DEBUG=true" | sudo tee -a .env > /dev/null
+          echo "✅ APP_DEBUG added"
+        fi
+
+        # キャッシュクリア
+        sudo php artisan config:clear
+        sudo php artisan cache:clear
+        sudo php artisan view:clear
+
+        echo "✅ Debug mode enabled. Remember to disable it after debugging!"
+        EOF
+
+        rm deploy_key.pem

@@ -29,15 +29,16 @@
             $date = $vision['date'] ?? $medicalRecord->treatment_date?->format('Y-m-d');
             $dates[] = $date ? \Carbon\Carbon::parse($date)->format('m/d') : '不明';
 
-            $leftNakedBefore[] = isset($vision['before_naked_left']) ? (float)$vision['before_naked_left'] : null;
-            $leftNakedAfter[] = isset($vision['after_naked_left']) ? (float)$vision['after_naked_left'] : null;
-            $rightNakedBefore[] = isset($vision['before_naked_right']) ? (float)$vision['before_naked_right'] : null;
-            $rightNakedAfter[] = isset($vision['after_naked_right']) ? (float)$vision['after_naked_right'] : null;
+            // 空文字列やマイナス値を除外してnullとして扱う
+            $leftNakedBefore[] = (isset($vision['before_naked_left']) && $vision['before_naked_left'] !== '' && (float)$vision['before_naked_left'] >= 0) ? (float)$vision['before_naked_left'] : null;
+            $leftNakedAfter[] = (isset($vision['after_naked_left']) && $vision['after_naked_left'] !== '' && (float)$vision['after_naked_left'] >= 0) ? (float)$vision['after_naked_left'] : null;
+            $rightNakedBefore[] = (isset($vision['before_naked_right']) && $vision['before_naked_right'] !== '' && (float)$vision['before_naked_right'] >= 0) ? (float)$vision['before_naked_right'] : null;
+            $rightNakedAfter[] = (isset($vision['after_naked_right']) && $vision['after_naked_right'] !== '' && (float)$vision['after_naked_right'] >= 0) ? (float)$vision['after_naked_right'] : null;
 
-            $leftCorrectedBefore[] = isset($vision['before_corrected_left']) ? (float)$vision['before_corrected_left'] : null;
-            $leftCorrectedAfter[] = isset($vision['after_corrected_left']) ? (float)$vision['after_corrected_left'] : null;
-            $rightCorrectedBefore[] = isset($vision['before_corrected_right']) ? (float)$vision['before_corrected_right'] : null;
-            $rightCorrectedAfter[] = isset($vision['after_corrected_right']) ? (float)$vision['after_corrected_right'] : null;
+            $leftCorrectedBefore[] = (isset($vision['before_corrected_left']) && $vision['before_corrected_left'] !== '' && (float)$vision['before_corrected_left'] >= 0) ? (float)$vision['before_corrected_left'] : null;
+            $leftCorrectedAfter[] = (isset($vision['after_corrected_left']) && $vision['after_corrected_left'] !== '' && (float)$vision['after_corrected_left'] >= 0) ? (float)$vision['after_corrected_left'] : null;
+            $rightCorrectedBefore[] = (isset($vision['before_corrected_right']) && $vision['before_corrected_right'] !== '' && (float)$vision['before_corrected_right'] >= 0) ? (float)$vision['before_corrected_right'] : null;
+            $rightCorrectedAfter[] = (isset($vision['after_corrected_right']) && $vision['after_corrected_right'] !== '' && (float)$vision['after_corrected_right'] >= 0) ? (float)$vision['after_corrected_right'] : null;
         }
     }
 
