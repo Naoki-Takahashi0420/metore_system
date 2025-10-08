@@ -77,8 +77,10 @@ class ListMedicalRecords extends ListRecords
         if ($user->hasRole('super_admin')) {
             if ($this->storeFilter) {
                 // 予約を通じて店舗と関連がある顧客のカルテを表示
-                $query->whereHas('customer.reservations', function ($q) {
-                    $q->where('store_id', $this->storeFilter);
+                $query->whereHas('customer', function ($q) {
+                    $q->whereHas('reservations', function ($subQ) {
+                        $subQ->where('store_id', $this->storeFilter);
+                    });
                 });
             }
             return $query;
@@ -92,8 +94,10 @@ class ListMedicalRecords extends ListRecords
                 // 特定店舗が選択されている場合
                 if (in_array($this->storeFilter, $manageableStoreIds->toArray())) {
                     // 予約を通じて店舗と関連がある顧客のカルテを表示
-                    $query->whereHas('customer.reservations', function ($q) {
-                        $q->where('store_id', $this->storeFilter);
+                    $query->whereHas('customer', function ($q) {
+                        $q->whereHas('reservations', function ($subQ) {
+                            $subQ->where('store_id', $this->storeFilter);
+                        });
                     });
                 } else {
                     // 管理権限がない店舗が選択されている場合は空を返す
@@ -102,8 +106,10 @@ class ListMedicalRecords extends ListRecords
             } else {
                 // 全店舗の場合は管理可能店舗のカルテのみ
                 // 予約を通じて店舗と関連がある顧客のカルテを表示
-                $query->whereHas('customer.reservations', function ($q) use ($manageableStoreIds) {
-                    $q->whereIn('store_id', $manageableStoreIds);
+                $query->whereHas('customer', function ($q) use ($manageableStoreIds) {
+                    $q->whereHas('reservations', function ($subQ) use ($manageableStoreIds) {
+                        $subQ->whereIn('store_id', $manageableStoreIds);
+                    });
                 });
             }
             return $query;
@@ -120,8 +126,10 @@ class ListMedicalRecords extends ListRecords
 
             if ($storeId) {
                 // 予約を通じて店舗と関連がある顧客のカルテを表示
-                $query->whereHas('customer.reservations', function ($q) use ($storeId) {
-                    $q->where('store_id', $storeId);
+                $query->whereHas('customer', function ($q) use ($storeId) {
+                    $q->whereHas('reservations', function ($subQ) use ($storeId) {
+                        $subQ->where('store_id', $storeId);
+                    });
                 });
             } else {
                 return $query->whereRaw('1 = 0');

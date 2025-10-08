@@ -742,10 +742,17 @@ class MedicalRecordResource extends Resource
                     })
                     ->searchable(query: function ($query, $search) {
                         return $query->where(function ($q) use ($search) {
-                            $q->whereHas('reservation.store', function ($subQ) use ($search) {
-                                $subQ->where('name', 'like', "%{$search}%");
-                            })->orWhereHas('customer.store', function ($subQ) use ($search) {
-                                $subQ->where('name', 'like', "%{$search}%");
+                            // 予約の店舗で検索
+                            $q->whereHas('reservation', function ($subQ) use ($search) {
+                                $subQ->whereHas('store', function ($storeQ) use ($search) {
+                                    $storeQ->where('name', 'like', "%{$search}%");
+                                });
+                            })
+                            // または顧客の店舗で検索
+                            ->orWhereHas('customer', function ($subQ) use ($search) {
+                                $subQ->whereHas('store', function ($storeQ) use ($search) {
+                                    $storeQ->where('name', 'like', "%{$search}%");
+                                });
                             });
                         });
                     }),
@@ -886,16 +893,20 @@ class MedicalRecordResource extends Resource
         // 予約を通じて店舗と関連がある顧客のカルテを表示
         if ($user->hasRole('owner')) {
             $storeIds = $user->manageableStores()->pluck('stores.id')->toArray();
-            return $query->whereHas('customer.reservations', function ($q) use ($storeIds) {
-                $q->whereIn('store_id', $storeIds);
+            return $query->whereHas('customer', function ($q) use ($storeIds) {
+                $q->whereHas('reservations', function ($subQ) use ($storeIds) {
+                    $subQ->whereIn('store_id', $storeIds);
+                });
             });
         }
 
         // 店長・スタッフは自店舗に関連するカルテのみ表示
         // 予約を通じて店舗と関連がある顧客のカルテを表示
         if ($user->hasRole(['manager', 'staff']) && $user->store_id) {
-            return $query->whereHas('customer.reservations', function ($q) use ($user) {
-                $q->where('store_id', $user->store_id);
+            return $query->whereHas('customer', function ($q) use ($user) {
+                $q->whereHas('reservations', function ($subQ) use ($user) {
+                    $subQ->where('store_id', $user->store_id);
+                });
             });
         }
 
