@@ -1983,6 +1983,71 @@ class ReservationTimelineWidget extends Widget
             // 店舗情報取得
             $store = \App\Models\Store::find($this->selectedStore);
 
+            // 予約ブロックチェック
+            $blockedPeriods = \App\Models\BlockedTimePeriod::where('store_id', $this->selectedStore)
+                ->whereDate('blocked_date', $this->newReservation['date'])
+                ->get();
+
+            foreach ($blockedPeriods as $block) {
+                $blockStart = \Carbon\Carbon::parse($this->newReservation['date'] . ' ' . $block->start_time);
+                $blockEnd = \Carbon\Carbon::parse($this->newReservation['date'] . ' ' . $block->end_time);
+
+                $isOverlapping = (
+                    ($startTime->gte($blockStart) && $startTime->lt($blockEnd)) ||
+                    ($endTime->gt($blockStart) && $endTime->lte($blockEnd)) ||
+                    ($startTime->lte($blockStart) && $endTime->gte($blockEnd))
+                );
+
+                if ($isOverlapping) {
+                    // 全体ブロック
+                    if ($block->line_type === null) {
+                        \Filament\Notifications\Notification::make()
+                            ->danger()
+                            ->title('予約作成失敗')
+                            ->body('選択された時間帯は予約ブロックされています')
+                            ->persistent()
+                            ->send();
+                        return;
+                    }
+
+                    // スタッフラインブロック
+                    if ($block->line_type === 'staff' && isset($this->newReservation['staff_id']) && $block->staff_id == $this->newReservation['staff_id']) {
+                        \Filament\Notifications\Notification::make()
+                            ->danger()
+                            ->title('予約作成失敗')
+                            ->body('選択されたスタッフは指定の時間帯がブロックされています')
+                            ->persistent()
+                            ->send();
+                        return;
+                    }
+
+                    // メインラインブロック
+                    if ($block->line_type === 'main' && !$store->use_staff_assignment) {
+                        $blockedMainLinesCount = $blockedPeriods->filter(function($b) use ($startTime, $endTime) {
+                            if ($b->line_type !== 'main') return false;
+                            $bStart = \Carbon\Carbon::parse($this->newReservation['date'] . ' ' . $b->start_time);
+                            $bEnd = \Carbon\Carbon::parse($this->newReservation['date'] . ' ' . $b->end_time);
+                            return (
+                                ($startTime->gte($bStart) && $startTime->lt($bEnd)) ||
+                                ($endTime->gt($bStart) && $endTime->lte($bEnd)) ||
+                                ($startTime->lte($bStart) && $endTime->gte($bEnd))
+                            );
+                        })->count();
+
+                        $mainLinesCount = $store->main_lines_count ?? 1;
+                        if ($blockedMainLinesCount >= $mainLinesCount) {
+                            \Filament\Notifications\Notification::make()
+                                ->danger()
+                                ->title('予約作成失敗')
+                                ->body('選択された時間帯は満席です')
+                                ->persistent()
+                                ->send();
+                            return;
+                        }
+                    }
+                }
+            }
+
             // スタッフシフトモードの場合、スタッフ可用性をチェック
             if ($store && $store->use_staff_assignment) {
                 // 予約可能性をチェック
