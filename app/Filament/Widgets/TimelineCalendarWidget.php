@@ -27,6 +27,10 @@ class TimelineCalendarWidget extends Widget
     public array $timeSlots = [];
     public array $reservations = [];
     public array $stores = [];
+
+    // 営業時間（動的に設定）
+    private int $businessHoursStart = 9;
+    private int $businessHoursEnd = 21;
     
     public function mount(): void
     {
@@ -52,11 +56,13 @@ class TimelineCalendarWidget extends Widget
     
     public function updatedSelectedStoreId()
     {
+        $this->generateTimeSlots(); // 営業時間が変わる可能性があるので再生成
         $this->loadReservations();
     }
-    
+
     public function updatedCurrentDate()
     {
+        $this->generateTimeSlots(); // 曜日が変わると営業時間が変わる可能性があるので再生成
         $this->loadReservations();
     }
 
@@ -91,13 +97,24 @@ class TimelineCalendarWidget extends Widget
 
         // 選択された店舗の予約間隔を取得
         $slotInterval = 30; // デフォルト
+        $startHour = 9;
+        $endHour = 21;
+
         if ($this->selectedStoreId) {
             $store = Store::find($this->selectedStoreId);
             $slotInterval = $store->reservation_slot_duration ?? 30;
+
+            // 店舗の営業時間を取得
+            $businessHours = $this->getBusinessHoursForDate($store, $this->currentDate);
+            if ($businessHours) {
+                $startHour = (int) substr($businessHours['open_time'], 0, 2);
+                $endHour = (int) substr($businessHours['close_time'], 0, 2);
+            }
         }
 
-        $startHour = 9;  // 9:00から
-        $endHour = 21;   // 21:00まで
+        // 営業時間を保存（位置計算用）
+        $this->businessHoursStart = $startHour;
+        $this->businessHoursEnd = $endHour;
 
         $start = Carbon::createFromTime($startHour, 0);
         $end = Carbon::createFromTime($endHour, 0);
@@ -106,6 +123,29 @@ class TimelineCalendarWidget extends Widget
             $this->timeSlots[] = $start->format('H:i');
             $start->addMinutes($slotInterval);
         }
+    }
+
+    /**
+     * 指定日の営業時間を取得
+     */
+    private function getBusinessHoursForDate($store, $date)
+    {
+        if (!$store->business_hours || !is_array($store->business_hours)) {
+            return null;
+        }
+
+        $dayOfWeek = strtolower(Carbon::parse($date)->englishDayOfWeek);
+
+        foreach ($store->business_hours as $hours) {
+            if (isset($hours['day']) && $hours['day'] === $dayOfWeek) {
+                if (!empty($hours['is_closed'])) {
+                    return null; // 定休日
+                }
+                return $hours;
+            }
+        }
+
+        return null;
     }
     
     private function loadReservations()
@@ -166,20 +206,20 @@ class TimelineCalendarWidget extends Widget
     
     private function calculateTimePosition($time)
     {
-        // 09:00を基準点(0%)として、時間位置を計算
+        // 営業開始時間を基準点(0%)として、時間位置を計算
         $timeParts = explode(':', $time);
         $hour = intval($timeParts[0]);
         $minute = intval($timeParts[1]);
-        
-        $totalMinutesFromStart = (($hour - 9) * 60) + $minute;
-        $totalMinutesInDay = 12 * 60; // 9:00-21:00 = 12時間
-        
+
+        $totalMinutesFromStart = (($hour - $this->businessHoursStart) * 60) + $minute;
+        $totalMinutesInDay = ($this->businessHoursEnd - $this->businessHoursStart) * 60;
+
         return ($totalMinutesFromStart / $totalMinutesInDay) * 100;
     }
-    
+
     private function calculateWidth($durationMinutes)
     {
-        $totalMinutesInDay = 12 * 60; // 9:00-21:00 = 12時間
+        $totalMinutesInDay = ($this->businessHoursEnd - $this->businessHoursStart) * 60;
         return ($durationMinutes / $totalMinutesInDay) * 100;
     }
     
