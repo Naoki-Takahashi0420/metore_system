@@ -1,0 +1,82 @@
+name: Debug Customer 2791
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Debug Customer Data
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'DEBUG'
+        set -e
+        cd /var/www/html
+
+        sudo tee check_customer.php > /dev/null << 'PHP'
+        <?php
+        require_once __DIR__.'/vendor/autoload.php';
+        $app = require_once __DIR__.'/bootstrap/app.php';
+        $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+        $response = $kernel->handle($request = Illuminate\Http\Request::capture());
+
+        try {
+            $customer = \App\Models\Customer::find(2791);
+
+            if (!$customer) {
+                echo "❌ Customer 2791 not found\n";
+                exit(1);
+            }
+
+            echo "✅ Customer found: {$customer->last_name} {$customer->first_name}\n";
+            echo "Store ID: {$customer->store_id}\n";
+
+            // リレーションのロードを試行
+            try {
+                $reservations = $customer->reservations;
+                echo "✅ Reservations count: {$reservations->count()}\n";
+            } catch (\Exception $e) {
+                echo "❌ Reservations error: {$e->getMessage()}\n";
+            }
+
+            try {
+                $medicalRecords = $customer->medicalRecords;
+                echo "✅ Medical records count: {$medicalRecords->count()}\n";
+            } catch (\Exception $e) {
+                echo "❌ Medical records error: {$e->getMessage()}\n";
+            }
+
+            try {
+                $subscriptions = $customer->customerSubscriptions;
+                echo "✅ Subscriptions count: {$subscriptions->count()}\n";
+            } catch (\Exception $e) {
+                echo "❌ Subscriptions error: {$e->getMessage()}\n";
+            }
+
+            try {
+                $tickets = $customer->customerTickets;
+                echo "✅ Tickets count: {$tickets->count()}\n";
+            } catch (\Exception $e) {
+                echo "❌ Tickets error: {$e->getMessage()}\n";
+            }
+
+        } catch (\Exception $e) {
+            echo "❌ Fatal error: {$e->getMessage()}\n";
+            echo "Stack trace:\n{$e->getTraceAsString()}\n";
+            exit(1);
+        }
+        PHP
+
+        sudo php check_customer.php
+        sudo rm check_customer.php
+        DEBUG
+
+        rm deploy_key.pem
