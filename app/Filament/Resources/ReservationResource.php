@@ -959,7 +959,14 @@ class ReservationResource extends Resource
                         'customer_id' => $record->customer_id,
                         'reservation_id' => $record->id
                     ]))
-                    ->visible(fn ($record) => $record->status === 'completed'),
+                    ->visible(function ($record) {
+                        if ($record->status !== 'completed') {
+                            return false;
+                        }
+                        // カルテが既に作成されている場合は非表示
+                        $hasMedicalRecord = \App\Models\MedicalRecord::where('reservation_id', $record->id)->exists();
+                        return !$hasMedicalRecord;
+                    }),
                 Tables\Actions\Action::make('receipt')
                     ->label('領収証')
                     ->icon('heroicon-o-document-text')
