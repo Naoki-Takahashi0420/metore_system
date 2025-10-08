@@ -959,7 +959,10 @@ class ReservationResource extends Resource
                         'customer_id' => $record->customer_id,
                         'reservation_id' => $record->id
                     ]))
-                    ->visible(fn ($record) => $record->status === 'completed'),
+                    ->visible(fn ($record) =>
+                        $record->status === 'completed' &&
+                        !$record->medicalRecords->count()
+                    ),
                 Tables\Actions\Action::make('receipt')
                     ->label('領収証')
                     ->icon('heroicon-o-document-text')
@@ -996,13 +999,13 @@ class ReservationResource extends Resource
     
     public static function getEloquentQuery(): Builder
     {
-        $query = parent::getEloquentQuery();
+        $query = parent::getEloquentQuery()->with(['customer', 'store', 'menu', 'staff', 'medicalRecords']);
         $user = auth()->user();
-        
+
         if (!$user) {
             return $query->whereRaw('1 = 0');
         }
-        
+
         // スーパーアドミンは全予約を表示
         if ($user->hasRole('super_admin')) {
             return $query;
