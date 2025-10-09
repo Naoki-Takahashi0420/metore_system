@@ -41,3 +41,4 @@ config/aws.php
 credentials.json
 secrets.json
 current/
+database-export.sql

@@ -204,12 +204,22 @@ class MenuResource extends Resource
                         Forms\Components\Select::make('subscription_plan_ids')
                             ->label('対象サブスクプラン')
                             ->multiple()
-                            ->options(\App\Models\Menu::where('is_subscription', true)
-                                ->where('is_available', true)
-                                ->orderBy('name')
-                                ->pluck('name', 'id'))
-                            ->helperText('このメニューを利用できるサブスクプラン')
-                            ->visible(fn (Forms\Get $get) => $get('is_subscription_only') && !$get('is_subscription')),
+                            ->options(function (Forms\Get $get) {
+                                $storeId = $get('store_id');
+                                if (!$storeId) {
+                                    return ['まず店舗を選択してください'];
+                                }
+
+                                return \App\Models\Menu::where('is_subscription', true)
+                                    ->where('is_available', true)
+                                    ->where('store_id', $storeId)
+                                    ->orderBy('name')
+                                    ->pluck('name', 'id');
+                            })
+                            ->helperText('このメニューを利用できるサブスクプラン（選択した店舗のプランのみ表示）')
+                            ->visible(fn (Forms\Get $get) => $get('is_subscription_only') && !$get('is_subscription'))
+                            ->reactive()
+                            ->disabled(fn (Forms\Get $get) => !$get('store_id')),
                         Forms\Components\Toggle::make('requires_staff')
                             ->label('スタッフ指定必須')
                             ->default(false)
