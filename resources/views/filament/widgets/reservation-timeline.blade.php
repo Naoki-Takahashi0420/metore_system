@@ -738,7 +738,7 @@
                                             title="{{ $tooltipMessage ?: ($hasNoStaff ? 'スタッフのシフトがありません' : '予約不可') }}"
                                         @endif>
                                         @if($isBlocked)
-                                            <div style="background: #9e9e9e; color: white; height: 100%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">
+                                            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #9e9e9e; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; pointer-events: none;">
                                                 BRK
                                             </div>
                                         @else
