@@ -385,7 +385,7 @@
         
         // アップセルメニューを取得
         try {
-            const response = await fetch(`/api/menus/upsell?store_id={{ $store->id }}&exclude=${menuId}`);
+            const response = await fetch(`/api/menus/upsell?store_id={{ $store->id }}&exclude=${menuId}&menu_id=${menuId}`);
             const upsellMenus = await response.json();
             
             if (upsellMenus && upsellMenus.length > 0) {

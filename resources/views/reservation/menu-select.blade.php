@@ -584,7 +584,7 @@
             // オプションメニューを取得
             try {
                 const storeId = menuElement.dataset.storeId;
-                const response = await fetch(`/api/menus/upsell?exclude=${menuId}&store_id=${storeId}`);
+                const response = await fetch(`/api/menus/upsell?exclude=${menuId}&store_id=${storeId}&menu_id=${menuId}`);
                 upsellMenus = await response.json();
                 
                 if (upsellMenus.length > 0) {

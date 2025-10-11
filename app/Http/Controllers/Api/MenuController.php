@@ -78,20 +78,41 @@ class MenuController extends Controller
     {
         $query = Menu::where('is_available', true)
             ->where('show_in_upsell', true);
-        
+
         // 除外するメニューID
         if ($request->has('exclude')) {
             $excludeIds = is_array($request->exclude) ? $request->exclude : [$request->exclude];
             $query->whereNotIn('id', $excludeIds);
         }
-        
+
         // 店舗IDでフィルター
         if ($request->has('store_id')) {
             $query->where('store_id', $request->store_id);
         }
-        
+
         $upsellMenus = $query->orderBy('sort_order')
-            ->get(['id', 'name', 'description', 'upsell_description', 'price', 'duration_minutes', 'category', 'image_path']);
+            ->get(['id', 'name', 'description', 'upsell_description', 'price', 'duration_minutes', 'category', 'image_path', 'subscription_plan_ids']);
+
+        // 選択されたメニューIDがある場合、そのメニューに紐づいたオプションのみを表示
+        if ($request->has('menu_id')) {
+            $selectedMenu = Menu::find($request->menu_id);
+
+            // 選択されたメニューがサブスクリプションメニューの場合
+            if ($selectedMenu && $selectedMenu->is_subscription) {
+                $upsellMenus = $upsellMenus->filter(function ($menu) use ($selectedMenu) {
+                    // オプションメニューのsubscription_plan_idsに選択されたサブスクメニューのIDが含まれているか確認
+                    $subscriptionPlanIds = is_string($menu->subscription_plan_ids)
+                        ? json_decode($menu->subscription_plan_ids, true)
+                        : $menu->subscription_plan_ids;
+
+                    if (empty($subscriptionPlanIds)) {
+                        return true; // 紐付けなしの場合は全サブスクで表示
+                    }
+
+                    return in_array($selectedMenu->id, $subscriptionPlanIds);
+                })->values();
+            }
+        }
 
         return response()->json($upsellMenus);
     }
