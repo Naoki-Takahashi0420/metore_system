@@ -385,18 +385,28 @@
         
         // アップセルメニューを取得
         try {
-            const response = await fetch(`/api/menus/upsell?store_id={{ $store->id }}&exclude=${menuId}&menu_id=${menuId}`);
+            const url = `/api/menus/upsell?store_id={{ $store->id }}&exclude=${menuId}&menu_id=${menuId}`;
+            console.log('=== Upsell API Call ===');
+            console.log('URL:', url);
+            console.log('Menu ID:', menuId);
+
+            const response = await fetch(url);
             const upsellMenus = await response.json();
-            
+
+            console.log('Upsell response:', upsellMenus);
+            console.log('Upsell count:', upsellMenus ? upsellMenus.length : 0);
+
             if (upsellMenus && upsellMenus.length > 0) {
+                console.log('✅ Showing upsell modal with', upsellMenus.length, 'options');
                 // オプションメニューがある場合、モーダルを表示
                 showUpsellModal(upsellMenus);
             } else {
+                console.log('⏭️ No upsell options, proceeding directly');
                 // オプションがない場合、直接予約へ
                 proceedWithSelection();
             }
         } catch (error) {
-            console.error('Error fetching upsell menus:', error);
+            console.error('❌ Error fetching upsell menus:', error);
             // エラーの場合も予約へ進む
             proceedWithSelection();
         }
