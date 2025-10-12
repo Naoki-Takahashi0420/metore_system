@@ -1228,6 +1228,7 @@ function showPhoneContactModal(reservation, actionType) {
         </div>
     `;
     document.getElementById('cancelModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden'; // 背景のスクロールを無効化
 }
 
 function cancelReservation(reservationId) {
@@ -1271,10 +1272,12 @@ function cancelReservation(reservationId) {
         </div>
     `;
     document.getElementById('cancelModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden'; // 背景のスクロールを無効化
 }
 
 function closeCancelModal() {
     document.getElementById('cancelModal').classList.add('hidden');
+    document.body.style.overflow = ''; // 背景のスクロールを復元
     document.getElementById('cancelReason').value = '';
     currentReservationId = null;
     currentReservation = null;
