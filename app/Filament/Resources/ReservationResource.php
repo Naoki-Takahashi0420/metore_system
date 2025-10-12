@@ -634,6 +634,14 @@ class ReservationResource extends Resource
                         Infolists\Components\TextEntry::make('staff.name')
                             ->label('担当スタッフ')
                             ->placeholder('未定'),
+                        Infolists\Components\TextEntry::make('line_type')
+                            ->label('ライン')
+                            ->getStateUsing(fn ($record) =>
+                                $record->line_type === 'main' ? 'メイン' :
+                                ($record->line_type === 'sub' ? 'サブ' : $record->line_type)
+                            )
+                            ->badge()
+                            ->color(fn ($record) => $record->line_type === 'main' ? 'success' : 'info'),
                     ])
                     ->columns(2),
 
