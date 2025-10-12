@@ -106,7 +106,7 @@ class MenuController extends Controller
                         : $menu->subscription_plan_ids;
 
                     if (empty($subscriptionPlanIds)) {
-                        return true; // 紐付けなしの場合は全サブスクで表示
+                        return false; // 紐付けなしの場合は表示しない（厳密フィルタリング）
                     }
 
                     return in_array($selectedMenu->id, $subscriptionPlanIds);

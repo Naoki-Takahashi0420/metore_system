@@ -893,9 +893,193 @@
                 selectedSlot.classList.remove('bg-blue-600');
                 selectedSlot = null;
             }
-            
+
             document.getElementById('noSelection').classList.remove('hidden');
             document.getElementById('reservationForm').classList.add('hidden');
+        }
+
+        // フォーム送信をインターセプトしてオプション選択を挿入
+        let selectedOptions = []; // 選択されたオプションを格納
+        let formSubmitHandlerAttached = false;
+
+        // フォーム送信ハンドラーをアタッチする関数
+        function attachFormSubmitHandler() {
+            if (formSubmitHandlerAttached) {
+                console.log('⚠️ Handler already attached');
+                return;
+            }
+
+            console.log('🔍 Looking for form...');
+            const form = document.querySelector('form[action="{{ route('reservation.store') }}"]');
+            console.log('Form found:', form);
+
+            if (!form) {
+                console.error('❌ Form not found!');
+                return;
+            }
+
+            console.log('✅ Form found, attaching submit listener');
+            formSubmitHandlerAttached = true;
+
+            form.addEventListener('submit', async function(e) {
+                // サブスク予約の場合のみオプションチェック
+                const isSubscriptionBooking = @json($isSubscriptionBooking ?? false);
+
+                console.log('=== Form Submit Intercepted ===');
+                console.log('Is Subscription:', isSubscriptionBooking);
+
+                if (!isSubscriptionBooking) {
+                    console.log('⏭️ Not subscription booking - proceeding normally');
+                    return; // 通常予約はそのまま送信
+                }
+
+                // オプション選択済みの場合はそのまま送信
+                if (form.dataset.optionsChecked === 'true') {
+                    console.log('✅ Options already checked - submitting');
+                    return;
+                }
+
+                // 初回送信時はオプションをチェック
+                e.preventDefault();
+                console.log('🛑 Prevented default - checking for options');
+
+                try {
+                    const menuId = @json($selectedMenu->id ?? null);
+                    const storeId = @json($selectedStore->id ?? null);
+
+                    const url = `/api/menus/upsell?store_id=${storeId}&menu_id=${menuId}`;
+                    console.log('Fetching upsell options:', { menuId, storeId });
+                    console.log('API URL:', url);
+
+                    const response = await fetch(url);
+                    console.log('Response status:', response.status);
+                    const upsellMenus = await response.json();
+
+                    console.log('Upsell response:', upsellMenus);
+                    console.log('Upsell count:', upsellMenus.length);
+
+                    if (upsellMenus && upsellMenus.length > 0) {
+                        console.log('✨ Found', upsellMenus.length, 'options - showing modal');
+                        showUpsellModal(upsellMenus, form);
+                    } else {
+                        console.log('⏭️ No options available - proceeding with submission');
+                        form.dataset.optionsChecked = 'true';
+                        form.submit();
+                    }
+                } catch (error) {
+                    console.error('❌ Error fetching upsell options:', error);
+                    // エラー時はそのまま送信
+                    form.dataset.optionsChecked = 'true';
+                    form.submit();
+                }
+            });
+        }
+
+        // ページ読み込み時とフォーム表示時にハンドラーをアタッチ
+        document.addEventListener('DOMContentLoaded', function() {
+            attachFormSubmitHandler();
+        });
+
+        // オプション選択モーダルを表示
+        function showUpsellModal(upsellMenus, form) {
+            // モーダルHTML作成
+            const modalHtml = `
+                <div id="upsellModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div class="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div class="p-6">
+                            <h3 class="text-xl font-bold text-gray-800 mb-4">ご一緒にいかがですか？</h3>
+                            <p class="text-sm text-gray-600 mb-6">追加オプションをお選びいただけます（複数選択可）</p>
+
+                            <div class="space-y-3 mb-6">
+                                ${upsellMenus.map(menu => `
+                                    <div class="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition cursor-pointer upsell-option"
+                                         data-menu-id="${menu.id}"
+                                         onclick="toggleUpsellOption(this)">
+                                        <div class="flex items-start gap-4">
+                                            <input type="checkbox" class="mt-1 w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                   onchange="event.stopPropagation()">
+                                            <div class="flex-1">
+                                                <h4 class="font-semibold text-gray-800 mb-1">${menu.name}</h4>
+                                                <p class="text-sm text-gray-600 mb-2">${menu.upsell_description || menu.description || ''}</p>
+                                                <div class="flex items-center gap-4 text-sm">
+                                                    <span class="text-blue-600 font-medium">¥${menu.price.toLocaleString()}</span>
+                                                    ${menu.duration_minutes ? `<span class="text-gray-500">${menu.duration_minutes}分</span>` : ''}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+
+                            <div class="flex gap-3">
+                                <button type="button" onclick="skipUpsell()"
+                                        class="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 font-medium">
+                                    オプションなしで予約
+                                </button>
+                                <button type="button" onclick="confirmUpsellSelection()"
+                                        class="flex-1 px-6 py-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 font-medium">
+                                    この内容で予約する
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        }
+
+        // オプション選択トグル
+        function toggleUpsellOption(element) {
+            const checkbox = element.querySelector('input[type="checkbox"]');
+            checkbox.checked = !checkbox.checked;
+
+            if (checkbox.checked) {
+                element.classList.add('bg-blue-50', 'border-blue-400');
+            } else {
+                element.classList.remove('bg-blue-50', 'border-blue-400');
+            }
+        }
+
+        // オプションなしで予約
+        function skipUpsell() {
+            selectedOptions = [];
+            closeUpsellModalAndSubmit();
+        }
+
+        // オプション選択確定
+        function confirmUpsellSelection() {
+            const checkedOptions = document.querySelectorAll('.upsell-option input[type="checkbox"]:checked');
+            selectedOptions = Array.from(checkedOptions).map(checkbox => {
+                return checkbox.closest('.upsell-option').dataset.menuId;
+            });
+
+            console.log('Selected options:', selectedOptions);
+            closeUpsellModalAndSubmit();
+        }
+
+        // モーダルを閉じて送信
+        function closeUpsellModalAndSubmit() {
+            const modal = document.getElementById('upsellModal');
+            if (modal) {
+                modal.remove();
+            }
+
+            // 選択されたオプションをフォームに追加
+            const form = document.querySelector('form[action="{{ route('reservation.store') }}"]');
+            if (form && selectedOptions.length > 0) {
+                selectedOptions.forEach(optionId => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'option_menu_ids[]';
+                    input.value = optionId;
+                    form.appendChild(input);
+                });
+            }
+
+            // フォームをマークして送信
+            form.dataset.optionsChecked = 'true';
+            form.submit();
         }
 
     </script>
@@ -921,12 +1105,9 @@
                     この電話番号（{{ $customerPhone }}）で過去にご予約履歴があります。<br>
                     2回目以降のお客様は、マイページから予約の変更・追加を行ってください。
                 </p>
-                <div class="flex space-x-3 justify-center">
-                    <button onclick="closeModal()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200">
-                        閉じる
-                    </button>
-                    <a href="/customer/dashboard" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700">
-                        マイページへ
+                <div class="flex justify-center">
+                    <a href="/customer/dashboard" class="px-6 py-3 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700">
+                        マイページへ移動
                     </a>
                 </div>
             </div>
@@ -934,16 +1115,8 @@
     </div>
 
     <script>
-        function closeModal() {
-            document.getElementById('mypageModal').style.display = 'none';
-        }
-
-        // モーダル外をクリックした時も閉じる
-        document.getElementById('mypageModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeModal();
-            }
-        });
+        // モーダルを閉じる機能を削除（既存顧客は必ずマイページへ誘導）
+        // 背景クリックでも閉じないようにイベントリスナーを設定しない
 
         // エラーモーダル制御
         function closeErrorModal() {

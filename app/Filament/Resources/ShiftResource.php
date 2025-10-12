@@ -24,7 +24,7 @@ class ShiftResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-calendar-days';
 
-    protected static ?string $navigationLabel = 'シフト管理';
+    protected static ?string $navigationLabel = 'シフト設定';
 
     protected static ?string $modelLabel = 'シフト';
 

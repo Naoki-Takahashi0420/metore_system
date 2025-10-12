@@ -166,9 +166,9 @@
 </div>
 
 <!-- キャンセル確認モーダル -->
-<div id="cancelModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-        <div class="mt-3">
+<div id="cancelModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div class="relative mx-auto border w-full max-w-md max-h-[90vh] overflow-y-auto shadow-lg rounded-md bg-white">
+        <div class="p-5">
             <h3 class="text-lg font-medium text-gray-900 mb-4">予約キャンセル確認</h3>
             <div id="cancelModalContent">
                 <p class="text-sm text-gray-600 mb-4">この予約をキャンセルしてもよろしいですか？</p>

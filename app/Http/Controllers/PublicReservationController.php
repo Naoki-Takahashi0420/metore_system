@@ -1825,7 +1825,21 @@ class PublicReservationController extends Controller
         }
 
         $validated = $request->validate($rules);
-        
+
+        // オプションメニューの処理
+        $selectedOptions = collect();
+        if ($request->has('option_menu_ids') && is_array($request->option_menu_ids)) {
+            $selectedOptions = Menu::whereIn('id', $request->option_menu_ids)
+                ->where('is_available', true)
+                ->get();
+
+            \Log::info('オプションメニューを取得', [
+                'option_ids' => $request->option_menu_ids,
+                'found_options' => $selectedOptions->pluck('id')->toArray(),
+                'option_names' => $selectedOptions->pluck('name')->toArray()
+            ]);
+        }
+
         // 既存顧客の5日間隔制限チェック
         // コンテキストまたはセッションから既存顧客情報を取得
         $existingCustomerId = null;
@@ -2101,7 +2115,10 @@ class PublicReservationController extends Controller
             
             // メニュー情報を取得
             $menu = Menu::find($validated['menu_id']);
-            $selectedOptions = Session::get('reservation_options', collect());
+            // selectedOptionsが既に設定されていない場合のみセッションから取得（後方互換性）
+            if (!isset($selectedOptions) || $selectedOptions->isEmpty()) {
+                $selectedOptions = Session::get('reservation_options', collect());
+            }
             
             // 合計金額と時間を計算
             $totalAmount = $menu->price ?? 0;
@@ -2225,8 +2242,35 @@ class PublicReservationController extends Controller
                     }
                 } else {
                     // スタッフが選択されていない場合は、一般的な可用性をチェック
+                    \Log::info('スタッフ未指定のシフトチェック', [
+                        'store_id' => $validated['store_id'],
+                        'date' => $validated['date'],
+                        'time' => $validated['time'],
+                        'end_time' => $endTime->format('H:i')
+                    ]);
+
+                    // デバッグ：該当日の全シフトを確認
+                    $allShifts = Shift::where('store_id', $validated['store_id'])
+                        ->whereDate('shift_date', $validated['date'])
+                        ->get();
+
+                    \Log::info('該当日の全シフト', [
+                        'count' => $allShifts->count(),
+                        'shifts' => $allShifts->map(function($s) {
+                            return [
+                                'user_id' => $s->user_id,
+                                'user_name' => $s->user->name ?? 'N/A',
+                                'shift_date' => $s->shift_date,
+                                'start_time' => $s->start_time,
+                                'end_time' => $s->end_time,
+                                'is_available' => $s->is_available_for_reservation,
+                                'is_active_staff' => $s->user->is_active_staff ?? false
+                            ];
+                        })->toArray()
+                    ]);
+
                     $availableStaff = Shift::where('store_id', $validated['store_id'])
-                        ->where('shift_date', $validated['date'])
+                        ->whereDate('shift_date', $validated['date'])  // whereDateを使用（修正）
                         ->where('start_time', '<=', $validated['time'])
                         ->where('end_time', '>=', $endTime->format('H:i'))
                         ->where('is_available_for_reservation', true)
@@ -2235,6 +2279,10 @@ class PublicReservationController extends Controller
                         })
                         ->exists();
 
+                    \Log::info('シフトチェック結果', [
+                        'available_staff' => $availableStaff
+                    ]);
+
                     if (!$availableStaff) {
                         DB::rollback();
                         return back()->with('error', '申し訳ございません。選択された時間帯に対応可能なスタッフがおりません。別の時間帯をお選びください。');
@@ -2242,8 +2290,14 @@ class PublicReservationController extends Controller
                 }
             }
             // 営業時間ベースの場合はシフトチェックをスキップ
-            
+
             // 予約を作成
+            \Log::info('予約作成直前のオプション確認', [
+                'selected_options_count' => $selectedOptions->count(),
+                'option_ids' => $selectedOptions->pluck('id')->toArray(),
+                'variable_type' => gettype($selectedOptions)
+            ]);
+
             $reservationData = [
                 'reservation_number' => Reservation::generateReservationNumber(),
                 'store_id' => $validated['store_id'],
@@ -2304,12 +2358,30 @@ class PublicReservationController extends Controller
             $reservation = Reservation::create($reservationData);
 
             // オプションメニューを関連付け
+            \Log::info('オプションメニュー保存開始', [
+                'reservation_id' => $reservation->id,
+                'selected_options_count' => $selectedOptions->count(),
+                'option_ids' => $selectedOptions->pluck('id')->toArray()
+            ]);
+
             foreach ($selectedOptions as $option) {
+                \Log::info('オプションメニューをattach', [
+                    'option_id' => $option->id,
+                    'option_name' => $option->name,
+                    'price' => $option->price,
+                    'duration' => $option->duration_minutes ?? 0
+                ]);
+
                 $reservation->optionMenus()->attach($option->id, [
                     'price' => $option->price,
                     'duration' => $option->duration_minutes ?? 0,
                 ]);
             }
+
+            \Log::info('オプションメニュー保存完了', [
+                'reservation_id' => $reservation->id,
+                'attached_count' => $reservation->optionMenus()->count()
+            ]);
 
             // 予約関連のセッションをクリア（完了画面表示後にクリアする）
             // ここではクリアしない - 完了画面表示後にクリアする
