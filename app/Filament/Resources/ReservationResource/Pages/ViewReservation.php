@@ -22,7 +22,7 @@ class ViewReservation extends ViewRecord
                 ->label('ライン変更')
                 ->icon('heroicon-o-arrows-right-left')
                 ->color('info')
-                ->visible(fn () => $this->record->status === 'booked')
+                ->visible(fn () => in_array($this->record->status, ['booked', 'completed']))
                 ->form([
                     Forms\Components\Select::make('line_type')
                         ->label('移動先のライン')
