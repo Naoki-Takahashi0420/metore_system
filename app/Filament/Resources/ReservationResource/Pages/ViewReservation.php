@@ -55,18 +55,12 @@ class ViewReservation extends ViewRecord
 
                     $hasBlockConflict = BlockedTimePeriod::where('store_id', $reservation->store_id)
                         ->where('line_type', $newLine)
-                        ->where('date', $reservationDate->format('Y-m-d'))
+                        ->whereDate('blocked_date', $reservationDate)
                         ->where(function ($query) use ($startTime, $endTime) {
-                            $query->where(function ($q) use ($startTime, $endTime) {
-                                // ブロックの開始時刻が予約時間内
-                                $q->whereBetween('start_time', [$startTime->format('H:i:s'), $endTime->format('H:i:s')])
-                                  ->orWhereBetween('end_time', [$startTime->format('H:i:s'), $endTime->format('H:i:s')])
-                                  // または予約がブロック時間内
-                                  ->orWhere(function ($q2) use ($startTime, $endTime) {
-                                      $q2->where('start_time', '<=', $startTime->format('H:i:s'))
-                                         ->where('end_time', '>=', $endTime->format('H:i:s'));
-                                  });
-                            });
+                            $endTimeStr = strlen($endTime->format('H:i')) === 5 ? $endTime->format('H:i') . ':00' : $endTime->format('H:i:s');
+                            $startTimeStr = strlen($startTime->format('H:i')) === 5 ? $startTime->format('H:i') . ':00' : $startTime->format('H:i:s');
+                            $query->whereRaw('time(start_time) < time(?)', [$endTimeStr])
+                                  ->whereRaw('time(end_time) > time(?)', [$startTimeStr]);
                         })
                         ->exists();
 

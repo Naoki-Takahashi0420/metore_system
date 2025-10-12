@@ -2126,8 +2126,8 @@ class ReservationTimelineWidget extends Widget
                         return;
                     }
 
-                    // メインラインブロック
-                    if ($block->line_type === 'main' && !$store->use_staff_assignment) {
+                    // メインラインブロック（サブ枠への予約の場合はチェックしない）
+                    if ($block->line_type === 'main' && !$store->use_staff_assignment && $this->newReservation['line_type'] !== 'sub') {
                         $blockedMainLinesCount = $blockedPeriods->filter(function($b) use ($startTime, $endTime) {
                             if ($b->line_type !== 'main') return false;
                             $bStart = \Carbon\Carbon::parse($this->newReservation['date'] . ' ' . $b->start_time);
@@ -2149,6 +2149,17 @@ class ReservationTimelineWidget extends Widget
                                 ->send();
                             return;
                         }
+                    }
+
+                    // サブラインブロック（サブ枠への予約の場合のみチェック）
+                    if ($block->line_type === 'sub' && $this->newReservation['line_type'] === 'sub') {
+                        \Filament\Notifications\Notification::make()
+                            ->danger()
+                            ->title('予約作成失敗')
+                            ->body('サブ枠は予約ブロックされています')
+                            ->persistent()
+                            ->send();
+                        return;
                     }
                 }
             }
