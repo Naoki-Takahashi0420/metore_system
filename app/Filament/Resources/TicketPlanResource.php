@@ -198,18 +198,20 @@ class TicketPlanResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('store_id')
+                    ->label('店舗')
+                    ->relationship('store', 'name')
+                    ->searchable()
+                    ->preload()
+                    ->placeholder('すべての店舗'),
+
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('有効状態')
                     ->placeholder('すべて')
                     ->trueLabel('有効のみ')
                     ->falseLabel('無効のみ'),
-
-                Tables\Filters\SelectFilter::make('store_id')
-                    ->label('店舗')
-                    ->relationship('store', 'name')
-                    ->searchable()
-                    ->preload(),
             ])
+            ->filtersLayout(Tables\Enums\FiltersLayout::AboveContent)
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
