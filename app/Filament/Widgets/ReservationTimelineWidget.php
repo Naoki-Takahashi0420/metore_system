@@ -813,7 +813,28 @@ class ReservationTimelineWidget extends Widget
                     ->send();
                 return;
             }
-            
+
+            // 予約ブロックのチェック
+            $isBlocked = \App\Models\BlockedTimePeriod::where('store_id', $reservation->store_id)
+                ->whereDate('blocked_date', $reservation->reservation_date)
+                ->where('line_type', 'sub')
+                ->where(function($q) use ($reservation) {
+                    $endTime = strlen($reservation->end_time) === 5 ? $reservation->end_time . ':00' : $reservation->end_time;
+                    $startTime = strlen($reservation->start_time) === 5 ? $reservation->start_time . ':00' : $reservation->start_time;
+                    $q->whereRaw('time(start_time) < time(?)', [$endTime])
+                      ->whereRaw('time(end_time) > time(?)', [$startTime]);
+                })
+                ->exists();
+
+            if ($isBlocked) {
+                \Filament\Notifications\Notification::make()
+                    ->warning()
+                    ->title('移動不可')
+                    ->body('サブ枠は予約ブロックされています')
+                    ->send();
+                return;
+            }
+
             // 重複チェックを一時的に無効化して保存
             // 直接DBを更新（モデルイベントを完全にバイパス）
             DB::table('reservations')
@@ -887,6 +908,31 @@ class ReservationTimelineWidget extends Widget
                 ->warning()
                 ->title('シフト時間外')
                 ->body('予約時間がスタッフのシフト時間外です（' . $shift->start_time . '-' . $shift->end_time . '）')
+                ->send();
+            return;
+        }
+
+        // 予約ブロックのチェック
+        $isBlocked = \App\Models\BlockedTimePeriod::where('store_id', $reservation->store_id)
+            ->whereDate('blocked_date', $reservation->reservation_date)
+            ->where(function($q) use ($staffId) {
+                $q->where('line_type', 'staff')
+                  ->where('staff_id', $staffId);
+            })
+            ->where(function($q) use ($reservation) {
+                $endTime = strlen($reservation->end_time) === 5 ? $reservation->end_time . ':00' : $reservation->end_time;
+                $startTime = strlen($reservation->start_time) === 5 ? $reservation->start_time . ':00' : $reservation->start_time;
+                $q->whereRaw('time(start_time) < time(?)', [$endTime])
+                  ->whereRaw('time(end_time) > time(?)', [$startTime]);
+            })
+            ->exists();
+
+        if ($isBlocked) {
+            $staff = \App\Models\User::find($staffId);
+            \Filament\Notifications\Notification::make()
+                ->warning()
+                ->title('移動不可')
+                ->body(($staff ? $staff->name . 'のライン' : '指定のスタッフライン') . 'は予約ブロックされています')
                 ->send();
             return;
         }
@@ -1064,6 +1110,30 @@ class ReservationTimelineWidget extends Widget
                         ->send();
                     return;
                 }
+
+                // 予約ブロックのチェック
+                $isBlocked = \App\Models\BlockedTimePeriod::where('store_id', $reservation->store_id)
+                    ->whereDate('blocked_date', $reservation->reservation_date)
+                    ->where(function($q) use ($seatNumber) {
+                        $q->where('line_type', 'main')
+                          ->where('line_number', $seatNumber);
+                    })
+                    ->where(function($q) use ($reservation) {
+                        $endTime = strlen($reservation->end_time) === 5 ? $reservation->end_time . ':00' : $reservation->end_time;
+                        $startTime = strlen($reservation->start_time) === 5 ? $reservation->start_time . ':00' : $reservation->start_time;
+                        $q->whereRaw('time(start_time) < time(?)', [$endTime])
+                          ->whereRaw('time(end_time) > time(?)', [$startTime]);
+                    })
+                    ->exists();
+
+                if ($isBlocked) {
+                    \Filament\Notifications\Notification::make()
+                        ->warning()
+                        ->title('移動不可')
+                        ->body('席' . $seatNumber . 'は予約ブロックされています')
+                        ->send();
+                    return;
+                }
             }
 
             // 重複チェックを一時的に無効化して保存
@@ -1120,6 +1190,22 @@ class ReservationTimelineWidget extends Widget
             return false;
         }
 
+        // 予約ブロックのチェック
+        $isBlocked = \App\Models\BlockedTimePeriod::where('store_id', $reservation->store_id)
+            ->whereDate('blocked_date', $reservation->reservation_date)
+            ->where('line_type', 'sub')
+            ->where(function($q) use ($reservation) {
+                $endTime = strlen($reservation->end_time) === 5 ? $reservation->end_time . ':00' : $reservation->end_time;
+                $startTime = strlen($reservation->start_time) === 5 ? $reservation->start_time . ':00' : $reservation->start_time;
+                $q->whereRaw('time(start_time) < time(?)', [$endTime])
+                  ->whereRaw('time(end_time) > time(?)', [$startTime]);
+            })
+            ->exists();
+
+        if ($isBlocked) {
+            return false;
+        }
+
         $temp = clone $reservation;
         $temp->is_sub = true;
         $temp->seat_number = null;
@@ -1129,7 +1215,7 @@ class ReservationTimelineWidget extends Widget
             'reservation_id' => $reservationId,
             'can_move' => $result
         ]);
-        
+
         return $result;
     }
     
@@ -1161,6 +1247,25 @@ class ReservationTimelineWidget extends Widget
                 'id' => $reservationId,
                 'seat' => $seatNumber
             ]);
+            return false;
+        }
+
+        // 予約ブロックのチェック
+        $isBlocked = \App\Models\BlockedTimePeriod::where('store_id', $reservation->store_id)
+            ->whereDate('blocked_date', $reservation->reservation_date)
+            ->where(function($q) use ($seatNumber) {
+                $q->where('line_type', 'main')
+                  ->where('line_number', $seatNumber);
+            })
+            ->where(function($q) use ($reservation) {
+                $endTime = strlen($reservation->end_time) === 5 ? $reservation->end_time . ':00' : $reservation->end_time;
+                $startTime = strlen($reservation->start_time) === 5 ? $reservation->start_time . ':00' : $reservation->start_time;
+                $q->whereRaw('time(start_time) < time(?)', [$endTime])
+                  ->whereRaw('time(end_time) > time(?)', [$startTime]);
+            })
+            ->exists();
+
+        if ($isBlocked) {
             return false;
         }
 
