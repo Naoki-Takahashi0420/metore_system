@@ -124,6 +124,20 @@ class EditReservation extends EditRecord
         return $data;
     }
 
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        // 終了時刻を強制的にメニューの所要時間で再計算（手動変更を防ぐ）
+        if (isset($data['menu_id']) && isset($data['start_time'])) {
+            $menu = \App\Models\Menu::find($data['menu_id']);
+            if ($menu && $menu->duration_minutes) {
+                $startTime = \Carbon\Carbon::parse($data['start_time']);
+                $data['end_time'] = $startTime->addMinutes($menu->duration_minutes)->format('H:i:s');
+            }
+        }
+
+        return $data;
+    }
+
     protected function handleRecordUpdate(Model $record, array $data): Model
     {
         // Handle the update

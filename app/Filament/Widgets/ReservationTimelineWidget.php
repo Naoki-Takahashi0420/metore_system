@@ -499,8 +499,18 @@ class ReservationTimelineWidget extends Widget
                 $startTime = Carbon::parse($date->format('Y-m-d') . ' ' . $startTime->format('H:i:s'));
             }
 
-            $duration = $reservation->menu->duration_minutes ?? 60;
-            $endTime = $startTime->copy()->addMinutes($duration);
+            // 実際の予約終了時刻を使用（end_timeがある場合）
+            if (!empty($reservation->end_time)) {
+                $endTime = Carbon::parse($reservation->end_time);
+                if ($endTime->format('Y-m-d') !== $date->format('Y-m-d')) {
+                    $endTime = Carbon::parse($date->format('Y-m-d') . ' ' . $endTime->format('H:i:s'));
+                }
+                $duration = $startTime->diffInMinutes($endTime);
+            } else {
+                // end_timeがない場合はメニューの所要時間を使用
+                $duration = $reservation->menu->duration_minutes ?? 60;
+                $endTime = $startTime->copy()->addMinutes($duration);
+            }
 
             // 顧客の初回訪問かチェック（この予約より前の予約があるか）
             $isNewCustomer = false;
@@ -2226,6 +2236,67 @@ class ReservationTimelineWidget extends Widget
                         ->send();
                     return;
                 }
+
+                // 営業時間ベースモードの場合、既存予約との重複をチェック
+                $lineType = $this->newReservation['line_type'] ?? 'main';
+
+                // 同じラインの既存予約を取得
+                $conflictingReservations = \App\Models\Reservation::where('store_id', $this->selectedStore)
+                    ->whereDate('reservation_date', $this->newReservation['date'])
+                    ->whereNotIn('status', ['cancelled', 'canceled'])
+                    ->where(function ($q) use ($lineType) {
+                        if ($lineType === 'sub') {
+                            $q->where('line_type', 'sub')->orWhere('is_sub', true);
+                        } else {
+                            $q->where(function($q2) {
+                                $q2->where('line_type', 'main')
+                                   ->orWhere(function($q3) {
+                                       $q3->whereNull('line_type')
+                                          ->where('is_sub', false);
+                                   });
+                            });
+                        }
+                    })
+                    ->where(function ($q) use ($startTime, $endTime) {
+                        // 時間重複チェック（境界を含まない）
+                        $q->where('start_time', '<', $endTime->format('H:i'))
+                          ->where('end_time', '>', $startTime->format('H:i'));
+                    })
+                    ->get();
+
+                if ($conflictingReservations->count() > 0) {
+                    $conflictDetails = $conflictingReservations->map(function($r) {
+                        return $r->customer->last_name . ' ' . $r->customer->first_name . '様 ' .
+                               $r->start_time . '-' . $r->end_time;
+                    })->implode('、');
+
+                    \Filament\Notifications\Notification::make()
+                        ->danger()
+                        ->title('予約が重複しています')
+                        ->body("選択された時間帯には既に予約があります：\n{$conflictDetails}\n\n別の時間帯を選択してください。")
+                        ->persistent()
+                        ->send();
+                    return;
+                }
+
+                // 容量チェック
+                $availabilityCheck = $this->canReserveAtTimeSlot(
+                    $this->newReservation['start_time'],
+                    $endTime->format('H:i'),
+                    $store,
+                    \Carbon\Carbon::parse($this->newReservation['date']),
+                    $lineType
+                );
+
+                if (!$availabilityCheck['can_reserve']) {
+                    \Filament\Notifications\Notification::make()
+                        ->danger()
+                        ->title('予約枠が満席です')
+                        ->body($availabilityCheck['reason'] ?: 'この時間帯は予約枠が満席です。別の時間帯を選択してください。')
+                        ->persistent()
+                        ->send();
+                    return;
+                }
             }
 
             // 予約番号を生成
@@ -2647,7 +2718,7 @@ class ReservationTimelineWidget extends Widget
     /**
      * 特定の時間スロットで予約が可能かどうかを判定（両モード対応）
      */
-    public function canReserveAtTimeSlot($startTime, $endTime, $store = null, $date = null): array
+    public function canReserveAtTimeSlot($startTime, $endTime, $store = null, $date = null, $lineType = null): array
     {
         if (!$store) {
             $store = Store::find($this->selectedStore);
@@ -2662,7 +2733,8 @@ class ReservationTimelineWidget extends Widget
             'total_capacity' => 0,
             'existing_reservations' => 0,
             'reason' => '',
-            'mode' => $store->use_staff_assignment ? 'staff_shift' : 'business_hours'
+            'mode' => $store->use_staff_assignment ? 'staff_shift' : 'business_hours',
+            'line_type' => $lineType  // 追加：チェック対象のライン
         ];
 
         // 営業時間チェック（スタッフシフトモードではスキップ）
@@ -2676,11 +2748,26 @@ class ReservationTimelineWidget extends Widget
             ->whereDate('reservation_date', $date->format('Y-m-d'))
             ->whereNotIn('status', ['cancelled', 'canceled'])
             ->where(function ($q) use ($startTime, $endTime) {
-                // 時間重複チェック
+                // 時間重複チェック（境界を含まない: 10:00-10:30と10:30-11:00は重複しない）
                 $q->where('start_time', '<', $endTime)
                   ->where('end_time', '>', $startTime);
             })
             ->get();
+
+        // デバッグログ
+        \Log::debug("🔍 canReserveAtTimeSlot called", [
+            'startTime' => $startTime,
+            'endTime' => $endTime,
+            'lineType' => $lineType,
+            'existingReservations_count' => $existingReservations->count(),
+            'reservations' => $existingReservations->map(fn($r) => [
+                'id' => $r->id,
+                'start' => $r->start_time,
+                'end' => $r->end_time,
+                'line_type' => $r->line_type ?? 'null',
+                'is_sub' => $r->is_sub
+            ])
+        ]);
 
         // スタッフシフトモードの場合、サブ枠を除外
         if ($store->use_staff_assignment) {
@@ -2695,7 +2782,7 @@ class ReservationTimelineWidget extends Widget
             return $this->checkStaffShiftModeAvailability($startTime, $endTime, $store, $date, $existingReservations, $result);
         } else {
             // 営業時間ベースモード
-            return $this->checkBusinessHoursModeAvailability($startTime, $endTime, $store, $date, $existingReservations, $result);
+            return $this->checkBusinessHoursModeAvailability($startTime, $endTime, $store, $date, $existingReservations, $result, $lineType);
         }
     }
 
@@ -2745,28 +2832,52 @@ class ReservationTimelineWidget extends Widget
     /**
      * 営業時間ベースモードでの予約可能性チェック
      */
-    private function checkBusinessHoursModeAvailability($startTime, $endTime, $store, $date, $existingReservations, $result): array
+    private function checkBusinessHoursModeAvailability($startTime, $endTime, $store, $date, $existingReservations, $result, $lineType = null): array
     {
         $mainSeats = $store->main_lines_count ?? 3;
         $subSeats = 1; // サブライン固定1
 
         // メインライン容量チェック
-        $mainReservations = $existingReservations->where('is_sub', false)->count();
+        $mainReservations = $existingReservations->where('is_sub', false)->where('line_type', '!=', 'sub')->count();
         $availableMainSeats = max(0, $mainSeats - $mainReservations);
 
         // サブライン容量チェック
-        $subReservations = $existingReservations->where('is_sub', true)->count();
+        $subReservations = $existingReservations->where(function($r) {
+            return $r->is_sub || $r->line_type === 'sub';
+        })->count();
         $availableSubSeats = max(0, $subSeats - $subReservations);
 
-        $totalCapacity = $mainSeats + $subSeats;
-        $totalAvailable = $availableMainSeats + $availableSubSeats;
+        // ライン種別が指定されている場合は、そのラインのみで判定
+        if ($lineType === 'sub') {
+            // サブラインのみチェック
+            $result['total_capacity'] = $subSeats;
+            $result['available_slots'] = $availableSubSeats;
+            $result['can_reserve'] = $availableSubSeats > 0;
 
-        $result['total_capacity'] = $totalCapacity;
-        $result['available_slots'] = $totalAvailable;
-        $result['can_reserve'] = $totalAvailable > 0;
+            if (!$result['can_reserve']) {
+                $result['reason'] = "サブラインは満席です（サブ: {$subSeats}席）";
+            }
+        } elseif ($lineType === 'main') {
+            // メインラインのみチェック
+            $result['total_capacity'] = $mainSeats;
+            $result['available_slots'] = $availableMainSeats;
+            $result['can_reserve'] = $availableMainSeats > 0;
 
-        if (!$result['can_reserve']) {
-            $result['reason'] = "この時間帯の予約枠は満席です（メイン: {$mainSeats}席、サブ: {$subSeats}席）";
+            if (!$result['can_reserve']) {
+                $result['reason'] = "メインラインは満席です（メイン: {$mainSeats}席）";
+            }
+        } else {
+            // ライン種別未指定の場合は全体で判定（後方互換性）
+            $totalCapacity = $mainSeats + $subSeats;
+            $totalAvailable = $availableMainSeats + $availableSubSeats;
+
+            $result['total_capacity'] = $totalCapacity;
+            $result['available_slots'] = $totalAvailable;
+            $result['can_reserve'] = $totalAvailable > 0;
+
+            if (!$result['can_reserve']) {
+                $result['reason'] = "この時間帯の予約枠は満席です（メイン: {$mainSeats}席、サブ: {$subSeats}席）";
+            }
         }
 
         return $result;

@@ -632,12 +632,30 @@
                                         // 予約可否の詳細情報を取得
                                         $availabilityResult = null;
                                         $tooltipMessage = '';
-                                        if (!$hasReservation && !$isBlocked && isset($currentStore)) {
-                                            $endTime = \Carbon\Carbon::parse($slot)->addMinutes($currentStore->reservation_slot_duration ?? 30)->format('H:i');
-                                            $availabilityResult = $this->canReserveAtTimeSlot($slot, $endTime, $currentStore, \Carbon\Carbon::parse($selectedDate));
+
+                                        // クリック可否判定: スロット開始時点で空きがあればクリック可能
+                                        // （予約時間は後でユーザーが選択するため、ここでは厳密にチェックしない）
+                                        $canClickSlot = !$hasReservation && !$isBlocked;
+
+                                        if ($canClickSlot && isset($currentStore)) {
+                                            // 参考情報として最小予約時間での可否をチェック（ツールチップ表示用）
+                                            $minDuration = $currentStore->reservation_slot_duration ?? 30;
+                                            $endTime = \Carbon\Carbon::parse($slot)->addMinutes($minDuration)->format('H:i');
+
+                                            // ライン種別を判定して渡す
+                                            $checkLineType = null;
+                                            if (isset($seat['type'])) {
+                                                if ($seat['type'] === 'sub') {
+                                                    $checkLineType = 'sub';
+                                                } elseif ($seat['type'] === 'main' || in_array($seatKey, range(1, $mainSeats ?? 3))) {
+                                                    $checkLineType = 'main';
+                                                }
+                                            }
+                                            $availabilityResult = $this->canReserveAtTimeSlot($slot, $endTime, $currentStore, \Carbon\Carbon::parse($selectedDate), $checkLineType);
 
                                             if (!$availabilityResult['can_reserve']) {
-                                                $tooltipMessage = $availabilityResult['reason'] ?: '予約不可';
+                                                // 最小予約時間では入らないが、短い時間なら入る可能性がある
+                                                $tooltipMessage = "クリックして予約時間を選択してください";
                                             } else {
                                                 $tooltipMessage = "予約可能（空き: {$availabilityResult['available_slots']}/{$availabilityResult['total_capacity']}席）";
                                             }
@@ -682,41 +700,17 @@
                                         $isClickable = false;
 
                                         if (!$hasReservation && !$isBlocked && !$isPast) {
-                                            // スタッフシフトモードでは、availabilityResultの判定を優先
+                                            // スタッフシフトモードでは、スタッフ不在の場合のみクリック不可
                                             if (isset($timelineData['useStaffAssignment']) && $timelineData['useStaffAssignment']) {
-                                                if ($availabilityResult) {
-                                                    $isClickable = $availabilityResult['can_reserve'] ?? false;
-                                                    // スタッフ不在の場合は、どのラインもクリック不可
-                                                    if (!$isClickable && strpos($availabilityResult['reason'] ?? '', 'スタッフ') !== false) {
-                                                        $hasNoStaff = true;
-                                                    }
+                                                // スタッフ不在チェックのみ（容量チェックはモーダルで行う）
+                                                if ($hasNoStaff) {
+                                                    $isClickable = false;
+                                                } else {
+                                                    $isClickable = true;  // スタッフがいればクリック可能
                                                 }
                                             } else {
-                                                // 営業時間ベースモードの判定
-                                                try {
-                                                    if ($availabilityResult) {
-                                                        $isClickable = $availabilityResult['can_reserve'] ?? false;
-                                                    }
-                                                } catch (\Exception $e) {
-                                                    // エラーの場合は従来の個別判定にフォールバック
-                                                    $isWithinBusinessHours = true;
-                                                    $store = $currentStore;
-                                                    if ($store) {
-                                                        $dayOfWeek = $slotDateTime->format('l');
-                                                        $closingTime = '20:00'; // デフォルト
-
-                                                        if (isset($store->business_hours[$dayOfWeek])) {
-                                                            $closingTime = $store->business_hours[$dayOfWeek]['close'] ?? '20:00';
-                                                        } elseif (isset($store->business_hours['close'])) {
-                                                            $closingTime = $store->business_hours['close'];
-                                                        }
-
-                                                        $closingDateTime = \Carbon\Carbon::parse($selectedDate . ' ' . $closingTime);
-                                                        $minEndTime = $slotDateTime->copy()->addMinutes(60);
-                                                        $isWithinBusinessHours = $minEndTime->lte($closingDateTime);
-                                                    }
-                                                    $isClickable = !$hasNoStaff && $isWithinBusinessHours;
-                                                }
+                                                // 営業時間ベースモードは常にクリック可能（容量チェックはモーダルで行う）
+                                                $isClickable = $canClickSlot && !$hasNoStaff;
                                             }
                                         }
                                         $isPastClickable = !$hasReservation && !$isBlocked && $isPast && !$hasNoStaff;
