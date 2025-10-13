@@ -45,16 +45,40 @@ class MedicalRecordResource extends Resource
                                             ->searchable()
                                             ->getSearchResultsUsing(function (string $search) {
                                                 $user = auth()->user();
+                                                $dbDriver = \DB::connection()->getDriverName();
+                                                $search = trim($search);
+
+                                                // ベースクエリ
                                                 $query = Customer::query();
 
-                                                // 検索条件
-                                                $query->where(function ($q) use ($search) {
-                                                    $q->where('last_name', 'like', "%{$search}%")
-                                                      ->orWhere('first_name', 'like', "%{$search}%")
-                                                      ->orWhere('phone', 'like', "%{$search}%")
-                                                      ->orWhere('last_name_kana', 'like', "%{$search}%")
-                                                      ->orWhere('first_name_kana', 'like', "%{$search}%");
-                                                });
+                                                // 検索条件（CustomerResourceと同じロジック）
+                                                if ($dbDriver === 'mysql') {
+                                                    $query->where(function ($q) use ($search) {
+                                                        $q->where('last_name', 'like', "%{$search}%")
+                                                          ->orWhere('first_name', 'like', "%{$search}%")
+                                                          ->orWhere('last_name_kana', 'like', "%{$search}%")
+                                                          ->orWhere('first_name_kana', 'like', "%{$search}%")
+                                                          ->orWhere('phone', 'like', "%{$search}%")
+                                                          ->orWhere('email', 'like', "%{$search}%")
+                                                          ->orWhereRaw('CONCAT(last_name, first_name) LIKE ?', ["%{$search}%"])
+                                                          ->orWhereRaw('CONCAT(last_name, " ", first_name) LIKE ?', ["%{$search}%"])
+                                                          ->orWhereRaw('CONCAT(last_name_kana, first_name_kana) LIKE ?', ["%{$search}%"])
+                                                          ->orWhereRaw('CONCAT(last_name_kana, " ", first_name_kana) LIKE ?', ["%{$search}%"]);
+                                                    });
+                                                } else {
+                                                    $query->where(function ($q) use ($search) {
+                                                        $q->where('last_name', 'like', "%{$search}%")
+                                                          ->orWhere('first_name', 'like', "%{$search}%")
+                                                          ->orWhere('last_name_kana', 'like', "%{$search}%")
+                                                          ->orWhere('first_name_kana', 'like', "%{$search}%")
+                                                          ->orWhere('phone', 'like', "%{$search}%")
+                                                          ->orWhere('email', 'like', "%{$search}%")
+                                                          ->orWhereRaw('(last_name || first_name) LIKE ?', ["%{$search}%"])
+                                                          ->orWhereRaw('(last_name || " " || first_name) LIKE ?', ["%{$search}%"])
+                                                          ->orWhereRaw('(last_name_kana || first_name_kana) LIKE ?', ["%{$search}%"])
+                                                          ->orWhereRaw('(last_name_kana || " " || first_name_kana) LIKE ?', ["%{$search}%"]);
+                                                    });
+                                                }
 
                                                 // 権限による絞り込み
                                                 if (!$user->hasRole('super_admin')) {
