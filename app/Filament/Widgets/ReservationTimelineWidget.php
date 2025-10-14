@@ -2791,7 +2791,35 @@ class ReservationTimelineWidget extends Widget
      */
     private function checkStaffShiftModeAvailability($startTime, $endTime, $store, $date, $existingReservations, $result): array
     {
-        // その時間帯に勤務可能なスタッフ数を取得
+        // ブロックされた時間帯を取得
+        $blockedPeriods = \App\Models\BlockedTimePeriod::where('store_id', $store->id)
+            ->whereDate('blocked_date', $date->format('Y-m-d'))
+            ->get();
+
+        // 全体ブロック（line_type=null, staff_id=null）のチェック
+        $hasGlobalBlock = $blockedPeriods->contains(function ($block) use ($startTime, $endTime, $date) {
+            if ($block->line_type !== null || $block->staff_id !== null) {
+                return false;
+            }
+
+            $blockStart = Carbon::parse($date->format('Y-m-d') . ' ' . $block->start_time);
+            $blockEnd = Carbon::parse($date->format('Y-m-d') . ' ' . $block->end_time);
+            $slotStart = Carbon::parse($date->format('Y-m-d') . ' ' . $startTime);
+            $slotEnd = Carbon::parse($date->format('Y-m-d') . ' ' . $endTime);
+
+            return (
+                ($slotStart->gte($blockStart) && $slotStart->lt($blockEnd)) ||
+                ($slotEnd->gt($blockStart) && $slotEnd->lte($blockEnd)) ||
+                ($slotStart->lte($blockStart) && $slotEnd->gte($blockEnd))
+            );
+        });
+
+        if ($hasGlobalBlock) {
+            $result['reason'] = 'この時間帯はブロックされています';
+            return $result;
+        }
+
+        // その時間帯に勤務可能なスタッフ数を取得（ブロック除外）
         $shifts = \App\Models\Shift::where('store_id', $store->id)
             ->whereDate('shift_date', $date->format('Y-m-d'))
             ->where('status', 'scheduled')
@@ -2800,11 +2828,39 @@ class ReservationTimelineWidget extends Widget
 
         $availableStaffCount = 0;
         foreach ($shifts as $shift) {
-            $shiftStart = Carbon::parse($shift->start_time);
-            $shiftEnd = Carbon::parse($shift->end_time);
+            $shiftStart = Carbon::parse($date->format('Y-m-d') . ' ' . $shift->start_time);
+            $shiftEnd = Carbon::parse($date->format('Y-m-d') . ' ' . $shift->end_time);
+            $slotStart = Carbon::parse($date->format('Y-m-d') . ' ' . $startTime);
+            $slotEnd = Carbon::parse($date->format('Y-m-d') . ' ' . $endTime);
 
-            // 予約時間とシフト時間が重なっているかチェック
-            if (Carbon::parse($startTime)->lt($shiftEnd) && Carbon::parse($endTime)->gt($shiftStart)) {
+            // 予約時間がシフト時間に完全に収まるかチェック
+            if (!($slotStart->gte($shiftStart) && $slotEnd->lte($shiftEnd))) {
+                continue;
+            }
+
+            // このスタッフがブロックされているかチェック
+            $isBlocked = $blockedPeriods->contains(function ($block) use ($shift, $slotStart, $slotEnd, $date) {
+                // staff_id指定のブロックのみチェック（全体ブロックは既にチェック済み）
+                if (empty($block->staff_id)) {
+                    return false;
+                }
+
+                // このスタッフのブロックか確認
+                if ($block->staff_id != $shift->user_id) {
+                    return false;
+                }
+
+                $blockStart = Carbon::parse($date->format('Y-m-d') . ' ' . $block->start_time);
+                $blockEnd = Carbon::parse($date->format('Y-m-d') . ' ' . $block->end_time);
+
+                return (
+                    ($slotStart->gte($blockStart) && $slotStart->lt($blockEnd)) ||
+                    ($slotEnd->gt($blockStart) && $slotEnd->lte($blockEnd)) ||
+                    ($slotStart->lte($blockStart) && $slotEnd->gte($blockEnd))
+                );
+            });
+
+            if (!$isBlocked) {
                 $availableStaffCount++;
             }
         }
