@@ -672,11 +672,12 @@
                                                 } elseif (isset($seat['shift'])) {
                                                     $shift = $seat['shift'];
                                                     $slotTime = \Carbon\Carbon::parse($selectedDate . ' ' . $slot);
-                                                    $shiftStart = \Carbon\Carbon::parse($shift->start_time);
-                                                    $shiftEnd = \Carbon\Carbon::parse($shift->end_time);
+                                                    // シフト時刻に日付を追加
+                                                    $shiftStart = \Carbon\Carbon::parse($selectedDate . ' ' . $shift->start_time);
+                                                    $shiftEnd = \Carbon\Carbon::parse($selectedDate . ' ' . $shift->end_time);
 
-                                                    // シフト時間外は不可
-                                                    if (!$slotTime->between($shiftStart, $shiftEnd)) {
+                                                    // シフト時間外は不可（開始時刻がシフト内にあればOK）
+                                                    if ($slotTime->lt($shiftStart) || $slotTime->gte($shiftEnd)) {
                                                         $hasNoStaff = true;
                                                     }
                                                 }

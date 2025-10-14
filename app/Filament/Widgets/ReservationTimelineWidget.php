@@ -2833,6 +2833,17 @@ class ReservationTimelineWidget extends Widget
             $slotStart = Carbon::parse($date->format('Y-m-d') . ' ' . $startTime);
             $slotEnd = Carbon::parse($date->format('Y-m-d') . ' ' . $endTime);
 
+            \Log::debug('🔍 シフトチェック', [
+                'staff_id' => $shift->user_id,
+                'shift' => $shift->start_time . '-' . $shift->end_time,
+                'slot' => $startTime . '-' . $endTime,
+                'shiftStart' => $shiftStart->format('Y-m-d H:i'),
+                'shiftEnd' => $shiftEnd->format('Y-m-d H:i'),
+                'slotStart' => $slotStart->format('Y-m-d H:i'),
+                'slotEnd' => $slotEnd->format('Y-m-d H:i'),
+                'fits' => $slotStart->gte($shiftStart) && $slotEnd->lte($shiftEnd)
+            ]);
+
             // 予約時間がシフト時間に完全に収まるかチェック
             if (!($slotStart->gte($shiftStart) && $slotEnd->lte($shiftEnd))) {
                 continue;
@@ -2865,8 +2876,15 @@ class ReservationTimelineWidget extends Widget
             }
         }
 
+        \Log::debug('✅ スタッフ数チェック完了', [
+            'slot' => $startTime . '-' . $endTime,
+            'availableStaffCount' => $availableStaffCount,
+            'existingReservations' => $result['existing_reservations']
+        ]);
+
         if ($availableStaffCount === 0) {
             $result['reason'] = 'この時間帯には勤務可能なスタッフがいません';
+            \Log::debug('❌ スタッフなしで予約不可', ['slot' => $startTime . '-' . $endTime]);
             return $result;
         }
 
@@ -2877,6 +2895,13 @@ class ReservationTimelineWidget extends Widget
         $result['total_capacity'] = $totalCapacity;
         $result['available_slots'] = max(0, $totalCapacity - $result['existing_reservations']);
         $result['can_reserve'] = $result['available_slots'] > 0;
+
+        \Log::debug('📊 最終判定', [
+            'slot' => $startTime . '-' . $endTime,
+            'can_reserve' => $result['can_reserve'],
+            'available_slots' => $result['available_slots'],
+            'total_capacity' => $totalCapacity
+        ]);
 
         if (!$result['can_reserve'] && $result['available_slots'] === 0) {
             $result['reason'] = "この時間帯の予約枠は満席です（容量: {$totalCapacity}）";
