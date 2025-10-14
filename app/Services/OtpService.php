@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\OtpVerification;
+use App\Helpers\PhoneHelper;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 
@@ -23,24 +24,27 @@ class OtpService
      */
     public function sendOtp(string $phone): bool
     {
+        // 電話番号を正規化
+        $normalizedPhone = PhoneHelper::normalize($phone);
+
         // 既存の未使用OTPを無効化（古いものだけ削除）
         // 1分以内のものは残す（レート制限の判定用）
-        OtpVerification::where('phone', $phone)
+        OtpVerification::where('phone', $normalizedPhone)
             ->whereNull('verified_at')
             ->where('created_at', '<', Carbon::now()->subMinutes(1))
             ->delete();
-        
+
         // 新しいOTPを生成
         $otp = $this->generateOtp();
-        
-        // データベースに保存
+
+        // データベースに保存（正規化した電話番号で保存）
         OtpVerification::create([
-            'phone' => $phone,
+            'phone' => $normalizedPhone,
             'otp_code' => $otp,
             'expires_at' => Carbon::now()->addMinutes(5),
         ]);
-        
-        // SMS送信
+
+        // SMS送信（元の電話番号形式で送信）
         return $this->smsService->sendOtp($phone, $otp);
     }
     
@@ -53,26 +57,29 @@ class OtpService
      */
     public function verifyOtp(string $phone, string $otp): bool
     {
-        $verification = OtpVerification::where('phone', $phone)
+        // 電話番号を正規化
+        $normalizedPhone = PhoneHelper::normalize($phone);
+
+        $verification = OtpVerification::where('phone', $normalizedPhone)
             ->where('otp_code', $otp)
             ->whereNull('verified_at')
             ->where('expires_at', '>', Carbon::now())
             ->first();
-        
+
         if (!$verification) {
             // 試行回数を増やす
-            OtpVerification::where('phone', $phone)
+            OtpVerification::where('phone', $normalizedPhone)
                 ->whereNull('verified_at')
                 ->increment('attempts');
-            
+
             return false;
         }
-        
+
         // 検証成功
         $verification->update([
             'verified_at' => Carbon::now(),
         ]);
-        
+
         return true;
     }
     
@@ -84,14 +91,17 @@ class OtpService
      */
     public function canResend(string $phone): bool
     {
-        $lastOtp = OtpVerification::where('phone', $phone)
+        // 電話番号を正規化
+        $normalizedPhone = PhoneHelper::normalize($phone);
+
+        $lastOtp = OtpVerification::where('phone', $normalizedPhone)
             ->latest()
             ->first();
-        
+
         if (!$lastOtp) {
             return true;
         }
-        
+
         // 1分以上経過していれば再送信可能
         return $lastOtp->created_at->diffInMinutes(Carbon::now()) >= 1;
     }

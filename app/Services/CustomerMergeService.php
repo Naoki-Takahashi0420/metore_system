@@ -313,6 +313,15 @@ class CustomerMergeService
                 Log::info("サブスク{$subscriptionCount}件を移行", ['from' => $sourceId, 'to' => $baseId]);
             }
         }
+
+        // 回数券を移行
+        $ticketCount = DB::table('customer_tickets')->where('customer_id', $sourceId)->count();
+        if ($ticketCount > 0) {
+            DB::table('customer_tickets')
+                ->where('customer_id', $sourceId)
+                ->update(['customer_id' => $baseId]);
+            Log::info("回数券{$ticketCount}件を移行", ['from' => $sourceId, 'to' => $baseId]);
+        }
     }
 
     /**

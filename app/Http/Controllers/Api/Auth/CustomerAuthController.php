@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Services\OtpService;
+use App\Helpers\PhoneHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -81,7 +82,7 @@ class CustomerAuthController extends Controller
             'otp_code' => ['required', 'string', 'size:6'],
             'remember_me' => ['boolean'],
         ]);
-        
+
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
@@ -92,7 +93,7 @@ class CustomerAuthController extends Controller
                 ],
             ], 422);
         }
-        
+
         // OTP検証
         if (!$this->otpService->verifyOtp($request->phone, $request->otp_code)) {
             return response()->json([
@@ -103,9 +104,15 @@ class CustomerAuthController extends Controller
                 ],
             ], 401);
         }
-        
-        // 顧客を取得
-        $customer = Customer::where('phone', $request->phone)->first();
+
+        // 電話番号を正規化して顧客を検索
+        $normalizedPhone = PhoneHelper::normalize($request->phone);
+        $customer = Customer::where('phone', $normalizedPhone)->first();
+
+        // 正規化した電話番号で見つからない場合、元の電話番号でも検索（後方互換性）
+        if (!$customer) {
+            $customer = Customer::where('phone', $request->phone)->first();
+        }
         
         if (!$customer) {
             // 電話番号がDBに存在しない場合はアクセス拒否
