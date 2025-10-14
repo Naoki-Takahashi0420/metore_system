@@ -1489,12 +1489,40 @@ class PublicReservationController extends Controller
                 // シフトチェック：スタッフシフトベースの場合、または指名スタッフがいる場合
                 if ($store->use_staff_assignment || $selectedStaffId) {
                     $dayShifts = $shifts->get($dateStr, collect());
-                    $availableStaffCount = $dayShifts->filter(function ($shift) use ($slotTime, $slotEnd) {
+
+                    // スタッフシフトモードの場合、ブロック除外を考慮してスタッフ数をカウント
+                    $availableStaffCount = $dayShifts->filter(function ($shift) use ($slotTime, $slotEnd, $dayBlocks, $dateStr) {
                         $shiftStart = Carbon::parse($shift->shift_date->format('Y-m-d') . ' ' . $shift->start_time);
                         $shiftEnd = Carbon::parse($shift->shift_date->format('Y-m-d') . ' ' . $shift->end_time);
 
                         // 予約時間がシフト時間に収まるかチェック（休憩時間は考慮しない）
-                        return $slotTime->gte($shiftStart) && $slotEnd->lte($shiftEnd);
+                        if (!($slotTime->gte($shiftStart) && $slotEnd->lte($shiftEnd))) {
+                            return false;
+                        }
+
+                        // このスタッフがブロックされているかチェック
+                        $isBlocked = $dayBlocks->contains(function ($block) use ($slotTime, $slotEnd, $shift, $dateStr) {
+                            // staff_id指定のブロックのみチェック（全体ブロックは既にチェック済み）
+                            if (empty($block->staff_id)) {
+                                return false;
+                            }
+
+                            // このスタッフのブロックか確認
+                            if ($block->staff_id != $shift->user_id) {
+                                return false;
+                            }
+
+                            $blockStart = Carbon::parse($dateStr . ' ' . $block->start_time);
+                            $blockEnd = Carbon::parse($dateStr . ' ' . $block->end_time);
+
+                            return (
+                                ($slotTime->gte($blockStart) && $slotTime->lt($blockEnd)) ||
+                                ($slotEnd->gt($blockStart) && $slotEnd->lte($blockEnd)) ||
+                                ($slotTime->lte($blockStart) && $slotEnd->gte($blockEnd))
+                            );
+                        });
+
+                        return !$isBlocked;
                     })->count();
 
                     // 指名スタッフがいる場合
