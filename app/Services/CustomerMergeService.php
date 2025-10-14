@@ -256,7 +256,26 @@ class CustomerMergeService
     {
         // 空欄を埋める方式でマージ
         $base->phone = $base->phone ?: $source->phone;
-        $base->email = $base->email ?: $source->email;
+
+        // メールアドレス: UNIQUE制約があるため、重複チェックを行う
+        if (!$base->email && $source->email) {
+            // 他の顧客が同じメールアドレスを使用していないか確認
+            $emailExists = Customer::where('email', $source->email)
+                ->where('id', '!=', $base->id)
+                ->where('id', '!=', $source->id)
+                ->exists();
+
+            if (!$emailExists) {
+                $base->email = $source->email;
+            } else {
+                Log::warning('メールアドレスが他の顧客と重複しているため、統合をスキップ', [
+                    'email' => $source->email,
+                    'base_id' => $base->id,
+                    'source_id' => $source->id
+                ]);
+            }
+        }
+
         $base->last_name_kana = $base->last_name_kana ?: $source->last_name_kana;
         $base->first_name_kana = $base->first_name_kana ?: $source->first_name_kana;
         $base->gender = $base->gender ?: $source->gender;

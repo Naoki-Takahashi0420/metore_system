@@ -34,24 +34,37 @@ class CustomerImportService
         // CSVファイルを読み込み（文字エンコーディングを自動判定して変換）
         $csvData = file_get_contents($filePath);
 
-        // 文字エンコーディングを自動判定
-        $encoding = mb_detect_encoding($csvData, ['UTF-8', 'SJIS-win', 'SJIS', 'EUC-JP', 'JIS'], true);
+        // 文字エンコーディングを自動判定（UTF-16LEを追加）
+        $encoding = mb_detect_encoding($csvData, ['UTF-8', 'UTF-16LE', 'UTF-16BE', 'SJIS-win', 'SJIS', 'EUC-JP', 'JIS'], true);
 
         if ($encoding && $encoding !== 'UTF-8') {
             $csvData = mb_convert_encoding($csvData, 'UTF-8', $encoding);
         }
-        
+
+        // BOM（Byte Order Mark）を削除
+        $csvData = preg_replace('/^\xEF\xBB\xBF/', '', $csvData);
+
         // 一時ファイルに保存
         $tempFile = tempnam(sys_get_temp_dir(), 'csv');
         file_put_contents($tempFile, $csvData);
-        
-        // CSVを解析
+
+        // CSVを解析（タブ区切りも考慮）
         $handle = fopen($tempFile, 'r');
-        $header = fgetcsv($handle);
+
+        // 最初の行を読んでデリミタを判定
+        $firstLine = fgets($handle);
+        rewind($handle);
+
+        $delimiter = ','; // デフォルトはカンマ
+        if (strpos($firstLine, "\t") !== false) {
+            $delimiter = "\t"; // タブ区切り
+        }
+
+        $header = fgetcsv($handle, 0, $delimiter);
         
         $rowNumber = 2; // ヘッダーの次の行から
-        
-        while (($row = fgetcsv($handle)) !== false) {
+
+        while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
             $this->processRow($row, $header, $rowNumber, $storeId);
             $rowNumber++;
         }
@@ -86,23 +99,21 @@ class CustomerImportService
                 return $value ?? '';
             }, $data);
             
-            // 必須フィールドチェック（顧客名のみ必須）
-            if (empty($data['顧客名'])) {
-                $this->addError($rowNumber, '必須項目（顧客名）が不足');
+            // 必須フィールドチェック（氏名または姓・名が必須）
+            $hasName = !empty($data['氏名']) || (!empty($data['姓']) || !empty($data['名']));
+            if (!$hasName) {
+                $this->addError($rowNumber, '必須項目（氏名または姓・名）が不足');
                 $this->errorCount++;
                 return;
             }
             
-            // 電話番号の取得（電話番号1が優先、なければ電話番号2）
-            $phoneNumber1 = trim($data['電話番号1'] ?? '');
-            $phoneNumber2 = trim($data['電話番号2'] ?? '');
+            // 電話番号の取得（単一カラムまたは複数カラム）
+            $phoneRaw = trim($data['電話番号'] ?? $data['電話番号1'] ?? '');
 
             // より厳密な空チェック
             $phoneNumber = '';
-            if (!empty($phoneNumber1) && $phoneNumber1 !== '' && $phoneNumber1 !== '　' && $phoneNumber1 !== '-') {
-                $phoneNumber = $phoneNumber1;
-            } elseif (!empty($phoneNumber2) && $phoneNumber2 !== '' && $phoneNumber2 !== '　' && $phoneNumber2 !== '-') {
-                $phoneNumber = $phoneNumber2;
+            if (!empty($phoneRaw) && $phoneRaw !== '' && $phoneRaw !== '　' && $phoneRaw !== '-') {
+                $phoneNumber = $phoneRaw;
             }
 
             // 電話番号の正規化（電話番号がある場合のみ）
@@ -129,11 +140,20 @@ class CustomerImportService
                     return;
                 }
             } else {
-                // 電話番号がない場合は顧客名で重複チェック（同姓同名を避けるため）
-                $customerName = $this->splitName($data['顧客名']);
-                if ($customerName['last'] && $customerName['first']) {
-                    $existingCustomer = Customer::where('last_name', $customerName['last'])
-                        ->where('first_name', $customerName['first'])
+                // 電話番号がない場合は氏名または姓・名で重複チェック（同姓同名を避けるため）
+                $lastName = trim($data['姓'] ?? '');
+                $firstName = trim($data['名'] ?? '');
+
+                // 氏名カラムから姓名を分割
+                if (empty($lastName) && empty($firstName) && !empty($data['氏名'])) {
+                    $customerName = $this->splitName($data['氏名']);
+                    $lastName = $customerName['last'];
+                    $firstName = $customerName['first'];
+                }
+
+                if ($lastName && $firstName) {
+                    $existingCustomer = Customer::where('last_name', $lastName)
+                        ->where('first_name', $firstName)
                         ->where('store_id', $storeId)
                         ->whereNull('phone') // 電話番号なしの顧客同士で比較
                         ->first();
@@ -173,11 +193,25 @@ class CustomerImportService
      */
     private function mapToCustomerData(array $data, int $storeId): array
     {
-        // 名前を分割
-        $nameParts = $this->splitName($data['顧客名'] ?? '');
-        
-        // ふりがなを分割
-        $kanaParts = $this->splitName($data['ふりがな'] ?? '');
+        // 名前を取得（姓・名が直接ある場合はそれを使用、なければ氏名から分割）
+        $lastName = trim($data['姓'] ?? '');
+        $firstName = trim($data['名'] ?? '');
+
+        if (empty($lastName) && empty($firstName) && !empty($data['氏名'])) {
+            $nameParts = $this->splitName($data['氏名']);
+            $lastName = $nameParts['last'];
+            $firstName = $nameParts['first'];
+        }
+
+        // ふりがなを取得（セイ・メイが直接ある場合はそれを使用）
+        $lastNameKana = trim($data['セイ'] ?? '');
+        $firstNameKana = trim($data['メイ'] ?? '');
+
+        if (empty($lastNameKana) && empty($firstNameKana) && !empty($data['ふりがな'])) {
+            $kanaParts = $this->splitName($data['ふりがな']);
+            $lastNameKana = $kanaParts['last'];
+            $firstNameKana = $kanaParts['first'];
+        }
         
         // 性別を変換
         $gender = $this->convertGender($data['性別'] ?? '');
@@ -189,19 +223,16 @@ class CustomerImportService
         $notes = $this->buildNotes($data);
         
         // 日付をパース
-        $birthDate = $this->parseDate($data['誕生日'] ?? '');
-        $createdAt = $this->parseDateTime($data['顧客登録日時'] ?? '');
+        $birthDate = $this->parseDate($data['生年月日'] ?? $data['誕生日'] ?? '');
+        $createdAt = $this->parseDateTime($data['初回登録日'] ?? $data['顧客登録日時'] ?? '');
         $updatedAt = $this->parseDateTime($data['更新日時'] ?? '');
         
-        // 電話番号を取得（優先順位: 電話番号1 > 電話番号2）
-        $phoneNumber1 = trim($data['電話番号1'] ?? '');
-        $phoneNumber2 = trim($data['電話番号2'] ?? '');
-        
+        // 電話番号を取得（単一カラムまたは複数カラム）
+        $phoneRaw = trim($data['電話番号'] ?? $data['電話番号1'] ?? '');
+
         $phoneNumber = '';
-        if (!empty($phoneNumber1) && $phoneNumber1 !== '' && $phoneNumber1 !== '　' && $phoneNumber1 !== '-') {
-            $phoneNumber = $phoneNumber1;
-        } elseif (!empty($phoneNumber2) && $phoneNumber2 !== '' && $phoneNumber2 !== '　' && $phoneNumber2 !== '-') {
-            $phoneNumber = $phoneNumber2;
+        if (!empty($phoneRaw) && $phoneRaw !== '' && $phoneRaw !== '　' && $phoneRaw !== '-') {
+            $phoneNumber = $phoneRaw;
         }
         
         // 電話番号の正規化（電話番号がある場合のみ）
@@ -211,12 +242,12 @@ class CustomerImportService
         }
 
         return [
-            'customer_number' => !empty($data['顧客番号']) ? $data['顧客番号'] : null,
+            'customer_number' => !empty($data['お客様番号']) ? $data['お客様番号'] : (!empty($data['顧客番号']) ? $data['顧客番号'] : null),
             'store_id' => $storeId,
-            'last_name' => $nameParts['last'],
-            'first_name' => $nameParts['first'],
-            'last_name_kana' => $this->toKatakana($kanaParts['last']),
-            'first_name_kana' => $this->toKatakana($kanaParts['first']),
+            'last_name' => $lastName,
+            'first_name' => $firstName,
+            'last_name_kana' => $this->toKatakana($lastNameKana),
+            'first_name_kana' => $this->toKatakana($firstNameKana),
             'phone' => $normalizedPhone, // nullを許可
             'email' => $this->validateEmail($data['メールアドレス'] ?? ''),
             'gender' => $gender,
@@ -384,22 +415,42 @@ class CustomerImportService
     private function buildNotes(array $data): ?string
     {
         $notes = [];
-        
+
+        // 引き継ぎ内容（新しいカラム）
+        if (!empty($data['引き継ぎ内容'])) {
+            $notes[] = "【引き継ぎ内容】" . $data['引き継ぎ内容'];
+        }
+
+        // 予約ステータス
+        if (!empty($data['予約ステータス'])) {
+            $notes[] = "【予約ステータス】" . $data['予約ステータス'];
+        }
+
+        // 最終来店日
+        if (!empty($data['最終来店日'])) {
+            $notes[] = "【最終来店日】" . $data['最終来店日'];
+        }
+
+        // 最終予約メニュー
+        if (!empty($data['最終予約メニュー'])) {
+            $notes[] = "【最終予約メニュー】" . $data['最終予約メニュー'];
+        }
+
         // 記念日
         if (!empty($data['記念日'])) {
             $notes[] = "【記念日】" . $data['記念日'];
         }
-        
+
         // 顧客特性
         if (!empty($data['顧客特性'])) {
             $notes[] = "【顧客特性】" . $data['顧客特性'];
         }
-        
+
         // 来店区分
         if (!empty($data['来店区分'])) {
             $notes[] = "【来店区分】" . $data['来店区分'];
         }
-        
+
         // 補助電話番号
         if (!empty($data['電話番号2'])) {
             $notes[] = "【電話番号2】" . $data['電話番号2'];
@@ -407,22 +458,22 @@ class CustomerImportService
         if (!empty($data['電話番号3'])) {
             $notes[] = "【電話番号3】" . $data['電話番号3'];
         }
-        
+
         // 血液型
         if (!empty($data['血液型'])) {
             $notes[] = "【血液型】" . $data['血液型'];
         }
-        
+
         // 来店動機
         if (!empty($data['来店動機'])) {
             $notes[] = "【来店動機】" . $data['来店動機'];
         }
-        
+
         // 来店詳細
         if (!empty($data['来店詳細'])) {
             $notes[] = "【来店詳細】" . $data['来店詳細'];
         }
-        
+
         return empty($notes) ? null : implode("\n", $notes);
     }
 
