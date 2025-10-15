@@ -105,16 +105,14 @@ class CustomerAuthController extends Controller
             ], 401);
         }
 
-        // 電話番号を正規化して顧客を検索
+        // 電話番号を正規化して顧客を検索（複数店舗対応）
         $normalizedPhone = PhoneHelper::normalize($request->phone);
-        $customer = Customer::where('phone', $normalizedPhone)->first();
+        $customers = Customer::where('phone', $normalizedPhone)
+            ->orWhere('phone', $request->phone)
+            ->with('store')
+            ->get();
 
-        // 正規化した電話番号で見つからない場合、元の電話番号でも検索（後方互換性）
-        if (!$customer) {
-            $customer = Customer::where('phone', $request->phone)->first();
-        }
-        
-        if (!$customer) {
+        if ($customers->isEmpty()) {
             // 電話番号がDBに存在しない場合はアクセス拒否
             return response()->json([
                 'success' => false,
@@ -125,25 +123,56 @@ class CustomerAuthController extends Controller
                 ],
             ], 404);
         }
-        
-        // 予約履歴があるかチェック
-        $hasReservations = $customer->reservations()
-            ->whereIn('status', ['confirmed', 'completed', 'booked'])
-            ->exists();
-            
-        if (!$hasReservations) {
-            // 顧客データは存在するが予約履歴がない場合もアクセス拒否
+
+        // 予約履歴があるかチェック（いずれかの店舗で予約があればOK）
+        $customersWithReservations = $customers->filter(function ($customer) {
+            return $customer->reservations()
+                ->whereIn('status', ['confirmed', 'completed', 'booked'])
+                ->exists();
+        });
+
+        if ($customersWithReservations->isEmpty()) {
+            // すべての店舗で予約履歴がない場合はアクセス拒否
             return response()->json([
                 'success' => false,
                 'error' => [
-                    'code' => 'NO_RESERVATION_HISTORY', 
+                    'code' => 'NO_RESERVATION_HISTORY',
                     'message' => '予約履歴が見つかりません。初回のお客様は新規予約からお申し込みください。',
                     'redirect_to_booking' => true,
                 ],
             ], 403);
         }
-        
-        // 既存顧客の場合
+
+        // 複数店舗に登録がある場合は店舗選択画面へ
+        if ($customersWithReservations->count() > 1) {
+            // 仮トークンを生成してセッションに保存
+            $tempToken = Str::random(60);
+            session([
+                'temp_customer_multistore_' . $tempToken => [
+                    'phone' => $normalizedPhone,
+                    'remember_me' => $request->boolean('remember_me', false),
+                    'expires_at' => now()->addMinutes(10),
+                ]
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'requires_store_selection' => true,
+                    'temp_token' => $tempToken,
+                    'stores' => $customersWithReservations->map(function ($customer) {
+                        return [
+                            'customer_id' => $customer->id,
+                            'store_id' => $customer->store_id,
+                            'store_name' => $customer->store->name,
+                        ];
+                    })->values(),
+                ],
+            ]);
+        }
+
+        // 1店舗のみの場合は従来通りトークンを発行
+        $customer = $customersWithReservations->first();
         $customer->update([
             'phone_verified_at' => now(),
             'last_visit_at' => now(),
@@ -157,7 +186,7 @@ class CustomerAuthController extends Controller
         $expiresAt = $rememberMe ? now()->addDays(30) : now()->addHours(2);
 
         $token = $customer->createToken($tokenName, ['*'], $expiresAt)->plainTextToken;
-        
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -175,6 +204,103 @@ class CustomerAuthController extends Controller
         ]);
     }
     
+    /**
+     * 店舗選択（複数店舗に登録がある場合）
+     */
+    public function selectStore(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'temp_token' => ['required', 'string'],
+            'customer_id' => ['required', 'integer'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'VALIDATION_ERROR',
+                    'message' => '入力内容に誤りがあります',
+                    'details' => $validator->errors(),
+                ],
+            ], 422);
+        }
+
+        // 仮トークン検証
+        $tempData = session('temp_customer_multistore_' . $request->temp_token);
+
+        if (!$tempData || now()->isAfter($tempData['expires_at'])) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'INVALID_TOKEN',
+                    'message' => 'トークンが無効です',
+                ],
+            ], 401);
+        }
+
+        // 指定されたcustomer_idが正規化された電話番号と一致するか確認
+        $customer = Customer::where('id', $request->customer_id)
+            ->where('phone', $tempData['phone'])
+            ->first();
+
+        if (!$customer) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'INVALID_CUSTOMER',
+                    'message' => '不正な顧客IDです',
+                ],
+            ], 400);
+        }
+
+        // 予約履歴があるか再確認
+        $hasReservations = $customer->reservations()
+            ->whereIn('status', ['confirmed', 'completed', 'booked'])
+            ->exists();
+
+        if (!$hasReservations) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'NO_RESERVATION_HISTORY',
+                    'message' => 'この店舗での予約履歴が見つかりません。',
+                    'redirect_to_booking' => true,
+                ],
+            ], 403);
+        }
+
+        // セッションクリア
+        session()->forget('temp_customer_multistore_' . $request->temp_token);
+
+        // 最終訪問日時を更新
+        $customer->update([
+            'phone_verified_at' => now(),
+            'last_visit_at' => now(),
+        ]);
+
+        // トークン生成
+        $rememberMe = $tempData['remember_me'] ?? false;
+        $tokenName = $rememberMe ? 'customer-auth-remember' : 'customer-auth';
+        $expiresAt = $rememberMe ? now()->addDays(30) : now()->addHours(2);
+
+        $token = $customer->createToken($tokenName, ['*'], $expiresAt)->plainTextToken;
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'token' => $token,
+                'customer' => [
+                    'id' => $customer->id,
+                    'name' => $customer->full_name,
+                    'last_name' => $customer->last_name,
+                    'first_name' => $customer->first_name,
+                    'phone' => $customer->phone,
+                    'email' => $customer->email,
+                ],
+            ],
+        ]);
+    }
+
     /**
      * 顧客登録
      */
@@ -261,12 +387,123 @@ class CustomerAuthController extends Controller
     }
     
     /**
+     * 店舗切り替え（マイページ内）
+     */
+    public function switchStore(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'phone' => ['required', 'string', 'regex:/^[0-9\-]+$/'],
+            'otp_code' => ['required', 'string', 'size:6'],
+            'customer_id' => ['required', 'integer'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'VALIDATION_ERROR',
+                    'message' => '入力内容に誤りがあります',
+                    'details' => $validator->errors(),
+                ],
+            ], 422);
+        }
+
+        // OTP検証（セキュリティのため）
+        if (!$this->otpService->verifyOtp($request->phone, $request->otp_code)) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'INVALID_OTP',
+                    'message' => '認証コードが正しくないか、有効期限が切れています',
+                ],
+            ], 401);
+        }
+
+        // 現在のユーザーの電話番号と一致するか確認
+        $currentCustomer = $request->user();
+        $normalizedPhone = PhoneHelper::normalize($request->phone);
+
+        if ($currentCustomer->phone !== $normalizedPhone && $currentCustomer->phone !== $request->phone) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'PHONE_MISMATCH',
+                    'message' => '電話番号が一致しません',
+                ],
+            ], 403);
+        }
+
+        // 切り替え先の顧客データを取得
+        $targetCustomer = Customer::where('id', $request->customer_id)
+            ->where(function ($query) use ($normalizedPhone, $request) {
+                $query->where('phone', $normalizedPhone)
+                    ->orWhere('phone', $request->phone);
+            })
+            ->first();
+
+        if (!$targetCustomer) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'INVALID_CUSTOMER',
+                    'message' => '不正な顧客IDです',
+                ],
+            ], 400);
+        }
+
+        // 予約履歴があるか確認
+        $hasReservations = $targetCustomer->reservations()
+            ->whereIn('status', ['confirmed', 'completed', 'booked'])
+            ->exists();
+
+        if (!$hasReservations) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'NO_RESERVATION_HISTORY',
+                    'message' => 'この店舗での予約履歴が見つかりません。',
+                ],
+            ], 403);
+        }
+
+        // 現在のトークンを削除
+        $currentCustomer->currentAccessToken()->delete();
+
+        // 最終訪問日時を更新
+        $targetCustomer->update([
+            'phone_verified_at' => now(),
+            'last_visit_at' => now(),
+        ]);
+
+        // 新しいトークンを発行
+        $tokenName = 'customer-auth';
+        $expiresAt = now()->addHours(2);
+
+        $token = $targetCustomer->createToken($tokenName, ['*'], $expiresAt)->plainTextToken;
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'token' => $token,
+                'customer' => [
+                    'id' => $targetCustomer->id,
+                    'name' => $targetCustomer->full_name,
+                    'last_name' => $targetCustomer->last_name,
+                    'first_name' => $targetCustomer->first_name,
+                    'phone' => $targetCustomer->phone,
+                    'email' => $targetCustomer->email,
+                ],
+            ],
+        ]);
+    }
+
+    /**
      * ログアウト
      */
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
-        
+
         return response()->json([
             'success' => true,
             'data' => [

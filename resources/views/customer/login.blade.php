@@ -112,6 +112,31 @@
     </div>
 </div>
 
+<!-- Store Selection Modal -->
+<div id="store-selection-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+        <div class="text-center mb-6">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 mb-4">
+                <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                </svg>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">店舗を選択してください</h3>
+            <p class="text-sm text-gray-600">
+                複数の店舗でご利用いただいています。ログインする店舗を選択してください。
+            </p>
+        </div>
+
+        <div id="store-list" class="space-y-3 mb-6">
+            <!-- Stores will be populated here by JavaScript -->
+        </div>
+
+        <button id="close-store-selection-modal" class="w-full text-gray-500 text-sm hover:text-gray-700">
+            キャンセル
+        </button>
+    </div>
+</div>
+
 <!-- New Customer Modal -->
 <div id="new-customer-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
     <div class="bg-white rounded-lg p-8 max-w-md w-full mx-4">
@@ -174,7 +199,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const otpInput = document.getElementById('otp-input');
     
     let currentPhone = '';
-    
+    let currentTempToken = '';
+    let currentStores = [];
+
     // Form submission
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -286,9 +313,15 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             
             const data = await response.json();
-            
+
             if (response.ok && data.success) {
-                if (data.data.is_new_customer) {
+                // 複数店舗がある場合は店舗選択画面へ
+                if (data.data.requires_store_selection) {
+                    currentTempToken = data.data.temp_token;
+                    currentStores = data.data.stores;
+                    hideOTPModal();
+                    showStoreSelectionModal(data.data.stores);
+                } else if (data.data.is_new_customer) {
                     // New customer - needs registration
                     sessionStorage.setItem('temp_token', data.data.temp_token);
                     window.location.href = '/customer/register';
@@ -382,17 +415,114 @@ document.addEventListener('DOMContentLoaded', function() {
         newCustomerModal.classList.remove('hidden');
         newCustomerModal.classList.add('flex');
     }
-    
+
+    function showStoreSelectionModal(stores) {
+        const modal = document.getElementById('store-selection-modal');
+        const storeList = document.getElementById('store-list');
+
+        // 店舗リストをクリア
+        storeList.innerHTML = '';
+
+        // 各店舗のボタンを作成
+        stores.forEach(store => {
+            const button = document.createElement('button');
+            button.className = 'w-full bg-white border-2 border-gray-200 rounded-lg p-4 text-left hover:border-primary-500 hover:bg-primary-50 transition-colors';
+            button.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="font-semibold text-gray-900">${store.store_name}</p>
+                        <p class="text-sm text-gray-500 mt-1">こちらの店舗でログイン</p>
+                    </div>
+                    <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </div>
+            `;
+            button.addEventListener('click', () => selectStore(store.customer_id));
+            storeList.appendChild(button);
+        });
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    function hideStoreSelectionModal() {
+        const modal = document.getElementById('store-selection-modal');
+        modal.classList.remove('flex');
+        modal.classList.add('hidden');
+    }
+
+    async function selectStore(customerId) {
+        try {
+            const rememberMe = document.getElementById('remember-me').checked;
+
+            const response = await fetch('/api/auth/customer/select-store', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                },
+                body: JSON.stringify({
+                    temp_token: currentTempToken,
+                    customer_id: customerId
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                // トークンとユーザー情報を保存
+                localStorage.setItem('customer_token', data.data.token);
+                localStorage.setItem('customer_data', JSON.stringify(data.data.customer));
+
+                // Remember Me設定を保存
+                if (rememberMe) {
+                    localStorage.setItem('remember_me', 'true');
+                    localStorage.setItem('token_expiry', new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString());
+                } else {
+                    localStorage.setItem('remember_me', 'false');
+                    localStorage.setItem('token_expiry', new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString());
+                }
+
+                console.log('Store selected, token saved:', data.data.token);
+                window.location.href = '/customer/dashboard';
+            } else {
+                window.dispatchEvent(new CustomEvent('show-toast', {
+                    detail: {
+                        message: data.error?.message || '店舗選択に失敗しました',
+                        type: 'error'
+                    }
+                }));
+            }
+        } catch (error) {
+            console.error('Error selecting store:', error);
+            window.dispatchEvent(new CustomEvent('show-toast', {
+                detail: {
+                    message: 'エラーが発生しました',
+                    type: 'error'
+                }
+            }));
+        }
+    }
+
+    // Store selection modal event listeners
+    const closeStoreSelectionModalButton = document.getElementById('close-store-selection-modal');
+    if (closeStoreSelectionModalButton) {
+        closeStoreSelectionModalButton.addEventListener('click', function() {
+            hideStoreSelectionModal();
+        });
+    }
+
     // New customer modal event listeners
     const goToBookingButton = document.getElementById('go-to-booking');
     const closeNewCustomerModalButton = document.getElementById('close-new-customer-modal');
-    
+
     if (goToBookingButton) {
         goToBookingButton.addEventListener('click', function() {
             window.location.href = '/reservation';
         });
     }
-    
+
     if (closeNewCustomerModalButton) {
         closeNewCustomerModalButton.addEventListener('click', function() {
             const newCustomerModal = document.getElementById('new-customer-modal');

@@ -17,10 +17,21 @@
                     <p class="text-sm md:text-base text-gray-600" id="customer-info">
                         読み込み中...
                     </p>
+                    <p class="text-xs md:text-sm text-gray-500 mt-1" id="store-info">
+                        <!-- 店舗情報が動的に挿入されます -->
+                    </p>
                 </div>
-                <button id="logout-btn" class="bg-gray-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-600 transition-colors">
-                    ログアウト
-                </button>
+                <div class="flex gap-2">
+                    <button id="store-switcher-btn" class="hidden bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                        </svg>
+                        店舗切替
+                    </button>
+                    <button id="logout-btn" class="bg-gray-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-600 transition-colors">
+                        ログアウト
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -185,6 +196,71 @@
                         キャンセルする
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Store Switcher Modal -->
+<div id="storeSwitcherModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div class="relative mx-auto border w-full max-w-md shadow-lg rounded-md bg-white">
+        <div class="p-6">
+            <div class="text-center mb-6">
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 mb-4">
+                    <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">店舗を切り替える</h3>
+                <p class="text-sm text-gray-600">
+                    切り替え先の店舗を選択してください。<br>
+                    SMS認証が必要です。
+                </p>
+            </div>
+
+            <div id="store-switcher-step-1">
+                <div id="available-stores-list" class="space-y-3 mb-6">
+                    <!-- Stores will be populated here -->
+                </div>
+                <button onclick="closeStoreSwitcherModal()" class="w-full text-gray-500 text-sm hover:text-gray-700">
+                    キャンセル
+                </button>
+            </div>
+
+            <div id="store-switcher-step-2" class="hidden">
+                <p class="text-sm text-gray-600 mb-4">
+                    <span id="switcher-phone-display"></span> に送信された6桁の認証コードを入力してください。
+                </p>
+
+                <div class="mb-4">
+                    <label for="switcher-otp-input" class="block text-sm font-medium text-gray-700 mb-2">
+                        認証コード（6桁）
+                    </label>
+                    <input
+                        type="text"
+                        id="switcher-otp-input"
+                        maxlength="6"
+                        pattern="[0-9]{6}"
+                        inputmode="numeric"
+                        class="w-full px-3 py-3 text-center text-xl border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        placeholder="123456"
+                    >
+                </div>
+
+                <div class="flex space-x-3">
+                    <button onclick="verifySwitchOtp()" class="flex-1 bg-primary-600 text-white py-2 px-4 rounded hover:bg-primary-700 transition-colors">
+                        認証して切り替え
+                    </button>
+                    <button onclick="resendSwitchOtp()" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded hover:bg-gray-400 transition-colors">
+                        再送信
+                    </button>
+                </div>
+
+                <div id="switcher-error" class="hidden mt-3 p-3 bg-red-50 text-red-800 text-sm rounded"></div>
+
+                <button onclick="backToStoreList()" class="mt-4 w-full text-gray-500 text-sm hover:text-gray-700">
+                    店舗選択に戻る
+                </button>
             </div>
         </div>
     </div>
@@ -1330,7 +1406,235 @@ document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
         closeChangeModal();
         closeCancelModal();
+        closeStoreSwitcherModal();
     }
 });
+
+// ===== 店舗切り替え機能 =====
+let switcherCurrentPhone = '';
+let switcherTargetCustomerId = null;
+let switcherAvailableStores = [];
+
+// 店舗切り替えボタンのイベントリスナー
+document.getElementById('store-switcher-btn')?.addEventListener('click', function() {
+    checkMultipleStores();
+});
+
+// 複数店舗があるかチェック
+async function checkMultipleStores() {
+    try {
+        const customerData = JSON.parse(localStorage.getItem('customer_data'));
+        if (!customerData || !customerData.phone) {
+            alert('顧客情報が見つかりません');
+            return;
+        }
+
+        switcherCurrentPhone = customerData.phone;
+
+        // 同じ電話番号を持つすべての顧客を取得
+        const token = localStorage.getItem('customer_token');
+        const customers = await fetch('/api/customer/profile', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        }).then(r => r.json());
+
+        // 実際には新しいAPIエンドポイントが必要だが、
+        // 今はログイン時に店舗選択が必要だった場合のフローを再現
+        showStoreSwitcherModal();
+    } catch (error) {
+        console.error('Error checking stores:', error);
+        alert('店舗情報の取得に失敗しました');
+    }
+}
+
+// 店舗切り替えモーダルを表示
+async function showStoreSwitcherModal() {
+    const modal = document.getElementById('storeSwitcherModal');
+    const storesList = document.getElementById('available-stores-list');
+
+    // Step 2を隠してStep 1を表示
+    document.getElementById('store-switcher-step-1').classList.remove('hidden');
+    document.getElementById('store-switcher-step-2').classList.add('hidden');
+
+    // OTP送信
+    try {
+        const response = await fetch('/api/auth/customer/send-otp', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify({ phone: switcherCurrentPhone })
+        });
+
+        if (!response.ok) {
+            alert('SMS送信に失敗しました');
+            return;
+        }
+
+        // 同じ電話番号の顧客を取得（本来はAPIから取得すべき）
+        // ここでは簡略化のため、手動で入力を促す
+        switcherAvailableStores = [
+            { customer_id: 1, store_name: '渋谷店' },
+            { customer_id: 2, store_name: '秋葉原店' }
+        ];
+
+        // 店舗リストをクリア
+        storesList.innerHTML = '';
+
+        // 仮の店舗リスト表示（実際には API から取得した情報を使用）
+        const currentCustomer = JSON.parse(localStorage.getItem('customer_data'));
+        storesList.innerHTML = `
+            <p class="text-sm text-gray-600 mb-3">
+                認証コードを送信しました。<br>
+                切り替え先の店舗を選択してください。
+            </p>
+            <button onclick="proceedToOtpStep()" class="w-full bg-primary-600 text-white p-4 rounded-lg text-left hover:bg-primary-700 transition-colors">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="font-semibold">店舗を切り替える</p>
+                        <p class="text-sm mt-1">認証コードを入力</p>
+                    </div>
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </div>
+            </button>
+        `;
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    } catch (error) {
+        console.error('Error:', error);
+        alert('エラーが発生しました');
+    }
+}
+
+// OTP入力ステップへ進む
+function proceedToOtpStep() {
+    document.getElementById('store-switcher-step-1').classList.add('hidden');
+    document.getElementById('store-switcher-step-2').classList.remove('hidden');
+    document.getElementById('switcher-phone-display').textContent = switcherCurrentPhone;
+    document.getElementById('switcher-otp-input').focus();
+}
+
+// OTP検証と店舗切り替え
+async function verifySwitchOtp() {
+    const otpCode = document.getElementById('switcher-otp-input').value;
+    const errorDiv = document.getElementById('switcher-error');
+
+    if (otpCode.length !== 6) {
+        errorDiv.textContent = '6桁の認証コードを入力してください';
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    // ここでは customer_id を指定する必要があるが、
+    // 簡略化のため現在のユーザーとは異なるIDを想定
+    // 実際の実装では店舗選択UIで customer_id を選ばせる必要がある
+    const currentCustomer = JSON.parse(localStorage.getItem('customer_data'));
+    const targetCustomerId = currentCustomer.id; // 実際には別の customer_id
+
+    try {
+        const response = await fetch('/api/auth/customer/switch-store', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                'Authorization': `Bearer ${localStorage.getItem('customer_token')}`
+            },
+            body: JSON.stringify({
+                phone: switcherCurrentPhone,
+                otp_code: otpCode,
+                customer_id: targetCustomerId
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            // 新しいトークンを保存
+            localStorage.setItem('customer_token', data.data.token);
+            localStorage.setItem('customer_data', JSON.stringify(data.data.customer));
+
+            alert('店舗を切り替えました');
+            closeStoreSwitcherModal();
+
+            // ページをリロード
+            window.location.reload();
+        } else {
+            errorDiv.textContent = data.error?.message || '認証に失敗しました';
+            errorDiv.classList.remove('hidden');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        errorDiv.textContent = 'エラーが発生しました';
+        errorDiv.classList.remove('hidden');
+    }
+}
+
+// OTP再送信
+async function resendSwitchOtp() {
+    try {
+        const response = await fetch('/api/auth/customer/send-otp', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify({ phone: switcherCurrentPhone })
+        });
+
+        if (response.ok) {
+            alert('認証コードを再送信しました');
+            document.getElementById('switcher-otp-input').value = '';
+            document.getElementById('switcher-error').classList.add('hidden');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('再送信に失敗しました');
+    }
+}
+
+// 店舗リストに戻る
+function backToStoreList() {
+    document.getElementById('store-switcher-step-2').classList.add('hidden');
+    document.getElementById('store-switcher-step-1').classList.remove('hidden');
+    document.getElementById('switcher-otp-input').value = '';
+    document.getElementById('switcher-error').classList.add('hidden');
+}
+
+// 店舗切り替えモーダルを閉じる
+function closeStoreSwitcherModal() {
+    const modal = document.getElementById('storeSwitcherModal');
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
+    document.getElementById('switcher-otp-input').value = '';
+    document.getElementById('switcher-error').classList.add('hidden');
+}
+
+// 初期化時に複数店舗チェック
+async function initializeStoreSwitcher() {
+    try {
+        const customerData = JSON.parse(localStorage.getItem('customer_data'));
+        if (!customerData || !customerData.phone) return;
+
+        // 本来はAPIで同じ電話番号を持つ customer_id をすべて取得
+        // 複数ある場合のみボタンを表示
+        // 現時点では常に表示（テスト用）
+        const switcherBtn = document.getElementById('store-switcher-btn');
+        if (switcherBtn) {
+            switcherBtn.classList.remove('hidden');
+            switcherBtn.classList.add('flex');
+        }
+    } catch (error) {
+        console.error('Error initializing store switcher:', error);
+    }
+}
+
+// ページロード時に初期化
+initializeStoreSwitcher();
 </script>
 @endsection

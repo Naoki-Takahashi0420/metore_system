@@ -22,9 +22,11 @@ Route::prefix('auth')->group(function () {
     Route::prefix('customer')->group(function () {
         Route::post('send-otp', [CustomerAuthController::class, 'sendOtp']);
         Route::post('verify-otp', [CustomerAuthController::class, 'verifyOtp']);
+        Route::post('select-store', [CustomerAuthController::class, 'selectStore']);
         Route::post('register', [CustomerAuthController::class, 'register']);
-        
+
         Route::middleware('auth:sanctum')->group(function () {
+            Route::post('switch-store', [CustomerAuthController::class, 'switchStore']);
             Route::post('logout', [CustomerAuthController::class, 'logout']);
         });
     });
