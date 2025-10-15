@@ -441,6 +441,25 @@ class CustomerResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('store.name')
                     ->label('店舗')
+                    ->getStateUsing(function ($record) {
+                        // store_idがある場合はそれを表示
+                        if ($record->store) {
+                            return $record->store->name;
+                        }
+
+                        // store_idがない場合は最新予約の店舗を表示
+                        $latestReservation = $record->reservations()
+                            ->with('store')
+                            ->latest('reservation_date')
+                            ->latest('start_time')
+                            ->first();
+
+                        if ($latestReservation && $latestReservation->store) {
+                            return $latestReservation->store->name . ' (予約履歴)';
+                        }
+
+                        return '-';
+                    })
                     ->sortable()
                     ->searchable(),
                 Tables\Columns\TextColumn::make('last_name')
