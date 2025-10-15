@@ -106,7 +106,7 @@
                     <p class="text-sm text-gray-600">{{ $selectedMenu->duration_minutes }}分 / ¥{{ number_format($selectedMenu->price) }}</p>
                 </div>
                 @if(!Session::has('is_reservation_change'))
-                <a href="{{ route('reservation.menu') }}" class="text-blue-500 hover:text-blue-700 text-sm underline">
+                <a href="{{ route('reservation.menu') . (request()->has('ctx') ? '?ctx=' . request('ctx') : '') }}" class="text-blue-500 hover:text-blue-700 text-sm underline">
                     メニューを変更
                 </a>
                 @endif

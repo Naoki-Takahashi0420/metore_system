@@ -1237,24 +1237,29 @@ class PublicReservationController extends Controller
         $isSubscriptionBooking = Session::get('is_subscription_booking', false);
 
         // 既存顧客（マイページ・回数券・サブスク全て）に5日間制限を適用
+        // 店舗ごとに独立した5日間ルールを適用するため、store_idでもフィルタ
         if ($customerId) {
             \Log::info('既存予約取得開始（5日間ルール適用）', [
                 'customer_id' => $customerId,
+                'store_id' => $storeId,
                 'customer_id_type' => gettype($customerId),
                 'is_subscription' => $isSubscriptionBooking
             ]);
 
             $existingReservations = Reservation::where('customer_id', $customerId)
+                ->where('store_id', $storeId)
                 ->whereNotIn('status', ['cancelled', 'canceled'])
                 ->get();
 
             \Log::info('既存予約クエリ結果', [
                 'customer_id' => $customerId,
+                'store_id' => $storeId,
                 'reservations_count' => $existingReservations->count(),
                 'reservations' => $existingReservations->map(function($r) {
                     return [
                         'id' => $r->id,
                         'customer_id' => $r->customer_id,
+                        'store_id' => $r->store_id,
                         'reservation_date' => $r->reservation_date,
                         'status' => $r->status
                     ];
@@ -1272,6 +1277,7 @@ class PublicReservationController extends Controller
 
             \Log::info('既存顧客の5日間隔チェック準備完了', [
                 'customer_id' => $customerId,
+                'store_id' => $storeId,
                 'existing_dates' => $existingReservationDates,
                 'is_subscription' => $isSubscriptionBooking
             ]);
