@@ -25,12 +25,16 @@ class CustomerSubscriptionController extends Controller
             ->pluck('id')
             ->toArray();
 
-        // 現在ログイン中の店舗のサブスクリプションのみ取得
-        $subscriptions = CustomerSubscription::whereIn('customer_id', $customerIds)
-            ->where('status', 'active')
-            ->where('store_id', $customer->store_id)
-            ->with(['store'])
-            ->get();
+        // サブスクリプションを取得（店舗IDがある場合のみフィルタリング）
+        $query = CustomerSubscription::whereIn('customer_id', $customerIds)
+            ->where('status', 'active');
+
+        // 顧客に店舗IDが設定されている場合のみ店舗でフィルタリング
+        if ($customer->store_id) {
+            $query->where('store_id', $customer->store_id);
+        }
+
+        $subscriptions = $query->with(['store'])->get();
         
         return response()->json([
             'data' => $subscriptions->map(function ($sub) {

@@ -385,9 +385,15 @@ class ReservationController extends Controller
             ->pluck('id')
             ->toArray();
 
-        // 現在ログイン中の店舗の予約のみ取得
-        $reservations = Reservation::whereIn('customer_id', $customerIds)
-            ->where('store_id', $customer->store_id)
+        // 予約を取得（店舗IDがある場合のみフィルタリング）
+        $query = Reservation::whereIn('customer_id', $customerIds);
+
+        // 顧客に店舗IDが設定されている場合のみ店舗でフィルタリング
+        if ($customer->store_id) {
+            $query->where('store_id', $customer->store_id);
+        }
+
+        $reservations = $query
             ->with(['store', 'menu', 'staff'])
             ->orderBy('reservation_date', 'desc')
             ->orderBy('start_time', 'desc')

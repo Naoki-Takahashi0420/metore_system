@@ -70,11 +70,17 @@ class CustomerController extends Controller
                 ->pluck('id')
                 ->toArray();
 
-            // 現在ログイン中の店舗のカルテのみ取得
-            $medicalRecords = \App\Models\MedicalRecord::whereIn('customer_id', $customerIds)
-                ->whereHas('reservation', function ($query) use ($customer) {
-                    $query->where('store_id', $customer->store_id);
-                })
+            // カルテを取得（店舗IDがある場合のみフィルタリング）
+            $query = \App\Models\MedicalRecord::whereIn('customer_id', $customerIds);
+
+            // 顧客に店舗IDが設定されている場合のみ店舗でフィルタリング
+            if ($customer->store_id) {
+                $query->whereHas('reservation', function ($q) use ($customer) {
+                    $q->where('store_id', $customer->store_id);
+                });
+            }
+
+            $medicalRecords = $query
                 ->with([
                     'reservation.store',
                     'reservation.menu',
