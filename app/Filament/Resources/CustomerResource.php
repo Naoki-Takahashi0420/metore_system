@@ -708,7 +708,7 @@ class CustomerResource extends Resource
                     ->label('利用店舗')
                     ->options(function () {
                         $user = auth()->user();
-                        
+
                         if ($user->hasRole('super_admin')) {
                             return \App\Models\Store::where('is_active', true)->pluck('name', 'id');
                         } elseif ($user->hasRole('owner')) {
@@ -720,8 +720,12 @@ class CustomerResource extends Resource
                     })
                     ->query(function ($query, array $data) {
                         if (!empty($data['value'])) {
-                            $query->whereHas('reservations', function ($subQuery) use ($data) {
-                                $subQuery->where('store_id', $data['value']);
+                            // 複数店舗対応：store_idまたは予約履歴で検索
+                            $query->where(function ($q) use ($data) {
+                                $q->where('store_id', $data['value'])
+                                  ->orWhereHas('reservations', function ($subQuery) use ($data) {
+                                      $subQuery->where('store_id', $data['value']);
+                                  });
                             });
                         }
                         return $query;
