@@ -379,8 +379,17 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (customerData) {
         try {
             const customer = JSON.parse(customerData);
-            document.getElementById('customer-info').textContent = 
+            document.getElementById('customer-info').textContent =
                 `${customer.last_name} ${customer.first_name} 様`;
+
+            // 店舗情報を表示
+            if (customer.store_id) {
+                // 店舗情報を取得して表示
+                fetchStoreInfo(customer.store_id);
+            } else {
+                document.getElementById('store-info').innerHTML =
+                    '<span class="inline-flex items-center px-2 py-1 rounded-md bg-gray-100 text-gray-600 text-xs">全店舗</span>';
+            }
         } catch (e) {
             console.error('Customer data parse error:', e);
         }
@@ -399,6 +408,27 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     });
 });
+
+// 店舗情報を取得して表示
+async function fetchStoreInfo(storeId) {
+    try {
+        const response = await fetch(`/api/stores/${storeId}`);
+        if (response.ok) {
+            const data = await response.json();
+            const store = data.data || data;
+            document.getElementById('store-info').innerHTML =
+                `<span class="inline-flex items-center px-2 py-1 rounded-md bg-blue-100 text-blue-800 text-xs font-medium">
+                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    ${store.name}
+                </span>`;
+        }
+    } catch (error) {
+        console.error('店舗情報の取得に失敗:', error);
+    }
+}
 
 async function fetchReservations() {
     try {
