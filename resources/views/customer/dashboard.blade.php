@@ -1066,6 +1066,7 @@ function canCancel(reservation) {
 // マイページから既存顧客として予約
 async function goToReservation() {
     const token = localStorage.getItem('customer_token');
+    const customerData = JSON.parse(localStorage.getItem('customer_data') || '{}');
 
     if (!token) {
         // トークンがない場合はログインページにリダイレクト
@@ -1074,16 +1075,23 @@ async function goToReservation() {
     }
 
     try {
-        // マイページからの予約用コンテキストを生成（直近の店舗が自動選択される）
+        // マイページからの予約用コンテキストを生成
+        const requestBody = {
+            source: 'mypage'  // マイページからの予約であることを明示
+        };
+
+        // 現在ログイン中の店舗IDを含める
+        if (customerData.store_id) {
+            requestBody.store_id = customerData.store_id;
+        }
+
         const response = await fetch('/api/customer/reservation-context/medical-record', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                source: 'mypage'  // マイページからの予約であることを明示
-            })
+            body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {
