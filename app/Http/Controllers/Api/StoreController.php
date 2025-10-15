@@ -34,9 +34,11 @@ class StoreController extends Controller
     /**
      * 店舗詳細取得
      */
-    public function show(Store $store)
+    public function show($id)
     {
-        if (!$store->is_active) {
+        $store = Store::find($id);
+
+        if (!$store || !$store->is_active) {
             return response()->json([
                 'message' => '店舗が見つかりません'
             ], 404);
