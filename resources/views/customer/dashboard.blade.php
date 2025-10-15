@@ -382,13 +382,18 @@ document.addEventListener('DOMContentLoaded', async function() {
             document.getElementById('customer-info').textContent =
                 `${customer.last_name} ${customer.first_name} 様`;
 
+            console.log('=== 顧客情報 ===');
+            console.log('customer_data:', customer);
+            console.log('store_id:', customer.store_id);
+
             // 店舗情報を表示
             if (customer.store_id) {
-                // 店舗情報を取得して表示
+                console.log('店舗IDあり - fetchStoreInfo呼び出し:', customer.store_id);
                 fetchStoreInfo(customer.store_id);
             } else {
-                document.getElementById('store-info').innerHTML =
-                    '<span class="inline-flex items-center px-2 py-1 rounded-md bg-gray-100 text-gray-600 text-xs">全店舗</span>';
+                console.log('店舗IDなし - 予約から店舗を推測');
+                // store_idがない場合は予約履歴から店舗を推測
+                displayStoreFromReservations();
             }
         } catch (e) {
             console.error('Customer data parse error:', e);
@@ -427,6 +432,48 @@ async function fetchStoreInfo(storeId) {
         }
     } catch (error) {
         console.error('店舗情報の取得に失敗:', error);
+    }
+}
+
+// 予約履歴から店舗を推測して表示
+async function displayStoreFromReservations() {
+    try {
+        const token = localStorage.getItem('customer_token');
+        const response = await fetch('/api/customer/reservations', {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            const reservations = data.data || [];
+
+            if (reservations.length > 0) {
+                // 最新の予約から店舗を取得
+                const latestReservation = reservations[0];
+                if (latestReservation.store) {
+                    document.getElementById('store-info').innerHTML =
+                        `<span class="inline-flex items-center px-2 py-1 rounded-md bg-gray-100 text-gray-600 text-xs font-medium">
+                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                            ${latestReservation.store.name} 他
+                        </span>`;
+                    return;
+                }
+            }
+
+            // 予約がない場合は全店舗と表示
+            document.getElementById('store-info').innerHTML =
+                '<span class="inline-flex items-center px-2 py-1 rounded-md bg-gray-100 text-gray-600 text-xs font-medium">全店舗</span>';
+        }
+    } catch (error) {
+        console.error('予約情報の取得に失敗:', error);
+        document.getElementById('store-info').innerHTML =
+            '<span class="inline-flex items-center px-2 py-1 rounded-md bg-gray-100 text-gray-600 text-xs font-medium">店舗未選択</span>';
     }
 }
 
