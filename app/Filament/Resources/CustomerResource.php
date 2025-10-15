@@ -429,12 +429,16 @@ class CustomerResource extends Resource
                     ->sortable(),
                 Tables\Columns\IconColumn::make('has_subscription')
                     ->label('サブスク')
-                    ->getStateUsing(fn ($record) => $record->hasActiveSubscription())
+                    ->getStateUsing(function ($record) {
+                        // デフォルトで非表示にして負荷を軽減
+                        return false;
+                    })
                     ->boolean()
                     ->trueIcon('heroicon-o-check-badge')
                     ->falseIcon('heroicon-o-minus-circle')
                     ->trueColor('success')
-                    ->falseColor('gray'),
+                    ->falseColor('gray')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('store.name')
                     ->label('店舗')
                     ->sortable()
@@ -568,11 +572,10 @@ class CustomerResource extends Resource
                 Tables\Columns\TextColumn::make('stores_count')
                     ->label('利用店舗数')
                     ->getStateUsing(function ($record) {
-                        return $record->reservations()
-                            ->distinct('store_id')
-                            ->count('store_id');
+                        // メモリ節約のため、このカラムは無効化
+                        return '-';
                     })
-                    ->sortable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('cancellation_count')
                     ->label('キャンセル')
                     ->sortable(),
@@ -582,14 +585,13 @@ class CustomerResource extends Resource
                 Tables\Columns\BadgeColumn::make('risk_status')
                     ->label('ステータス')
                     ->getStateUsing(function ($record) {
-                        if (!$record->isHighRisk()) {
-                            return '通常';
+                        // 簡易判定（メモリ節約）
+                        if ($record->cancellation_count >= 3 || $record->no_show_count >= 2) {
+                            return '要注意(高)';
+                        } elseif ($record->cancellation_count >= 2 || $record->change_count >= 3) {
+                            return '要注意';
                         }
-                        return match($record->getRiskLevel()) {
-                            'high' => '要注意(高)',
-                            'medium' => '要注意',
-                            default => '通常'
-                        };
+                        return '通常';
                     })
                     ->color(function ($state) {
                         return match($state) {
@@ -858,7 +860,10 @@ class CustomerResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            // メモリ節約のため、デフォルトのページサイズを小さくする
+            ->defaultPaginationPageOption(25)
+            ->paginationPageOptions([10, 25, 50, 100]);
     }
 
     public static function getRelations(): array
@@ -971,7 +976,10 @@ class CustomerResource extends Resource
     
     public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
     {
-        $query = parent::getEloquentQuery();
+        $query = parent::getEloquentQuery()
+            // メモリ節約のため、必要最小限のリレーションのみ eager load
+            ->with(['store:id,name']);
+
         $user = auth()->user();
 
         if (!$user) {
