@@ -15,13 +15,20 @@ class CustomerSubscriptionController extends Controller
     public function index(Request $request)
     {
         $customer = $request->user();
-        
+
         if (!$customer) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
-        
-        $subscriptions = $customer->subscriptions()
+
+        // 同じ電話番号を持つ全顧客IDを取得
+        $customerIds = Customer::where('phone', $customer->phone)
+            ->pluck('id')
+            ->toArray();
+
+        // 現在ログイン中の店舗のサブスクリプションのみ取得
+        $subscriptions = CustomerSubscription::whereIn('customer_id', $customerIds)
             ->where('status', 'active')
+            ->where('store_id', $customer->store_id)
             ->with(['store'])
             ->get();
         

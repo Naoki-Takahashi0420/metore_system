@@ -61,10 +61,20 @@ class CustomerController extends Controller
 
             \Log::info('📋 getMedicalRecords called', [
                 'customer_id' => $customer->id,
-                'customer_name' => $customer->last_name . ' ' . $customer->first_name
+                'customer_name' => $customer->last_name . ' ' . $customer->first_name,
+                'store_id' => $customer->store_id
             ]);
 
-            $medicalRecords = $customer->medicalRecords()
+            // 同じ電話番号を持つ全顧客IDを取得
+            $customerIds = Customer::where('phone', $customer->phone)
+                ->pluck('id')
+                ->toArray();
+
+            // 現在ログイン中の店舗のカルテのみ取得
+            $medicalRecords = \App\Models\MedicalRecord::whereIn('customer_id', $customerIds)
+                ->whereHas('reservation', function ($query) use ($customer) {
+                    $query->where('store_id', $customer->store_id);
+                })
                 ->with([
                     'reservation.store',
                     'reservation.menu',

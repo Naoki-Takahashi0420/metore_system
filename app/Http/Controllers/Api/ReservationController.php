@@ -379,8 +379,15 @@ class ReservationController extends Controller
     public function customerReservations(Request $request)
     {
         $customer = $request->user();
-        
-        $reservations = Reservation::where('customer_id', $customer->id)
+
+        // 同じ電話番号を持つ全顧客IDを取得
+        $customerIds = \App\Models\Customer::where('phone', $customer->phone)
+            ->pluck('id')
+            ->toArray();
+
+        // 現在ログイン中の店舗の予約のみ取得
+        $reservations = Reservation::whereIn('customer_id', $customerIds)
+            ->where('store_id', $customer->store_id)
             ->with(['store', 'menu', 'staff'])
             ->orderBy('reservation_date', 'desc')
             ->orderBy('start_time', 'desc')
