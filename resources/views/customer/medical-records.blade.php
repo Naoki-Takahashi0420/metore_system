@@ -189,12 +189,17 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // カルテ情報を取得
     try {
-        const response = await fetch('/api/customer/medical-records', {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        });
+        const headers = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        };
+
+        // 店舗IDがある場合はヘッダーに追加
+        if (customerData && customerData.store_id) {
+            headers['X-Store-Id'] = customerData.store_id;
+        }
+
+        const response = await fetch('/api/customer/medical-records', { headers });
 
         
         if (!response.ok) {
