@@ -998,8 +998,16 @@ class PublicReservationController extends Controller
         // 顧客IDの設定
         $customerId = null;
 
+        // API認証済み（マイページ）の場合は、認証情報から顧客IDを取得
+        if ($request->user()) {
+            $customerId = $request->user()->id;
+            \Log::info('API認証から顧客ID取得（マイページ）', [
+                'customer_id' => $customerId,
+                'customer_name' => $request->user()->full_name
+            ]);
+        }
         // パラメータベース：コンテキストから顧客IDを取得
-        if ($context) {
+        else if ($context) {
             // 既存顧客の場合のみ顧客IDを設定
             if (isset($context['is_existing_customer']) && $context['is_existing_customer'] === true) {
                 $customerId = $context['customer_id'] ?? null;
@@ -1872,8 +1880,16 @@ class PublicReservationController extends Controller
         // コンテキストまたはセッションから既存顧客情報を取得
         $existingCustomerId = null;
 
-        // マイページまたはカルテからの予約の場合
-        if ($isExistingCustomer && isset($existingCustomer) && $existingCustomer) {
+        // 1. API認証済み（マイページ）の場合
+        if ($request->user()) {
+            $existingCustomerId = $request->user()->id;
+            \Log::info('API認証から顧客ID取得（マイページ予約確定）', [
+                'customer_id' => $existingCustomerId,
+                'customer_name' => $request->user()->full_name
+            ]);
+        }
+        // 2. マイページまたはカルテからの予約の場合（コンテキスト経由）
+        else if ($isExistingCustomer && isset($existingCustomer) && $existingCustomer) {
             $existingCustomerId = $existingCustomer->id;
             \Log::info('既存顧客（コンテキスト経由）の5日間隔制限チェック', [
                 'customer_id' => $existingCustomerId,
@@ -1881,7 +1897,7 @@ class PublicReservationController extends Controller
                 'is_from_mypage' => $isFromMyPage
             ]);
         }
-        // サブスク予約の場合（セッション経由）
+        // 3. サブスク予約の場合（セッション経由）
         else if (Session::has('is_subscription_booking') && Session::get('is_subscription_booking') === true) {
             $existingCustomerId = Session::get('customer_id');
             \Log::info('既存顧客（サブスク予約）の5日間隔制限チェック', [

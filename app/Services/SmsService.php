@@ -103,11 +103,18 @@ class SmsService
      */
     public function sendOtp(string $phone, string $otp): bool
     {
-        // SMS送信が無効化されている場合
-        if (!config('services.sns.enabled', true)) {
-            Log::info('SMS送信が無効化されています', [
+        // 開発環境ではOTPコードをログに出力
+        if (config('app.env') === 'local') {
+            Log::info('📱 SMS認証コード（開発環境用）', [
                 'phone' => $phone,
                 'otp' => $otp,
+            ]);
+        }
+
+        // SMS送信が無効化されている場合はここでリターン
+        if (!config('services.sns.enabled', true)) {
+            Log::info('SMS送信が無効化されています（OTPコードは上記のログを確認）', [
+                'phone' => $phone,
             ]);
             return true;
         }
