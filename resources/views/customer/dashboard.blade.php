@@ -1453,10 +1453,83 @@ async function startStoreSwitcher() {
             return;
         }
 
-        // OTP送信してモーダル表示
-        await showStoreSwitcherModal();
+        // 店舗選択モーダルを直接表示（OTP認証なし）
+        showStoreSelectionModal();
     } catch (error) {
         console.error('Error starting store switcher:', error);
+        alert('店舗切り替えに失敗しました');
+    }
+}
+
+// 店舗選択モーダルを表示
+function showStoreSelectionModal() {
+    const modal = document.getElementById('storeSwitcherModal');
+    const storesList = document.getElementById('available-stores-list');
+
+    // Step 2を隠してStep 1を表示
+    document.getElementById('store-switcher-step-1').classList.remove('hidden');
+    document.getElementById('store-switcher-step-2').classList.add('hidden');
+
+    // 店舗リストを作成
+    storesList.innerHTML = `
+        <p class="text-sm text-gray-600 mb-3">
+            切り替え先の店舗を選択してください
+        </p>
+        ${switcherAvailableStores.map(store => `
+            <button onclick="switchToStore(${store.customer_id}, ${store.store_id}, '${store.store_name}')" class="w-full bg-white border-2 border-gray-200 p-4 rounded-lg text-left hover:border-primary-500 hover:bg-primary-50 transition-colors mb-2">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="font-semibold text-gray-900">${store.store_name}</p>
+                        <p class="text-sm text-gray-500 mt-1">この店舗に切り替える</p>
+                    </div>
+                    <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </div>
+            </button>
+        `).join('')}
+    `;
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+// 店舗切り替え実行
+async function switchToStore(customerId, storeId, storeName) {
+    if (!confirm(`${storeName}に切り替えますか？`)) {
+        return;
+    }
+
+    try {
+        const token = localStorage.getItem('customer_token');
+        const response = await fetch('/api/auth/customer/switch-store', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                phone: switcherCurrentPhone,
+                customer_id: customerId
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('店舗切り替えに失敗しました');
+        }
+
+        const data = await response.json();
+
+        // 新しいトークンと顧客情報を保存
+        localStorage.setItem('customer_token', data.token);
+        localStorage.setItem('customer_data', JSON.stringify(data.customer));
+        localStorage.setItem('store_data', JSON.stringify(data.store));
+
+        // ページをリロード
+        window.location.reload();
+    } catch (error) {
+        console.error('Error switching store:', error);
         alert('店舗切り替えに失敗しました');
     }
 }

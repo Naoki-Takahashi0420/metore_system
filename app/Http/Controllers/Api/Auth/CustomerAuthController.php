@@ -388,12 +388,15 @@ class CustomerAuthController extends Controller
     
     /**
      * 店舗切り替え（マイページ内）
+     * 既に認証済みなので、OTP不要で店舗切り替え可能
      */
     public function switchStore(Request $request)
     {
+        // 認証済みの顧客を取得
+        $currentCustomer = $request->user();
+
         $validator = Validator::make($request->all(), [
             'phone' => ['required', 'string', 'regex:/^[0-9\-]+$/'],
-            'otp_code' => ['required', 'string', 'size:6'],
             'customer_id' => ['required', 'integer'],
         ]);
 
@@ -408,19 +411,7 @@ class CustomerAuthController extends Controller
             ], 422);
         }
 
-        // OTP検証（セキュリティのため）
-        if (!$this->otpService->verifyOtp($request->phone, $request->otp_code)) {
-            return response()->json([
-                'success' => false,
-                'error' => [
-                    'code' => 'INVALID_OTP',
-                    'message' => '認証コードが正しくないか、有効期限が切れています',
-                ],
-            ], 401);
-        }
-
         // 現在のユーザーの電話番号と一致するか確認
-        $currentCustomer = $request->user();
         $normalizedPhone = PhoneHelper::normalize($request->phone);
 
         if ($currentCustomer->phone !== $normalizedPhone && $currentCustomer->phone !== $request->phone) {
