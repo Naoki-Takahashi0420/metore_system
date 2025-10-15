@@ -168,25 +168,26 @@ async function goToReservation() {
 
 document.addEventListener('DOMContentLoaded', async function() {
     const token = localStorage.getItem('customer_token');
-    const customerData = localStorage.getItem('customer_data');
-    
+    const customerDataStr = localStorage.getItem('customer_data');
+
     // トークンがない場合はログインページにリダイレクト
     if (!token) {
         window.location.href = '/customer/login';
         return;
     }
-    
-    // 顧客情報を表示
-    if (customerData) {
+
+    // 顧客情報をパース
+    let customerData = null;
+    if (customerDataStr) {
         try {
-            const customer = JSON.parse(customerData);
-            document.getElementById('customer-info').textContent = 
-                `${customer.last_name} ${customer.first_name} 様のカルテ`;
+            customerData = JSON.parse(customerDataStr);
+            document.getElementById('customer-info').textContent =
+                `${customerData.last_name} ${customerData.first_name} 様のカルテ`;
         } catch (e) {
             console.error('Customer data parse error:', e);
         }
     }
-    
+
     // カルテ情報を取得
     try {
         const headers = {
@@ -197,6 +198,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         // 店舗IDがある場合はヘッダーに追加
         if (customerData && customerData.store_id) {
             headers['X-Store-Id'] = customerData.store_id;
+            console.log('カルテ取得 - 店舗ID:', customerData.store_id);
+        } else {
+            console.log('カルテ取得 - 店舗IDなし（全店舗）');
         }
 
         const response = await fetch('/api/customer/medical-records', { headers });
