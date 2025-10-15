@@ -486,13 +486,21 @@ async function fetchReservations() {
 async function fetchStats() {
     try {
         const token = localStorage.getItem('customer_token');
-        
+        const customerData = JSON.parse(localStorage.getItem('customer_data') || '{}');
+
         // カルテ数の取得
+        const karteHeaders = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        };
+
+        // 店舗IDがある場合はヘッダーに追加
+        if (customerData.store_id) {
+            karteHeaders['X-Store-Id'] = customerData.store_id;
+        }
+
         const karteResponse = await fetch('/api/customer/medical-records', {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
+            headers: karteHeaders
         });
         
         if (karteResponse.ok) {
