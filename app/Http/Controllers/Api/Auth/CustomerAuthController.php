@@ -472,6 +472,17 @@ class CustomerAuthController extends Controller
 
         $token = $targetCustomer->createToken($tokenName, ['*'], $expiresAt)->plainTextToken;
 
+        // 切り替え先の店舗IDを取得（予約履歴から推測）
+        $targetStoreId = $request->input('store_id');
+        if (!$targetStoreId) {
+            // store_idが指定されていない場合は、最新の予約から取得
+            $latestReservation = $targetCustomer->reservations()
+                ->whereIn('status', ['confirmed', 'completed', 'booked'])
+                ->latest('reservation_date')
+                ->first();
+            $targetStoreId = $latestReservation ? $latestReservation->store_id : null;
+        }
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -483,6 +494,7 @@ class CustomerAuthController extends Controller
                     'first_name' => $targetCustomer->first_name,
                     'phone' => $targetCustomer->phone,
                     'email' => $targetCustomer->email,
+                    'store_id' => $targetStoreId, // 切り替え先の店舗ID
                 ],
             ],
         ]);

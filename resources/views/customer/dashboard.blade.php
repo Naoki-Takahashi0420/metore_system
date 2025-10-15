@@ -403,9 +403,12 @@ document.addEventListener('DOMContentLoaded', async function() {
 async function fetchReservations() {
     try {
         const token = localStorage.getItem('customer_token');
+        const customerData = JSON.parse(localStorage.getItem('customer_data') || '{}');
+
         console.log('=== 予約データ取得開始 ===');
         console.log('Token:', token ? 'Found (' + token.substring(0, 20) + '...)' : 'Not found');
-        
+        console.log('Store ID:', customerData.store_id);
+
         if (!token) {
             console.error('No token found in localStorage');
             document.getElementById('reservations-container').innerHTML = `
@@ -415,13 +418,18 @@ async function fetchReservations() {
             `;
             return;
         }
-        
-        const response = await fetch('/api/customer/reservations', {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        });
+
+        const headers = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        };
+
+        // 店舗IDがある場合はヘッダーに追加
+        if (customerData.store_id) {
+            headers['X-Store-Id'] = customerData.store_id;
+        }
+
+        const response = await fetch('/api/customer/reservations', { headers });
         
         console.log('Response status:', response.status);
         
@@ -1511,7 +1519,8 @@ async function switchToStore(customerId, storeId, storeName) {
             },
             body: JSON.stringify({
                 phone: switcherCurrentPhone,
-                customer_id: customerId
+                customer_id: customerId,
+                store_id: storeId  // 切り替え先の店舗IDを送信
             })
         });
 

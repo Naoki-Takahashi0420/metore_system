@@ -73,10 +73,13 @@ class CustomerController extends Controller
             // カルテを取得（店舗IDがある場合のみフィルタリング）
             $query = \App\Models\MedicalRecord::whereIn('customer_id', $customerIds);
 
-            // 顧客に店舗IDが設定されている場合のみ店舗でフィルタリング
-            if ($customer->store_id) {
-                $query->whereHas('reservation', function ($q) use ($customer) {
-                    $q->where('store_id', $customer->store_id);
+            // リクエストヘッダーまたはクエリパラメータから店舗IDを取得
+            $filterStoreId = $request->header('X-Store-Id') ?? $request->input('store_id') ?? $customer->store_id;
+
+            // 店舗IDが設定されている場合のみ店舗でフィルタリング
+            if ($filterStoreId) {
+                $query->whereHas('reservation', function ($q) use ($filterStoreId) {
+                    $q->where('store_id', $filterStoreId);
                 });
             }
 

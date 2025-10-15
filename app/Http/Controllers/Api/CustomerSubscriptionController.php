@@ -29,9 +29,12 @@ class CustomerSubscriptionController extends Controller
         $query = CustomerSubscription::whereIn('customer_id', $customerIds)
             ->where('status', 'active');
 
-        // 顧客に店舗IDが設定されている場合のみ店舗でフィルタリング
-        if ($customer->store_id) {
-            $query->where('store_id', $customer->store_id);
+        // リクエストヘッダーまたはクエリパラメータから店舗IDを取得
+        $filterStoreId = $request->header('X-Store-Id') ?? $request->input('store_id') ?? $customer->store_id;
+
+        // 店舗IDが設定されている場合のみ店舗でフィルタリング
+        if ($filterStoreId) {
+            $query->where('store_id', $filterStoreId);
         }
 
         $subscriptions = $query->with(['store'])->get();

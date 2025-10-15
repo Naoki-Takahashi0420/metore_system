@@ -388,9 +388,12 @@ class ReservationController extends Controller
         // 予約を取得（店舗IDがある場合のみフィルタリング）
         $query = Reservation::whereIn('customer_id', $customerIds);
 
-        // 顧客に店舗IDが設定されている場合のみ店舗でフィルタリング
-        if ($customer->store_id) {
-            $query->where('store_id', $customer->store_id);
+        // リクエストヘッダーまたはクエリパラメータから店舗IDを取得
+        $filterStoreId = $request->header('X-Store-Id') ?? $request->input('store_id') ?? $customer->store_id;
+
+        // 店舗IDが設定されている場合のみ店舗でフィルタリング
+        if ($filterStoreId) {
+            $query->where('store_id', $filterStoreId);
         }
 
         $reservations = $query
