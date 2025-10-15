@@ -1416,11 +1416,52 @@ let switcherTargetCustomerId = null;
 let switcherAvailableStores = [];
 
 // 店舗切り替えボタンのイベントリスナー
-document.getElementById('store-switcher-btn')?.addEventListener('click', function() {
-    checkMultipleStores();
+document.getElementById('store-switcher-btn')?.addEventListener('click', async function() {
+    await startStoreSwitcher();
 });
 
-// 複数店舗があるかチェック
+// 店舗切り替え開始（ボタンクリック時）
+async function startStoreSwitcher() {
+    try {
+        const customerData = JSON.parse(localStorage.getItem('customer_data'));
+        if (!customerData || !customerData.phone) {
+            alert('顧客情報が見つかりません');
+            return;
+        }
+
+        switcherCurrentPhone = customerData.phone;
+
+        // 利用可能な店舗を取得
+        const token = localStorage.getItem('customer_token');
+        const response = await fetch('/api/customer/available-stores', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('店舗情報の取得に失敗しました');
+        }
+
+        const data = await response.json();
+        switcherAvailableStores = data.stores || [];
+
+        if (switcherAvailableStores.length < 2) {
+            alert('利用可能な店舗は1店舗のみです');
+            return;
+        }
+
+        // OTP送信してモーダル表示
+        await showStoreSwitcherModal();
+    } catch (error) {
+        console.error('Error starting store switcher:', error);
+        alert('店舗切り替えに失敗しました');
+    }
+}
+
+// 複数店舗があるかチェック（ページ読み込み時）
 async function checkMultipleStores() {
     try {
         const customerData = JSON.parse(localStorage.getItem('customer_data'));
