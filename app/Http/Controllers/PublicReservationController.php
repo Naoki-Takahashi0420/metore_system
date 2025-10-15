@@ -995,25 +995,18 @@ class PublicReservationController extends Controller
         }
         
         // 各日の営業時間を取得して予約状況を生成
-        // 顧客IDの設定
+        // 顧客IDの設定（優先順位: 1.Context → 2.API認証 → 3.Session）
         $customerId = null;
 
-        // API認証済み（マイページ）の場合は、認証情報から顧客IDを取得
-        if ($request->user()) {
-            $customerId = $request->user()->id;
-            \Log::info('API認証から顧客ID取得（マイページ）', [
-                'customer_id' => $customerId,
-                'customer_name' => $request->user()->full_name
-            ]);
-        }
-        // パラメータベース：コンテキストから顧客IDを取得
-        else if ($context) {
+        // 1. パラメータベース（Context）：マイページ・回数券・サブスク・複数店舗対応（最優先）
+        if ($context) {
             // 既存顧客の場合のみ顧客IDを設定
             if (isset($context['is_existing_customer']) && $context['is_existing_customer'] === true) {
                 $customerId = $context['customer_id'] ?? null;
-                \Log::info('パラメータベース：既存顧客の顧客ID設定', [
+                \Log::info('【優先1】パラメータベース：既存顧客の顧客ID設定', [
                     'customer_id' => $customerId,
-                    'context_type' => $context['type'] ?? 'unknown'
+                    'source' => $context['source'] ?? 'unknown',
+                    'type' => $context['type'] ?? 'unknown'
                 ]);
             } else {
                 // 新規顧客の場合はサブスク関連セッションをクリア
@@ -1026,12 +1019,20 @@ class PublicReservationController extends Controller
                 ]);
             }
         }
-        // レガシー：セッションベース（サブスク予約の場合のみ）
+        // 2. API認証済み（マイページ）：コンテキストがない場合のみ
+        else if ($request->user()) {
+            $customerId = $request->user()->id;
+            \Log::info('【優先2】API認証から顧客ID取得（マイページ）', [
+                'customer_id' => $customerId,
+                'customer_name' => $request->user()->full_name
+            ]);
+        }
+        // 3. レガシー：セッションベース（サブスク予約の場合のみ）
         else if (Session::get('is_subscription_booking')) {
             // existing_customer_id または customer_id を取得
             $customerId = Session::get('existing_customer_id') ?? Session::get('customer_id');
 
-            \Log::info('レガシー：サブスク予約の顧客ID確認', [
+            \Log::info('【優先3】レガシー：サブスク予約の顧客ID確認', [
                 'existing_customer_id' => Session::get('existing_customer_id'),
                 'customer_id' => Session::get('customer_id'),
                 'final_customer_id' => $customerId
@@ -1231,13 +1232,13 @@ class PublicReservationController extends Controller
         $availability = [];
         $endDate = $startDate->copy()->addDays(6);
 
-        // サブスク予約の場合、既存予約を取得して5日間隔制限用に準備
+        // 既存顧客の場合、既存予約を取得して5日間隔制限用に準備
         $existingReservationDates = [];
         $isSubscriptionBooking = Session::get('is_subscription_booking', false);
 
-        // 新規顧客の場合は5日間制限を完全に無効化
-        if ($isSubscriptionBooking && $customerId) {
-            \Log::info('既存予約取得開始', [
+        // 既存顧客（マイページ・回数券・サブスク全て）に5日間制限を適用
+        if ($customerId) {
+            \Log::info('既存予約取得開始（5日間ルール適用）', [
                 'customer_id' => $customerId,
                 'customer_id_type' => gettype($customerId),
                 'is_subscription' => $isSubscriptionBooking
@@ -1269,7 +1270,7 @@ class PublicReservationController extends Controller
                 ->values()
                 ->toArray();
 
-            \Log::info('サブスク予約の5日間隔チェック', [
+            \Log::info('既存顧客の5日間隔チェック準備完了', [
                 'customer_id' => $customerId,
                 'existing_dates' => $existingReservationDates,
                 'is_subscription' => $isSubscriptionBooking
@@ -1592,8 +1593,8 @@ class PublicReservationController extends Controller
                 // 最終的な予約可否を判定（$maxConcurrentは既に上で適切に設定済み）
                 $finalAvailability = $overlappingCount < $maxConcurrent;
 
-                // サブスク予約の5日間隔制限チェック
-                if ($finalAvailability && $isSubscriptionBooking && !empty($existingReservationDates)) {
+                // 既存顧客の5日間隔制限チェック（マイページ・回数券・サブスク全て適用）
+                if ($finalAvailability && !empty($existingReservationDates)) {
                     $currentDate = Carbon::parse($dateStr);
 
                     \Log::info('5日間制限チェック開始', [
@@ -1642,9 +1643,9 @@ class PublicReservationController extends Controller
                     ]);
                 }
 
-                // サブスク予約の5日間制限内かどうかの情報も保存
+                // 既存顧客の5日間制限内かどうかの情報も保存
                 $withinFiveDays = false;
-                if ($isSubscriptionBooking && !empty($existingReservationDates)) {
+                if (!empty($existingReservationDates)) {
                     $currentDate = Carbon::parse($dateStr);
                     foreach ($existingReservationDates as $existingDateStr) {
                         $existingDate = Carbon::parse($existingDateStr);
@@ -1876,31 +1877,32 @@ class PublicReservationController extends Controller
             ]);
         }
 
-        // 既存顧客の5日間隔制限チェック
+        // 既存顧客の5日間隔制限チェック（優先順位: 1.Context → 2.API認証 → 3.Session）
         // コンテキストまたはセッションから既存顧客情報を取得
         $existingCustomerId = null;
 
-        // 1. API認証済み（マイページ）の場合
-        if ($request->user()) {
+        // 1. マイページまたはカルテからの予約の場合（コンテキスト経由）- 最優先
+        if ($isExistingCustomer && isset($existingCustomer) && $existingCustomer) {
+            $existingCustomerId = $existingCustomer->id;
+            \Log::info('【優先1】既存顧客（コンテキスト経由）の5日間隔制限チェック', [
+                'customer_id' => $existingCustomerId,
+                'source' => $context['source'] ?? 'unknown',
+                'type' => $context['type'] ?? 'unknown',
+                'is_from_mypage' => $isFromMyPage
+            ]);
+        }
+        // 2. API認証済み（マイページ）の場合 - コンテキストがない場合のみ
+        else if ($request->user()) {
             $existingCustomerId = $request->user()->id;
-            \Log::info('API認証から顧客ID取得（マイページ予約確定）', [
+            \Log::info('【優先2】API認証から顧客ID取得（マイページ予約確定）', [
                 'customer_id' => $existingCustomerId,
                 'customer_name' => $request->user()->full_name
             ]);
         }
-        // 2. マイページまたはカルテからの予約の場合（コンテキスト経由）
-        else if ($isExistingCustomer && isset($existingCustomer) && $existingCustomer) {
-            $existingCustomerId = $existingCustomer->id;
-            \Log::info('既存顧客（コンテキスト経由）の5日間隔制限チェック', [
-                'customer_id' => $existingCustomerId,
-                'source' => $context['source'] ?? 'unknown',
-                'is_from_mypage' => $isFromMyPage
-            ]);
-        }
-        // 3. サブスク予約の場合（セッション経由）
+        // 3. サブスク予約の場合（セッション経由）- レガシー
         else if (Session::has('is_subscription_booking') && Session::get('is_subscription_booking') === true) {
             $existingCustomerId = Session::get('customer_id');
-            \Log::info('既存顧客（サブスク予約）の5日間隔制限チェック', [
+            \Log::info('【優先3】既存顧客（サブスク予約）の5日間隔制限チェック', [
                 'customer_id' => $existingCustomerId,
                 'is_subscription_booking' => true
             ]);
