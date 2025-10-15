@@ -236,13 +236,28 @@ document.addEventListener('DOMContentLoaded', async function() {
 function displayMedicalRecords(records) {
     const container = document.getElementById('medical-records-container');
     const emptyState = document.getElementById('empty-state');
-    
+
     if (records.length === 0) {
         container.classList.add('hidden');
         emptyState.classList.remove('hidden');
         return;
     }
-    
+
+    // vision_recordsがJSON文字列の場合はパースする
+    records.forEach(record => {
+        if (record.vision_records && typeof record.vision_records === 'string') {
+            try {
+                record.vision_records = JSON.parse(record.vision_records);
+            } catch (e) {
+                console.error('Failed to parse vision_records:', e);
+                record.vision_records = [];
+            }
+        }
+        if (!Array.isArray(record.vision_records)) {
+            record.vision_records = [];
+        }
+    });
+
     container.innerHTML = records.map(record => `
         <div class="border-b border-gray-100 py-6">
             <div class="pb-3 mb-3">
