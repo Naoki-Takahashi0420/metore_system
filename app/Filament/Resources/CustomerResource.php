@@ -719,7 +719,16 @@ class CustomerResource extends Resource
                         }
                     })
                     ->query(function ($query, array $data) {
+                        \Log::info('🔍 Store filter called', [
+                            'data' => $data,
+                            'has_value' => isset($data['value']),
+                            'value_is_empty' => empty($data['value']),
+                            'value' => $data['value'] ?? 'not set'
+                        ]);
+
                         if (!empty($data['value'])) {
+                            \Log::info('✅ Applying store filter', ['store_id' => $data['value']]);
+
                             // 複数店舗対応：store_idまたは予約履歴で検索
                             $query->where(function ($q) use ($data) {
                                 $q->where('store_id', $data['value'])
@@ -727,6 +736,8 @@ class CustomerResource extends Resource
                                       $subQuery->where('store_id', $data['value']);
                                   });
                             });
+                        } else {
+                            \Log::info('❌ Store filter not applied - value is empty');
                         }
                         return $query;
                     }),
