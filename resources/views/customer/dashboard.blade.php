@@ -1521,10 +1521,25 @@ async function switchToStore(customerId, storeId, storeName) {
 
         const data = await response.json();
 
+        console.log('店舗切り替えレスポンス:', data);
+
+        // APIレスポンスは { success: true, data: { token, customer } } の構造
+        if (!data.success || !data.data) {
+            throw new Error(data.error?.message || '店舗切り替えに失敗しました');
+        }
+
         // 新しいトークンと顧客情報を保存
-        localStorage.setItem('customer_token', data.token);
-        localStorage.setItem('customer_data', JSON.stringify(data.customer));
-        localStorage.setItem('store_data', JSON.stringify(data.store));
+        localStorage.setItem('customer_token', data.data.token);
+        localStorage.setItem('customer_data', JSON.stringify(data.data.customer));
+
+        // 店舗情報を取得（顧客から）
+        if (storeId) {
+            const storeData = {
+                id: storeId,
+                name: storeName
+            };
+            localStorage.setItem('store_data', JSON.stringify(storeData));
+        }
 
         // ページをリロード
         window.location.reload();
