@@ -276,4 +276,31 @@ class CustomerController extends Controller
             'data' => $images
         ]);
     }
+
+    /**
+     * 同じ電話番号を持つ全店舗の顧客情報を取得（店舗切替用）
+     */
+    public function getAvailableStores(Request $request)
+    {
+        $customer = $request->user();
+
+        // 同じ電話番号を持つすべての顧客レコードを取得
+        $stores = Customer::where('phone', $customer->phone)
+            ->whereNotNull('store_id')
+            ->with('store:id,name')
+            ->get()
+            ->map(function($c) {
+                return [
+                    'customer_id' => $c->id,
+                    'store_id' => $c->store_id,
+                    'store_name' => $c->store->name ?? '未設定'
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'stores' => $stores,
+            'current_customer_id' => $customer->id
+        ]);
+    }
 }

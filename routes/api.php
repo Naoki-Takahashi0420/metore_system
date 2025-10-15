@@ -80,6 +80,8 @@ Route::middleware('auth:sanctum')->prefix('customer')->group(function () {
     // サブスクリプション情報
     Route::get('subscriptions', [\App\Http\Controllers\Api\CustomerSubscriptionController::class, 'index']);
     Route::get('subscription', [\App\Http\Controllers\Api\CustomerSubscriptionController::class, 'show']);
+    // 店舗切替用：利用可能店舗一覧
+    Route::get('available-stores', [CustomerController::class, 'getAvailableStores']);
 });
 
 // SMS配信停止（認証不要・トークンベース）

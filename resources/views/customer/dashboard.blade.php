@@ -1425,7 +1425,7 @@ async function checkMultipleStores() {
     try {
         const customerData = JSON.parse(localStorage.getItem('customer_data'));
         if (!customerData || !customerData.phone) {
-            alert('顧客情報が見つかりません');
+            console.log('顧客情報が見つかりません');
             return;
         }
 
@@ -1433,19 +1433,30 @@ async function checkMultipleStores() {
 
         // 同じ電話番号を持つすべての顧客を取得
         const token = localStorage.getItem('customer_token');
-        const customers = await fetch('/api/customer/profile', {
+        const response = await fetch('/api/customer/available-stores', {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${token}`
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
             }
-        }).then(r => r.json());
+        });
 
-        // 実際には新しいAPIエンドポイントが必要だが、
-        // 今はログイン時に店舗選択が必要だった場合のフローを再現
-        showStoreSwitcherModal();
+        if (!response.ok) {
+            throw new Error('店舗情報の取得に失敗しました');
+        }
+
+        const data = await response.json();
+
+        // 複数店舗がある場合のみボタンを表示
+        if (data.stores && data.stores.length > 1) {
+            document.getElementById('store-switcher-btn').classList.remove('hidden');
+            console.log('複数店舗利用可能:', data.stores);
+        } else {
+            console.log('利用店舗は1店舗のみ');
+        }
     } catch (error) {
         console.error('Error checking stores:', error);
-        alert('店舗情報の取得に失敗しました');
+        // エラーは表示しない（店舗切替ボタンが表示されないだけ）
     }
 }
 
