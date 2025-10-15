@@ -214,7 +214,7 @@
                 <h3 class="text-lg font-medium text-gray-900 mb-2">店舗を切り替える</h3>
                 <p class="text-sm text-gray-600">
                     切り替え先の店舗を選択してください。<br>
-                    SMS認証が必要です。
+                    
                 </p>
             </div>
 

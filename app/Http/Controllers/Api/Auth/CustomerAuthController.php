@@ -143,36 +143,10 @@ class CustomerAuthController extends Controller
             ], 403);
         }
 
-        // 複数店舗に登録がある場合は店舗選択画面へ
-        if ($customersWithReservations->count() > 1) {
-            // 仮トークンを生成してセッションに保存
-            $tempToken = Str::random(60);
-            session([
-                'temp_customer_multistore_' . $tempToken => [
-                    'phone' => $normalizedPhone,
-                    'remember_me' => $request->boolean('remember_me', false),
-                    'expires_at' => now()->addMinutes(10),
-                ]
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'requires_store_selection' => true,
-                    'temp_token' => $tempToken,
-                    'stores' => $customersWithReservations->map(function ($customer) {
-                        return [
-                            'customer_id' => $customer->id,
-                            'store_id' => $customer->store_id,
-                            'store_name' => $customer->store->name,
-                        ];
-                    })->values(),
-                ],
-            ]);
-        }
-
-        // 1店舗のみの場合は従来通りトークンを発行
-        $customer = $customersWithReservations->first();
+        // 複数店舗の場合も最初の店舗で自動ログイン（店舗切り替えはマイページから）
+        // store_idが設定されている顧客を優先、なければ最初の顧客
+        $customer = $customersWithReservations->firstWhere('store_id', '!=', null)
+                    ?? $customersWithReservations->first();
         $customer->update([
             'phone_verified_at' => now(),
             'last_visit_at' => now(),

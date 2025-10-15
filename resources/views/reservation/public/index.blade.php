@@ -290,8 +290,8 @@
                                                 onclick="selectTimeSlot(this)">
                                             ○
                                         </button>
-                                    @elseif($withinFiveDays && $isSubscription)
-                                        {{-- サブスク予約で5日間制限内の場合は△を表示 --}}
+                                    @elseif($withinFiveDays)
+                                        {{-- 既存顧客の5日間制限内の場合は△を表示 --}}
                                         <div class="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gray-400 text-white font-bold flex items-center justify-center border-2 border-gray-500 shadow-md text-xs sm:text-base mx-auto"
                                              title="前回予約から5日以内のため予約できません">
                                             △
