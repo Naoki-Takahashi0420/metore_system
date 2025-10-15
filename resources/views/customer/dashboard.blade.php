@@ -865,21 +865,37 @@ function displayNextReservation() {
 
 function updateReservationCount() {
     const now = new Date();
-    const activeCount = allReservations.filter(r => {
-        // 日付フォーマットを正規化して正しくパース
-        const datePart = r.reservation_date.split(' ')[0];
-        const [year, month, day] = datePart.split('-').map(Number);
-        const [hours, minutes] = r.start_time.split(':').map(Number);
-        const reservationDate = new Date(year, month - 1, day, hours, minutes);
-        return reservationDate > now && !['cancelled', 'canceled'].includes(r.status);
-    }).length;
-    
-    document.getElementById('active-reservation-count').textContent = `${activeCount}件`;
+    let count = 0;
+
+    if (currentFilter === 'all') {
+        // すべての予約（キャンセル済みを除く）
+        count = allReservations.filter(r => !['cancelled', 'canceled'].includes(r.status)).length;
+    } else if (currentFilter === 'upcoming') {
+        // 未来の予約
+        count = allReservations.filter(r => {
+            const datePart = r.reservation_date.split(' ')[0];
+            const [year, month, day] = datePart.split('-').map(Number);
+            const [hours, minutes] = r.start_time.split(':').map(Number);
+            const reservationDate = new Date(year, month - 1, day, hours, minutes);
+            return reservationDate > now && !['cancelled', 'canceled'].includes(r.status);
+        }).length;
+    } else if (currentFilter === 'past') {
+        // 過去の予約
+        count = allReservations.filter(r => {
+            const datePart = r.reservation_date.split(' ')[0];
+            const [year, month, day] = datePart.split('-').map(Number);
+            const [hours, minutes] = r.start_time.split(':').map(Number);
+            const reservationDate = new Date(year, month - 1, day, hours, minutes);
+            return reservationDate <= now && !['cancelled', 'canceled'].includes(r.status);
+        }).length;
+    }
+
+    document.getElementById('active-reservation-count').textContent = `${count}件`;
 }
 
 function filterReservations(filter) {
     currentFilter = filter;
-    
+
     // ボタンのアクティブ状態を更新
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.classList.remove('active');
@@ -887,8 +903,9 @@ function filterReservations(filter) {
             btn.classList.add('active');
         }
     });
-    
+
     displayReservations();
+    updateReservationCount();
 }
 
 function displayReservations() {
