@@ -279,28 +279,59 @@ class CustomerController extends Controller
 
     /**
      * 同じ電話番号を持つ全店舗の顧客情報を取得（店舗切替用）
+     *
+     * 条件1: 同じ電話番号で複数の顧客レコードがある（インポート顧客）
+     * 条件2: 予約履歴で複数店舗を利用している
      */
     public function getAvailableStores(Request $request)
     {
         $customer = $request->user();
+        $availableStores = collect();
 
-        // 同じ電話番号を持つすべての顧客レコードを取得
-        $stores = Customer::where('phone', $customer->phone)
+        // 条件1: 同じ電話番号を持つすべての顧客レコードから店舗取得
+        $customerRecords = Customer::where('phone', $customer->phone)
             ->whereNotNull('store_id')
             ->with('store:id,name')
-            ->get()
-            ->map(function($c) {
-                return [
-                    'customer_id' => $c->id,
-                    'store_id' => $c->store_id,
-                    'store_name' => $c->store->name ?? '未設定'
-                ];
-            });
+            ->get();
+
+        foreach ($customerRecords as $c) {
+            $availableStores->push([
+                'customer_id' => $c->id,
+                'store_id' => $c->store_id,
+                'store_name' => $c->store->name ?? '未設定',
+                'source' => 'customer_record'
+            ]);
+        }
+
+        // 条件2: 予約履歴から利用店舗を取得（顧客レコードにない店舗）
+        $reservationStores = \DB::table('reservations')
+            ->join('stores', 'reservations.store_id', '=', 'stores.id')
+            ->where('reservations.customer_id', $customer->id)
+            ->whereNotIn('reservations.status', ['cancelled', 'canceled'])
+            ->select('stores.id as store_id', 'stores.name as store_name')
+            ->distinct()
+            ->get();
+
+        foreach ($reservationStores as $rs) {
+            // すでに顧客レコードから追加されていない店舗のみ追加
+            if (!$availableStores->contains('store_id', $rs->store_id)) {
+                $availableStores->push([
+                    'customer_id' => $customer->id,
+                    'store_id' => $rs->store_id,
+                    'store_name' => $rs->store_name,
+                    'source' => 'reservation_history'
+                ]);
+            }
+        }
+
+        // 店舗IDでユニーク化
+        $stores = $availableStores->unique('store_id')->values();
 
         return response()->json([
             'success' => true,
             'stores' => $stores,
-            'current_customer_id' => $customer->id
+            'current_customer_id' => $customer->id,
+            'current_store_id' => $customer->store_id
         ]);
     }
 }
