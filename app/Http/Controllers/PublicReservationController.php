@@ -351,7 +351,7 @@ class PublicReservationController extends Controller
             'all_request_data' => $request->all()
         ]);
 
-        // 顧客のサブスクリプション状態を確認
+        // 顧客のサブスクリプション状態を確認（メニューフィルタリング用）
         $hasSubscription = false;
         if ($customerId) {
             $customer = Customer::find($customerId);
@@ -359,6 +359,9 @@ class PublicReservationController extends Controller
                 $hasSubscription = $customer->hasActiveSubscription();
             }
         }
+
+        // サブスク予約フローかどうかをチェック（UI表示用）
+        $isSubscriptionBooking = isset($context['is_subscription']) && $context['is_subscription'];
         
         // 新規・既存判定（パラメータベース）
         $isNewCustomer = true;
@@ -451,6 +454,7 @@ class PublicReservationController extends Controller
             'store' => $store,
             'category' => $category,
             'hasSubscription' => $hasSubscription,
+            'isSubscriptionBooking' => $isSubscriptionBooking,
             'source' => $source,
             'customer_id' => $customerId,
             'encryptedContext' => $encryptedContext

@@ -157,7 +157,7 @@
         <p class="text-sm text-gray-600">{{ $store->name }} / {{ $category->name }}</p>
     </div>
 
-        @if($hasSubscription)
+        @if($isSubscriptionBooking ?? false)
             <div class="mb-6 bg-green-50 border-2 border-green-300 rounded-lg p-4 text-center">
                 <span class="text-green-700 font-bold text-lg">サブスクリプション会員様限定メニューも表示されています</span>
             </div>
