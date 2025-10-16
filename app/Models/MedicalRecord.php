@@ -177,7 +177,19 @@ class MedicalRecord extends Model
     public function getLatestVisionRecord()
     {
         $records = $this->vision_records ?? [];
-        return empty($records) ? null : end($records);
+
+        // 文字列の場合はJSONデコード
+        if (is_string($records)) {
+            $records = json_decode($records, true) ?? [];
+        }
+
+        // 配列が空の場合はnullを返す
+        if (empty($records) || !is_array($records)) {
+            return null;
+        }
+
+        // end()は参照を必要とするため、配列の最後の要素を取得
+        return $records[array_key_last($records)];
     }
 
     /**

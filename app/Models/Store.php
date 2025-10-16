@@ -32,6 +32,7 @@ class Store extends Model
         'visit_sources',
         'reservation_slot_duration',
         'max_advance_days',
+        'min_interval_days',
         'cancellation_deadline_hours',
         'require_confirmation',
         'is_active',
@@ -83,6 +84,7 @@ class Store extends Model
         'capacity' => 'integer',
         'reservation_slot_duration' => 'integer',
         'max_advance_days' => 'integer',
+        'min_interval_days' => 'integer',
         'cancellation_deadline_hours' => 'integer',
         // 予約ライン
         'line_allocation_rules' => 'array',

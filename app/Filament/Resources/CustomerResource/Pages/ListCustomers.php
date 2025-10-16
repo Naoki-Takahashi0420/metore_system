@@ -42,12 +42,12 @@ class ListCustomers extends ListRecords
             Actions\CreateAction::make()->label('新規作成'),
         ];
     }
-    
+
     public function getHeader(): ?\Illuminate\Contracts\View\View
     {
         $user = auth()->user();
         $storeOptions = collect();
-        
+
         try {
             // スーパーアドミンは全店舗表示
             if ($user && $user->hasRole('super_admin')) {
@@ -63,7 +63,7 @@ class ListCustomers extends ListRecords
             elseif ($user && $user->store) {
                 $storeOptions = collect([$user->store_id => $user->store->name]);
             }
-            
+
             // 店舗選択が必要な場合のみヘッダーを表示
             if ($storeOptions->count() > 1) {
                 return view('filament.resources.customer-resource.pages.list-customers-header', [
@@ -75,7 +75,7 @@ class ListCustomers extends ListRecords
             // エラーが発生した場合はヘッダーを表示しない
             \Log::error('CustomerResource header error: ' . $e->getMessage());
         }
-        
+
         return null;
     }
     

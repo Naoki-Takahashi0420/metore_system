@@ -1195,10 +1195,10 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                 </div>
-                <h3 class="text-lg font-medium text-gray-900 mb-2">すでに予約があります</h3>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">お客様情報が登録されています</h3>
                 <p class="text-sm text-gray-600 mb-6">
-                    この電話番号（{{ $customerPhone }}）で過去にご予約履歴があります。<br>
-                    2回目以降のお客様は、マイページから予約の変更・追加を行ってください。
+                    この電話番号（{{ $customerPhone }}）はすでに登録されています。<br>
+                    マイページからログインして予約をお願いいたします。
                 </p>
                 <div class="flex justify-center">
                     <a href="/customer/dashboard" class="px-6 py-3 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700">

@@ -166,10 +166,17 @@ class CustomerSubscriptionController extends Controller
         }
         
         // アクティブなサブスクリプションを取得
-        $subscriptions = CustomerSubscription::where('customer_id', $customer->id)
-            ->where('status', 'active')
-            ->with(['store'])
-            ->get();
+        $query = CustomerSubscription::where('customer_id', $customer->id)
+            ->where('status', 'active');
+
+        // localStorageから店舗IDを取得してフィルタリング
+        // フロントエンドから X-Store-Id ヘッダーで送信される
+        $storeId = $request->header('X-Store-Id');
+        if ($storeId) {
+            $query->where('store_id', $storeId);
+        }
+
+        $subscriptions = $query->with(['store'])->get();
             
         return response()->json([
             'data' => $subscriptions->map(function ($sub) {

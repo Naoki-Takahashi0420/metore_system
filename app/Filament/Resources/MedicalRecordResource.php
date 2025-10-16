@@ -40,6 +40,37 @@ class MedicalRecordResource extends Resource
                             ->schema([
                                 Forms\Components\Grid::make(2)
                                     ->schema([
+                                        Forms\Components\Select::make('store_id')
+                                            ->label('店舗')
+                                            ->options(function () {
+                                                $user = auth()->user();
+                                                if (!$user) return [];
+
+                                                // スーパーアドミンは全店舗
+                                                if ($user->hasRole('super_admin')) {
+                                                    return \App\Models\Store::where('is_active', true)->pluck('name', 'id');
+                                                }
+                                                // オーナーは管理可能店舗
+                                                if ($user->hasRole('owner')) {
+                                                    return $user->manageableStores()->pluck('stores.name', 'stores.id');
+                                                }
+                                                // その他は所属店舗のみ
+                                                if ($user->store) {
+                                                    return [$user->store_id => $user->store->name];
+                                                }
+                                                return [];
+                                            })
+                                            ->default(function () {
+                                                $user = auth()->user();
+                                                // スーパーアドミン以外はデフォルトで所属店舗を選択
+                                                if ($user && !$user->hasRole('super_admin') && $user->store_id) {
+                                                    return $user->store_id;
+                                                }
+                                                return null;
+                                            })
+                                            ->required()
+                                            ->reactive(),
+
                                         Forms\Components\Select::make('customer_id')
                                             ->label('顧客')
                                             ->searchable()
@@ -200,9 +231,26 @@ class MedicalRecordResource extends Resource
                                             ->placeholder('対応者を選択（任意）'),
                                         
                                         Forms\Components\DatePicker::make('treatment_date')
-                                            ->label('施術日')
+                                            ->label('施術日（任意）')
+                                            ->helperText('未入力の場合は記録日が使用されます')
                                             ->default(now())
-                                            ->required(),
+                                            ->nullable()
+                                            ->live(debounce: 500)
+                                            ->afterStateUpdated(function ($state, $set, $get) {
+                                                // 施術日が変更されたら、視力記録の測定日も更新
+                                                if ($state) {
+                                                    $visionRecords = $get('vision_records') ?? [];
+                                                    if (!empty($visionRecords)) {
+                                                        foreach ($visionRecords as $key => $record) {
+                                                            // 測定日が空の場合のみ施術日を設定
+                                                            if (empty($record['date'])) {
+                                                                $visionRecords[$key]['date'] = $state;
+                                                            }
+                                                        }
+                                                        $set('vision_records', $visionRecords);
+                                                    }
+                                                }
+                                            }),
 
                                         Forms\Components\TextInput::make('age')
                                             ->label('年齢')
@@ -264,7 +312,15 @@ class MedicalRecordResource extends Resource
                                                     }
                                                 }
 
-                                                // 2. 予約がない場合は、顧客から店舗を取得
+                                                // 2. 予約がない場合は、店舗フィールドから取得
+                                                if (!$store) {
+                                                    $storeId = $get('store_id');
+                                                    if ($storeId) {
+                                                        $store = \App\Models\Store::find($storeId);
+                                                    }
+                                                }
+
+                                                // 3. それでもない場合は、顧客から店舗を取得
                                                 if (!$store) {
                                                     $customerId = $get('customer_id');
                                                     if ($customerId) {
@@ -275,7 +331,7 @@ class MedicalRecordResource extends Resource
                                                     }
                                                 }
 
-                                                // 3. それでもない場合は、ログインユーザーの店舗を取得
+                                                // 4. それでもない場合は、ログインユーザーの店舗を取得
                                                 if (!$store) {
                                                     $user = Auth::user();
                                                     if ($user && $user->store) {
@@ -324,38 +380,53 @@ class MedicalRecordResource extends Resource
                                         Forms\Components\Select::make('reservation_source')
                                             ->label('来店経路')
                                             ->options(function ($get) {
-                                                // 予約から店舗情報を取得
+                                                $store = null;
+
+                                                // 1. 予約から店舗情報を取得
                                                 $reservationId = $get('reservation_id');
                                                 if ($reservationId) {
                                                     $reservation = Reservation::with(['store'])->find($reservationId);
-                                                    if ($reservation && $reservation->store && $reservation->store->visit_sources) {
-                                                        $options = [];
-                                                        foreach ($reservation->store->visit_sources as $source) {
-                                                            // 新しいシンプル構造: ['name' => 'ホームページ']
-                                                            if (is_array($source) && isset($source['name'])) {
-                                                                $options[$source['name']] = $source['name'];
-                                                            }
-                                                            // 旧キー・ラベル構造: ['key' => 'hp', 'label' => 'ホームページ']
-                                                            elseif (is_array($source) && isset($source['key']) && isset($source['label'])) {
-                                                                $options[$source['key']] = $source['label'];
-                                                            }
-                                                            // 古い構造: 'hp'
-                                                            elseif (is_string($source)) {
-                                                                $legacyLabels = [
-                                                                    'hp' => 'ホームページ',
-                                                                    'phone' => '電話',
-                                                                    'line' => 'LINE',
-                                                                    'instagram' => 'Instagram',
-                                                                    'referral' => '紹介',
-                                                                    'walk_in' => '飛び込み',
-                                                                ];
-                                                                $options[$source] = $legacyLabels[$source] ?? $source;
-                                                            }
-                                                        }
-                                                        return $options;
+                                                    if ($reservation && $reservation->store) {
+                                                        $store = $reservation->store;
                                                     }
                                                 }
-                                                
+
+                                                // 2. 予約がない場合は、店舗フィールドから取得
+                                                if (!$store) {
+                                                    $storeId = $get('store_id');
+                                                    if ($storeId) {
+                                                        $store = \App\Models\Store::find($storeId);
+                                                    }
+                                                }
+
+                                                // 店舗の visit_sources を使用
+                                                if ($store && $store->visit_sources) {
+                                                    $options = [];
+                                                    foreach ($store->visit_sources as $source) {
+                                                        // 新しいシンプル構造: ['name' => 'ホームページ']
+                                                        if (is_array($source) && isset($source['name'])) {
+                                                            $options[$source['name']] = $source['name'];
+                                                        }
+                                                        // 旧キー・ラベル構造: ['key' => 'hp', 'label' => 'ホームページ']
+                                                        elseif (is_array($source) && isset($source['key']) && isset($source['label'])) {
+                                                            $options[$source['key']] = $source['label'];
+                                                        }
+                                                        // 古い構造: 'hp'
+                                                        elseif (is_string($source)) {
+                                                            $legacyLabels = [
+                                                                'hp' => 'ホームページ',
+                                                                'phone' => '電話',
+                                                                'line' => 'LINE',
+                                                                'instagram' => 'Instagram',
+                                                                'referral' => '紹介',
+                                                                'walk_in' => '飛び込み',
+                                                            ];
+                                                            $options[$source] = $legacyLabels[$source] ?? $source;
+                                                        }
+                                                    }
+                                                    return $options;
+                                                }
+
                                                 // デフォルト（店舗未選択時）
                                                 return [
                                                     'hp' => 'ホームページ',
@@ -416,9 +487,14 @@ class MedicalRecordResource extends Resource
                                                     ->dehydrated(false),
 
                                                 Forms\Components\DatePicker::make('date')
-                                                    ->label('測定日')
-                                                    ->default(now())
-                                                    ->required(),
+                                                    ->label('測定日（任意）')
+                                                    ->default(function ($get) {
+                                                        // 親フォームから施術日を取得
+                                                        $treatmentDate = $get('../../treatment_date');
+                                                        return $treatmentDate ?? now();
+                                                    })
+                                                    ->nullable()
+                                                    ->helperText('未入力の場合は施術日が使用されます'),
 
                                                 Forms\Components\TextInput::make('intensity')
                                                     ->label('強度')

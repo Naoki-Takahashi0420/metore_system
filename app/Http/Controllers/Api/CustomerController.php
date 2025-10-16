@@ -275,38 +275,44 @@ class CustomerController extends Controller
     /**
      * 同じ電話番号を持つ全店舗の顧客情報を取得（店舗切替用）
      *
-     * 条件1: 同じ電話番号で複数の顧客レコードがある（インポート顧客）
-     * 条件2: 予約履歴で複数店舗を利用している
+     * 条件: インポートされた店舗も含めて全て表示
      */
     public function getAvailableStores(Request $request)
     {
         $customer = $request->user();
         $availableStores = collect();
 
-        // 条件1: 同じ電話番号を持つすべての顧客レコードから店舗取得
+        // 同じ電話番号を持つ全顧客のIDを取得
+        $customerIds = Customer::where('phone', $customer->phone)->pluck('id');
+
+        // 条件1: インポートされた顧客レコードから店舗を取得
         $customerRecords = Customer::where('phone', $customer->phone)
             ->whereNotNull('store_id')
             ->with('store:id,name')
             ->get();
 
         foreach ($customerRecords as $c) {
-            $availableStores->push([
-                'customer_id' => $c->id,
-                'store_id' => $c->store_id,
-                'store_name' => $c->store->name ?? '未設定',
-                'source' => 'customer_record'
-            ]);
+            if ($c->store) {
+                $availableStores->push([
+                    'customer_id' => $c->id,
+                    'store_id' => $c->store_id,
+                    'store_name' => $c->store->name,
+                    'source' => 'customer_record'
+                ]);
+            }
         }
 
-        // 条件2: 予約履歴から利用店舗を取得（顧客レコードにない店舗）
-        // 同じ電話番号を持つ全顧客の予約履歴を確認
-        $customerIds = Customer::where('phone', $customer->phone)->pluck('id');
-
+        // 条件2: 予約履歴がある店舗を取得（顧客レコードにない店舗）
         $reservationStores = \DB::table('reservations')
             ->join('stores', 'reservations.store_id', '=', 'stores.id')
+            ->join('customers', 'reservations.customer_id', '=', 'customers.id')
             ->whereIn('reservations.customer_id', $customerIds)
             ->whereNotIn('reservations.status', ['cancelled', 'canceled'])
-            ->select('stores.id as store_id', 'stores.name as store_name')
+            ->select(
+                'customers.id as customer_id',
+                'stores.id as store_id',
+                'stores.name as store_name'
+            )
             ->distinct()
             ->get();
 
@@ -314,7 +320,7 @@ class CustomerController extends Controller
             // すでに顧客レコードから追加されていない店舗のみ追加
             if (!$availableStores->contains('store_id', $rs->store_id)) {
                 $availableStores->push([
-                    'customer_id' => $customer->id,
+                    'customer_id' => $rs->customer_id,
                     'store_id' => $rs->store_id,
                     'store_name' => $rs->store_name,
                     'source' => 'reservation_history'
@@ -330,6 +336,40 @@ class CustomerController extends Controller
             'stores' => $stores,
             'current_customer_id' => $customer->id,
             'current_store_id' => $customer->store_id
+        ]);
+    }
+
+    /**
+     * 認証済み顧客情報を取得
+     */
+    public function me(Request $request)
+    {
+        $customer = $request->user();
+
+        if (!$customer) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'UNAUTHENTICATED',
+                    'message' => '認証されていません'
+                ]
+            ], 401);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'customer' => [
+                    'id' => $customer->id,
+                    'last_name' => $customer->last_name,
+                    'first_name' => $customer->first_name,
+                    'full_name' => $customer->full_name,
+                    'phone' => $customer->phone,
+                    'email' => $customer->email,
+                    'store_id' => $customer->store_id,
+                    'store_name' => $customer->store?->name ?? null,
+                ]
+            ]
         ]);
     }
 }

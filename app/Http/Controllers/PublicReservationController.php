@@ -2070,30 +2070,22 @@ class PublicReservationController extends Controller
                     'store_id' => $validated['store_id'] ?? null
                 ]);
 
-                // 過去の予約履歴チェック（一度でも予約したことがある顧客）
-                // サブスク会員・非会員に関わらず、過去予約があればマイページへ誘導
-                // 店舗別: 現在の店舗での予約履歴のみをチェック
-                $pastReservations = Reservation::where('customer_id', $existingCustomerByPhone->id)
-                    ->where('store_id', $validated['store_id'])
-                    ->whereIn('status', ['completed', 'pending', 'confirmed', 'booked'])
-                    ->count();
-
+                // 電話番号が登録されている場合、予約履歴に関わらずマイページへ誘導
                 // マイページまたはカルテからの予約の場合はモーダルを出さない
                 $isFromMyPageOrMedical = $context && isset($context['source']) &&
                     in_array($context['source'], ['mypage', 'medical_record', 'medical_record_legacy']);
 
-                \Log::info('モーダル表示判定', [
-                    'past_reservations' => $pastReservations,
+                \Log::info('マイページ誘導判定', [
+                    'customer_id' => $existingCustomerByPhone->id,
                     'has_active_subscription' => $hasActiveSubscription,
                     'isFromMyPageOrMedical' => $isFromMyPageOrMedical,
                     'context_source' => $context['source'] ?? 'none',
-                    'will_show_modal' => ($pastReservations > 0 && !$isFromMyPageOrMedical)
+                    'will_show_modal' => !$isFromMyPageOrMedical
                 ]);
 
-                if ($pastReservations > 0 && !$isFromMyPageOrMedical) {
-                    \Log::info('過去の予約履歴あり、マイページへ誘導', [
+                if (!$isFromMyPageOrMedical) {
+                    \Log::info('電話番号登録済み顧客、マイページへ誘導', [
                         'customer_id' => $existingCustomerByPhone->id,
-                        'past_reservations' => $pastReservations,
                         'phone' => $existingCustomerByPhone->phone,
                         'context' => $context,
                         'is_existing_from_context' => $context && isset($context['is_existing_customer']) ? $context['is_existing_customer'] : false

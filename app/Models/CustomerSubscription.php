@@ -263,6 +263,7 @@ class CustomerSubscription extends Model
         }
 
         return \App\Models\Reservation::where('customer_id', $this->customer_id)
+            ->where('customer_subscription_id', $this->id)
             ->whereIn('status', ['booked', 'confirmed', 'completed'])
             ->whereBetween('reservation_date', [$periodStart, $periodEnd])
             ->count();

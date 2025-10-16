@@ -58,6 +58,8 @@ Route::get('customer/tickets/{ticketId}/history', [\App\Http\Controllers\Custome
 
 // 顧客向けAPI（認証必須）
 Route::middleware('auth:sanctum')->prefix('customer')->group(function () {
+    // 認証済み顧客情報
+    Route::get('me', [CustomerController::class, 'me']);
     // 予約管理
     Route::get('reservations', [ReservationController::class, 'customerReservations']);
     Route::post('reservations', [ReservationController::class, 'createReservation']); // 予約作成

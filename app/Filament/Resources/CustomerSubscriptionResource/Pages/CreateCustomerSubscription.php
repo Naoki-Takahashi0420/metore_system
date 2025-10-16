@@ -17,11 +17,8 @@ class CreateCustomerSubscription extends CreateRecord
         if (request()->has('customer_id')) {
             $data['customer_id'] = request('customer_id');
 
-            // 顧客の店舗を自動設定
-            $customer = Customer::find($data['customer_id']);
-            if ($customer && $customer->store_id) {
-                $data['store_id'] = $customer->store_id;
-            }
+            // store_idはフォームで選択されるため、ここでは設定しない
+            // （フォームで選択された値を優先）
         }
 
         // メニュー情報から必要なデータを設定
@@ -68,12 +65,7 @@ class CreateCustomerSubscription extends CreateRecord
 
     protected function getRedirectUrl(): string
     {
-        // 作成後、顧客編集画面に戻る
-        if ($this->record->customer_id) {
-            return route('filament.admin.resources.customers.edit', ['record' => $this->record->customer_id]);
-        }
-
-        // デフォルトは一覧画面
-        return $this->getResource()::getUrl('index');
+        // 作成後、作成したサブスク契約の編集画面へ
+        return $this->getResource()::getUrl('edit', ['record' => $this->record]);
     }
 }

@@ -131,22 +131,22 @@ class CustomerAuthController extends Controller
                 ->exists();
         });
 
-        if ($customersWithReservations->isEmpty()) {
-            // すべての店舗で予約履歴がない場合はアクセス拒否
-            return response()->json([
-                'success' => false,
-                'error' => [
-                    'code' => 'NO_RESERVATION_HISTORY',
-                    'message' => '予約履歴が見つかりません。初回のお客様は新規予約からお申し込みください。',
-                    'redirect_to_booking' => true,
-                ],
-            ], 403);
+        // 予約履歴がある顧客を優先、なければインポートされた顧客でもログイン可能
+        if ($customersWithReservations->isNotEmpty()) {
+            // 予約履歴がある場合：最新の予約がある店舗を優先
+            $customer = $customersWithReservations->sortByDesc(function ($c) {
+                $latestReservation = $c->reservations()
+                    ->whereIn('status', ['confirmed', 'completed', 'booked'])
+                    ->latest('reservation_date')
+                    ->latest('start_time')
+                    ->first();
+                return $latestReservation ? $latestReservation->reservation_date . ' ' . $latestReservation->start_time : '';
+            })->first();
+        } else {
+            // 予約履歴がない場合：インポートされた顧客でもログイン可能
+            // 最初の顧客レコードを使用
+            $customer = $customers->first();
         }
-
-        // 複数店舗の場合も最初の店舗で自動ログイン（店舗切り替えはマイページから）
-        // store_idが設定されている顧客を優先、なければ最初の顧客
-        $customer = $customersWithReservations->firstWhere('store_id', '!=', null)
-                    ?? $customersWithReservations->first();
         $customer->update([
             'phone_verified_at' => now(),
             'last_visit_at' => now(),
@@ -416,20 +416,7 @@ class CustomerAuthController extends Controller
             ], 400);
         }
 
-        // 予約履歴があるか確認
-        $hasReservations = $targetCustomer->reservations()
-            ->whereIn('status', ['confirmed', 'completed', 'booked'])
-            ->exists();
-
-        if (!$hasReservations) {
-            return response()->json([
-                'success' => false,
-                'error' => [
-                    'code' => 'NO_RESERVATION_HISTORY',
-                    'message' => 'この店舗での予約履歴が見つかりません。',
-                ],
-            ], 403);
-        }
+        // 予約履歴チェックは不要（インポートされた顧客でも切り替え可能）
 
         // 現在のトークンを削除
         $currentCustomer->currentAccessToken()->delete();

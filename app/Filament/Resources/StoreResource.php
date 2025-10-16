@@ -207,6 +207,14 @@ class StoreResource extends Resource
                                     ->default(30)
                                     ->required()
                                     ->helperText('何日先まで予約を受け付けるか'),
+                                Forms\Components\TextInput::make('min_interval_days')
+                                    ->label('最小予約間隔日数')
+                                    ->numeric()
+                                    ->default(5)
+                                    ->required()
+                                    ->helperText('既存顧客が前回予約から何日空けないと次の予約ができないか（0=制限なし）')
+                                    ->minValue(0)
+                                    ->maxValue(30),
                                 Forms\Components\TextInput::make('cancellation_deadline_hours')
                                     ->label('キャンセル期限（時間前）')
                                     ->numeric()

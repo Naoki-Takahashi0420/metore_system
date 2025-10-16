@@ -72,10 +72,7 @@
                 </svg>
             </div>
             <h3 class="text-base font-medium text-gray-900 mb-2">情報が見つかりません</h3>
-            <p class="text-sm text-gray-500 mb-6">まだトレーニングを受けていらっしゃいません</p>
-            <a href="#" onclick="goToReservation(); return false;" class="bg-gray-900 text-white px-5 py-2.5 rounded-lg text-sm hover:bg-gray-800 transition-colors inline-block">
-                初回予約を取る
-            </a>
+            <p class="text-sm text-gray-500">まだトレーニングを受けていらっしゃいません</p>
         </div>
 
     </div>

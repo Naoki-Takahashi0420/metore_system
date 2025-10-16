@@ -74,6 +74,18 @@ class CustomerSubscriptionResource extends Resource
                                     return [];
                                 }
                             })
+                            ->getOptionLabelUsing(function ($value) {
+                                // 選択済みの顧客の表示名を取得
+                                $customer = \App\Models\Customer::find($value);
+                                if ($customer) {
+                                    $label = $customer->last_name . ' ' . $customer->first_name;
+                                    if ($customer->phone) {
+                                        $label .= ' - ' . $customer->phone;
+                                    }
+                                    return $label;
+                                }
+                                return $value;
+                            })
                             ->searchable()
                             ->default(fn () => request()->has('customer_id') ? request('customer_id') : null)
                             ->disabled(fn ($operation) => $operation === 'edit')
@@ -111,7 +123,11 @@ class CustomerSubscriptionResource extends Resource
                                         // 契約期間を自動計算
                                         $serviceStartDate = $get('service_start_date');
                                         if ($serviceStartDate) {
-                                            $contractMonths = $menu->contract_months ?? 12; // デフォルト12ヶ月
+                                            // メニュー名から期間を抽出（例：「6ヶ月」→6）
+                                            $contractMonths = 12; // デフォルト12ヶ月
+                                            if (preg_match('/(\d+)ヶ月/', $menu->name, $matches)) {
+                                                $contractMonths = (int)$matches[1];
+                                            }
                                             $endDate = \Carbon\Carbon::parse($serviceStartDate)->addMonths($contractMonths)->subDay();
                                             $set('end_date', $endDate->format('Y-m-d'));
                                         }
@@ -209,7 +225,11 @@ class CustomerSubscriptionResource extends Resource
                                     if ($menuId) {
                                         $menu = \App\Models\Menu::find($menuId);
                                         if ($menu) {
-                                            $contractMonths = $menu->contract_months ?? 12;
+                                            // メニュー名から期間を抽出（例：「6ヶ月」→6）
+                                            $contractMonths = 12; // デフォルト12ヶ月
+                                            if (preg_match('/(\d+)ヶ月/', $menu->name, $matches)) {
+                                                $contractMonths = (int)$matches[1];
+                                            }
                                             $endDate = \Carbon\Carbon::parse($state)->addMonths($contractMonths)->subDay();
                                             $set('end_date', $endDate->format('Y-m-d'));
                                         }

@@ -99,10 +99,10 @@ class CustomerImportService
                 return $value ?? '';
             }, $data);
             
-            // 必須フィールドチェック（氏名または姓・名が必須）
-            $hasName = !empty($data['氏名']) || (!empty($data['姓']) || !empty($data['名']));
+            // 必須フィールドチェック（氏名または姓・名、または顧客名が必須）
+            $hasName = !empty($data['氏名']) || !empty($data['顧客名']) || (!empty($data['姓']) || !empty($data['名']));
             if (!$hasName) {
-                $this->addError($rowNumber, '必須項目（氏名または姓・名）が不足');
+                $this->addError($rowNumber, '必須項目（氏名または姓・名・顧客名）が不足');
                 $this->errorCount++;
                 return;
             }
@@ -140,15 +140,18 @@ class CustomerImportService
                     return;
                 }
             } else {
-                // 電話番号がない場合は氏名または姓・名で重複チェック（同姓同名を避けるため）
+                // 電話番号がない場合は氏名または姓・名、または顧客名で重複チェック（同姓同名を避けるため）
                 $lastName = trim($data['姓'] ?? '');
                 $firstName = trim($data['名'] ?? '');
 
-                // 氏名カラムから姓名を分割
-                if (empty($lastName) && empty($firstName) && !empty($data['氏名'])) {
-                    $customerName = $this->splitName($data['氏名']);
-                    $lastName = $customerName['last'];
-                    $firstName = $customerName['first'];
+                // 氏名または顧客名カラムから姓名を分割
+                if (empty($lastName) && empty($firstName)) {
+                    $fullName = $data['氏名'] ?? $data['顧客名'] ?? '';
+                    if (!empty($fullName)) {
+                        $customerName = $this->splitName($fullName);
+                        $lastName = $customerName['last'];
+                        $firstName = $customerName['first'];
+                    }
                 }
 
                 if ($lastName && $firstName) {
@@ -193,14 +196,17 @@ class CustomerImportService
      */
     private function mapToCustomerData(array $data, int $storeId): array
     {
-        // 名前を取得（姓・名が直接ある場合はそれを使用、なければ氏名から分割）
+        // 名前を取得（姓・名が直接ある場合はそれを使用、なければ氏名または顧客名から分割）
         $lastName = trim($data['姓'] ?? '');
         $firstName = trim($data['名'] ?? '');
 
-        if (empty($lastName) && empty($firstName) && !empty($data['氏名'])) {
-            $nameParts = $this->splitName($data['氏名']);
-            $lastName = $nameParts['last'];
-            $firstName = $nameParts['first'];
+        if (empty($lastName) && empty($firstName)) {
+            $fullName = $data['氏名'] ?? $data['顧客名'] ?? '';
+            if (!empty($fullName)) {
+                $nameParts = $this->splitName($fullName);
+                $lastName = $nameParts['last'];
+                $firstName = $nameParts['first'];
+            }
         }
 
         // ふりがなを取得（セイ・メイが直接ある場合はそれを使用）
