@@ -97,7 +97,17 @@
                                 
                                 {{-- 代表的なメニュー表示 --}}
                                 @php
-                                    $sampleMenus = $category->menus()->where('is_available', true)->take(3)->get();
+                                    $menusQuery = $category->menus()
+                                        ->where('is_available', true)
+                                        ->where('is_visible_to_customer', true)
+                                        ->where('is_subscription', false);
+
+                                    // 既存顧客の場合、新規限定メニューを除外
+                                    if (isset($isExistingCustomer) && $isExistingCustomer) {
+                                        $menusQuery->where('customer_type_restriction', '!=', 'new_only');
+                                    }
+
+                                    $sampleMenus = $menusQuery->take(3)->get();
                                 @endphp
                                 @if($sampleMenus->isNotEmpty())
                                     <div class="mb-3">

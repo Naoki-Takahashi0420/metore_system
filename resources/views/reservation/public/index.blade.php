@@ -97,6 +97,24 @@
                 </div>
             </div>
         </div>
+        @elseif(Session::has('is_ticket_booking'))
+        <div class="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4 mb-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-green-600 mb-1 font-medium">回数券予約</p>
+                    <p class="text-lg font-semibold text-gray-800">{{ $selectedMenu->name }}</p>
+                    @php
+                        $ticketId = Session::get('ticket_id');
+                        $ticket = $ticketId ? \App\Models\CustomerTicket::find($ticketId) : null;
+                        $remainingCount = $ticket ? $ticket->remaining_count : 0;
+                    @endphp
+                    <p class="text-sm text-gray-600">{{ $selectedMenu->duration_minutes }}分 / <span class="text-green-600 font-medium">残り{{ $remainingCount }}回</span></p>
+                </div>
+                <div class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-medium">
+                    回数券
+                </div>
+            </div>
+        </div>
         @else
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
             <div class="flex items-center justify-between">
@@ -157,30 +175,22 @@
             </div>
         </div>
 
-        <!-- 凡例（サブスク予約時のみ表示） -->
-        @if(request()->query('type') === 'subscription')
+        <!-- 凡例（既存顧客・サブスク・回数券予約時に表示） -->
+        @if($isSubscriptionBooking || Session::has('is_ticket_booking') || $isExistingCustomer)
         <div class="bg-white rounded-lg shadow-sm p-4 mb-4">
-            <h3 class="text-sm font-semibold text-gray-900 mb-3">カレンダー凡例</h3>
+            <h3 class="text-sm font-semibold text-gray-900 mb-3">📖 カレンダー凡例</h3>
             <div class="flex flex-wrap gap-4 text-sm">
                 <div class="flex items-center">
                     <div class="w-6 h-6 rounded-full bg-green-500 text-white font-bold flex items-center justify-center text-xs mr-2">○</div>
                     <span class="text-gray-700">予約可能</span>
                 </div>
                 <div class="flex items-center">
-                    <div class="w-6 h-6 rounded-full bg-orange-500 text-white font-bold flex items-center justify-center text-xs mr-2 border-2 border-orange-600">予</div>
-                    <span class="text-gray-700">同じメニューで予約済み</span>
-                </div>
-                <div class="flex items-center">
-                    <div class="w-6 h-6 rounded-full bg-red-500 text-white font-bold flex items-center justify-center text-xs mr-2 border-2 border-red-600">×</div>
-                    <span class="text-gray-700">他メニューで予約済み</span>
-                </div>
-                <div class="flex items-center">
                     <div class="w-6 h-6 rounded-full bg-gray-400 text-white font-bold flex items-center justify-center text-xs mr-2 border-2 border-gray-500">△</div>
-                    <span class="text-gray-700">前回予約から5日以内（予約不可）</span>
+                    <span class="text-gray-700">前回予約から{{ $selectedStore->min_interval_days ?? 5 }}日以内（予約不可）</span>
                 </div>
                 <div class="flex items-center">
                     <span class="text-gray-400 text-lg mr-2">×</span>
-                    <span class="text-gray-700">予約不可（過去の時間）</span>
+                    <span class="text-gray-700">予約不可（過去の日時・満席）</span>
                 </div>
             </div>
         </div>
@@ -514,12 +524,31 @@
 
     <script>
         let selectedSlot = null;
-        
+
         let existingReservations = []; // 既存予約を格納
-        
+
+        // 予約変更時の元の予約情報
+        const originalReservationDate = @json(Session::get('original_reservation_date'));
+        const originalReservationTime = @json(Session::get('original_reservation_time'));
+        const isReservationChange = @json(Session::has('is_reservation_change'));
+
         // ページ読み込み時に既存顧客情報をチェック
         document.addEventListener('DOMContentLoaded', async function() {
             console.log('🚀 ページ読み込み開始');
+
+            // デバッグ: 予約変更情報を確認
+            console.log('🟡 予約変更情報:', {
+                isReservationChange: isReservationChange,
+                isReservationChangeType: typeof isReservationChange,
+                originalReservationDate: originalReservationDate,
+                originalReservationTime: originalReservationTime
+            });
+
+            console.log('🟡 生の値:', {
+                raw_isReservationChange: @json(Session::has('is_reservation_change')),
+                raw_originalDate: @json(Session::get('original_reservation_date')),
+                raw_originalTime: @json(Session::get('original_reservation_time'))
+            });
 
             checkExistingCustomer();
 
@@ -541,6 +570,12 @@
                 console.log('✅ カレンダー更新完了');
             } else {
                 console.log('📅 通常予約モード');
+            }
+
+            // 予約変更モードの場合、カレンダーを更新
+            if (isReservationChange) {
+                console.log('🟡 予約変更モード - カレンダーに現在の予約をマーク');
+                updateCalendarWithReservations();
             }
         });
         
@@ -572,9 +607,11 @@
         function updateCalendarWithReservations() {
             console.log('🎯 updateCalendarWithReservations開始');
             console.log('既存予約数:', existingReservations.length);
+            console.log('予約変更モード:', isReservationChange);
 
-            if (existingReservations.length === 0) {
-                console.log('⚠️ 既存予約なし - 処理をスキップ');
+            // 既存予約がなく、かつ予約変更モードでもない場合はスキップ
+            if (existingReservations.length === 0 && !isReservationChange) {
+                console.log('⚠️ 既存予約なし & 予約変更モードでない - 処理をスキップ');
                 return;
             }
 
@@ -595,6 +632,59 @@
             // カレンダーの各セルをチェック（予約可能なボタンのみ）
             const buttons = document.querySelectorAll('button[data-date][data-time].time-slot');
             console.log(`🔍 チェック対象ボタン数: ${buttons.length}`);
+
+            // 予約変更時：現在の予約時刻を黄色にマーク
+            if (isReservationChange && originalReservationDate && originalReservationTime) {
+                console.log('🟡 予約変更モード: 現在の予約をマーク', {
+                    date: originalReservationDate,
+                    time: originalReservationTime
+                });
+
+                // 日付を正規化
+                let originalDateStr = originalReservationDate;
+                if (typeof originalDateStr === 'string' && originalDateStr.includes(' ')) {
+                    originalDateStr = originalDateStr.split(' ')[0];
+                }
+
+                // 時刻を正規化（HH:MM形式）
+                let originalTimeStr = originalReservationTime;
+                if (typeof originalTimeStr === 'string' && originalTimeStr.length > 5) {
+                    originalTimeStr = originalTimeStr.substring(0, 5);
+                }
+
+                buttons.forEach(button => {
+                    const btnDate = button.getAttribute('data-date');
+                    const btnTime = button.getAttribute('data-time');
+
+                    if (btnDate === originalDateStr && btnTime === originalTimeStr) {
+                        console.log('🎯 現在の予約時刻を発見:', btnDate, btnTime);
+
+                        // 親要素（td）を取得
+                        const td = button.parentElement;
+
+                        // 黄色背景とリングを追加
+                        td.classList.add('bg-yellow-100', 'ring-2', 'ring-yellow-400');
+
+                        // ボタンを黄色に変更
+                        button.classList.remove('bg-green-500', 'hover:bg-green-600');
+                        button.classList.add('bg-yellow-500', 'hover:bg-yellow-600');
+
+                        // 「現在」バッジを追加
+                        const badge = document.createElement('span');
+                        badge.className = 'absolute -top-1 -right-1 bg-yellow-500 text-white text-xs px-1 rounded';
+                        badge.textContent = '現在';
+
+                        // 相対位置コンテナを作成
+                        const container = document.createElement('div');
+                        container.className = 'relative inline-block';
+
+                        // ボタンをコンテナに移動
+                        td.appendChild(container);
+                        container.appendChild(button);
+                        container.appendChild(badge);
+                    }
+                });
+            }
 
             if (buttons.length === 0) {
                 console.log('⚠️ 予約可能なボタンが見つかりません');
@@ -702,7 +792,7 @@
             });
         }
         
-        // 既存予約の日付を取得する関数
+        // 既存予約の日付を取得する関数（現在の店舗のみ）
         function getExistingReservationDates() {
             console.log('=== 既存予約データ確認 ===');
             console.log('existingReservations type:', typeof existingReservations);
@@ -714,11 +804,16 @@
                 return [];
             }
 
+            // 現在の店舗IDを取得
+            const currentStoreId = @json($selectedStore->id);
+            console.log('🏪 現在の店舗ID:', currentStoreId);
+
             const dates = existingReservations
                 .filter(reservation => {
                     const isActive = !['cancelled', 'canceled'].includes(reservation.status);
-                    console.log(`予約ID ${reservation.id}: status=${reservation.status}, active=${isActive}, date=${reservation.reservation_date}`);
-                    return isActive;
+                    const isSameStore = reservation.store_id === currentStoreId;
+                    console.log(`予約ID ${reservation.id}: store_id=${reservation.store_id}, current_store=${currentStoreId}, same_store=${isSameStore}, status=${reservation.status}, active=${isActive}, date=${reservation.reservation_date}`);
+                    return isActive && isSameStore;
                 })
                 .map(reservation => {
                     // 'Y-m-d H:i:s' または 'Y-m-dTH:i:s' 形式から日付部分のみ抽出
@@ -727,7 +822,7 @@
                     return dateStr;
                 });
 
-            console.log('✅ 最終的な有効予約日一覧:', dates);
+            console.log('✅ 最終的な有効予約日一覧（店舗ID=' + currentStoreId + '）:', dates);
             return dates;
         }
         

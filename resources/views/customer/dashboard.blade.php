@@ -22,7 +22,7 @@
                     </p>
                 </div>
                 <div class="flex gap-2">
-                    <button id="store-switcher-btn" class="hidden bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors flex items-center gap-2">
+                    <button id="store-switcher-btn" class="hidden bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors items-center gap-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
                         </svg>
@@ -404,6 +404,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     await fetchReservations();
     await fetchStats();
 
+    // 店舗切り替えボタンの表示チェック
+    await checkMultipleStores();
+
     // ログアウト処理
     document.getElementById('logout-btn').addEventListener('click', function() {
         if (confirm('ログアウトしますか？')) {
@@ -413,6 +416,28 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     });
 });
+
+// 共通のエラーハンドリング関数
+function handleAuthError(error) {
+    console.error('Authentication error:', error);
+
+    // JSONパースエラーまたは認証エラーの場合は再ログインを促す
+    if (error.message.includes('Unexpected token') ||
+        error.message.includes('JSON') ||
+        error.message.includes('401') ||
+        error.message.includes('Unauthenticated')) {
+
+        localStorage.removeItem('customer_token');
+        localStorage.removeItem('customer_data');
+        localStorage.removeItem('token_expiry');
+        localStorage.removeItem('remember_me');
+
+        alert('ログインの有効期限が切れました。再度ログインしてください。');
+        window.location.href = '/customer/login';
+        return true;
+    }
+    return false;
+}
 
 // 店舗情報を取得して表示
 async function fetchStoreInfo(storeId) {
@@ -515,6 +540,11 @@ async function fetchReservations() {
                 console.error('Token is invalid or expired');
                 localStorage.removeItem('customer_token');
                 localStorage.removeItem('customer_data');
+                localStorage.removeItem('token_expiry');
+                localStorage.removeItem('remember_me');
+
+                // ユーザーに通知してからリダイレクト
+                alert('ログインの有効期限が切れました。再度ログインしてください。');
                 window.location.href = '/customer/login';
                 return;
             }
@@ -522,7 +552,7 @@ async function fetchReservations() {
             console.error('API Error:', errorText);
             throw new Error(`Failed to fetch reservations: ${response.status}`);
         }
-        
+
         const data = await response.json();
         console.log('=== API Response Debug ===');
         console.log('Full response:', data);
@@ -551,10 +581,19 @@ async function fetchReservations() {
         
     } catch (error) {
         console.error('Error fetching reservations:', error);
+
+        // 認証エラーをチェック
+        if (handleAuthError(error)) {
+            return;
+        }
+
         document.getElementById('reservations-container').innerHTML = `
             <div class="bg-red-50 border border-red-200 rounded-lg p-4">
                 <p class="text-red-800">予約履歴の取得に失敗しました。</p>
                 <p class="text-red-600 text-sm mt-1">エラー: ${error.message}</p>
+                <button onclick="location.reload()" class="mt-2 bg-blue-500 text-white px-4 py-2 rounded text-sm hover:bg-blue-600">
+                    再読み込み
+                </button>
             </div>
         `;
     }
@@ -590,13 +629,21 @@ async function fetchStats() {
         console.log('=== サブスクリプション取得開始 ===');
         console.log('Using token:', token);
         console.log('Token length:', token ? token.length : 'undefined');
+        console.log('Store ID:', customerData.store_id);
         console.log('Fetching from:', '/api/customer/subscriptions-token');
-        
+
+        const subscriptionHeaders = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        };
+
+        // 店舗IDがある場合はヘッダーに追加
+        if (customerData.store_id) {
+            subscriptionHeaders['X-Store-Id'] = customerData.store_id;
+        }
+
         const subscriptionResponse = await fetch('/api/customer/subscriptions-token', {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
+            headers: subscriptionHeaders
         });
         
         console.log('Subscription API Response:', subscriptionResponse.status);
@@ -683,11 +730,18 @@ async function fetchStats() {
         }
 
         // 回数券情報の取得
+        const ticketsHeaders = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        };
+
+        // 店舗IDがある場合はヘッダーに追加
+        if (customerData.store_id) {
+            ticketsHeaders['X-Store-Id'] = customerData.store_id;
+        }
+
         const ticketsResponse = await fetch('/api/customer/tickets-token', {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
+            headers: ticketsHeaders
         });
 
         if (ticketsResponse.ok) {
@@ -749,6 +803,7 @@ async function fetchStats() {
 
     } catch (error) {
         console.error('Error fetching stats:', error);
+        handleAuthError(error);
     }
 }
 
@@ -1182,10 +1237,8 @@ async function goToReservation() {
             source: 'mypage'  // マイページからの予約であることを明示
         };
 
-        // 現在ログイン中の店舗IDを含める
-        if (customerData.store_id) {
-            requestBody.store_id = customerData.store_id;
-        }
+        // 店舗IDは含めない（顧客に店舗を選択させる）
+        // 複数店舗で予約できるようになったため、毎回店舗選択から始める
 
         const response = await fetch('/api/customer/reservation-context/medical-record', {
             method: 'POST',
@@ -1198,10 +1251,13 @@ async function goToReservation() {
 
         if (!response.ok) {
             if (response.status === 401) {
-                // トークンが無効
+                console.error('Token is invalid or expired');
                 localStorage.removeItem('customer_token');
                 localStorage.removeItem('customer_data');
                 window.location.href = '/customer/login';
+                localStorage.removeItem('token_expiry');
+                localStorage.removeItem('remember_me');
+                alert('ログインの有効期限が切れました。再度ログインしてください。');
                 return;
             }
             throw new Error('Failed to create reservation context');
@@ -1695,12 +1751,21 @@ async function checkMultipleStores() {
 
         const data = await response.json();
 
+        console.log('=== 店舗切り替えチェック ===');
+        console.log('API Response:', data);
+        console.log('Stores:', data.stores);
+        console.log('Stores length:', data.stores ? data.stores.length : 0);
+
         // 複数店舗がある場合のみボタンを表示
+        const btn = document.getElementById('store-switcher-btn');
         if (data.stores && data.stores.length > 1) {
-            document.getElementById('store-switcher-btn').classList.remove('hidden');
+            btn.classList.remove('hidden');
+            btn.classList.add('flex');
             console.log('複数店舗利用可能:', data.stores);
         } else {
-            console.log('利用店舗は1店舗のみ');
+            btn.classList.add('hidden');
+            btn.classList.remove('flex');
+            console.log('利用店舗は1店舗のみ:', data.stores);
         }
     } catch (error) {
         console.error('Error checking stores:', error);

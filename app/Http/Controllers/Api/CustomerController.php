@@ -144,38 +144,14 @@ class CustomerController extends Controller
 
         $storeId = $request->input('store_id');
         $source = $request->input('source', 'mypage'); // デフォルトはmypage
-        $lastReservation = null;
 
-        // 店舗IDが指定されていない場合は、最後に予約した店舗を取得
-        if (!$storeId) {
-            // 最新の予約から店舗IDを取得
-            $lastReservation = $customer->reservations()
-                ->whereNotIn('status', ['cancelled', 'canceled'])
-                ->orderBy('reservation_date', 'desc')
-                ->orderBy('start_time', 'desc')
-                ->first();
+        // 店舗IDの自動取得を削除: 複数店舗で予約可能にするため、顧客に明示的に選択させる
 
-            if ($lastReservation) {
-                $storeId = $lastReservation->store_id;
-            } else {
-                // 予約履歴がない場合は、デフォルトの店舗を取得
-                $defaultStore = Store::where('is_active', true)->first();
-                if ($defaultStore) {
-                    $storeId = $defaultStore->id;
-                }
-            }
-        }
-
-        // ログ出力: 取得した店舗ID
-        \Log::info('[createMedicalRecordContext] 店舗ID取得結果', [
+        // ログ出力: 受信した店舗ID
+        \Log::info('[createMedicalRecordContext] 受信したパラメータ', [
             'customer_id' => $customer->id,
             'store_id' => $storeId,
-            'last_reservation' => $lastReservation ? [
-                'id' => $lastReservation->id,
-                'store_id' => $lastReservation->store_id,
-                'reservation_date' => $lastReservation->reservation_date,
-                'status' => $lastReservation->status
-            ] : null
+            'source' => $source
         ]);
 
         // 店舗IDが取得できた場合は、店舗選択済みのコンテキストを生成
@@ -323,9 +299,12 @@ class CustomerController extends Controller
         }
 
         // 条件2: 予約履歴から利用店舗を取得（顧客レコードにない店舗）
+        // 同じ電話番号を持つ全顧客の予約履歴を確認
+        $customerIds = Customer::where('phone', $customer->phone)->pluck('id');
+
         $reservationStores = \DB::table('reservations')
             ->join('stores', 'reservations.store_id', '=', 'stores.id')
-            ->where('reservations.customer_id', $customer->id)
+            ->whereIn('reservations.customer_id', $customerIds)
             ->whereNotIn('reservations.status', ['cancelled', 'canceled'])
             ->select('stores.id as store_id', 'stores.name as store_name')
             ->distinct()
