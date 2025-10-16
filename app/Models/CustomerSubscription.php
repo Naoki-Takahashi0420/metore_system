@@ -403,9 +403,17 @@ class CustomerSubscription extends Model
     public static function getPaymentFailedReasonOptions(): array
     {
         return [
+            'card_declined' => 'カードが拒否されました',
             'card_expired' => 'カード期限切れ',
-            'limit_exceeded' => '限度額超過',
+            'expired_card' => 'カード期限切れ',
+            'insufficient_funds' => '残高不足',
             'insufficient' => '残高不足',
+            'limit_exceeded' => '限度額超過',
+            'incorrect_cvc' => 'セキュリティコードエラー',
+            'incorrect_number' => 'カード番号エラー',
+            'invalid_expiry' => '有効期限エラー',
+            'card_not_supported' => 'サポート対象外のカード',
+            'processing_error' => '処理エラー',
             'card_error' => 'カードエラー',
             'other' => 'その他',
         ];
