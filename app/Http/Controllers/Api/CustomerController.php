@@ -77,9 +77,15 @@ class CustomerController extends Controller
             $filterStoreId = $request->header('X-Store-Id') ?? $request->input('store_id') ?? $customer->store_id;
 
             // 店舗IDが設定されている場合のみ店舗でフィルタリング
+            // ただし、予約がないカルテは全店舗で表示
             if ($filterStoreId) {
-                $query->whereHas('reservation', function ($q) use ($filterStoreId) {
-                    $q->where('store_id', $filterStoreId);
+                $query->where(function ($q) use ($filterStoreId) {
+                    // 予約がある場合は指定店舗のカルテのみ
+                    $q->whereHas('reservation', function ($subQ) use ($filterStoreId) {
+                        $subQ->where('store_id', $filterStoreId);
+                    })
+                    // または予約がないカルテ（全店舗共通）
+                    ->orWhereNull('reservation_id');
                 });
             }
 

@@ -50,8 +50,16 @@ class CustomerTicketController extends Controller
         }
 
         // 顧客の全回数券を取得（有効・期限切れ・使い切り全て）
-        $tickets = CustomerTicket::where('customer_id', $customer->id)
-            ->with(['ticketPlan', 'store'])
+        $query = CustomerTicket::where('customer_id', $customer->id);
+
+        // localStorageから店舗IDを取得してフィルタリング
+        // フロントエンドから X-Store-Id ヘッダーで送信される
+        $storeId = $request->header('X-Store-Id');
+        if ($storeId) {
+            $query->where('store_id', $storeId);
+        }
+
+        $tickets = $query->with(['ticketPlan', 'store'])
             ->orderByRaw("CASE
                 WHEN status = 'active' THEN 1
                 WHEN status = 'expired' THEN 2
