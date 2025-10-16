@@ -210,12 +210,27 @@ jobs:
 
         # キューワーカーの起動（バックグラウンド）
         echo "=== Starting Queue Worker ==="
-        # 既存のキューワーカーを停止
+        # 既存のキューワーカーを確実に停止
+        echo "Stopping existing queue workers..."
         sudo pkill -f "artisan queue:work" || true
-        # 新しいキューワーカーを起動
+        # プロセスが完全に終了するまで待つ
+        sleep 3
+        # まだ残っている場合は強制終了
+        if pgrep -f "artisan queue:work" > /dev/null; then
+          echo "⚠️ Warning: Queue workers still running, forcing kill..."
+          sudo pkill -9 -f "artisan queue:work" || true
+          sleep 2
+        fi
+        # 最終確認
+        REMAINING=$(pgrep -f "artisan queue:work" | wc -l)
+        echo "Remaining queue workers: $REMAINING"
+        # 新しいキューワーカーを1つだけ起動
         cd $APP_DIR
         nohup sudo php artisan queue:work --tries=3 --timeout=90 > /var/www/html/storage/logs/queue.log 2>&1 &
-        echo "Queue worker started"
+        sleep 1
+        # 起動確認
+        RUNNING=$(pgrep -f "artisan queue:work" | wc -l)
+        echo "✅ Queue worker started (running: $RUNNING)"
 
         # サービス再起動
         sudo systemctl restart nginx php8.3-fpm
