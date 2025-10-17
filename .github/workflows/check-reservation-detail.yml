@@ -1,0 +1,65 @@
+name: Check Reservation Detail
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-reservation:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check Reservation R202510083742
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'CHECK'
+        set -e
+        APP_DIR="/var/www/html"
+
+        echo "=== 予約 R202510083742 の詳細 ==="
+        cd $APP_DIR
+        sudo php artisan tinker --execute="
+        \$reservation = \App\Models\Reservation::where('reservation_number', 'R202510083742')->first();
+        if (\$reservation) {
+            echo '予約ID: ' . \$reservation->id . PHP_EOL;
+            echo '予約日: ' . \$reservation->reservation_date . PHP_EOL;
+            echo '開始時刻: ' . \$reservation->start_time . PHP_EOL;
+            echo '終了時刻: ' . \$reservation->end_time . PHP_EOL;
+            echo 'メニュー: ' . (\$reservation->menu ? \$reservation->menu->name : 'なし') . PHP_EOL;
+            echo 'メニュー所要時間: ' . (\$reservation->menu ? \$reservation->menu->duration_minutes : 'なし') . '分' . PHP_EOL;
+            echo '席番号: ' . \$reservation->seat_number . PHP_EOL;
+            echo 'ライン種別: ' . (\$reservation->line_type ?? 'null') . PHP_EOL;
+            echo 'is_sub: ' . (\$reservation->is_sub ? 'true' : 'false') . PHP_EOL;
+            echo '店舗ID: ' . \$reservation->store_id . PHP_EOL;
+            echo '' . PHP_EOL;
+
+            // 同じ日の他の予約も確認
+            echo '=== 同じ日（10/17）の席1の予約 ===' . PHP_EOL;
+            \$sameDay = \App\Models\Reservation::where('store_id', \$reservation->store_id)
+                ->whereDate('reservation_date', \$reservation->reservation_date)
+                ->where('seat_number', 1)
+                ->whereNotIn('status', ['cancelled', 'canceled'])
+                ->orderBy('start_time')
+                ->get();
+
+            foreach (\$sameDay as \$r) {
+                echo '  予約' . \$r->id . ': ' . \$r->start_time . ' - ' . \$r->end_time;
+                echo ' (' . (\$r->customer ? \$r->customer->last_name . \$r->customer->first_name : '顧客なし') . '様)';
+                echo ' [' . (\$r->menu ? \$r->menu->name : 'メニューなし') . ']' . PHP_EOL;
+            }
+        } else {
+            echo '予約が見つかりません' . PHP_EOL;
+        }
+        "
+
+        CHECK
+
+        rm deploy_key.pem
+
+        echo ""
+        echo "✅ 確認完了"
