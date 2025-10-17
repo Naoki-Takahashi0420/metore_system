@@ -86,10 +86,18 @@ class AdminPanelProvider extends PanelProvider
                     // グローバルスコープに公開（カレンダー月変更時に呼び出せるようにする）
                     window.setupCalendarClicks = function() {
                         const dayNumbers = document.querySelectorAll("a.fc-daygrid-day-number");
-                        console.log("Found " + dayNumbers.length + " day numbers");
+                        console.log("🔍 setupCalendarClicks called - Found " + dayNumbers.length + " day numbers");
 
-                        dayNumbers.forEach(function(dayNumber) {
-                            if (dayNumber.dataset.clickSetup) return;
+                        let setupCount = 0;
+                        dayNumbers.forEach(function(dayNumber, index) {
+                            if (dayNumber.dataset.clickSetup) {
+                                console.log("⏭️ Skipping already setup day number at index " + index);
+                                return;
+                            }
+
+                            const td = dayNumber.closest("td[data-date]");
+                            const date = td ? td.getAttribute("data-date") : "no-date";
+                            console.log("✅ Setting up click for date: " + date + " (index: " + index + ")");
 
                             dayNumber.style.cursor = "pointer";
 
@@ -100,16 +108,21 @@ class AdminPanelProvider extends PanelProvider
                                 const td = this.closest("td[data-date]");
                                 if (td) {
                                     const date = td.getAttribute("data-date");
-                                    console.log("Date clicked: " + date);
+                                    console.log("📅 Date clicked: " + date);
 
                                     if (window.Livewire) {
+                                        console.log("🚀 Dispatching calendar-date-clicked event");
                                         window.Livewire.dispatch("calendar-date-clicked", { date: date });
+                                    } else {
+                                        console.error("❌ Livewire not found!");
                                     }
                                 }
                             });
 
                             dayNumber.dataset.clickSetup = "true";
+                            setupCount++;
                         });
+                        console.log("✅ Setup complete - " + setupCount + " day numbers configured");
                     };
 
                     // 3秒後に実行
