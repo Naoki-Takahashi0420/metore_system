@@ -1,0 +1,61 @@
+name: Check Email Logs
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-logs:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check Email Sending Logs
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'CHECK_LOGS'
+        set -e
+        APP_DIR="/var/www/html"
+
+        echo "=== 📧 メール送信ログ確認 ==="
+        echo ""
+
+        cd $APP_DIR
+
+        echo "=== Laravel ログ（メール関連） ==="
+        sudo tail -n 300 storage/logs/laravel.log | grep -i "メール" || echo "メール関連のログが見つかりません"
+
+        echo ""
+        echo "=== AWS SES 送信ログ ==="
+        sudo tail -n 300 storage/logs/laravel.log | grep -i "ses\|email\|messageId" || echo "SES関連のログが見つかりません"
+
+        echo ""
+        echo "=== エラーログ ==="
+        sudo tail -n 100 storage/logs/laravel.log | grep -i "error\|exception\|failed" || echo "エラーログが見つかりません"
+
+        echo ""
+        echo "=== .env のメール設定確認 ==="
+        sudo grep -E "MAIL_|SES_|AWS_" $APP_DIR/.env | grep -v "SECRET" || echo "メール設定が見つかりません"
+
+        echo ""
+        echo "=== キューワーカーログ ==="
+        if [ -f "$APP_DIR/storage/logs/queue-worker.log" ]; then
+          sudo tail -n 50 $APP_DIR/storage/logs/queue-worker.log || echo "キューワーカーログが空です"
+        else
+          echo "キューワーカーログファイルが存在しません"
+        fi
+
+        echo ""
+        echo "=== 最新のLaravelログ（直近50行） ==="
+        sudo tail -n 50 storage/logs/laravel.log
+
+        CHECK_LOGS
+
+        rm deploy_key.pem
+
+        echo ""
+        echo "✅ ログ確認完了"
