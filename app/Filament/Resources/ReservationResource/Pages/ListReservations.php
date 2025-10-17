@@ -35,21 +35,21 @@ class ListReservations extends ListRecords
         ];
     }
     
-    // public function getHeader(): ?\Illuminate\Contracts\View\View
-    // {
-    //     $user = auth()->user();
+    public function getHeader(): ?\Illuminate\Contracts\View\View
+    {
+        $user = auth()->user();
 
-    //     if ($user && $user->hasRole('super_admin')) {
-    //         $storeOptions = Store::where('is_active', true)->pluck('name', 'id');
+        if ($user && $user->hasRole('super_admin')) {
+            $storeOptions = Store::where('is_active', true)->pluck('name', 'id');
 
-    //         return view('filament.resources.reservation-resource.pages.list-reservations-header', [
-    //             'storeOptions' => $storeOptions->prepend('全店舗', ''),
-    //             'selectedStore' => $this->storeFilter ?? ''
-    //         ]);
-    //     }
+            return view('filament.resources.reservation-resource.pages.list-reservations-header', [
+                'storeOptions' => $storeOptions->prepend('全店舗', ''),
+                'selectedStore' => $this->storeFilter ?? ''
+            ]);
+        }
 
-    //     return null;
-    // }
+        return null;
+    }
     
     public function getTableQuery(): ?\Illuminate\Database\Eloquent\Builder
     {

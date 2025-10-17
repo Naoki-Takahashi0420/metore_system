@@ -1,0 +1,49 @@
+name: Clear Old Queue Jobs
+
+on:
+  workflow_dispatch:
+
+jobs:
+  clear-jobs:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Clear Old Queue Jobs
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'CLEAR_JOBS'
+        set -e
+        APP_DIR="/var/www/html"
+
+        echo "=== 古いキュージョブをクリア ==="
+
+        cd $APP_DIR
+
+        # 現在のジョブ数を確認
+        echo "クリア前のジョブ数:"
+        sudo php artisan tinker --execute="echo \DB::table('jobs')->count() . ' 件' . PHP_EOL;"
+
+        # 全てのジョブを削除
+        echo ""
+        echo "全てのジョブを削除中..."
+        sudo php artisan tinker --execute="\DB::table('jobs')->delete(); echo '✅ 削除完了' . PHP_EOL;"
+
+        # 削除後のジョブ数を確認
+        echo ""
+        echo "クリア後のジョブ数:"
+        sudo php artisan tinker --execute="echo \DB::table('jobs')->count() . ' 件' . PHP_EOL;"
+
+        echo ""
+        echo "=== クリア完了 ==="
+        echo "これから発生する予約のみ通知が送信されます"
+        CLEAR_JOBS
+
+        rm deploy_key.pem
+
+        echo "✅ Old Queue Jobs Cleared!"
