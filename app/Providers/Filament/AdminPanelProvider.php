@@ -83,7 +83,8 @@ class AdminPanelProvider extends PanelProvider
                 fn () => '<script>
                     console.log("Calendar click handler loading...");
 
-                    function setupCalendarClicks() {
+                    // グローバルスコープに公開（カレンダー月変更時に呼び出せるようにする）
+                    window.setupCalendarClicks = function() {
                         const dayNumbers = document.querySelectorAll("a.fc-daygrid-day-number");
                         console.log("Found " + dayNumbers.length + " day numbers");
 
@@ -109,14 +110,14 @@ class AdminPanelProvider extends PanelProvider
 
                             dayNumber.dataset.clickSetup = "true";
                         });
-                    }
+                    };
 
                     // 3秒後に実行
-                    setTimeout(setupCalendarClicks, 3000);
+                    setTimeout(window.setupCalendarClicks, 3000);
 
                     // ページ変更時にも実行
                     document.addEventListener("livewire:navigated", function() {
-                        setTimeout(setupCalendarClicks, 3000);
+                        setTimeout(window.setupCalendarClicks, 3000);
                     });
 
                     // タイムラインインジケーター位置更新
