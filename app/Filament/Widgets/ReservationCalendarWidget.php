@@ -432,17 +432,6 @@ class ReservationCalendarWidget extends FullCalendarWidget
 
             'editable' => false,
 
-            // 月変更時に日付クリックイベントを再設定
-            'datesSet' => 'function(info) {
-                console.log("📅 Calendar month changed - re-setting up click handlers");
-                // AdminPanelProviderのsetupCalendarClicksを呼び出す
-                if (typeof window.setupCalendarClicks === "function") {
-                    setTimeout(window.setupCalendarClicks, 100);
-                } else {
-                    console.warn("⚠️ setupCalendarClicks function not found");
-                }
-            }',
-
             // ツールチップ設定（件数情報表示）
             'eventDidMount' => 'function(info) {
                 var activeCount = info.event.extendedProps.activeCount || 0;

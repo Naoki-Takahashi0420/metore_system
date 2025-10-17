@@ -133,6 +133,15 @@ class AdminPanelProvider extends PanelProvider
                         setTimeout(window.setupCalendarClicks, 3000);
                     });
 
+                    // FullCalendarの月切り替えボタンをクリックした時に再実行
+                    document.addEventListener("click", function(e) {
+                        // prev, next, todayボタンのクリックを検知
+                        if (e.target.closest(".fc-prev-button, .fc-next-button, .fc-today-button")) {
+                            console.log("📅 Calendar navigation button clicked - re-setting up click handlers");
+                            setTimeout(window.setupCalendarClicks, 500);
+                        }
+                    });
+
                     // タイムラインインジケーター位置更新
                     console.log("⏰ Timeline indicator script loading...");
 
