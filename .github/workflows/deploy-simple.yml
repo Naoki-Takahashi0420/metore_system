@@ -231,7 +231,7 @@ jobs:
         echo "Remaining queue workers: $REMAINING"
         # 新しいキューワーカーを1つだけ起動（www-dataユーザーで実行）
         cd $APP_DIR
-        sudo -u www-data nohup php artisan queue:work --tries=3 --timeout=90 >> $APP_DIR/storage/logs/queue-worker.log 2>&1 &
+        sudo -u www-data bash -c "nohup php artisan queue:work --tries=3 --timeout=90 >> $APP_DIR/storage/logs/queue-worker.log 2>&1 &"
         sleep 1
         # 起動確認
         RUNNING=$(pgrep -f "artisan queue:work" | wc -l)
