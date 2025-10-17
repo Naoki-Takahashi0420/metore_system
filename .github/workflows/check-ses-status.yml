@@ -1,0 +1,45 @@
+name: Check SES Status
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-ses:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check AWS SES Configuration
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: ap-northeast-1
+      run: |
+        # AWS CLIのインストール確認
+        aws --version
+
+        echo "=== AWS SES アカウント情報 ==="
+        aws ses get-account-sending-enabled || echo "SESアカウント情報の取得に失敗"
+
+        echo ""
+        echo "=== SES 送信統計 ==="
+        aws ses get-send-statistics --max-items 5 || echo "送信統計の取得に失敗"
+
+        echo ""
+        echo "=== 検証済みメールアドレス一覧 ==="
+        aws ses list-verified-email-addresses || echo "検証済みアドレスの取得に失敗"
+
+        echo ""
+        echo "=== 検証済みドメイン一覧 ==="
+        aws ses list-identities --identity-type Domain || echo "検証済みドメインの取得に失敗"
+
+        echo ""
+        echo "=== noreply@meno-training.com の検証状態 ==="
+        aws ses get-identity-verification-attributes --identities noreply@meno-training.com || echo "検証状態の取得に失敗"
+
+        echo ""
+        echo "=== meno-training.com ドメインの検証状態 ==="
+        aws ses get-identity-verification-attributes --identities meno-training.com || echo "ドメイン検証状態の取得に失敗"
+
+        echo ""
+        echo "=== SES 送信クォータ（サンドボックスモードか確認） ==="
+        aws ses get-send-quota || echo "送信クォータの取得に失敗"
