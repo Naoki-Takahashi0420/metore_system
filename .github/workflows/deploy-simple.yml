@@ -103,7 +103,23 @@ jobs:
         else
           echo "✅ AWS SNS settings already exist in .env"
         fi
-        
+
+        # セッション有効期限を30日に延長（2段階認証問題の解決）
+        echo "Checking SESSION_LIFETIME in .env..."
+        if grep -q "SESSION_LIFETIME=120" $APP_DIR/.env 2>/dev/null; then
+          echo "Updating SESSION_LIFETIME to 30 days (43200 minutes)..."
+          sudo sed -i 's/SESSION_LIFETIME=120/SESSION_LIFETIME=43200/' $APP_DIR/.env
+          echo "✅ SESSION_LIFETIME updated to 43200 minutes (30 days)"
+        elif ! grep -q "SESSION_LIFETIME" $APP_DIR/.env 2>/dev/null; then
+          echo "Adding SESSION_LIFETIME to .env..."
+          echo "" | sudo tee -a $APP_DIR/.env > /dev/null
+          echo "# Session lifetime (30 days = 43200 minutes)" | sudo tee -a $APP_DIR/.env > /dev/null
+          echo "SESSION_LIFETIME=43200" | sudo tee -a $APP_DIR/.env > /dev/null
+          echo "✅ SESSION_LIFETIME added to .env"
+        else
+          echo "✅ SESSION_LIFETIME already configured"
+        fi
+
         # SQLiteデータベース設定（新規作成しない）
         cd $APP_DIR
         if [ ! -f "database/database.sqlite" ]; then
