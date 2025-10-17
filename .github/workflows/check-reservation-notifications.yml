@@ -1,0 +1,77 @@
+name: Check Reservation Notifications
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-notifications:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check Reservation and Notification Status
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'CHECK'
+        set -e
+        APP_DIR="/var/www/html"
+
+        echo "=== 最近の予約作成（直近5件） ==="
+        cd $APP_DIR
+        sudo php artisan tinker --execute="
+        \$reservations = \App\Models\Reservation::orderBy('created_at', 'desc')->limit(5)->get(['id', 'created_at', 'reservation_date', 'start_time', 'store_id']);
+        foreach (\$reservations as \$r) {
+            echo 'ID: ' . \$r->id . ' | 作成: ' . \$r->created_at . ' | 予約日: ' . \$r->reservation_date . ' ' . \$r->start_time . ' | 店舗ID: ' . \$r->store_id . PHP_EOL;
+        }
+        "
+
+        echo ""
+        echo "=== イベントリスナー設定確認 ==="
+        sudo php artisan event:list || echo "イベント一覧取得失敗"
+
+        echo ""
+        echo "=== キューに入っているジョブ ==="
+        sudo php artisan tinker --execute="
+        \$jobs = \DB::table('jobs')->orderBy('id', 'desc')->limit(5)->get();
+        echo 'キュー内のジョブ数: ' . \DB::table('jobs')->count() . PHP_EOL;
+        if (count(\$jobs) > 0) {
+            echo '最新のジョブ:' . PHP_EOL;
+            foreach (\$jobs as \$job) {
+                echo '  - ID: ' . \$job->id . ' | Queue: ' . \$job->queue . ' | Attempts: ' . \$job->attempts . PHP_EOL;
+            }
+        }
+        "
+
+        echo ""
+        echo "=== 失敗したジョブ ==="
+        sudo php artisan tinker --execute="
+        \$failedJobs = \DB::table('failed_jobs')->orderBy('failed_at', 'desc')->limit(5)->get();
+        echo '失敗したジョブ数: ' . \DB::table('failed_jobs')->count() . PHP_EOL;
+        if (count(\$failedJobs) > 0) {
+            echo '最新の失敗ジョブ:' . PHP_EOL;
+            foreach (\$failedJobs as \$job) {
+                echo '  - ID: ' . \$job->id . ' | Queue: ' . \$job->queue . ' | 失敗: ' . \$job->failed_at . PHP_EOL;
+                echo '    Exception: ' . substr(\$job->exception, 0, 200) . '...' . PHP_EOL;
+            }
+        }
+        "
+
+        echo ""
+        echo "=== bootstrap/providers.php 確認 ==="
+        if [ -f "$APP_DIR/bootstrap/providers.php" ]; then
+          sudo cat $APP_DIR/bootstrap/providers.php
+        else
+          echo "bootstrap/providers.php が見つかりません"
+        fi
+
+        CHECK
+
+        rm deploy_key.pem
+
+        echo ""
+        echo "✅ 確認完了"
