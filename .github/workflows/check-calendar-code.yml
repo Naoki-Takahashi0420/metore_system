@@ -1,0 +1,46 @@
+name: Check Calendar Code
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-code:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check Calendar Widget Code
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'CHECK'
+        set -e
+        APP_DIR="/var/www/html"
+
+        echo "=== ReservationCalendarWidget.php の datesSet 確認 ==="
+        cd $APP_DIR
+        sudo grep -A 5 "datesSet" app/Filament/Widgets/ReservationCalendarWidget.php || echo "datesSet が見つかりません"
+
+        echo ""
+        echo "=== AdminPanelProvider.php の window.setupCalendarClicks 確認 ==="
+        sudo grep -A 3 "window.setupCalendarClicks" app/Providers/Filament/AdminPanelProvider.php || echo "window.setupCalendarClicks が見つかりません"
+
+        echo ""
+        echo "=== 最新のGitコミット ==="
+        cd $APP_DIR
+        git log -1 --oneline
+
+        echo ""
+        echo "=== .version ファイル ==="
+        cat .version 2>/dev/null || echo ".version ファイルなし"
+
+        CHECK
+
+        rm deploy_key.pem
+
+        echo ""
+        echo "✅ 確認完了"
