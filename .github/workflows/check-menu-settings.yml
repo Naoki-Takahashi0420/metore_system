@@ -1,0 +1,54 @@
+name: Check Menu Settings
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-menus:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check Menu Settings
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'CHECK'
+        set -e
+        APP_DIR="/var/www/html"
+
+        echo "=== メニュー一覧（名前と所要時間） ==="
+        cd $APP_DIR
+        sudo php artisan tinker --execute="
+        \$menus = \App\Models\Menu::where('is_active', true)->orderBy('name')->get(['id', 'name', 'duration_minutes', 'price']);
+        foreach (\$menus as \$menu) {
+            echo 'ID: ' . \$menu->id . ' | 名前: ' . \$menu->name . ' | 時間: ' . \$menu->duration_minutes . '分 | 価格: ¥' . number_format(\$menu->price) . PHP_EOL;
+        }
+        "
+
+        echo ""
+        echo "=== 80分コースの詳細 ==="
+        sudo php artisan tinker --execute="
+        \$menu = \App\Models\Menu::where('name', 'LIKE', '%80分%')->first();
+        if (\$menu) {
+            echo '【メニュー情報】' . PHP_EOL;
+            echo 'ID: ' . \$menu->id . PHP_EOL;
+            echo '名前: ' . \$menu->name . PHP_EOL;
+            echo '所要時間: ' . \$menu->duration_minutes . '分' . PHP_EOL;
+            echo '価格: ¥' . number_format(\$menu->price) . PHP_EOL;
+            echo 'カテゴリID: ' . (\$menu->category_id ?? 'なし') . PHP_EOL;
+        } else {
+            echo '80分コースが見つかりません' . PHP_EOL;
+        }
+        "
+
+        CHECK
+
+        rm deploy_key.pem
+
+        echo ""
+        echo "✅ 確認完了"
