@@ -1,0 +1,51 @@
+name: Clear Filament Cache
+
+on:
+  workflow_dispatch:
+
+jobs:
+  clear-cache:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Clear All Caches
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'CLEAR'
+        set -e
+        APP_DIR="/var/www/html"
+
+        cd $APP_DIR
+
+        echo "=== キャッシュクリア開始 ==="
+        sudo php artisan optimize:clear
+        sudo php artisan view:clear
+        sudo php artisan cache:clear
+        sudo php artisan config:clear
+
+        echo ""
+        echo "=== Filamentアセット再公開 ==="
+        sudo php artisan filament:assets
+        sudo php artisan vendor:publish --tag=filament-panels-assets --force
+        sudo php artisan vendor:publish --tag=filament-support-assets --force
+
+        echo ""
+        echo "=== 設定キャッシュ再作成 ==="
+        sudo php artisan config:cache
+
+        echo ""
+        echo "=== サービス再起動 ==="
+        sudo systemctl restart php8.3-fpm nginx
+
+        echo ""
+        echo "✅ キャッシュクリア完了"
+
+        CLEAR
+
+        rm deploy_key.pem
