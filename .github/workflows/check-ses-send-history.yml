@@ -1,0 +1,37 @@
+name: Check SES Send History
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-history:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check SES Sending History
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: ap-northeast-1
+      run: |
+        echo "=== AWS SES 送信統計（最近のデータポイント） ==="
+        aws sesv2 get-account || echo "SESv2 API使用不可"
+
+        echo ""
+        echo "=== 過去2週間の送信統計 ==="
+        # 統計は15分単位で記録されるので、最近の送信を確認
+        aws ses get-send-statistics | jq -r '.SendDataPoints | sort_by(.Timestamp) | reverse | .[:20] | .[] | "\(.Timestamp) - 送信: \(.DeliveryAttempts), バウンス: \(.Bounces), 苦情: \(.Complaints), 拒否: \(.Rejects)"' || echo "統計取得失敗"
+
+        echo ""
+        echo "=== 検証済みアイデンティティ一覧 ==="
+        aws ses list-identities || echo "アイデンティティ一覧取得失敗"
+
+        echo ""
+        echo "=== 送信統計サマリー ==="
+        aws ses get-send-statistics | jq '{
+          total_sends: [.SendDataPoints[].DeliveryAttempts] | add,
+          total_bounces: [.SendDataPoints[].Bounces] | add,
+          total_complaints: [.SendDataPoints[].Complaints] | add,
+          total_rejects: [.SendDataPoints[].Rejects] | add,
+          data_points: .SendDataPoints | length
+        }' || echo "サマリー取得失敗"
