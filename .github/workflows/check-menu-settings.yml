@@ -24,8 +24,8 @@ jobs:
         echo "=== 全メニュー一覧（名前と所要時間の不一致チェック） ==="
         cd $APP_DIR
         sudo php artisan tinker --execute="
-        \$menus = \App\Models\Menu::where('is_active', true)->orderBy('name')->get();
-        echo '全メニュー数: ' . \$menus->count() . PHP_EOL . PHP_EOL;
+        \$menus = \App\Models\Menu::orderBy('name')->get();
+        echo '全メニュー数: ' . \$menus->count() . ' (is_active無視)' . PHP_EOL . PHP_EOL;
         foreach (\$menus as \$menu) {
             \$nameMinutes = null;
             if (preg_match('/(\d+)分/', \$menu->name, \$matches)) {
