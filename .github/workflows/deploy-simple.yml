@@ -198,7 +198,12 @@ jobs:
         sudo mkdir -p $APP_DIR/storage/app/livewire-tmp
         sudo chown -R www-data:www-data $APP_DIR/storage
         sudo chmod -R 775 $APP_DIR/storage
-        
+
+        # キューワーカー用ログファイル作成（権限設定直後に実行）
+        sudo touch $APP_DIR/storage/logs/queue-worker.log
+        sudo chown www-data:www-data $APP_DIR/storage/logs/queue-worker.log
+        sudo chmod 664 $APP_DIR/storage/logs/queue-worker.log
+
         # Laravelスケジューラーのcron設定
         echo "=== Setting up Laravel Scheduler ==="
         # 既存のLaravelスケジューラーcronを削除
@@ -224,10 +229,6 @@ jobs:
         # 最終確認
         REMAINING=$(pgrep -f "artisan queue:work" | wc -l)
         echo "Remaining queue workers: $REMAINING"
-        # ログファイルを準備
-        sudo touch $APP_DIR/storage/logs/queue-worker.log
-        sudo chown www-data:www-data $APP_DIR/storage/logs/queue-worker.log
-        sudo chmod 664 $APP_DIR/storage/logs/queue-worker.log
         # 新しいキューワーカーを1つだけ起動（www-dataユーザーで実行）
         cd $APP_DIR
         sudo -u www-data nohup php artisan queue:work --tries=3 --timeout=90 >> $APP_DIR/storage/logs/queue-worker.log 2>&1 &
@@ -235,6 +236,11 @@ jobs:
         # 起動確認
         RUNNING=$(pgrep -f "artisan queue:work" | wc -l)
         echo "✅ Queue worker started (running: $RUNNING)"
+        # ログ確認
+        if [ -f "$APP_DIR/storage/logs/queue-worker.log" ]; then
+          echo "Queue worker log file created successfully"
+          ls -lah $APP_DIR/storage/logs/queue-worker.log
+        fi
 
         # サービス再起動
         sudo systemctl restart nginx php8.3-fpm
