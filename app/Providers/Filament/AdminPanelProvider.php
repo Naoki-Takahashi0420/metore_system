@@ -52,6 +52,7 @@ class AdminPanelProvider extends PanelProvider
                 \App\Filament\Pages\MenuManager::class,
                 \App\Filament\Pages\ShiftManagement::class,
                 \App\Filament\Pages\ImportCustomers::class,
+                \App\Filament\Pages\SystemLogs::class,
             ])
             ->widgets([
                 \App\Filament\Widgets\ReservationTimelineWidget::class,
