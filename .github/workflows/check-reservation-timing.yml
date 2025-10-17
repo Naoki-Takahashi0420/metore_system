@@ -1,0 +1,95 @@
+name: Check Reservation Timing Issue
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-timing:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check Reservation and Menu Details
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'CHECK'
+        set -e
+        APP_DIR="/var/www/html"
+
+        echo "=== 予約R202510083742の詳細 ==="
+        cd $APP_DIR
+        sudo php artisan tinker --execute="
+        \$r = \App\Models\Reservation::where('reservation_number', 'R202510083742')->first();
+        if (\$r) {
+            echo '予約番号: ' . \$r->reservation_number . PHP_EOL;
+            echo '開始時刻: ' . \$r->start_time . PHP_EOL;
+            echo '終了時刻: ' . \$r->end_time . PHP_EOL;
+            echo '予約日: ' . \$r->reservation_date . PHP_EOL;
+            echo 'メニューID: ' . \$r->menu_id . PHP_EOL;
+            echo '席番号: ' . \$r->seat_number . PHP_EOL;
+            echo 'ライン種別: ' . (\$r->line_type ?? 'null') . PHP_EOL;
+            echo 'is_sub: ' . (\$r->is_sub ? 'true' : 'false') . PHP_EOL;
+
+            if (\$r->menu) {
+                echo '' . PHP_EOL;
+                echo '=== メニュー詳細 ===' . PHP_EOL;
+                echo 'メニュー名: ' . \$r->menu->name . PHP_EOL;
+                echo '設定所要時間: ' . \$r->menu->duration_minutes . '分' . PHP_EOL;
+
+                // 計算上の終了時刻
+                \$calcEnd = \Carbon\Carbon::parse(\$r->start_time)->addMinutes(\$r->menu->duration_minutes)->format('H:i:s');
+                echo '計算上の終了時刻: ' . \$calcEnd . PHP_EOL;
+                echo '実際の終了時刻: ' . \$r->end_time . PHP_EOL;
+
+                if (\$calcEnd != \$r->end_time) {
+                    echo '⚠️ 計算と実際の終了時刻が一致しません！' . PHP_EOL;
+                }
+            }
+        } else {
+            echo '予約が見つかりません' . PHP_EOL;
+        }
+        "
+
+        echo ""
+        echo "=== 眼精疲労ケア80分コース のメニュー設定 ==="
+        sudo php artisan tinker --execute="
+        \$menus = \App\Models\Menu::where('name', 'LIKE', '%眼精疲労ケア80分%')->get();
+        foreach (\$menus as \$m) {
+            echo 'ID: ' . \$m->id . ' | 名前: ' . \$m->name . ' | duration_minutes: ' . \$m->duration_minutes . '分' . PHP_EOL;
+        }
+        if (\$menus->count() == 0) {
+            echo '該当メニューが見つかりません' . PHP_EOL;
+        }
+        "
+
+        echo ""
+        echo "=== 2024-10-17の席1の予約一覧 ==="
+        sudo php artisan tinker --execute="
+        \$reservations = \App\Models\Reservation::whereDate('reservation_date', '2024-10-17')
+            ->where('seat_number', 1)
+            ->whereNotIn('status', ['cancelled', 'canceled'])
+            ->orderBy('start_time')
+            ->get(['id', 'reservation_number', 'start_time', 'end_time', 'customer_id']);
+
+        foreach (\$reservations as \$r) {
+            \$customer = \App\Models\Customer::find(\$r->customer_id);
+            \$name = \$customer ? \$customer->last_name . ' ' . \$customer->first_name : '不明';
+            echo \$r->start_time . '-' . \$r->end_time . ' | ' . \$name . ' | ' . \$r->reservation_number . PHP_EOL;
+        }
+
+        if (\$reservations->count() == 0) {
+            echo '予約なし' . PHP_EOL;
+        }
+        "
+
+        CHECK
+
+        rm deploy_key.pem
+
+        echo ""
+        echo "✅ 確認完了"
