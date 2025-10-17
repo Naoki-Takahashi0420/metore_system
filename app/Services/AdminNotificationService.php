@@ -29,7 +29,8 @@ class AdminNotificationService
     public function notifyNewReservation(Reservation $reservation): void
     {
         // 店舗スタッフが対面で対応した予約は管理者通知もスキップ
-        $skipSources = ['phone', 'walk_in', 'admin'];
+        // （ダッシュボードからの予約は通知する）
+        $skipSources = ['phone', 'walk_in'];
         if (in_array($reservation->source, $skipSources)) {
             \Log::info('管理者予約通知スキップ（店舗対応）', [
                 'reservation_id' => $reservation->id,
