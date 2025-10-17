@@ -29,7 +29,6 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
-            ->rememberDuration(60 * 24 * 30) // 30日間ログイン維持
             ->brandName('目のトレーニング 管理画面')
             ->brandLogo(asset('images/logo.png'))
             ->brandLogoHeight('2.5rem')
