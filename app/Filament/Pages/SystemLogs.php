@@ -9,11 +9,11 @@ use Carbon\Carbon;
 
 class SystemLogs extends Page
 {
-    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
+    protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
     protected static string $view = 'filament.pages.system-logs';
 
-    protected static ?string $navigationLabel = 'システムログ';
+    protected static ?string $navigationLabel = 'ログ';
 
     protected static ?string $title = 'システムログ';
 
@@ -40,20 +40,69 @@ class SystemLogs extends Page
 
     public function mount(): void
     {
-        $this->loadLogs();
+        try {
+            $this->loadLogs();
+        } catch (\Exception $e) {
+            \Log::error('SystemLogs mount error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            $this->logs = [];
+        }
     }
 
     public function loadLogs(): void
     {
-        $logPath = storage_path('logs/laravel.log');
+        try {
+            $logPath = storage_path('logs/laravel.log');
 
-        if (!File::exists($logPath)) {
-            $this->logs = [];
+            if (!File::exists($logPath)) {
+                $this->logs = [];
+                return;
+            }
+
+            // ファイルサイズチェック（10MB以上は処理しない）
+            $fileSize = File::size($logPath);
+            if ($fileSize > 10 * 1024 * 1024) {
+                $this->logs = [[
+                    'timestamp' => date('Y-m-d H:i:s'),
+                    'content' => 'ログファイルが大きすぎます（10MB超）。ログをクリアしてください。',
+                    'type' => 'error',
+                    'level' => 'warning',
+                    'five_w_one_h' => [
+                        'who' => null,
+                        'what' => 'ファイルサイズ超過',
+                        'when' => null,
+                        'where' => null,
+                        'why' => 'ログファイルが10MBを超えています',
+                        'how' => null,
+                    ]
+                ]];
+                return;
+            }
+
+            $logContent = File::get($logPath);
+            $logLines = explode("\n", $logContent);
+        } catch (\Exception $e) {
+            \Log::error('SystemLogs loadLogs error', [
+                'error' => $e->getMessage()
+            ]);
+            $this->logs = [[
+                'timestamp' => date('Y-m-d H:i:s'),
+                'content' => 'ログ読み込みエラー: ' . $e->getMessage(),
+                'type' => 'error',
+                'level' => 'error',
+                'five_w_one_h' => [
+                    'who' => null,
+                    'what' => 'ログ読み込みエラー',
+                    'when' => null,
+                    'where' => null,
+                    'why' => $e->getMessage(),
+                    'how' => null,
+                ]
+            ]];
             return;
         }
-
-        $logContent = File::get($logPath);
-        $logLines = explode("\n", $logContent);
 
         // 最新500行のみ処理（パフォーマンス対策）
         $logLines = array_slice($logLines, -500);

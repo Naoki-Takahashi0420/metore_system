@@ -1,182 +1,165 @@
 <x-filament-panels::page>
-    <div class="space-y-6">
-        <!-- フィルターボタン -->
-        <div class="flex gap-2 flex-wrap">
-            <button
-                wire:click="setFilter('all')"
-                class="px-4 py-2 rounded-lg {{ $filter === 'all' ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-700' }}"
-            >
-                すべて
-            </button>
-            <button
-                wire:click="setFilter('reservation')"
-                class="px-4 py-2 rounded-lg {{ $filter === 'reservation' ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-700' }}"
-            >
-                📅 予約
-            </button>
-            <button
-                wire:click="setFilter('email')"
-                class="px-4 py-2 rounded-lg {{ $filter === 'email' ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-700' }}"
-            >
-                📧 メール送信
-            </button>
-            <button
-                wire:click="setFilter('admin_notification')"
-                class="px-4 py-2 rounded-lg {{ $filter === 'admin_notification' ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-700' }}"
-            >
-                🔔 管理者通知
-            </button>
-            <button
-                wire:click="setFilter('auth')"
-                class="px-4 py-2 rounded-lg {{ $filter === 'auth' ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-700' }}"
-            >
-                🔐 認証
-            </button>
-            <button
-                wire:click="setFilter('error')"
-                class="px-4 py-2 rounded-lg {{ $filter === 'error' ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-700' }}"
-            >
-                ❌ エラー
-            </button>
-        </div>
+    <div class="space-y-4">
+        <!-- ツールバー -->
+        <div class="flex justify-between items-center">
+            <!-- フィルター -->
+            <div class="flex gap-2">
+                @foreach([
+                    'all' => 'すべて',
+                    'reservation' => '予約',
+                    'email' => 'メール',
+                    'admin_notification' => '管理者通知',
+                    'auth' => '認証',
+                    'error' => 'エラー'
+                ] as $key => $label)
+                    <button
+                        wire:click="setFilter('{{ $key }}')"
+                        type="button"
+                        class="px-3 py-1.5 text-sm font-medium rounded-md transition {{ $filter === $key ? 'bg-primary-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50 ring-1 ring-inset ring-gray-300' }}"
+                    >
+                        {{ $label }}
+                    </button>
+                @endforeach
+            </div>
 
-        <!-- アクションボタン -->
-        <div class="flex gap-2">
-            <button
-                wire:click="refreshLogs"
-                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-            >
-                🔄 更新
-            </button>
-            <button
-                wire:click="clearLogs"
-                onclick="return confirm('本当にログをクリアしますか？')"
-                class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-            >
-                🗑️ ログクリア
-            </button>
+            <!-- アクション -->
+            <div class="flex gap-2">
+                <button
+                    wire:click="refreshLogs"
+                    type="button"
+                    class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white rounded-md hover:bg-gray-50 ring-1 ring-inset ring-gray-300"
+                >
+                    更新
+                </button>
+                <button
+                    wire:click="clearLogs"
+                    onclick="return confirm('本当にログをクリアしますか？')"
+                    type="button"
+                    class="px-3 py-1.5 text-sm font-medium text-white bg-danger-600 rounded-md hover:bg-danger-700"
+                >
+                    ログクリア
+                </button>
+            </div>
         </div>
 
         <!-- ログ表示 -->
-        <div class="space-y-3">
+        <div class="space-y-2">
             @if(count($logs) === 0)
-                <div class="bg-gray-100 p-6 rounded-lg text-center text-gray-600">
+                <div class="bg-white p-8 rounded-lg border text-center text-gray-500 text-sm">
                     ログがありません
                 </div>
             @else
                 @foreach($logs as $log)
                     @php
-                        $bgColor = match($log['level']) {
-                            'error' => 'bg-red-50 border-red-300',
-                            'warning' => 'bg-yellow-50 border-yellow-300',
-                            'info' => 'bg-blue-50 border-blue-300',
-                            'debug' => 'bg-gray-50 border-gray-300',
-                            default => 'bg-white border-gray-200'
+                        $log = is_array($log) ? $log : [];
+
+                        $levelColors = match($log['level'] ?? 'info') {
+                            'error' => 'border-l-4 border-l-red-500',
+                            'warning' => 'border-l-4 border-l-yellow-500',
+                            'info' => 'border-l-4 border-l-blue-500',
+                            'debug' => 'border-l-4 border-l-gray-400',
+                            default => 'border-l-4 border-l-gray-300'
                         };
 
-                        $badgeColor = match($log['type']) {
-                            'reservation' => 'bg-blue-100 text-blue-800',
-                            'email' => 'bg-green-100 text-green-800',
-                            'admin_notification' => 'bg-purple-100 text-purple-800',
-                            'auth' => 'bg-yellow-100 text-yellow-800',
-                            'error' => 'bg-red-100 text-red-800',
-                            default => 'bg-gray-100 text-gray-800'
+                        $badgeColor = match($log['type'] ?? 'other') {
+                            'reservation' => 'bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-600/20',
+                            'email' => 'bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20',
+                            'admin_notification' => 'bg-purple-50 text-purple-700 ring-1 ring-inset ring-purple-600/20',
+                            'auth' => 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20',
+                            'error' => 'bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20',
+                            default => 'bg-gray-50 text-gray-700 ring-1 ring-inset ring-gray-600/20'
                         };
 
-                        $typeLabel = match($log['type']) {
-                            'reservation' => '📅 予約',
-                            'email' => '📧 メール送信',
-                            'admin_notification' => '🔔 管理者通知',
-                            'auth' => '🔐 認証',
-                            'error' => '❌ エラー',
-                            default => '📄 その他'
+                        $typeLabel = match($log['type'] ?? 'other') {
+                            'reservation' => '予約',
+                            'email' => 'メール送信',
+                            'admin_notification' => '管理者通知',
+                            'auth' => '認証',
+                            'error' => 'エラー',
+                            default => 'その他'
                         };
 
                         // 5W1H情報を取得
                         $fiveW1H = $log['five_w_one_h'] ?? [];
                         $who = $fiveW1H['who'] ?? null;
                         $what = $fiveW1H['what'] ?? null;
-                        $when = $log['timestamp'];
+                        $when = $log['timestamp'] ?? date('Y-m-d H:i:s');
                         $where = $fiveW1H['where'] ?? null;
                         $why = $fiveW1H['why'] ?? null;
                         $how = $fiveW1H['how'] ?? null;
+                        $content = $log['content'] ?? 'ログ内容がありません';
                     @endphp
 
-                    <div class="border-2 {{ $bgColor }} rounded-lg p-4">
-                        <!-- ヘッダー：タイプとタイムスタンプ -->
-                        <div class="flex justify-between items-start mb-3">
-                            <span class="px-3 py-1 rounded-full text-sm font-semibold {{ $badgeColor }}">
-                                {{ $typeLabel }}
-                            </span>
-                            <span class="text-sm text-gray-600">
-                                ⏰ {{ $when }}
-                            </span>
+                    <div class="bg-white border rounded-lg {{ $levelColors }} overflow-hidden">
+                        <div class="p-4">
+                            <!-- ヘッダー -->
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-3">
+                                    <span class="px-2 py-0.5 text-xs font-medium rounded {{ $badgeColor }}">
+                                        {{ $typeLabel }}
+                                    </span>
+                                    <span class="text-xs text-gray-500">
+                                        {{ $when }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- 5W1H情報 -->
+                            <div class="space-y-1.5 text-sm">
+                                @if($who)
+                                    <div class="flex">
+                                        <span class="w-24 text-gray-500">Who:</span>
+                                        <span class="text-gray-900 font-medium">{{ $who }}</span>
+                                    </div>
+                                @endif
+
+                                @if($what)
+                                    <div class="flex">
+                                        <span class="w-24 text-gray-500">What:</span>
+                                        <span class="text-gray-900 font-medium">{{ $what }}</span>
+                                    </div>
+                                @endif
+
+                                @if($where)
+                                    <div class="flex">
+                                        <span class="w-24 text-gray-500">Where:</span>
+                                        <span class="text-gray-900">{{ $where }}</span>
+                                    </div>
+                                @endif
+
+                                @if($why)
+                                    <div class="flex">
+                                        <span class="w-24 text-gray-500">Why:</span>
+                                        <span class="text-gray-900">{{ $why }}</span>
+                                    </div>
+                                @endif
+
+                                @if($how)
+                                    <div class="flex">
+                                        <span class="w-24 text-gray-500">How:</span>
+                                        <span class="text-gray-900">{{ $how }}</span>
+                                    </div>
+                                @endif
+                            </div>
+
+                            <!-- 詳細ログ -->
+                            <details class="mt-3">
+                                <summary class="cursor-pointer text-xs text-gray-500 hover:text-gray-700 select-none">
+                                    詳細を表示
+                                </summary>
+                                <pre class="mt-2 p-3 bg-gray-50 text-gray-800 text-xs rounded border overflow-x-auto">{{ $content }}</pre>
+                            </details>
                         </div>
-
-                        <!-- 5W1H情報 -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3 text-sm">
-                            @if($who)
-                                <div class="bg-white bg-opacity-50 p-2 rounded">
-                                    <span class="font-semibold text-gray-700">👤 Who（誰が）:</span>
-                                    <span class="text-gray-900">{{ $who }}</span>
-                                </div>
-                            @endif
-
-                            @if($what)
-                                <div class="bg-white bg-opacity-50 p-2 rounded">
-                                    <span class="font-semibold text-gray-700">📋 What（何を）:</span>
-                                    <span class="text-gray-900">{{ $what }}</span>
-                                </div>
-                            @endif
-
-                            @if($where)
-                                <div class="bg-white bg-opacity-50 p-2 rounded">
-                                    <span class="font-semibold text-gray-700">📍 Where（どこで）:</span>
-                                    <span class="text-gray-900">{{ $where }}</span>
-                                </div>
-                            @endif
-
-                            @if($why)
-                                <div class="bg-white bg-opacity-50 p-2 rounded">
-                                    <span class="font-semibold text-gray-700">❓ Why（なぜ）:</span>
-                                    <span class="text-gray-900">{{ $why }}</span>
-                                </div>
-                            @endif
-
-                            @if($how)
-                                <div class="bg-white bg-opacity-50 p-2 rounded">
-                                    <span class="font-semibold text-gray-700">🔧 How（どのように）:</span>
-                                    <span class="text-gray-900">{{ $how }}</span>
-                                </div>
-                            @endif
-                        </div>
-
-                        <!-- 詳細ログ（折りたたみ可能） -->
-                        <details class="mt-2">
-                            <summary class="cursor-pointer text-sm text-gray-600 hover:text-gray-900">
-                                📄 詳細を表示
-                            </summary>
-                            <pre class="mt-2 p-3 bg-gray-900 text-green-400 text-xs rounded overflow-x-auto">{{ $log['content'] }}</pre>
-                        </details>
                     </div>
                 @endforeach
             @endif
         </div>
 
         <!-- ページング情報 -->
-        <div class="text-center text-sm text-gray-600">
-            最新100件のログを表示中
-        </div>
+        @if(count($logs) > 0)
+            <div class="text-center text-xs text-gray-500 mt-4 pb-4">
+                最新100件を表示中
+            </div>
+        @endif
     </div>
-
-    @push('scripts')
-    <script>
-        // Livewireのnotifyイベントを受け取る
-        window.addEventListener('notify', event => {
-            if (event.detail && event.detail.message) {
-                alert(event.detail.message);
-            }
-        });
-    </script>
-    @endpush
 </x-filament-panels::page>
