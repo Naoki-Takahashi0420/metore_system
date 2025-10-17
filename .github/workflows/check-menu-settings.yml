@@ -21,12 +21,20 @@ jobs:
         set -e
         APP_DIR="/var/www/html"
 
-        echo "=== メニュー一覧（名前と所要時間） ==="
+        echo "=== 全メニュー一覧（名前と所要時間の不一致チェック） ==="
         cd $APP_DIR
         sudo php artisan tinker --execute="
-        \$menus = \App\Models\Menu::where('is_active', true)->orderBy('name')->get(['id', 'name', 'duration_minutes', 'price']);
+        \$menus = \App\Models\Menu::where('is_active', true)->orderBy('name')->get();
+        echo '全メニュー数: ' . \$menus->count() . PHP_EOL . PHP_EOL;
         foreach (\$menus as \$menu) {
-            echo 'ID: ' . \$menu->id . ' | 名前: ' . \$menu->name . ' | 時間: ' . \$menu->duration_minutes . '分 | 価格: ¥' . number_format(\$menu->price) . PHP_EOL;
+            \$nameMinutes = null;
+            if (preg_match('/(\d+)分/', \$menu->name, \$matches)) {
+                \$nameMinutes = (int)\$matches[1];
+            }
+            \$actualMinutes = \$menu->duration_minutes;
+            \$mismatch = \$nameMinutes && \$nameMinutes !== \$actualMinutes ? ' ⚠️ 不一致！' : '';
+            echo 'ID:' . \$menu->id . ' | ' . \$menu->name . PHP_EOL;
+            echo '  → 所要時間: ' . \$actualMinutes . '分 | 価格: ¥' . number_format(\$menu->price) . \$mismatch . PHP_EOL;
         }
         "
 
