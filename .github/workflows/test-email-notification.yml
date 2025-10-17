@@ -1,0 +1,98 @@
+name: Test Email Notification
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-email:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Send Test Email
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'TEST_EMAIL'
+        set -e
+        APP_DIR="/var/www/html"
+
+        echo "=== テストメール送信 ==="
+
+        cd $APP_DIR
+
+        # テストメールを送信
+        sudo php artisan tinker --execute="
+        \$emailService = app(\App\Services\EmailService::class);
+        \$to = 'dasuna2305@gmail.com';
+        \$subject = '【テスト】予約通知システム動作確認';
+        \$htmlBody = '
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset=\"UTF-8\">
+            <style>
+                body { font-family: \"Helvetica Neue\", Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: #059669; padding: 20px; text-align: center; color: white; }
+                .content { background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; }
+            </style>
+        </head>
+        <body>
+            <div class=\"container\">
+                <div class=\"header\">
+                    <h2>目のトレーニング 予約通知システム</h2>
+                </div>
+                <div class=\"content\">
+                    <h3>✅ テストメール送信成功</h3>
+                    <p>キューワーカーが正常に動作しています。</p>
+                    <p>送信時刻: ' . now()->format('Y年m月d日 H:i:s') . '</p>
+                    <hr>
+                    <p><strong>確認項目：</strong></p>
+                    <ul>
+                        <li>✅ キューワーカー起動確認</li>
+                        <li>✅ メール送信機能確認</li>
+                        <li>✅ 予約通知が正常に送信されます</li>
+                    </ul>
+                </div>
+            </div>
+        </body>
+        </html>
+        ';
+        \$textBody = 'キューワーカーが正常に動作しています。送信時刻: ' . now()->format('Y年m月d日 H:i:s');
+
+        echo '📧 テストメールを送信中...' . PHP_EOL;
+        \$emailService->sendEmail(\$to, \$subject, \$htmlBody, \$textBody);
+        echo '✅ テストメール送信完了！' . PHP_EOL;
+        echo 'To: ' . \$to . PHP_EOL;
+        "
+
+        echo ""
+        echo "=== キューワーカー状態確認 ==="
+        ps aux | grep "artisan queue:work" | grep -v grep || echo "キューワーカーが見つかりません"
+
+        echo ""
+        echo "=== ジョブキュー確認 ==="
+        sudo php artisan tinker --execute="
+        \$jobCount = \DB::table('jobs')->count();
+        echo 'キュー内のジョブ数: ' . \$jobCount . PHP_EOL;
+        if (\$jobCount > 0) {
+            echo '最新のジョブ:' . PHP_EOL;
+            \$jobs = \DB::table('jobs')->orderBy('id', 'desc')->limit(3)->get();
+            foreach (\$jobs as \$job) {
+                echo '  - ID: ' . \$job->id . ' | Queue: ' . \$job->queue . ' | Attempts: ' . \$job->attempts . PHP_EOL;
+            }
+        }
+        "
+
+        TEST_EMAIL
+
+        rm deploy_key.pem
+
+        echo ""
+        echo "✅ テストメール送信処理が完了しました！"
+        echo "📬 dasuna2305@gmail.com に届いているか確認してください"
