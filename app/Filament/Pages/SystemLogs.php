@@ -271,6 +271,11 @@ class SystemLogs extends Page
 
     private function extractWho(string $content): ?string
     {
+        // メール送信先（to）- より優先的に抽出
+        if (preg_match('/"to"\s*[:=]\s*"([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})"/i', $content, $matches)) {
+            return "送信先: {$matches[1]}";
+        }
+
         // ユーザーID
         if (preg_match('/user_id["\']?\s*[:=]\s*["\']?(\d+)/i', $content, $matches)) {
             return "ユーザーID: {$matches[1]}";
@@ -291,6 +296,11 @@ class SystemLogs extends Page
 
     private function extractWhat(string $content): ?string
     {
+        // SESメール送信成功（MessageID付き）
+        if (Str::contains($content, 'メール送信成功') && preg_match('/messageId["\']?\s*[:=]\s*["\']?([a-zA-Z0-9\-@\.]+)/i', $content, $matches)) {
+            return "メール送信完了 (SES ID: " . substr($matches[1], 0, 20) . "...)";
+        }
+
         // 予約ID
         if (preg_match('/reservation_id["\']?\s*[:=]\s*["\']?(\d+)/i', $content, $matches)) {
             return "予約ID: {$matches[1]}";
@@ -311,7 +321,10 @@ class SystemLogs extends Page
             return "予約作成";
         }
         if (Str::contains($content, 'Sending email')) {
-            return "メール送信";
+            return "メール送信準備";
+        }
+        if (Str::contains($content, 'メール送信成功')) {
+            return "メール送信完了";
         }
         if (Str::contains($content, 'Admin notification')) {
             return "管理者通知";
@@ -377,6 +390,11 @@ class SystemLogs extends Page
 
     private function extractHow(string $content): ?string
     {
+        // SESメール送信成功
+        if (Str::contains($content, 'メール送信成功') && Str::contains($content, 'messageId')) {
+            return "経路: AWS SES（送信成功）";
+        }
+
         // メソッド
         if (preg_match('/method["\']?\s*[:=]\s*["\']?([A-Z]+)/i', $content, $matches)) {
             return "メソッド: {$matches[1]}";
@@ -415,7 +433,7 @@ class SystemLogs extends Page
         }
 
         // メール送信関連（実際の送信のみ）
-        if (Str::contains($content, ['📧', 'Sending email', 'sendEmail', 'Mail sent'])) {
+        if (Str::contains($content, ['📧', 'Sending email', 'sendEmail', 'Mail sent', 'メール送信成功'])) {
             return 'email';
         }
 
