@@ -23,7 +23,7 @@
             </div>
 
             <!-- アクション -->
-            <div class="flex gap-2">
+            <div class="flex gap-2 items-center">
                 <button
                     wire:click="refreshLogs"
                     type="button"
@@ -32,15 +32,50 @@
                     更新
                 </button>
                 <button
-                    wire:click="clearLogs"
-                    onclick="return confirm('本当にログをクリアしますか？')"
+                    wire:click="clearOldLogs"
+                    onclick="return confirm('7日以上前のログを削除しますか？')"
                     type="button"
-                    class="px-3 py-1.5 text-sm font-medium text-white bg-danger-600 rounded-md hover:bg-danger-700"
+                    class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white rounded-md hover:bg-gray-50 ring-1 ring-inset ring-gray-300"
                 >
-                    ログクリア
+                    7日前より古いログを削除
+                </button>
+                <button
+                    wire:click="clearAllLogs"
+                    onclick="return confirm('本当にすべてのログを削除しますか？\n\nこの操作は取り消せません。')"
+                    type="button"
+                    class="px-3 py-1.5 text-sm font-medium text-red-700 bg-white rounded-md hover:bg-red-50 ring-1 ring-inset ring-red-300"
+                >
+                    全削除
                 </button>
             </div>
         </div>
+
+        <!-- 一括選択バー（ログがある場合のみ表示） -->
+        @if(count($logs) > 0)
+            <div class="bg-gray-50 border rounded-lg p-3 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <input
+                        type="checkbox"
+                        wire:model="selectAll"
+                        wire:click="toggleSelectAll"
+                        class="rounded border-gray-300"
+                    />
+                    <span class="text-sm text-gray-700">
+                        すべて選択（{{ count($selectedLogs) }}件選択中）
+                    </span>
+                </div>
+                @if(count($selectedLogs) > 0)
+                    <button
+                        wire:click="deleteSelected"
+                        onclick="return confirm('選択した{{ count($selectedLogs) }}件のログを削除しますか？')"
+                        type="button"
+                        class="px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+                    >
+                        選択したログを削除（{{ count($selectedLogs) }}件）
+                    </button>
+                @endif
+            </div>
+        @endif
 
         <!-- ログ表示 -->
         <div class="space-y-2">
@@ -95,6 +130,12 @@
                             <!-- ヘッダー -->
                             <div class="flex items-center justify-between mb-3">
                                 <div class="flex items-center gap-3">
+                                    <input
+                                        type="checkbox"
+                                        wire:model="selectedLogs"
+                                        value="{{ $loop->index }}"
+                                        class="rounded border-gray-300"
+                                    />
                                     <span class="px-2 py-0.5 text-xs font-medium rounded {{ $badgeColor }}">
                                         {{ $typeLabel }}
                                     </span>
@@ -158,7 +199,7 @@
         <!-- ページング情報 -->
         @if(count($logs) > 0)
             <div class="text-center text-xs text-gray-500 mt-4 pb-4">
-                最新100件を表示中
+                最新{{ count($logs) }}件を表示中
             </div>
         @endif
     </div>

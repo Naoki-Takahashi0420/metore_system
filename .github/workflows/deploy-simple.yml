@@ -118,6 +118,31 @@ jobs:
           echo "✅ SESSION_LIFETIME added to .env"
         fi
 
+        # ログローテーション設定（7日分のログのみ保持）
+        echo "Checking LOG_CHANNEL in .env..."
+        if grep -q "LOG_CHANNEL" $APP_DIR/.env 2>/dev/null; then
+          echo "Updating LOG_CHANNEL to daily..."
+          sudo sed -i 's/LOG_CHANNEL=.*/LOG_CHANNEL=daily/' $APP_DIR/.env
+          echo "✅ LOG_CHANNEL updated to daily"
+        else
+          echo "Adding LOG_CHANNEL to .env..."
+          echo "" | sudo tee -a $APP_DIR/.env > /dev/null
+          echo "# Log rotation (auto-delete logs older than 7 days)" | sudo tee -a $APP_DIR/.env > /dev/null
+          echo "LOG_CHANNEL=daily" | sudo tee -a $APP_DIR/.env > /dev/null
+          echo "✅ LOG_CHANNEL added to .env"
+        fi
+
+        echo "Checking LOG_DAILY_DAYS in .env..."
+        if grep -q "LOG_DAILY_DAYS" $APP_DIR/.env 2>/dev/null; then
+          echo "Updating LOG_DAILY_DAYS to 7..."
+          sudo sed -i 's/LOG_DAILY_DAYS=.*/LOG_DAILY_DAYS=7/' $APP_DIR/.env
+          echo "✅ LOG_DAILY_DAYS updated to 7"
+        else
+          echo "Adding LOG_DAILY_DAYS to .env..."
+          echo "LOG_DAILY_DAYS=7" | sudo tee -a $APP_DIR/.env > /dev/null
+          echo "✅ LOG_DAILY_DAYS added to .env"
+        fi
+
         # SQLiteデータベース設定（新規作成しない）
         cd $APP_DIR
         if [ ! -f "database/database.sqlite" ]; then

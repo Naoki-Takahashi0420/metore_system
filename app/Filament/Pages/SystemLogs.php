@@ -19,8 +19,15 @@ class SystemLogs extends Page
 
     protected static ?int $navigationSort = 100;
 
+    // ログ設定（必要に応じてconfig/logging.phpに移動可能）
+    protected const MAX_FILE_SIZE_MB = 50; // 最大ファイルサイズ（MB）
+    protected const MAX_LINES_TO_READ = 1000; // ファイルから読み込む最大行数
+    protected const MAX_LOGS_TO_DISPLAY = 200; // 画面に表示する最大ログ数
+
     public $logs = [];
     public $filter = 'all'; // all, reservation, email, auth, error
+    public $selectedLogs = [];
+    public $selectAll = false;
 
     /**
      * スーパーアドミンのみアクセス可能
@@ -61,12 +68,15 @@ class SystemLogs extends Page
                 return;
             }
 
-            // ファイルサイズチェック（10MB以上は処理しない）
+            // ファイルサイズチェック
             $fileSize = File::size($logPath);
-            if ($fileSize > 10 * 1024 * 1024) {
+            $maxSize = self::MAX_FILE_SIZE_MB * 1024 * 1024;
+
+            if ($fileSize > $maxSize) {
+                $fileSizeMB = round($fileSize / 1024 / 1024, 2);
                 $this->logs = [[
                     'timestamp' => date('Y-m-d H:i:s'),
-                    'content' => 'ログファイルが大きすぎます（10MB超）。ログをクリアしてください。',
+                    'content' => sprintf('ログファイルが大きすぎます（%s MB / %s MB）。最新の行のみ読み込みます。', $fileSizeMB, self::MAX_FILE_SIZE_MB),
                     'type' => 'error',
                     'level' => 'warning',
                     'five_w_one_h' => [
@@ -74,15 +84,22 @@ class SystemLogs extends Page
                         'what' => 'ファイルサイズ超過',
                         'when' => null,
                         'where' => null,
-                        'why' => 'ログファイルが10MBを超えています',
+                        'why' => sprintf('ログファイルが%s MBを超えています（現在: %s MB）', self::MAX_FILE_SIZE_MB, $fileSizeMB),
                         'how' => null,
                     ]
                 ]];
-                return;
-            }
 
-            $logContent = File::get($logPath);
-            $logLines = explode("\n", $logContent);
+                // ファイルが大きい場合は tail で最新の行のみ読み込む
+                $command = sprintf('tail -n %d %s', self::MAX_LINES_TO_READ, escapeshellarg($logPath));
+                $logContent = shell_exec($command);
+                $logLines = explode("\n", $logContent);
+            } else {
+                $logContent = File::get($logPath);
+                $logLines = explode("\n", $logContent);
+
+                // 最新N行のみ処理（パフォーマンス対策）
+                $logLines = array_slice($logLines, -self::MAX_LINES_TO_READ);
+            }
         } catch (\Exception $e) {
             \Log::error('SystemLogs loadLogs error', [
                 'error' => $e->getMessage()
@@ -103,9 +120,6 @@ class SystemLogs extends Page
             ]];
             return;
         }
-
-        // 最新500行のみ処理（パフォーマンス対策）
-        $logLines = array_slice($logLines, -500);
 
         $parsedLogs = [];
         $currentLog = null;
@@ -162,8 +176,8 @@ class SystemLogs extends Page
             return $log;
         }, $parsedLogs);
 
-        // 最新100件のみ表示
-        $this->logs = array_slice($parsedLogs, 0, 100);
+        // 最新N件のみ表示
+        $this->logs = array_slice($parsedLogs, 0, self::MAX_LOGS_TO_DISPLAY);
     }
 
     /**
@@ -374,23 +388,114 @@ class SystemLogs extends Page
     public function refreshLogs(): void
     {
         $this->loadLogs();
-        $this->dispatch('notify', [
-            'message' => 'ログを更新しました',
-            'type' => 'success'
-        ]);
+        $this->selectedLogs = [];
+        $this->selectAll = false;
     }
 
-    public function clearLogs(): void
+    public function clearAllLogs(): void
     {
         $logPath = storage_path('logs/laravel.log');
 
         if (File::exists($logPath)) {
             File::put($logPath, '');
             $this->loadLogs();
-            $this->dispatch('notify', [
-                'message' => 'ログをクリアしました',
-                'type' => 'success'
-            ]);
+            $this->selectedLogs = [];
+            $this->selectAll = false;
         }
+    }
+
+    public function clearOldLogs(): void
+    {
+        $logPath = storage_path('logs/laravel.log');
+
+        if (!File::exists($logPath)) {
+            return;
+        }
+
+        $logContent = File::get($logPath);
+        $logLines = explode("\n", $logContent);
+
+        $sevenDaysAgo = now()->subDays(7);
+        $newLines = [];
+
+        foreach ($logLines as $line) {
+            // ログのタイムスタンプを抽出
+            if (preg_match('/^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]/', $line, $matches)) {
+                $logDate = Carbon::parse($matches[1]);
+
+                // 7日以内のログのみ保持
+                if ($logDate->isAfter($sevenDaysAgo)) {
+                    $newLines[] = $line;
+                }
+            } else {
+                // タイムスタンプがない行は前の行の続きなので保持
+                if (!empty($newLines)) {
+                    $newLines[] = $line;
+                }
+            }
+        }
+
+        File::put($logPath, implode("\n", $newLines));
+        $this->loadLogs();
+        $this->selectedLogs = [];
+        $this->selectAll = false;
+    }
+
+    public function toggleSelectAll(): void
+    {
+        if ($this->selectAll) {
+            $this->selectedLogs = range(0, count($this->logs) - 1);
+        } else {
+            $this->selectedLogs = [];
+        }
+    }
+
+    public function deleteSelected(): void
+    {
+        if (empty($this->selectedLogs)) {
+            return;
+        }
+
+        $logPath = storage_path('logs/laravel.log');
+
+        if (!File::exists($logPath)) {
+            return;
+        }
+
+        $logContent = File::get($logPath);
+        $logLines = explode("\n", $logContent);
+
+        // 選択されたログのタイムスタンプを取得
+        $timestampsToDelete = [];
+        foreach ($this->selectedLogs as $index) {
+            if (isset($this->logs[$index]['timestamp'])) {
+                $timestampsToDelete[] = $this->logs[$index]['timestamp'];
+            }
+        }
+
+        // タイムスタンプが一致する行を除外
+        $newLines = [];
+        $skipUntilNextLog = false;
+
+        foreach ($logLines as $line) {
+            if (preg_match('/^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]/', $line, $matches)) {
+                $timestamp = $matches[1];
+
+                if (in_array($timestamp, $timestampsToDelete)) {
+                    $skipUntilNextLog = true;
+                    continue;
+                } else {
+                    $skipUntilNextLog = false;
+                    $newLines[] = $line;
+                }
+            } elseif (!$skipUntilNextLog) {
+                $newLines[] = $line;
+            }
+        }
+
+        File::put($logPath, implode("\n", $newLines));
+        $this->loadLogs();
+        $this->selectedLogs = [];
+        $this->selectAll = false;
     }
 }
