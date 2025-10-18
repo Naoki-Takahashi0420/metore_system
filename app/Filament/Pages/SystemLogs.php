@@ -21,7 +21,7 @@ class SystemLogs extends Page
 
     // ログ設定（必要に応じてconfig/logging.phpに移動可能）
     protected const MAX_FILE_SIZE_MB = 50; // 最大ファイルサイズ（MB）
-    protected const MAX_LINES_TO_READ = 1000; // ファイルから読み込む最大行数
+    protected const MAX_LINES_TO_READ = 10000; // ファイルから読み込む最大行数
     protected const MAX_LOGS_TO_DISPLAY = 200; // 画面に表示する最大ログ数
 
     public $logs = [];
@@ -170,10 +170,10 @@ class SystemLogs extends Page
             $this->debugInfo['parsed_logs_before_filter'] = count($parsedLogs);
         }
 
-        // 重要なログのみフィルタリング（デバッグ中は無効化）
-        // $parsedLogs = array_filter($parsedLogs, function ($log) {
-        //     return in_array($log['type'], ['reservation', 'email', 'auth', 'error', 'admin_notification']);
-        // });
+        // 重要なログのみフィルタリング
+        $parsedLogs = array_filter($parsedLogs, function ($log) {
+            return in_array($log['type'], ['reservation', 'email', 'auth', 'error', 'admin_notification']);
+        });
 
         // デバッグ情報を更新
         if ($this->debugInfo) {
@@ -404,18 +404,23 @@ class SystemLogs extends Page
 
     private function detectLogType(string $content): string
     {
+        // 除外：Email notification check（これはデバッグログなので other に分類）
+        if (Str::contains($content, 'Email notification check')) {
+            return 'other';
+        }
+
         // 予約関連
         if (Str::contains($content, ['Reservation created', '予約作成', 'ReservationCreated'])) {
             return 'reservation';
         }
 
-        // メール送信関連
-        if (Str::contains($content, ['📧', 'Sending email', 'Email notification', 'sendEmail'])) {
+        // メール送信関連（実際の送信のみ）
+        if (Str::contains($content, ['📧', 'Sending email', 'sendEmail', 'Mail sent'])) {
             return 'email';
         }
 
         // 管理者通知
-        if (Str::contains($content, ['Admin notification sent', '🔍 [DEBUG] getStoreAdmins'])) {
+        if (Str::contains($content, ['Admin notification sent', '🔍 [DEBUG] getStoreAdmins', 'Admin notification'])) {
             return 'admin_notification';
         }
 
