@@ -170,10 +170,10 @@ class SystemLogs extends Page
             $this->debugInfo['parsed_logs_before_filter'] = count($parsedLogs);
         }
 
-        // 重要なログのみフィルタリング
-        $parsedLogs = array_filter($parsedLogs, function ($log) {
-            return in_array($log['type'], ['reservation', 'email', 'auth', 'error', 'admin_notification']);
-        });
+        // 重要なログのみフィルタリング（デバッグ中は無効化）
+        // $parsedLogs = array_filter($parsedLogs, function ($log) {
+        //     return in_array($log['type'], ['reservation', 'email', 'auth', 'error', 'admin_notification']);
+        // });
 
         // デバッグ情報を更新
         if ($this->debugInfo) {
