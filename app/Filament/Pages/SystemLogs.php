@@ -28,6 +28,7 @@ class SystemLogs extends Page
     public $filter = 'all'; // all, reservation, email, auth, error
     public $selectedLogs = [];
     public $selectAll = false;
+    public $debugInfo = null; // デバッグ情報
 
     /**
      * スーパーアドミンのみアクセス可能
@@ -188,21 +189,39 @@ class SystemLogs extends Page
     {
         $logDir = storage_path('logs');
 
+        // デバッグ情報を収集
+        $debug = [
+            'log_dir' => $logDir,
+            'dir_exists' => is_dir($logDir),
+        ];
+
         // laravel.logが存在すればそれを使用（非ローテーションモード）
         $singleLog = $logDir . '/laravel.log';
+        $debug['single_log_exists'] = File::exists($singleLog);
+
         if (File::exists($singleLog)) {
+            $this->debugInfo = $debug;
             return $singleLog;
         }
 
         // ローテーションモード：laravel-YYYY-MM-DD.logを探す
         $logFiles = File::glob($logDir . '/laravel-*.log');
+        $debug['rotation_files_found'] = count($logFiles);
+        $debug['rotation_files'] = array_map('basename', $logFiles);
 
         if (empty($logFiles)) {
+            // すべてのログファイルを確認
+            $allLogFiles = File::glob($logDir . '/*.log');
+            $debug['all_log_files'] = array_map('basename', $allLogFiles);
+            $this->debugInfo = $debug;
             return null;
         }
 
         // 最新のファイルを取得（ファイル名でソート）
         rsort($logFiles);
+        $debug['selected_file'] = basename($logFiles[0]);
+        $this->debugInfo = $debug;
+
         return $logFiles[0];
     }
 

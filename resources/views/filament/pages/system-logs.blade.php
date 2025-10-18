@@ -77,6 +77,14 @@
             </div>
         @endif
 
+        <!-- デバッグ情報 -->
+        @if($debugInfo)
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <h3 class="text-sm font-semibold text-yellow-800 mb-2">デバッグ情報</h3>
+                <pre class="text-xs text-yellow-900 overflow-auto">{{ json_encode($debugInfo, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</pre>
+            </div>
+        @endif
+
         <!-- ログ表示 -->
         <div class="space-y-2">
             @if(count($logs) === 0)
