@@ -74,6 +74,13 @@ class SystemLogs extends Page
             $fileSize = File::size($logPath);
             $maxSize = self::MAX_FILE_SIZE_MB * 1024 * 1024;
 
+            // デバッグ情報を更新
+            if ($this->debugInfo) {
+                $this->debugInfo['file_size_bytes'] = $fileSize;
+                $this->debugInfo['file_size_mb'] = round($fileSize / 1024 / 1024, 2);
+                $this->debugInfo['file_readable'] = is_readable($logPath);
+            }
+
             if ($fileSize > $maxSize) {
                 $fileSizeMB = round($fileSize / 1024 / 1024, 2);
                 $this->logs = [[
@@ -157,10 +164,21 @@ class SystemLogs extends Page
             $parsedLogs[] = $currentLog;
         }
 
+        // デバッグ情報を更新
+        if ($this->debugInfo) {
+            $this->debugInfo['total_lines_read'] = count($logLines);
+            $this->debugInfo['parsed_logs_before_filter'] = count($parsedLogs);
+        }
+
         // 重要なログのみフィルタリング
         $parsedLogs = array_filter($parsedLogs, function ($log) {
             return in_array($log['type'], ['reservation', 'email', 'auth', 'error', 'admin_notification']);
         });
+
+        // デバッグ情報を更新
+        if ($this->debugInfo) {
+            $this->debugInfo['logs_after_type_filter'] = count($parsedLogs);
+        }
 
         // 新しい順にソート
         $parsedLogs = array_reverse($parsedLogs);
@@ -172,6 +190,12 @@ class SystemLogs extends Page
             });
         }
 
+        // デバッグ情報を更新
+        if ($this->debugInfo) {
+            $this->debugInfo['current_filter'] = $this->filter;
+            $this->debugInfo['logs_after_user_filter'] = count($parsedLogs);
+        }
+
         // 各ログに5W1H情報を追加
         $parsedLogs = array_map(function ($log) {
             $log['five_w_one_h'] = $this->extract5W1H($log['content']);
@@ -180,6 +204,11 @@ class SystemLogs extends Page
 
         // 最新N件のみ表示
         $this->logs = array_slice($parsedLogs, 0, self::MAX_LOGS_TO_DISPLAY);
+
+        // デバッグ情報を更新
+        if ($this->debugInfo) {
+            $this->debugInfo['final_logs_count'] = count($this->logs);
+        }
     }
 
     /**
