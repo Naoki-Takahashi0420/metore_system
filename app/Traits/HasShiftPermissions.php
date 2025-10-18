@@ -112,16 +112,18 @@ trait HasShiftPermissions
      */
     public function getEditableStaff(Store $store)
     {
-        // super_admin/superadmin/admin/managerは店舗の全スタッフ
-        if (in_array($this->role, ['super_admin', 'superadmin', 'admin', 'manager'])) {
-            return $store->users()->where('is_active_staff', true);
+        // super_admin/superadmin/admin/manager/staffは店舗の全スタッフ
+        if (in_array($this->role, ['super_admin', 'superadmin', 'admin', 'manager', 'staff'])) {
+            // is_active が true のユーザーを取得
+            // is_active_staff も考慮する場合は、true または NULL のユーザーを含める
+            return $store->users()
+                ->where('is_active', true)
+                ->where(function($query) {
+                    $query->where('is_active_staff', true)
+                          ->orWhereNull('is_active_staff');
+                });
         }
-        
-        // staffは自分のみ
-        if ($this->role === 'staff') {
-            return $store->users()->where('users.id', $this->id);
-        }
-        
+
         return collect();
     }
 }
