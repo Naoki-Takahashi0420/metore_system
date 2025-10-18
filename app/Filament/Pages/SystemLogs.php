@@ -61,9 +61,10 @@ class SystemLogs extends Page
     public function loadLogs(): void
     {
         try {
-            $logPath = storage_path('logs/laravel.log');
+            // 最新のログファイルを取得（ローテーション対応）
+            $logPath = $this->getLatestLogFile();
 
-            if (!File::exists($logPath)) {
+            if (!$logPath || !File::exists($logPath)) {
                 $this->logs = [];
                 return;
             }
@@ -178,6 +179,31 @@ class SystemLogs extends Page
 
         // 最新N件のみ表示
         $this->logs = array_slice($parsedLogs, 0, self::MAX_LOGS_TO_DISPLAY);
+    }
+
+    /**
+     * 最新のログファイルを取得（ローテーション対応）
+     */
+    private function getLatestLogFile(): ?string
+    {
+        $logDir = storage_path('logs');
+
+        // laravel.logが存在すればそれを使用（非ローテーションモード）
+        $singleLog = $logDir . '/laravel.log';
+        if (File::exists($singleLog)) {
+            return $singleLog;
+        }
+
+        // ローテーションモード：laravel-YYYY-MM-DD.logを探す
+        $logFiles = File::glob($logDir . '/laravel-*.log');
+
+        if (empty($logFiles)) {
+            return null;
+        }
+
+        // 最新のファイルを取得（ファイル名でソート）
+        rsort($logFiles);
+        return $logFiles[0];
     }
 
     /**
@@ -394,9 +420,9 @@ class SystemLogs extends Page
 
     public function clearAllLogs(): void
     {
-        $logPath = storage_path('logs/laravel.log');
+        $logPath = $this->getLatestLogFile();
 
-        if (File::exists($logPath)) {
+        if ($logPath && File::exists($logPath)) {
             File::put($logPath, '');
             $this->loadLogs();
             $this->selectedLogs = [];
@@ -406,9 +432,9 @@ class SystemLogs extends Page
 
     public function clearOldLogs(): void
     {
-        $logPath = storage_path('logs/laravel.log');
+        $logPath = $this->getLatestLogFile();
 
-        if (!File::exists($logPath)) {
+        if (!$logPath || !File::exists($logPath)) {
             return;
         }
 
@@ -456,9 +482,9 @@ class SystemLogs extends Page
             return;
         }
 
-        $logPath = storage_path('logs/laravel.log');
+        $logPath = $this->getLatestLogFile();
 
-        if (!File::exists($logPath)) {
+        if (!$logPath || !File::exists($logPath)) {
             return;
         }
 
