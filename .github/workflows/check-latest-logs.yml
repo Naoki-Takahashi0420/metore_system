@@ -18,12 +18,24 @@ jobs:
         chmod 600 deploy_key.pem
 
         ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'LOGS'
-        echo "=== Last 500 lines of Laravel log ===\"
-        sudo tail -n 500 /var/www/html/storage/logs/laravel.log
+        echo "=== Log directory files ===\"
+        sudo ls -lh /var/www/html/storage/logs/
 
         echo ""
-        echo "=== Email notification debug logs ===\"
-        sudo grep "Email notification check" /var/www/html/storage/logs/laravel.log || echo "No email notification logs yet"
+        echo "=== Latest log file ===\"
+        LATEST_LOG=$(sudo ls -t /var/www/html/storage/logs/laravel*.log 2>/dev/null | head -1)
+        if [ -n "$LATEST_LOG" ]; then
+          echo "Found: $LATEST_LOG"
+          echo ""
+          echo "=== Last 500 lines ===\"
+          sudo tail -n 500 "$LATEST_LOG"
+
+          echo ""
+          echo "=== メール送信成功ログ ===\"
+          sudo grep "メール送信成功" "$LATEST_LOG" || echo "No email send logs yet"
+        else
+          echo "No log files found"
+        fi
         LOGS
 
         rm deploy_key.pem
