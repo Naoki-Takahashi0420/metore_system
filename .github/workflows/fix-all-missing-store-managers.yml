@@ -1,0 +1,66 @@
+name: Fix All Missing Store Managers
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Add all missing users to store_managers
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'REMOTE'
+        cd /var/www/html
+
+        sudo php artisan tinker --execute="
+        echo \"=== 通知設定ONのユーザーをstore_managersテーブルに一括追加 ===\n\n\";
+
+        \$users = App\Models\User::whereNotNull('store_id')
+            ->where('is_active', true)
+            ->get();
+
+        \$addedCount = 0;
+        \$skippedCount = 0;
+
+        foreach (\$users as \$user) {
+            \$emailEnabled = \$user->notification_preferences['email_enabled'] ?? true;
+
+            if (\$emailEnabled) {
+                // store_managersテーブルを確認
+                \$existingEntry = DB::table('store_managers')
+                    ->where('store_id', \$user->store_id)
+                    ->where('user_id', \$user->id)
+                    ->first();
+
+                if (!\$existingEntry) {
+                    // 追加
+                    DB::table('store_managers')->insert([
+                        'store_id' => \$user->store_id,
+                        'user_id' => \$user->id,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+
+                    echo \"✅ 追加: User {\$user->id} ({\$user->email}) -> Store {\$user->store_id}\n\";
+                    \$addedCount++;
+                } else {
+                    \$skippedCount++;
+                }
+            }
+        }
+
+        echo \"\n=== 完了 ===\n\";
+        echo \"追加: {\$addedCount}人\n\";
+        echo \"スキップ（既存）: {\$skippedCount}人\n\";
+        "
+        REMOTE
+
+        rm deploy_key.pem
