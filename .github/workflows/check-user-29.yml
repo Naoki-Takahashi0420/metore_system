@@ -1,0 +1,58 @@
+name: Check User 29
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check User 29
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'REMOTE'
+        cd /var/www/html
+
+        sudo php artisan tinker --execute="
+        \$user = App\Models\User::find(29);
+
+        if (\$user) {
+            echo \"=== ユーザー情報 ===\n\";
+            echo \"ID: {\$user->id}\n\";
+            echo \"Email: {\$user->email}\n\";
+            echo \"Name: {\$user->name}\n\";
+            echo \"Store ID: {\$user->store_id}\n\";
+            echo \"is_active: \" . (\$user->is_active ? 'true' : 'false') . \"\n\";
+            echo \"\n\";
+
+            echo \"=== 通知設定 ===\n\";
+            echo json_encode(\$user->notification_preferences, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . \"\n\";
+            echo \"\n\";
+
+            echo \"=== 店舗管理者テーブル ===\n\";
+            \$managers = DB::table('store_managers')->where('user_id', 29)->get();
+            echo \$managers->toJson(JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . \"\n\";
+            echo \"\n\";
+
+            if (\$user->store_id) {
+                \$store = App\Models\Store::find(\$user->store_id);
+                if (\$store) {
+                    echo \"=== 店舗情報 ===\n\";
+                    echo \"Store ID: {\$store->id}\n\";
+                    echo \"Store Name: {\$store->name}\n\";
+                }
+            }
+        } else {
+            echo \"ユーザーID 29 が見つかりません\n\";
+        }
+        "
+        REMOTE
+
+        rm deploy_key.pem

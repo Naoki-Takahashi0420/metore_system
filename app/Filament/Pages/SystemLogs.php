@@ -25,7 +25,7 @@ class SystemLogs extends Page
     protected const MAX_LOGS_TO_DISPLAY = 500; // 画面に表示する最大ログ数
 
     public $logs = [];
-    public $filter = 'all'; // all, reservation, email, auth, error
+    public $filter = 'all'; // all, reservation, email, sms, auth, error
     public $selectedLogs = [];
     public $selectAll = false;
     public $debugInfo = null; // デバッグ情報
@@ -81,9 +81,11 @@ class SystemLogs extends Page
                 $this->debugInfo['file_readable'] = is_readable($logPath);
             }
 
-            // ファイルサイズに関係なく、grep で重要なログのみ抽出（メール送信優先）
+            // ファイルサイズに関係なく、grep で重要なログのみ抽出（メール・SMS送信優先）
             $grepPatterns = [
                 'メール送信成功',
+                'SMS送信成功',
+                '📱 SMS送信',
                 'Admin notification sent',
                 'Reservation created',
                 '予約作成',
@@ -166,7 +168,7 @@ class SystemLogs extends Page
 
         // 重要なログのみフィルタリング
         $parsedLogs = array_filter($parsedLogs, function ($log) {
-            return in_array($log['type'], ['reservation', 'email', 'auth', 'error', 'admin_notification']);
+            return in_array($log['type'], ['reservation', 'email', 'sms', 'auth', 'error', 'admin_notification']);
         });
 
         // デバッグ情報を更新
@@ -267,7 +269,12 @@ class SystemLogs extends Page
 
     private function extractWho(string $content): ?string
     {
-        // メール送信先（to）- より優先的に抽出
+        // SMS送信先（phone）- より優先的に抽出
+        if (preg_match('/"phone"\s*[:=]\s*"([+\d]+)"/i', $content, $matches)) {
+            return "送信先: {$matches[1]}";
+        }
+
+        // メール送信先（to）
         if (preg_match('/"to"\s*[:=]\s*"([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})"/i', $content, $matches)) {
             return "送信先: {$matches[1]}";
         }
@@ -292,6 +299,11 @@ class SystemLogs extends Page
 
     private function extractWhat(string $content): ?string
     {
+        // SMS送信成功（MessageID付き）
+        if (Str::contains($content, 'SMS送信成功') && preg_match('/messageId["\']?\s*[:=]\s*["\']?([a-zA-Z0-9\-@\.]+)/i', $content, $matches)) {
+            return "SMS送信完了 (SNS ID: " . substr($matches[1], 0, 20) . "...)";
+        }
+
         // SESメール送信成功（MessageID付き）
         if (Str::contains($content, 'メール送信成功') && preg_match('/messageId["\']?\s*[:=]\s*["\']?([a-zA-Z0-9\-@\.]+)/i', $content, $matches)) {
             return "メール送信完了 (SES ID: " . substr($matches[1], 0, 20) . "...)";
@@ -315,6 +327,12 @@ class SystemLogs extends Page
         // メッセージから主要アクションを抽出
         if (Str::contains($content, '予約作成')) {
             return "予約作成";
+        }
+        if (Str::contains($content, '📱 SMS送信を試行')) {
+            return "SMS送信準備";
+        }
+        if (Str::contains($content, 'SMS送信成功')) {
+            return "SMS送信完了";
         }
         if (Str::contains($content, 'Sending email')) {
             return "メール送信準備";
@@ -386,6 +404,11 @@ class SystemLogs extends Page
 
     private function extractHow(string $content): ?string
     {
+        // SMS送信成功（AWS SNS経由）
+        if (Str::contains($content, 'SMS送信成功') && Str::contains($content, 'messageId')) {
+            return "経路: AWS SNS（送信成功）";
+        }
+
         // SESメール送信成功
         if (Str::contains($content, 'メール送信成功') && Str::contains($content, 'messageId')) {
             return "経路: AWS SES（送信成功）";
@@ -400,7 +423,7 @@ class SystemLogs extends Page
         if (Str::contains($content, 'LINE')) {
             return "経路: LINE";
         }
-        if (Str::contains($content, 'SMS')) {
+        if (Str::contains($content, '📱 SMS送信')) {
             return "経路: SMS";
         }
         if (Str::contains($content, ['Email', 'メール'])) {
@@ -426,6 +449,11 @@ class SystemLogs extends Page
         // 予約関連
         if (Str::contains($content, ['Reservation created', '予約作成', 'ReservationCreated'])) {
             return 'reservation';
+        }
+
+        // SMS送信関連
+        if (Str::contains($content, ['📱 SMS送信', 'SMS送信成功', 'SMS送信を試行'])) {
+            return 'sms';
         }
 
         // メール送信関連（実際の送信のみ）
@@ -461,7 +489,7 @@ class SystemLogs extends Page
             return 'warning';
         }
 
-        if (Str::contains($content, ['.INFO:', 'INFO', '✅', '📧', '🔍'])) {
+        if (Str::contains($content, ['.INFO:', 'INFO', '✅', '📧', '📱', '🔍'])) {
             return 'info';
         }
 
