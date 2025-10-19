@@ -28,11 +28,14 @@ class BlockedTimePeriodResource extends Resource
                     ->label('店舗')
                     ->options(function () {
                         $user = auth()->user();
-                        
+
                         if ($user->hasRole('super_admin')) {
                             return Store::where('is_active', true)->pluck('name', 'id');
                         } elseif ($user->hasRole('owner')) {
-                            return $user->manageableStores()->where('is_active', true)->pluck('name', 'stores.id');
+                            return $user->manageableStores()
+                                ->select('stores.id', 'stores.name', 'stores.is_active')
+                                ->where('stores.is_active', true)
+                                ->pluck('name', 'stores.id');
                         } else {
                             // 店長・スタッフは自店舗のみ
                             return $user->store ? collect([$user->store->id => $user->store->name]) : collect();
@@ -201,7 +204,10 @@ class BlockedTimePeriodResource extends Resource
 
         // オーナーは紐づいた店舗のデータのみ表示
         if ($user->hasRole('owner')) {
-            $storeIds = $user->manageableStores()->pluck('stores.id')->toArray();
+            $storeIds = $user->manageableStores()
+                ->select('stores.id')
+                ->pluck('stores.id')
+                ->toArray();
             return $query->whereIn('store_id', $storeIds);
         }
 
