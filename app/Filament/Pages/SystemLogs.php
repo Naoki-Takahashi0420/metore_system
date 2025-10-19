@@ -224,11 +224,12 @@ class SystemLogs extends Page
             'dir_exists' => is_dir($logDir),
         ];
 
-        // laravel.logが存在すればそれを使用（非ローテーションモード）
+        // laravel.logが存在し、かつサイズが0より大きければそれを使用
         $singleLog = $logDir . '/laravel.log';
         $debug['single_log_exists'] = File::exists($singleLog);
 
-        if (File::exists($singleLog)) {
+        if (File::exists($singleLog) && File::size($singleLog) > 0) {
+            $debug['using_file'] = 'laravel.log';
             $this->debugInfo = $debug;
             return $singleLog;
         }
@@ -249,6 +250,7 @@ class SystemLogs extends Page
         // 最新のファイルを取得（ファイル名でソート）
         rsort($logFiles);
         $debug['selected_file'] = basename($logFiles[0]);
+        $debug['using_file'] = basename($logFiles[0]);
         $this->debugInfo = $debug;
 
         return $logFiles[0];
