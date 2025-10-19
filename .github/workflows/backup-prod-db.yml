@@ -66,7 +66,7 @@ jobs:
         rm deploy_key.pem
 
     - name: Upload backup as artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: prod-db-backup
         path: prod_backup.sql.gz
