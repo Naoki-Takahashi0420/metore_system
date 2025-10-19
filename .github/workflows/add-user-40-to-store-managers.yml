@@ -1,0 +1,59 @@
+name: Add User 40 to Store Managers
+
+on:
+  workflow_dispatch:
+
+jobs:
+  add-user:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Add User 40 to Store 8 Managers
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'REMOTE'
+        cd /var/www/html
+
+        sudo php artisan tinker --execute="
+        echo \"=== User 40を藤沢店（Store 8）の管理者に追加 ===\n\";
+
+        // 既存のエントリーを確認
+        \$existing = DB::table('store_managers')
+            ->where('store_id', 8)
+            ->where('user_id', 40)
+            ->first();
+
+        if (\$existing) {
+            echo \"✅ User 40はすでにStore 8の管理者として登録されています\n\";
+        } else {
+            // 新規追加
+            DB::table('store_managers')->insert([
+                'store_id' => 8,
+                'user_id' => 40,
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+            echo \"✅ User 40をStore 8の管理者として追加しました\n\n\";
+        }
+
+        echo \"=== 追加後の確認 ===\n\";
+        \$managers = DB::table('store_managers')
+            ->where('store_id', 8)
+            ->get();
+
+        foreach (\$managers as \$m) {
+            \$user = App\Models\User::find(\$m->user_id);
+            if (\$user) {
+                echo \"User ID: {\$m->user_id}, Email: {\$user->email}, Name: {\$user->name}\n\";
+            }
+        }
+        "
+        REMOTE
+
+        rm deploy_key.pem
