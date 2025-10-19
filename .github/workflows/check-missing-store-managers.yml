@@ -1,0 +1,66 @@
+name: Check Missing Store Managers
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Find users with notification ON but not in store_managers
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'REMOTE'
+        cd /var/www/html
+
+        sudo php artisan tinker --execute="
+        echo \"=== 通知設定ONだがstore_managersに未登録のユーザー ===\n\n\";
+
+        \$users = App\Models\User::whereNotNull('store_id')
+            ->where('is_active', true)
+            ->get();
+
+        \$missingUsers = [];
+
+        foreach (\$users as \$user) {
+            \$emailEnabled = \$user->notification_preferences['email_enabled'] ?? true;
+
+            if (\$emailEnabled) {
+                // store_managersテーブルを確認
+                \$inStoreManagers = DB::table('store_managers')
+                    ->where('store_id', \$user->store_id)
+                    ->where('user_id', \$user->id)
+                    ->exists();
+
+                if (!\$inStoreManagers) {
+                    \$missingUsers[] = [
+                        'user_id' => \$user->id,
+                        'email' => \$user->email,
+                        'name' => \$user->name,
+                        'store_id' => \$user->store_id,
+                        'store_name' => \$user->store->name ?? 'N/A',
+                    ];
+                }
+            }
+        }
+
+        if (empty(\$missingUsers)) {
+            echo \"✅ すべてのユーザーが正しく設定されています\n\";
+        } else {
+            echo \"⚠️ 以下のユーザーをstore_managersテーブルに追加する必要があります:\n\n\";
+            foreach (\$missingUsers as \$u) {
+                echo \"User ID: {\$u['user_id']}, Email: {\$u['email']}, Name: {\$u['name']}, Store: {\$u['store_name']} (ID: {\$u['store_id']})\n\";
+            }
+            echo \"\n合計: \" . count(\$missingUsers) . \"人\n\";
+        }
+        "
+        REMOTE
+
+        rm deploy_key.pem
