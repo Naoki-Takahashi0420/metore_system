@@ -1963,12 +1963,16 @@ class PublicReservationController extends Controller
 
         // 既存顧客IDが取得できた場合は予約間隔制限をチェック（店舗設定による）
         if ($existingCustomerId) {
+            // 予約変更の場合は、変更元の予約を除外
+            $excludeReservationId = Session::get('change_reservation_id');
+
             \Log::info('予約間隔制限チェック開始', [
                 'customer_id' => $existingCustomerId,
                 'target_date' => $validated['date'],
-                'store_id' => $validated['store_id']
+                'store_id' => $validated['store_id'],
+                'exclude_reservation_id' => $excludeReservationId
             ]);
-            $this->validateFiveDayInterval($existingCustomerId, $validated['date'], $validated['store_id']);
+            $this->validateFiveDayInterval($existingCustomerId, $validated['date'], $validated['store_id'], $excludeReservationId);
         } else {
             \Log::info('予約間隔制限をスキップ（新規顧客または顧客情報なし）', [
                 'is_existing_customer' => $isExistingCustomer,
@@ -2693,7 +2697,7 @@ class PublicReservationController extends Controller
     /**
      * 予約間隔制限をバリデーション（店舗設定による）
      */
-    private function validateFiveDayInterval($customerId, $targetDate, $storeId = null)
+    private function validateFiveDayInterval($customerId, $targetDate, $storeId = null, $excludeReservationId = null)
     {
         // 店舗IDから最小予約間隔を取得
         $minIntervalDays = 5; // デフォルト
@@ -2706,7 +2710,8 @@ class PublicReservationController extends Controller
             'customer_id' => $customerId,
             'target_date' => $targetDate,
             'store_id' => $storeId,
-            'min_interval_days' => $minIntervalDays
+            'min_interval_days' => $minIntervalDays,
+            'exclude_reservation_id' => $excludeReservationId
         ]);
 
         // 顧客の既存予約を取得（キャンセル済みを除く）
@@ -2716,6 +2721,11 @@ class PublicReservationController extends Controller
 
         if ($storeId) {
             $query->where('store_id', $storeId);
+        }
+
+        // 予約変更時は、変更元の予約を除外
+        if ($excludeReservationId) {
+            $query->where('id', '!=', $excludeReservationId);
         }
 
         $existingReservations = $query->get();
