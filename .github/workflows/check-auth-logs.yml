@@ -1,0 +1,92 @@
+name: Check Auth Logs
+
+on:
+  workflow_dispatch:
+    inputs:
+      phone_or_email:
+        description: 'Phone number or email to search'
+        required: false
+        default: ''
+      days:
+        description: 'Number of days to search back'
+        required: false
+        default: '3'
+
+jobs:
+  check-auth:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check Authentication Logs
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+        SEARCH: ${{ github.event.inputs.phone_or_email }}
+        DAYS: ${{ github.event.inputs.days }}
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'AUTH'
+        echo "=== Available log files ==="
+        sudo ls -lh /var/www/html/storage/logs/laravel*.log 2>/dev/null | tail -10
+
+        echo ""
+        echo "=== Searching for Authentication & Verification Code logs ==="
+
+        # Find log files from the last N days
+        LOG_FILES=$(sudo find /var/www/html/storage/logs/ -name "laravel*.log" -mtime -${DAYS} 2>/dev/null)
+
+        if [ -z "$LOG_FILES" ]; then
+          echo "No log files found from the last ${DAYS} days"
+          LOG_FILES="/var/www/html/storage/logs/laravel-$(date +%Y-%m-%d).log"
+        fi
+
+        echo "Checking files:"
+        echo "$LOG_FILES"
+        echo ""
+
+        # Search for verification code related logs
+        echo "=== Verification Code / SMS / Email logs ==="
+        for LOG_FILE in $LOG_FILES; do
+          if [ -f "$LOG_FILE" ]; then
+            echo "--- From: $LOG_FILE ---"
+            sudo grep -i "verification\|認証コード\|SMS\|verification_code\|sendSMS\|sendEmail\|TwoFactor" "$LOG_FILE" | tail -100
+          fi
+        done
+
+        # If phone/email is provided, search for it
+        if [ -n "${SEARCH}" ]; then
+          echo ""
+          echo "=== Searching for: ${SEARCH} ==="
+          for LOG_FILE in $LOG_FILES; do
+            if [ -f "$LOG_FILE" ]; then
+              echo "--- From: $LOG_FILE ---"
+              sudo grep -i "${SEARCH}" "$LOG_FILE" | tail -50
+            fi
+          done
+        fi
+
+        # Search for SMS/Email sending errors
+        echo ""
+        echo "=== SMS/Email Sending Errors ==="
+        for LOG_FILE in $LOG_FILES; do
+          if [ -f "$LOG_FILE" ]; then
+            echo "--- From: $LOG_FILE ---"
+            sudo grep -i "SMS.*fail\|メール.*失敗\|Email.*fail\|SES.*error" "$LOG_FILE" | tail -50
+          fi
+        done
+
+        # Check AWS SES/SNS related logs
+        echo ""
+        echo "=== AWS SES/SNS Logs ==="
+        for LOG_FILE in $LOG_FILES; do
+          if [ -f "$LOG_FILE" ]; then
+            echo "--- From: $LOG_FILE ---"
+            sudo grep -i "SES\|SNS\|aws" "$LOG_FILE" | grep -i "error\|fail\|success" | tail -50
+          fi
+        done
+        AUTH
+
+        rm deploy_key.pem
