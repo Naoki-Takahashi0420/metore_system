@@ -215,14 +215,6 @@ class AdminNotificationService
         // 設定がない場合はデフォルトでtrueとして扱う（後方互換性）
         $emailEnabled = $preferences['email_enabled'] ?? true;
 
-        // デバッグログ
-        \Log::info('Email notification check', [
-            'user_id' => $admin->id,
-            'email' => $admin->email,
-            'email_enabled' => $emailEnabled,
-            'preferences' => $preferences
-        ]);
-
         return $emailEnabled === true;
     }
     
