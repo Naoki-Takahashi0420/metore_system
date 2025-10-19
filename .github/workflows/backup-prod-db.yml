@@ -1,0 +1,73 @@
+name: Backup Production DB
+
+on:
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Create production database backup
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'REMOTE'
+        cd /var/www/html
+
+        DB_NAME=$(grep "^DB_DATABASE=" .env | cut -d'=' -f2)
+        DB_USER=$(grep "^DB_USERNAME=" .env | cut -d'=' -f2)
+        DB_PASS=$(grep "^DB_PASSWORD=" .env | cut -d'=' -f2)
+
+        echo "=== DB設定情報 ==="
+        echo "Database: $DB_NAME"
+        echo "User: $DB_USER"
+        echo ""
+
+        echo "=== ダンプ作成中... ==="
+        mysqldump -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" > /tmp/prod_backup.sql 2>&1
+
+        if [ $? -eq 0 ]; then
+            echo "✅ バックアップ完了"
+            ls -lh /tmp/prod_backup.sql
+
+            # ファイルサイズを確認
+            SIZE=$(du -h /tmp/prod_backup.sql | cut -f1)
+            echo "ファイルサイズ: $SIZE"
+
+            # 圧縮
+            gzip -f /tmp/prod_backup.sql
+            echo "圧縮完了"
+            ls -lh /tmp/prod_backup.sql.gz
+        else
+            echo "❌ バックアップ失敗"
+            exit 1
+        fi
+        REMOTE
+
+        # ダンプファイルをダウンロード
+        echo ""
+        echo "=== ダンプファイルをダウンロード ==="
+        scp -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST}:/tmp/prod_backup.sql.gz ./prod_backup.sql.gz
+
+        if [ $? -eq 0 ]; then
+            echo "✅ ダウンロード完了"
+            ls -lh prod_backup.sql.gz
+        else
+            echo "❌ ダウンロード失敗"
+            exit 1
+        fi
+
+        rm deploy_key.pem
+
+    - name: Upload backup as artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: prod-db-backup
+        path: prod_backup.sql.gz
+        retention-days: 1

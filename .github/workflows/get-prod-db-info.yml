@@ -1,0 +1,29 @@
+name: Get Production DB Info
+
+on:
+  workflow_dispatch:
+
+jobs:
+  get-info:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Get production database configuration
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'REMOTE'
+        cd /var/www/html
+
+        echo "=== 本番DB設定情報 ==="
+        grep "DB_" .env | grep -v "PASSWORD"
+        echo ""
+        echo "DB_PASSWORD: [MASKED]"
+        REMOTE
+
+        rm deploy_key.pem
