@@ -81,34 +81,28 @@ class SystemLogs extends Page
                 $this->debugInfo['file_readable'] = is_readable($logPath);
             }
 
-            if ($fileSize > $maxSize) {
-                $fileSizeMB = round($fileSize / 1024 / 1024, 2);
-                $this->logs = [[
-                    'timestamp' => date('Y-m-d H:i:s'),
-                    'content' => sprintf('ログファイルが大きすぎます（%s MB / %s MB）。最新の行のみ読み込みます。', $fileSizeMB, self::MAX_FILE_SIZE_MB),
-                    'type' => 'error',
-                    'level' => 'warning',
-                    'five_w_one_h' => [
-                        'who' => null,
-                        'what' => 'ファイルサイズ超過',
-                        'when' => null,
-                        'where' => null,
-                        'why' => sprintf('ログファイルが%s MBを超えています（現在: %s MB）', self::MAX_FILE_SIZE_MB, $fileSizeMB),
-                        'how' => null,
-                    ]
-                ]];
+            // ファイルサイズに関係なく、grep で重要なログのみ抽出（メール送信優先）
+            $grepPatterns = [
+                'メール送信成功',
+                'Admin notification sent',
+                'Reservation created',
+                '予約作成',
+                'authentication',
+                'ERROR',
+                'Exception',
+            ];
 
-                // ファイルが大きい場合は tail で最新の行のみ読み込む
+            $grepPattern = implode('|', array_map('preg_quote', $grepPatterns));
+            $command = sprintf('grep -E "(%s)" %s | tail -n %d', $grepPattern, escapeshellarg($logPath), self::MAX_LINES_TO_READ);
+            $logContent = shell_exec($command);
+
+            if (empty($logContent)) {
+                // grepで何も見つからない場合は通常の tail を使用
                 $command = sprintf('tail -n %d %s', self::MAX_LINES_TO_READ, escapeshellarg($logPath));
                 $logContent = shell_exec($command);
-                $logLines = explode("\n", $logContent);
-            } else {
-                $logContent = File::get($logPath);
-                $logLines = explode("\n", $logContent);
-
-                // 最新N行のみ処理（パフォーマンス対策）
-                $logLines = array_slice($logLines, -self::MAX_LINES_TO_READ);
             }
+
+            $logLines = explode("\n", $logContent);
         } catch (\Exception $e) {
             \Log::error('SystemLogs loadLogs error', [
                 'error' => $e->getMessage()
