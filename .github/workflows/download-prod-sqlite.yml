@@ -1,0 +1,47 @@
+name: Download Production SQLite DB
+
+on:
+  workflow_dispatch:
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Download production SQLite database
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        echo "=== 本番DBファイル情報 ==="
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'REMOTE'
+        cd /var/www/html
+        DB_PATH=$(grep "^DB_DATABASE=" .env | cut -d'=' -f2)
+        echo "Database path: $DB_PATH"
+        ls -lh "$DB_PATH"
+        REMOTE
+
+        echo ""
+        echo "=== ダウンロード中... ==="
+        scp -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST}:/var/www/html/database/database.sqlite ./prod_database.sqlite
+
+        if [ $? -eq 0 ]; then
+            echo "✅ ダウンロード完了"
+            ls -lh prod_database.sqlite
+        else
+            echo "❌ ダウンロード失敗"
+            exit 1
+        fi
+
+        rm deploy_key.pem
+
+    - name: Upload database as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: prod-sqlite-db
+        path: prod_database.sqlite
+        retention-days: 1
