@@ -20,8 +20,8 @@ class SystemLogs extends Page
     protected static ?int $navigationSort = 100;
 
     // ログ設定（必要に応じてconfig/logging.phpに移動可能）
-    protected const MAX_FILE_SIZE_MB = 50; // 最大ファイルサイズ（MB）
-    protected const MAX_LINES_TO_READ = 5000; // ファイルから読み込む最大行数
+    protected const MAX_FILE_SIZE_MB = 100; // 最大ファイルサイズ（MB）
+    protected const MAX_LINES_TO_READ = 30000; // ファイルから読み込む最大行数
     protected const MAX_LOGS_TO_DISPLAY = 500; // 画面に表示する最大ログ数
 
     public $logs = [];
