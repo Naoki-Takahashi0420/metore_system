@@ -62,14 +62,9 @@ class SmsService
                 ],
             ];
 
-            // Sender IDが設定されている場合のみ追加（日本では使わない方が良い場合がある）
-            $senderId = config('services.sns.sender_id');
-            if ($senderId && $senderId !== 'NONE') {
-                $messageAttributes['AWS.SNS.SMS.SenderID'] = [
-                    'DataType' => 'String',
-                    'StringValue' => $senderId,
-                ];
-            }
+            // 注意: 日本ではSender IDがサポートされていないため、設定しない
+            // Sender IDを設定すると、キャリア側で自動的に「NOTICE」や数字に置き換えられる
+            // 参考: https://docs.aws.amazon.com/sns/latest/dg/channels-sms-originating-identities-sender-ids.html
 
             $result = $this->snsClient->publish([
                 'Message' => $message,
