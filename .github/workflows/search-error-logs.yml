@@ -1,0 +1,82 @@
+name: Search Error Logs
+
+on:
+  workflow_dispatch:
+    inputs:
+      search_term:
+        description: 'Search term (e.g., customer name, error type)'
+        required: false
+        default: ''
+      days:
+        description: 'Number of days to search back'
+        required: false
+        default: '3'
+
+jobs:
+  search-logs:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Search Logs
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+        SEARCH_TERM: ${{ github.event.inputs.search_term }}
+        DAYS: ${{ github.event.inputs.days }}
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'SEARCH'
+        echo "=== Available log files ==="
+        sudo ls -lh /var/www/html/storage/logs/laravel*.log 2>/dev/null | tail -10
+
+        echo ""
+        echo "=== Searching for ERROR logs (last ${DAYS} days) ==="
+
+        # Find log files from the last N days
+        LOG_FILES=$(sudo find /var/www/html/storage/logs/ -name "laravel*.log" -mtime -${DAYS} 2>/dev/null)
+
+        if [ -z "$LOG_FILES" ]; then
+          echo "No log files found from the last ${DAYS} days"
+          echo "Checking today's log file..."
+          LOG_FILES="/var/www/html/storage/logs/laravel-$(date +%Y-%m-%d).log"
+        fi
+
+        echo "Checking files:"
+        echo "$LOG_FILES"
+        echo ""
+
+        # Search for ERROR logs
+        echo "=== ERROR logs ==="
+        for LOG_FILE in $LOG_FILES; do
+          if [ -f "$LOG_FILE" ]; then
+            echo "--- From: $LOG_FILE ---"
+            sudo grep -i "ERROR\|Exception\|Fatal" "$LOG_FILE" | tail -50
+          fi
+        done
+
+        # If search term is provided, search for it
+        if [ -n "${SEARCH_TERM}" ]; then
+          echo ""
+          echo "=== Searching for: ${SEARCH_TERM} ==="
+          for LOG_FILE in $LOG_FILES; do
+            if [ -f "$LOG_FILE" ]; then
+              echo "--- From: $LOG_FILE ---"
+              sudo grep -i "${SEARCH_TERM}" "$LOG_FILE" | tail -30
+            fi
+          done
+        fi
+
+        # Show recent log tail
+        echo ""
+        echo "=== Last 100 lines of latest log ==="
+        LATEST_LOG=$(sudo ls -t /var/www/html/storage/logs/laravel*.log 2>/dev/null | head -1)
+        if [ -n "$LATEST_LOG" ]; then
+          echo "From: $LATEST_LOG"
+          sudo tail -100 "$LATEST_LOG"
+        fi
+        SEARCH
+
+        rm deploy_key.pem
