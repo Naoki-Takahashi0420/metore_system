@@ -1,0 +1,52 @@
+name: Migrate Announcements
+
+on:
+  workflow_dispatch:
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Execute Migration on EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: 54.64.54.226
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /var/www/html
+
+            echo "=== 現在のマイグレーション状態 ==="
+            sudo php artisan migrate:status | tail -20
+
+            echo ""
+            echo "=== お知らせ関連のマイグレーションファイル確認 ==="
+            ls -la database/migrations/*announcements* || echo "ファイルなし"
+
+            echo ""
+            echo "=== composer dump-autoload 実行 ==="
+            sudo COMPOSER_ALLOW_SUPERUSER=1 composer dump-autoload
+
+            echo ""
+            echo "=== マイグレーション実行 ==="
+            sudo php artisan migrate --force
+
+            echo ""
+            echo "=== 実行後のマイグレーション状態 ==="
+            sudo php artisan migrate:status | grep announcements
+
+            echo ""
+            echo "=== テーブル確認 ==="
+            sudo php artisan tinker --execute="
+            try {
+                \$count = DB::table('announcements')->count();
+                echo 'announcements テーブル: ' . \$count . '件\n';
+            } catch (Exception \$e) {
+                echo 'テーブルなし: ' . \$e->getMessage() . '\n';
+            }
+            "
+
+            echo ""
+            echo "=== キャッシュクリア ==="
+            sudo php artisan optimize:clear
+            sudo php artisan filament:cache-components
