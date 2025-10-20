@@ -2048,10 +2048,16 @@
                                 <div class="p-3 bg-white rounded border border-blue-200">
                                     <p class="text-sm text-gray-700">
                                         @if(count($rightEyeValues) > 0)
-                                            <span class="font-semibold text-blue-600">右目:</span> {{ number_format(max($rightEyeValues) - min($rightEyeValues), 1) }}向上 |
+                                            @php
+                                                $rightValues = array_column($rightEyeValues, 'value');
+                                            @endphp
+                                            <span class="font-semibold text-blue-600">右目:</span> {{ number_format(max($rightValues) - min($rightValues), 1) }}向上 |
                                         @endif
                                         @if(count($leftEyeValues) > 0)
-                                            <span class="font-semibold text-green-600">左目:</span> {{ number_format(max($leftEyeValues) - min($leftEyeValues), 1) }}向上
+                                            @php
+                                                $leftValues = array_column($leftEyeValues, 'value');
+                                            @endphp
+                                            <span class="font-semibold text-green-600">左目:</span> {{ number_format(max($leftValues) - min($leftValues), 1) }}向上
                                         @endif
                                     </p>
                                 </div>
