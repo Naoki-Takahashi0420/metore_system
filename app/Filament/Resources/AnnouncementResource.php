@@ -46,8 +46,6 @@ class AnnouncementResource extends Resource
                         Forms\Components\RichEditor::make('content')
                             ->label('本文')
                             ->required()
-                            ->fileAttachments()
-                            ->fileAttachmentsDirectory('announcements')
                             ->columnSpanFull(),
 
                         Forms\Components\Select::make('priority')
