@@ -1861,21 +1861,29 @@
                             }
                         }
 
-                        // グラフ用のデータポイント（右目）
+                        // グラフ用のデータポイント（右目）- 元のインデックスとセッション番号も保持
                         $rightEyeValues = [];
-                        foreach($visionData as $data) {
+                        foreach($visionData as $dataIndex => $data) {
                             $val = $data['right_after'] ?? $data['right_before'];
                             if ($val !== null) {
-                                $rightEyeValues[] = floatval($val);
+                                $rightEyeValues[] = [
+                                    'value' => floatval($val),
+                                    'session' => $data['session'],
+                                    'originalIndex' => $dataIndex
+                                ];
                             }
                         }
 
-                        // グラフ用のデータポイント（左目）
+                        // グラフ用のデータポイント（左目）- 元のインデックスとセッション番号も保持
                         $leftEyeValues = [];
-                        foreach($visionData as $data) {
+                        foreach($visionData as $dataIndex => $data) {
                             $val = $data['left_after'] ?? $data['left_before'];
                             if ($val !== null) {
-                                $leftEyeValues[] = floatval($val);
+                                $leftEyeValues[] = [
+                                    'value' => floatval($val),
+                                    'session' => $data['session'],
+                                    'originalIndex' => $dataIndex
+                                ];
                             }
                         }
                     @endphp
@@ -1906,7 +1914,10 @@
                                             <p class="text-sm font-semibold text-gray-700">右目（裸眼）</p>
                                         </div>
                                         @if(count($rightEyeValues) > 0)
-                                            <p class="text-xs text-gray-500">{{ number_format(min($rightEyeValues), 1) }} → {{ number_format(max($rightEyeValues), 1) }}</p>
+                                            @php
+                                                $rightValues = array_column($rightEyeValues, 'value');
+                                            @endphp
+                                            <p class="text-xs text-gray-500">{{ number_format(min($rightValues), 1) }} → {{ number_format(max($rightValues), 1) }}</p>
                                         @endif
                                     </div>
                                     <div class="relative bg-white rounded border border-gray-200 p-4" style="height: 500px;">
@@ -1927,9 +1938,9 @@
                                                 @if(count($rightEyeValues) > 1)
                                                     @php
                                                         $points = [];
-                                                        foreach($rightEyeValues as $index => $value) {
+                                                        foreach($rightEyeValues as $index => $item) {
                                                             $x = 80 + ($index * 100);
-                                                            $y = 160 - ($value / 1.2 * 140);
+                                                            $y = 160 - ($item['value'] / 1.2 * 140);
                                                             $points[] = "$x,$y";
                                                         }
                                                         $polylinePoints = implode(' ', $points);
@@ -1945,19 +1956,19 @@
                                                 @endif
 
                                                 <!-- データポイント円と値ラベル -->
-                                                @foreach($rightEyeValues as $index => $value)
+                                                @foreach($rightEyeValues as $index => $item)
                                                     @php
                                                         $x = 80 + ($index * 100);
-                                                        $y = 160 - ($value / 1.2 * 140);
+                                                        $y = 160 - ($item['value'] / 1.2 * 140);
                                                     @endphp
                                                     <!-- 値ラベル背景 -->
                                                     <rect x="{{ $x - 12 }}" y="{{ $y - 18 }}" width="24" height="14" fill="white" opacity="0.9"/>
                                                     <!-- データポイント円 -->
                                                     <circle cx="{{ $x }}" cy="{{ $y }}" r="5" fill="#2563eb"/>
                                                     <!-- 値ラベル -->
-                                                    <text x="{{ $x }}" y="{{ $y - 8 }}" font-size="11" font-weight="bold" fill="#1e293b" text-anchor="middle">{{ number_format($value, 1) }}</text>
+                                                    <text x="{{ $x }}" y="{{ $y - 8 }}" font-size="11" font-weight="bold" fill="#1e293b" text-anchor="middle">{{ number_format($item['value'], 1) }}</text>
                                                     <!-- X軸ラベル -->
-                                                    <text x="{{ $x }}" y="180" font-size="10" fill="#6b7280" text-anchor="middle">{{ $visionData[$index]['session'] }}回目</text>
+                                                    <text x="{{ $x }}" y="180" font-size="10" fill="#6b7280" text-anchor="middle">{{ $item['session'] }}回目</text>
                                                 @endforeach
                                             @endif
                                         </svg>
@@ -1972,7 +1983,10 @@
                                             <p class="text-sm font-semibold text-gray-700">左目（裸眼）</p>
                                         </div>
                                         @if(count($leftEyeValues) > 0)
-                                            <p class="text-xs text-gray-500">{{ number_format(min($leftEyeValues), 1) }} → {{ number_format(max($leftEyeValues), 1) }}</p>
+                                            @php
+                                                $leftValues = array_column($leftEyeValues, 'value');
+                                            @endphp
+                                            <p class="text-xs text-gray-500">{{ number_format(min($leftValues), 1) }} → {{ number_format(max($leftValues), 1) }}</p>
                                         @endif
                                     </div>
                                     <div class="relative bg-white rounded border border-gray-200 p-4" style="height: 500px;">
@@ -1993,9 +2007,9 @@
                                                 @if(count($leftEyeValues) > 1)
                                                     @php
                                                         $points = [];
-                                                        foreach($leftEyeValues as $index => $value) {
+                                                        foreach($leftEyeValues as $index => $item) {
                                                             $x = 80 + ($index * 100);
-                                                            $y = 160 - ($value / 1.2 * 140);
+                                                            $y = 160 - ($item['value'] / 1.2 * 140);
                                                             $points[] = "$x,$y";
                                                         }
                                                         $polylinePoints = implode(' ', $points);
@@ -2011,19 +2025,19 @@
                                                 @endif
 
                                                 <!-- データポイント円と値ラベル -->
-                                                @foreach($leftEyeValues as $index => $value)
+                                                @foreach($leftEyeValues as $index => $item)
                                                     @php
                                                         $x = 80 + ($index * 100);
-                                                        $y = 160 - ($value / 1.2 * 140);
+                                                        $y = 160 - ($item['value'] / 1.2 * 140);
                                                     @endphp
                                                     <!-- 値ラベル背景 -->
                                                     <rect x="{{ $x - 12 }}" y="{{ $y - 18 }}" width="24" height="14" fill="white" opacity="0.9"/>
                                                     <!-- データポイント円 -->
                                                     <circle cx="{{ $x }}" cy="{{ $y }}" r="5" fill="#16a34a"/>
                                                     <!-- 値ラベル -->
-                                                    <text x="{{ $x }}" y="{{ $y - 8 }}" font-size="11" font-weight="bold" fill="#1e293b" text-anchor="middle">{{ number_format($value, 1) }}</text>
+                                                    <text x="{{ $x }}" y="{{ $y - 8 }}" font-size="11" font-weight="bold" fill="#1e293b" text-anchor="middle">{{ number_format($item['value'], 1) }}</text>
                                                     <!-- X軸ラベル -->
-                                                    <text x="{{ $x }}" y="180" font-size="10" fill="#6b7280" text-anchor="middle">{{ $visionData[$index]['session'] }}回目</text>
+                                                    <text x="{{ $x }}" y="180" font-size="10" fill="#6b7280" text-anchor="middle">{{ $item['session'] }}回目</text>
                                                 @endforeach
                                             @endif
                                         </svg>
