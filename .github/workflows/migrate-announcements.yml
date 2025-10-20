@@ -8,12 +8,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Execute Migration on EC2
-        uses: appleboy/ssh-action@master
-        with:
-          host: 54.64.54.226
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
+        env:
+          EC2_KEY: ${{ secrets.EC2_KEY }}
+          EC2_HOST: 54.64.54.226
+          EC2_USER: ubuntu
+        run: |
+          echo "$EC2_KEY" > migrate_key.pem
+          chmod 600 migrate_key.pem
+
+          ssh -o StrictHostKeyChecking=no -i migrate_key.pem ${EC2_USER}@${EC2_HOST} << 'MIGRATE'
             cd /var/www/html
 
             echo "=== 現在のマイグレーション状態 ==="
@@ -50,3 +53,6 @@ jobs:
             echo "=== キャッシュクリア ==="
             sudo php artisan optimize:clear
             sudo php artisan filament:cache-components
+          MIGRATE
+
+          rm migrate_key.pem
