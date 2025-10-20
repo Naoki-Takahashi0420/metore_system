@@ -2597,16 +2597,13 @@ class ReservationTimelineWidget extends Widget
                 return;
             }
 
-            // オプションとして選択可能なメニュー（is_optionがtrueまたは小額メニュー）
+            // オプションとして選択可能なメニュー（is_option=trueのみ）
             // ただし、show_in_upsell = true（追加オプションとして提案）のメニューは除外
             $this->availableOptions = \App\Models\Menu::where('is_available', true)
                 ->where('store_id', $mainMenu->store_id)
                 ->where('id', '!=', $menuId)
+                ->where('is_option', true)  // オプションメニューのみ
                 ->where('show_in_upsell', false) // 追加オプション提案メニューを除外
-                ->where(function($q) {
-                    $q->where('is_option', true)
-                      ->orWhere('price', '<=', 3000); // 3000円以下はオプションとして選択可能
-                })
                 ->orderBy('price')
                 ->get()
                 ->toArray();
