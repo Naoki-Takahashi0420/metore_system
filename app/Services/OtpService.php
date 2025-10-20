@@ -122,8 +122,8 @@ class OtpService
             return true;
         }
 
-        // 1分以上経過していれば再送信可能
-        return $lastOtp->created_at->diffInMinutes(Carbon::now()) >= 1;
+        // 30秒以上経過していれば再送信可能
+        return $lastOtp->created_at->diffInSeconds(Carbon::now()) >= 30;
     }
     
     /**

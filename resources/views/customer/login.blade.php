@@ -225,7 +225,20 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (response.ok) {
                 showOTPModal(phone);
-                
+
+                // メール送信の通知
+                if (data.data?.email_sent) {
+                    window.dispatchEvent(new CustomEvent('show-toast', {
+                        detail: {
+                            message: '認証コードをSMSとメールに送信しました',
+                            type: 'success'
+                        }
+                    }));
+                }
+
+                // Start countdown timer for resend button
+                startResendCountdown();
+
                 // Show debug info in development
                 if (data.debug) {
                     console.log('Debug OTP:', data.debug.otp_code);
@@ -358,8 +371,33 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // Resend countdown timer
+    let resendCountdown = 0;
+    let resendTimer = null;
+    const resendButtonOriginalText = '再送信';
+
+    function startResendCountdown() {
+        resendCountdown = 30;
+        resendButton.disabled = true;
+        resendButton.classList.add('opacity-50', 'cursor-not-allowed');
+
+        resendTimer = setInterval(() => {
+            resendCountdown--;
+            resendButton.textContent = `再送信 (${resendCountdown}秒)`;
+
+            if (resendCountdown <= 0) {
+                clearInterval(resendTimer);
+                resendButton.disabled = false;
+                resendButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                resendButton.textContent = resendButtonOriginalText;
+            }
+        }, 1000);
+    }
+
     // Resend OTP
     resendButton.addEventListener('click', async function() {
+        if (resendButton.disabled) return;
+
         try {
             const response = await fetch('/api/auth/customer/send-otp', {
                 method: 'POST',
@@ -369,19 +407,37 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: JSON.stringify({ phone: currentPhone })
             });
-            
+
+            const data = await response.json();
+
             if (response.ok) {
+                // メール送信の有無に応じてメッセージを変更
+                const message = data.data?.email_sent
+                    ? '認証コードをSMSとメールに送信しました'
+                    : '認証コードを再送信しました';
+
                 window.dispatchEvent(new CustomEvent('show-toast', {
                     detail: {
-                        message: '認証コードを再送信しました',
+                        message: message,
                         type: 'success'
                     }
                 }));
-                
+
+                // Start countdown timer
+                startResendCountdown();
+
                 // Clear input
                 otpInput.value = '';
                 otpInput.focus();
                 otpError.classList.add('hidden');
+            } else if (response.status === 429) {
+                // Rate limit error
+                window.dispatchEvent(new CustomEvent('show-toast', {
+                    detail: {
+                        message: data.error?.message || '30秒以内の再送信はできません',
+                        type: 'error'
+                    }
+                }));
             }
         } catch (error) {
             console.error('Error resending OTP:', error);
@@ -394,6 +450,15 @@ document.addEventListener('DOMContentLoaded', function() {
         otpModal.classList.add('hidden');
         otpInput.value = '';
         otpError.classList.add('hidden');
+
+        // Clear countdown timer
+        if (resendTimer) {
+            clearInterval(resendTimer);
+            resendTimer = null;
+        }
+        resendButton.disabled = false;
+        resendButton.classList.remove('opacity-50', 'cursor-not-allowed');
+        resendButton.textContent = resendButtonOriginalText;
     });
     
     function showOTPModal(phone) {
@@ -408,6 +473,15 @@ document.addEventListener('DOMContentLoaded', function() {
         otpModal.classList.add('hidden');
         otpInput.value = '';
         otpError.classList.add('hidden');
+
+        // Clear countdown timer
+        if (resendTimer) {
+            clearInterval(resendTimer);
+            resendTimer = null;
+        }
+        resendButton.disabled = false;
+        resendButton.classList.remove('opacity-50', 'cursor-not-allowed');
+        resendButton.textContent = resendButtonOriginalText;
     }
     
     function showNewCustomerModal() {

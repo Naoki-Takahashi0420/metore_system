@@ -39,19 +39,16 @@ class CustomerAuthController extends Controller
             ], 422);
         }
         
-        // 再送信チェック（デモ期間中は制限を緩和）
-        // TODO: 本番運用時はコメントアウトを外して有効化
-        /*
+        // 再送信チェック（30秒以内の再送信を制限）
         if (!$this->otpService->canResend($request->phone)) {
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'RATE_LIMIT',
-                    'message' => '1分以内の再送信はできません',
+                    'message' => '30秒以内の再送信はできません。しばらくお待ちください。',
                 ],
             ], 429);
         }
-        */
 
         // 既存顧客のメールアドレスを取得（再送信時のメール送信用）
         $normalizedPhone = PhoneHelper::normalize($request->phone);
