@@ -2623,8 +2623,7 @@ class ReservationTimelineWidget extends Widget
                 ]);
             } else {
                 // メニュー専用オプションがない場合は、店舗の全メニューから条件に合うものを表示
-                // 1. is_option=trueのメニュー、または
-                // 2. 通常メニュー（is_subscription=false）かつ設定金額以下
+                // is_option=true または 設定金額以下のメニュー
                 // ただし、show_in_upsell=true（追加オプション提案用）は除外
                 $maxPrice = config('reservation.option_menu.max_price', 3000);
 
@@ -2634,10 +2633,7 @@ class ReservationTimelineWidget extends Widget
                     ->where('show_in_upsell', false) // 追加オプション提案メニューを除外
                     ->where(function($q) use ($maxPrice) {
                         $q->where('is_option', true)
-                          ->orWhere(function($q2) use ($maxPrice) {
-                              $q2->where('is_subscription', false)  // サブスクメニューを除外
-                                 ->where('price', '<=', $maxPrice); // 設定金額以下の通常メニュー
-                          });
+                          ->orWhere('price', '<=', $maxPrice); // 設定金額以下（サブスク含む）
                     })
                     ->orderBy('price')
                     ->get()
