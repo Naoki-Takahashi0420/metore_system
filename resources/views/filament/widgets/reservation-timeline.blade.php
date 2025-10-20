@@ -1357,12 +1357,14 @@
                 show: true,
                 close() {
                     this.show = false;
+                    document.body.style.overflow = '';
                     setTimeout(() => {
                         @this.closeReservationDetailModal();
                     }, 300);
                 }
             }"
             x-show="show"
+            x-init="document.body.style.overflow = 'hidden'"
             x-transition:enter="transition ease-out duration-300"
             x-transition:enter-start="opacity-0"
             x-transition:enter-end="opacity-100"
@@ -1370,153 +1372,372 @@
             x-transition:leave-start="opacity-100"
             x-transition:leave-end="opacity-0"
             x-on:click="close()"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+            class="fixed inset-0 z-50 flex items-start justify-center bg-black bg-opacity-50 overflow-y-auto"
+            style="padding: 24px;"
         >
-            <div 
+            <div
                 x-on:click.stop
-                class="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg"
+                class="bg-white rounded-lg shadow-xl w-full max-w-4xl flex flex-col"
+                style="max-height: 85vh;"
             >
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-bold">予約詳細</h3>
-                    <button
-                        x-on:click="close()"
-                        class="text-gray-400 hover:text-gray-600"
-                    >
-                        ✕
-                    </button>
-                </div>
-                
-                <div class="space-y-4">
-                    <div class="bg-gray-50 p-3 rounded">
-                        <p class="text-xs text-gray-500 mb-1">予約番号</p>
-                        <p class="font-mono text-sm">{{ $selectedReservation->reservation_number }}</p>
-                    </div>
-                    
-                    <div class="grid grid-cols-2 gap-3">
+                <!-- ヘッダー -->
+                <div class="flex-shrink-0 bg-white border-b border-gray-200 p-6 rounded-t-lg">
+                    <div class="flex justify-between items-start">
                         <div>
-                            <p class="text-xs text-gray-500 mb-1">顧客名</p>
-                            <p class="text-sm font-medium">
+                            <h3 class="text-2xl font-bold text-gray-900 mb-1">予約詳細</h3>
+                            <p class="text-sm text-gray-500">
                                 @if($selectedReservation->is_new_customer ?? false)
-                                    <span style="background: #ff6b6b; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-right: 4px;">NEW</span>
+                                    <span class="inline-block px-2 py-1 bg-red-100 text-red-700 rounded text-xs mr-2">NEW</span>
                                 @endif
-                                {{ $selectedReservation->customer->last_name ?? '' }} {{ $selectedReservation->customer->first_name ?? '' }}
+                                {{ $selectedReservation->customer->last_name ?? '' }} {{ $selectedReservation->customer->first_name ?? '' }} 様
                             </p>
                         </div>
-                        <div>
-                            <p class="text-xs text-gray-500 mb-1">顧客ステータス</p>
-                            <p class="text-sm font-medium">
-                                @if($selectedReservation->is_new_customer ?? false)
-                                    <span class="inline-block px-2 py-1 bg-red-100 text-red-700 rounded text-xs">新規顧客</span>
-                                @else
-                                    <span class="inline-block px-2 py-1 bg-green-100 text-green-700 rounded text-xs">
-                                        既存顧客（{{ $selectedReservation->customer_visit_count ?? 0 }}回目）
+                        <button
+                            x-on:click="close()"
+                            class="text-gray-400 hover:text-gray-600 text-2xl"
+                        >
+                            ×
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-6 space-y-6">
+                    <!-- 基本情報 -->
+                    <div>
+                        <h4 class="text-sm font-bold text-gray-900 mb-3 pb-2 border-b border-gray-200">基本情報</h4>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div>
+                                <p class="text-xs text-gray-500 mb-1">予約日時</p>
+                                <p class="text-base font-semibold text-gray-900">
+                                    {{ \Carbon\Carbon::parse($selectedReservation->reservation_date)->isoFormat('M月D日（ddd）') }}
+                                    {{ \Carbon\Carbon::parse($selectedReservation->start_time)->format('H:i') }}
+                                </p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500 mb-1">座席</p>
+                                <p class="text-base font-semibold text-gray-900">
+                                    @if($selectedReservation->is_sub)
+                                        <span class="inline-block px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">サブ枠</span>
+                                    @else
+                                        席{{ $selectedReservation->seat_number }}
+                                    @endif
+                                </p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500 mb-1">ステータス</p>
+                                <p class="text-base font-semibold text-gray-900">
+                                    @php
+                                        $statusColors = [
+                                            'booked' => 'bg-blue-100 text-blue-700',
+                                            'completed' => 'bg-green-100 text-green-700',
+                                            'cancelled' => 'bg-red-100 text-red-700',
+                                            'canceled' => 'bg-red-100 text-red-700',
+                                            'no_show' => 'bg-gray-100 text-gray-700',
+                                        ];
+                                        $statusLabels = [
+                                            'booked' => '予約済',
+                                            'completed' => '完了',
+                                            'cancelled' => 'キャンセル',
+                                            'canceled' => 'キャンセル',
+                                            'no_show' => '無断欠席',
+                                        ];
+                                    @endphp
+                                    <span class="inline-block px-2 py-1 rounded text-xs {{ $statusColors[$selectedReservation->status] ?? 'bg-gray-100 text-gray-700' }}">
+                                        {{ $statusLabels[$selectedReservation->status] ?? $selectedReservation->status }}
                                     </span>
-                                @endif
-                            </p>
+                                </p>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <p class="text-xs text-gray-500 mb-1">予約タイプ</p>
-                            <p class="text-sm font-medium">
-                                @if($selectedReservation->customer_ticket_id)
-                                    <span class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
-                                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z"/></svg>
-                                        回数券予約
-                                    </span>
-                                @elseif($selectedReservation->customer_subscription_id)
-                                    <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-600/20">
-                                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/></svg>
-                                        サブスク予約
-                                    </span>
-                                @else
-                                    <span class="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-600/20">
-                                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg>
-                                        通常予約
-                                    </span>
-                                @endif
-                            </p>
-                        </div>
-                        <div>
-                            <p class="text-xs text-gray-500 mb-1">カルテ</p>
-                            <p class="text-sm font-medium">
-                                @php
-                                    $latestMedicalRecord = \App\Models\MedicalRecord::where('customer_id', $selectedReservation->customer_id)
-                                        ->orderBy('treatment_date', 'desc')
-                                        ->orderBy('created_at', 'desc')
-                                        ->first();
-                                @endphp
-                                @if($latestMedicalRecord)
-                                    <a href="{{ route('filament.admin.resources.medical-records.view', ['record' => $latestMedicalRecord->id]) }}"
-                                       target="_blank"
-                                       class="inline-flex items-center rounded-md bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-600/20 hover:bg-purple-100">
-                                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>
-                                        カルテ詳細を開く
-                                    </a>
-                                @else
-                                    <span class="inline-block px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">カルテなし</span>
-                                @endif
-                            </p>
+                    <!-- 顧客情報 -->
+                    <div>
+                        <h4 class="text-sm font-bold text-gray-900 mb-3 pb-2 border-b border-gray-200">顧客情報</h4>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <p class="text-xs text-gray-500 mb-1">氏名</p>
+                                <p class="text-base text-gray-700">{{ $selectedReservation->customer->last_name ?? '' }} {{ $selectedReservation->customer->first_name ?? '' }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500 mb-1">電話番号</p>
+                                <p class="text-base text-gray-700">{{ $selectedReservation->customer->phone ?? '未登録' }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500 mb-1">メールアドレス</p>
+                                <p class="text-base text-gray-700 truncate">{{ $selectedReservation->customer->email ?? '未登録' }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500 mb-1">年齢 / 生年月日</p>
+                                <p class="text-base text-gray-700">
+                                    @if($selectedReservation->customer->birth_date)
+                                        {{ \Carbon\Carbon::parse($selectedReservation->customer->birth_date)->age }}歳 /
+                                        {{ \Carbon\Carbon::parse($selectedReservation->customer->birth_date)->format('Y年n月j日') }}
+                                    @else
+                                        未登録
+                                    @endif
+                                </p>
+                            </div>
                         </div>
                     </div>
-                    
-                    <div class="grid grid-cols-2 gap-3">
+
+                    <!-- 契約状況 -->
+                    @php
+                        $activeSubscription = \App\Models\CustomerSubscription::where('customer_id', $selectedReservation->customer_id)
+                            ->where('status', 'active')
+                            ->first();
+                        $activeTicket = \App\Models\CustomerTicket::where('customer_id', $selectedReservation->customer_id)
+                            ->where('status', 'active')
+                            ->first();
+                    @endphp
+                    @if($activeSubscription || $activeTicket)
                         <div>
-                            <p class="text-xs text-gray-500 mb-1">メニュー</p>
-                            <p class="text-sm font-medium">{{ $selectedReservation->menu->name ?? 'なし' }}</p>
-                            <div class="mt-2">
-                                <p class="text-xs text-gray-500 mb-1">追加オプション</p>
-                                @php
-                                    $hasOptions = false;
-                                    try {
-                                        $hasOptions = $selectedReservation && method_exists($selectedReservation, 'getOptionMenusSafely') && $selectedReservation->getOptionMenusSafely()->count() > 0;
-                                    } catch (\Exception $e) {
-                                        \Log::error('Error checking optionMenus in timeline modal', ['error' => $e->getMessage()]);
-                                    }
-                                @endphp
-                                @if($hasOptions)
-                                    <div class="flex flex-wrap gap-1">
-                                        @foreach($selectedReservation->getOptionMenusSafely() as $option)
-                                            <span class="inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
-                                                {{ $option->name ?? '' }} (+¥{{ number_format($option->pivot->price ?? 0) }})
-                                            </span>
-                                        @endforeach
+                            <h4 class="text-sm font-bold text-gray-900 mb-3 pb-2 border-b border-gray-200">契約状況</h4>
+                            <div class="grid grid-cols-2 gap-4">
+                                @if($activeSubscription)
+                                    <!-- サブスク -->
+                                    <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <p class="text-sm font-semibold text-gray-900">サブスクリプション</p>
+                                            <span class="px-2 py-1 bg-blue-600 text-white text-xs font-medium rounded">契約中</span>
+                                        </div>
+                                        <p class="text-base text-gray-700 mb-3">{{ $activeSubscription->plan_name ?? '月額プラン' }}</p>
+                                        <div class="space-y-1">
+                                            <div class="flex items-center justify-between text-sm">
+                                                <span class="text-gray-500">利用状況</span>
+                                                <span class="font-semibold text-gray-900">{{ $activeSubscription->current_month_visits ?? 0 }}/{{ $activeSubscription->monthly_limit ?? 0 }}回</span>
+                                            </div>
+                                            @php
+                                                $limit = $activeSubscription->monthly_limit ?? 1;
+                                                $used = $activeSubscription->current_month_visits ?? 0;
+                                                $percentage = ($limit > 0) ? min(($used / $limit) * 100, 100) : 0;
+                                            @endphp
+                                            <div class="w-full bg-gray-200 rounded-full h-1.5">
+                                                <div class="bg-blue-600 h-1.5 rounded-full" style="width: {{ $percentage }}%"></div>
+                                            </div>
+                                            <p class="text-xs text-gray-500 mt-2">
+                                                次回更新:
+                                                @if($activeSubscription->reset_day)
+                                                    毎月{{ $activeSubscription->reset_day }}日
+                                                @elseif($activeSubscription->next_billing_date)
+                                                    {{ \Carbon\Carbon::parse($activeSubscription->next_billing_date)->format('Y年n月j日') }}
+                                                @else
+                                                    -
+                                                @endif
+                                            </p>
+                                        </div>
                                     </div>
-                                @else
-                                    <span class="inline-block px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">なし</span>
+                                @endif
+
+                                @if($activeTicket)
+                                    <!-- 回数券 -->
+                                    <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <p class="text-sm font-semibold text-gray-900">回数券</p>
+                                            <span class="px-2 py-1 bg-green-600 text-white text-xs font-medium rounded">有効</span>
+                                        </div>
+                                        <p class="text-base text-gray-700 mb-3">{{ $activeTicket->plan_name ?? '回数券' }}</p>
+                                        <div class="space-y-1">
+                                            <div class="flex items-center justify-between text-sm">
+                                                <span class="text-gray-500">残り回数</span>
+                                                <span class="font-semibold text-gray-900">{{ $activeTicket->remaining_count ?? 0 }}/{{ $activeTicket->total_count ?? 0 }}回</span>
+                                            </div>
+                                            @php
+                                                $total = $activeTicket->total_count ?? 1;
+                                                $remaining = $activeTicket->remaining_count ?? 0;
+                                                $usedPercentage = ($total > 0) ? min((($total - $remaining) / $total) * 100, 100) : 0;
+                                            @endphp
+                                            <div class="w-full bg-gray-200 rounded-full h-1.5">
+                                                <div class="bg-green-600 h-1.5 rounded-full" style="width: {{ $usedPercentage }}%"></div>
+                                            </div>
+                                            <p class="text-xs text-gray-500 mt-2">
+                                                有効期限:
+                                                @if($activeTicket->expires_at)
+                                                    {{ \Carbon\Carbon::parse($activeTicket->expires_at)->format('Y年n月j日') }}
+                                                @else
+                                                    -
+                                                @endif
+                                            </p>
+                                        </div>
+                                    </div>
+                                @endif
+
+                                @if(!$activeSubscription && !$activeTicket)
+                                    <div class="col-span-2 text-center py-4 text-gray-500 text-sm">
+                                        契約中のプランはありません
+                                    </div>
                                 @endif
                             </div>
                         </div>
-                        <div>
-                            <p class="text-xs text-gray-500 mb-1">日時</p>
-                            <p class="text-sm font-medium">
-                                {{ \Carbon\Carbon::parse($selectedReservation->reservation_date)->format('m/d') }}
-                                {{ \Carbon\Carbon::parse($selectedReservation->start_time)->format('H:i') }}
-                            </p>
+                    @endif
+
+                    <!-- 予約内容 -->
+                    <div>
+                        <h4 class="text-sm font-bold text-gray-900 mb-3 pb-2 border-b border-gray-200">予約内容</h4>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div>
+                                <p class="text-xs text-gray-500 mb-1">メニュー</p>
+                                <p class="text-base text-gray-700">{{ $selectedReservation->menu->name ?? 'なし' }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500 mb-1">担当スタッフ</p>
+                                <p class="text-base text-gray-700">
+                                    @if($selectedReservation->staff)
+                                        {{ $selectedReservation->staff->name }}
+                                    @else
+                                        未割当
+                                    @endif
+                                </p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500 mb-1">予約タイプ</p>
+                                <p class="text-base text-gray-700">
+                                    @if($selectedReservation->customer_ticket_id)
+                                        <span class="inline-block px-2 py-1 bg-green-100 text-green-700 rounded text-xs">回数券</span>
+                                    @elseif($selectedReservation->customer_subscription_id)
+                                        <span class="inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">サブスク</span>
+                                    @else
+                                        <span class="inline-block px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">通常</span>
+                                    @endif
+                                </p>
+                            </div>
                         </div>
-                        <div>
-                            <p class="text-xs text-gray-500 mb-1">担当スタッフ</p>
-                            <p class="text-sm font-medium">
-                                @if($selectedReservation->staff)
-                                    <span class="inline-block px-2 py-1 bg-green-100 text-green-700 rounded text-xs">
-                                        👤 {{ $selectedReservation->staff->name }}
+                        <div class="mt-3">
+                            <p class="text-xs text-gray-500 mb-1">追加オプション</p>
+                            @php
+                                $hasOptions = false;
+                                try {
+                                    $hasOptions = $selectedReservation && method_exists($selectedReservation, 'getOptionMenusSafely') && $selectedReservation->getOptionMenusSafely()->count() > 0;
+                                } catch (\Exception $e) {
+                                    \Log::error('Error checking optionMenus in timeline modal', ['error' => $e->getMessage()]);
+                                }
+                            @endphp
+                            @if($hasOptions)
+                                <div class="flex flex-wrap gap-2">
+                                    @foreach($selectedReservation->getOptionMenusSafely() as $option)
+                                        <span class="inline-block px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded text-sm">
+                                            {{ $option->name ?? '' }} <span class="text-blue-600 font-semibold">+¥{{ number_format($option->pivot->price ?? 0) }}</span>
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @else
+                                <span class="inline-block px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">なし</span>
+                            @endif
+                        </div>
+                    </div>
+
+                    <!-- カルテ情報 -->
+                    @php
+                        // 前回のカルテを取得
+                        $previousMedicalRecord = \App\Models\MedicalRecord::where('customer_id', $selectedReservation->customer_id)
+                            ->where('treatment_date', '<=', $selectedReservation->reservation_date)
+                            ->orderBy('treatment_date', 'desc')
+                            ->orderBy('created_at', 'desc')
+                            ->first();
+
+                        $latestVision = null;
+                        $intensity = null;
+                        if ($previousMedicalRecord) {
+                            $latestVision = $previousMedicalRecord->getLatestVisionRecord();
+                            // 強度を取得（vision_recordsから）
+                            if ($latestVision && isset($latestVision['intensity'])) {
+                                $intensity = $latestVision['intensity'];
+                            }
+                        }
+                    @endphp
+                    <div>
+                        <div class="flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
+                            <h4 class="text-sm font-bold text-gray-900">カルテ情報</h4>
+                            <button
+                                wire:click="$set('showMedicalHistoryModal', true)"
+                                class="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                            >
+                                カルテ履歴を見る →
+                            </button>
+                        </div>
+
+                        @if($previousMedicalRecord)
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <p class="text-xs text-blue-800 font-semibold mb-3">
+                                    📋 前回の施術結果（{{ \Carbon\Carbon::parse($previousMedicalRecord->treatment_date)->isoFormat('YYYY年M月D日（ddd）') }}）
+                                </p>
+                                @if($latestVision)
+                                    <div class="grid grid-cols-3 gap-4">
+                                        <div>
+                                            <p class="text-xs text-gray-600 mb-1">強度</p>
+                                            <p class="text-lg font-bold text-gray-900">{{ $intensity ?? '-' }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-gray-600 mb-1">視力（右目）</p>
+                                            <p class="text-lg font-bold text-gray-900">
+                                                {{ $latestVision['after_naked_right'] ?? $latestVision['before_naked_right'] ?? '-' }}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-gray-600 mb-1">視力（左目）</p>
+                                            <p class="text-lg font-bold text-gray-900">
+                                                {{ $latestVision['after_naked_left'] ?? $latestVision['before_naked_left'] ?? '-' }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                @else
+                                    <div class="text-center py-2 text-gray-600 text-sm">
+                                        施術記録あり（視力データなし）
+                                    </div>
+                                @endif
+                            </div>
+                        @else
+                            <div class="text-center py-4 text-gray-500 text-sm bg-gray-50 rounded-lg">
+                                前回のカルテ記録がありません
+                            </div>
+                        @endif
+                    </div>
+
+                    <!-- 次回予約 -->
+                    @php
+                        $nextReservation = \App\Models\Reservation::where('customer_id', $selectedReservation->customer_id)
+                            ->where('reservation_date', '>', $selectedReservation->reservation_date)
+                            ->where('status', 'booked')
+                            ->orderBy('reservation_date', 'asc')
+                            ->orderBy('start_time', 'asc')
+                            ->first();
+                    @endphp
+                    <div>
+                        <div class="flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
+                            <h4 class="text-sm font-bold text-gray-900">次回予約</h4>
+                            <button
+                                wire:click="$set('showReservationHistoryModal', true)"
+                                class="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                            >
+                                予約履歴を見る →
+                            </button>
+                        </div>
+                        @if($nextReservation)
+                            <button
+                                wire:click="selectReservation({{ $nextReservation->id }})"
+                                class="w-full text-left border-2 border-blue-300 rounded-lg p-4 bg-blue-50 hover:bg-blue-100 transition-colors"
+                            >
+                                <div class="flex items-start justify-between">
+                                    <div>
+                                        <p class="text-xl font-bold text-gray-900 mb-1">
+                                            {{ \Carbon\Carbon::parse($nextReservation->reservation_date)->isoFormat('M月D日（ddd）') }}
+                                            {{ \Carbon\Carbon::parse($nextReservation->start_time)->format('H:i') }}
+                                        </p>
+                                        <p class="text-sm text-gray-600 mb-2">{{ $nextReservation->menu->name ?? 'メニュー未設定' }}</p>
+                                        <p class="text-sm text-gray-500">
+                                            席{{ $nextReservation->seat_number ?? '-' }} |
+                                            担当: {{ $nextReservation->staff->name ?? '未割当' }}
+                                        </p>
+                                    </div>
+                                    <span class="px-2 py-1 bg-blue-600 text-white text-xs font-medium rounded">
+                                        {{ \Carbon\Carbon::parse($nextReservation->reservation_date)->diffForHumans() }}
                                     </span>
-                                @else
-                                    <span class="inline-block px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">未割当</span>
-                                @endif
-                            </p>
-                        </div>
-                        <div>
-                            <p class="text-xs text-gray-500 mb-1">現在の配置</p>
-                            <p class="text-sm font-medium">
-                                @if($selectedReservation->is_sub)
-                                    <span class="inline-block px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">サブ枠</span>
-                                @else
-                                    <span class="inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">席{{ $selectedReservation->seat_number }}</span>
-                                @endif
-                            </p>
-                        </div>
+                                </div>
+                            </button>
+                        @else
+                            <div class="text-center py-4 text-gray-500 text-sm bg-gray-50 rounded-lg">
+                                次回の予約はありません
+                            </div>
+                        @endif
                     </div>
 
                     {{-- カルテ引き継ぎ情報 --}}
@@ -1562,6 +1783,472 @@
 
                     {{-- 座席移動セクション --}}
                     @include('filament.widgets.reservation-detail-modal-movement')
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- カルテ履歴モーダル --}}
+    @if($showMedicalHistoryModal && $selectedReservation)
+        <div
+            x-data="{
+                show: true,
+                close() {
+                    this.show = false;
+                    document.body.style.overflow = '';
+                    setTimeout(() => {
+                        @this.set('showMedicalHistoryModal', false);
+                    }, 300);
+                }
+            }"
+            x-show="show"
+            x-init="document.body.style.overflow = 'hidden'"
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            x-on:click="close()"
+            class="fixed inset-0 z-50 flex items-start justify-center bg-black bg-opacity-50 overflow-y-auto"
+            style="padding: 24px;"
+        >
+            <div
+                x-on:click.stop
+                class="bg-white rounded-lg shadow-xl w-full max-w-5xl flex flex-col my-6"
+                style="max-height: calc(100vh - 48px);"
+            >
+                <!-- ヘッダー -->
+                <div class="flex-shrink-0 bg-white border-b border-gray-200 p-6">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="text-2xl font-bold text-gray-900 mb-1">カルテ履歴</h3>
+                            <p class="text-sm text-gray-500">{{ $selectedReservation->customer->last_name ?? '' }} {{ $selectedReservation->customer->first_name ?? '' }} 様</p>
+                        </div>
+                        <button x-on:click="close()" class="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+                    </div>
+                </div>
+
+                <!-- コンテンツ（スクロール可能） -->
+                <div class="flex-1 overflow-y-auto p-6 space-y-6">
+                    @php
+                        // この顧客の全カルテを取得
+                        $allMedicalRecords = \App\Models\MedicalRecord::where('customer_id', $selectedReservation->customer_id)
+                            ->with(['presbyopiaMeasurements'])
+                            ->orderBy('treatment_date', 'desc')
+                            ->orderBy('created_at', 'desc')
+                            ->get();
+
+                        // 視力推移データを収集（最大10件）
+                        $visionData = [];
+                        foreach($allMedicalRecords->take(10)->reverse() as $record) {
+                            $latestVision = $record->getLatestVisionRecord();
+                            if ($latestVision) {
+                                $visionData[] = [
+                                    'date' => $record->treatment_date,
+                                    'session' => $record->session_number ?? count($visionData) + 1,
+                                    'right_before' => $latestVision['before_naked_right'] ?? null,
+                                    'right_after' => $latestVision['after_naked_right'] ?? null,
+                                    'left_before' => $latestVision['before_naked_left'] ?? null,
+                                    'left_after' => $latestVision['after_naked_left'] ?? null,
+                                    'intensity' => $latestVision['intensity'] ?? null,
+                                ];
+                            }
+                        }
+
+                        // グラフ用のデータポイント（右目）
+                        $rightEyeValues = [];
+                        foreach($visionData as $data) {
+                            $val = $data['right_after'] ?? $data['right_before'];
+                            if ($val !== null) {
+                                $rightEyeValues[] = floatval($val);
+                            }
+                        }
+
+                        // グラフ用のデータポイント（左目）
+                        $leftEyeValues = [];
+                        foreach($visionData as $data) {
+                            $val = $data['left_after'] ?? $data['left_before'];
+                            if ($val !== null) {
+                                $leftEyeValues[] = floatval($val);
+                            }
+                        }
+                    @endphp
+
+                    @if(count($visionData) > 0)
+                        <!-- 視力推移グラフ -->
+                        <div class="border border-gray-200 rounded-lg bg-gradient-to-br from-blue-50 to-white p-5">
+                            <h4 class="text-lg font-bold text-gray-900 mb-4">視力推移グラフ</h4>
+                            <div class="space-y-8">
+                                <!-- 右目 -->
+                                <div>
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-3 h-3 rounded-full bg-blue-600"></div>
+                                            <p class="text-sm font-semibold text-gray-700">右目（裸眼）</p>
+                                        </div>
+                                        @if(count($rightEyeValues) > 0)
+                                            <p class="text-xs text-gray-500">{{ number_format(min($rightEyeValues), 1) }} → {{ number_format(max($rightEyeValues), 1) }}</p>
+                                        @endif
+                                    </div>
+                                    <div class="relative bg-white rounded border border-gray-200 p-4" style="height: 500px;">
+                                        <svg viewBox="0 0 {{ count($visionData) * 100 + 80 }} 200" class="w-full" style="height: 100%;">
+                                            <!-- グリッドライン -->
+                                            <line x1="40" y1="20" x2="40" y2="160" stroke="#d1d5db" stroke-width="2"/>
+                                            <line x1="40" y1="160" x2="{{ count($visionData) * 100 + 40 }}" y2="160" stroke="#d1d5db" stroke-width="2"/>
+
+                                            <!-- Y軸目盛り -->
+                                            <text x="25" y="165" font-size="10" fill="#6b7280">0.0</text>
+                                            <text x="25" y="130" font-size="10" fill="#6b7280">0.3</text>
+                                            <text x="25" y="95" font-size="10" fill="#6b7280">0.6</text>
+                                            <text x="25" y="60" font-size="10" fill="#6b7280">0.9</text>
+                                            <text x="25" y="25" font-size="10" fill="#6b7280">1.2</text>
+
+                                            @if(count($rightEyeValues) > 1)
+                                                @php
+                                                    $points = [];
+                                                    foreach($rightEyeValues as $index => $value) {
+                                                        $x = 80 + ($index * 100);
+                                                        $y = 160 - ($value / 1.2 * 140);
+                                                        $points[] = "$x,$y";
+                                                    }
+                                                    $polylinePoints = implode(' ', $points);
+                                                @endphp
+
+                                                <!-- 折れ線 -->
+                                                <polyline
+                                                    points="{{ $polylinePoints }}"
+                                                    fill="none"
+                                                    stroke="#2563eb"
+                                                    stroke-width="3"
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                />
+
+                                                <!-- データポイント円と値ラベル -->
+                                                @foreach($rightEyeValues as $index => $value)
+                                                    @php
+                                                        $x = 80 + ($index * 100);
+                                                        $y = 160 - ($value / 1.2 * 140);
+                                                    @endphp
+                                                    <!-- 値ラベル背景 -->
+                                                    <rect x="{{ $x - 12 }}" y="{{ $y - 18 }}" width="24" height="14" fill="white" opacity="0.9"/>
+                                                    <!-- データポイント円 -->
+                                                    <circle cx="{{ $x }}" cy="{{ $y }}" r="5" fill="#2563eb"/>
+                                                    <!-- 値ラベル -->
+                                                    <text x="{{ $x }}" y="{{ $y - 8 }}" font-size="11" font-weight="bold" fill="#1e293b" text-anchor="middle">{{ number_format($value, 1) }}</text>
+                                                    <!-- X軸ラベル -->
+                                                    <text x="{{ $x }}" y="180" font-size="10" fill="#6b7280" text-anchor="middle">{{ $visionData[$index]['session'] }}回目</text>
+                                                @endforeach
+                                            @endif
+                                        </svg>
+                                    </div>
+                                </div>
+
+                                <!-- 左目 -->
+                                <div>
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-3 h-3 rounded-full bg-green-600"></div>
+                                            <p class="text-sm font-semibold text-gray-700">左目（裸眼）</p>
+                                        </div>
+                                        @if(count($leftEyeValues) > 0)
+                                            <p class="text-xs text-gray-500">{{ number_format(min($leftEyeValues), 1) }} → {{ number_format(max($leftEyeValues), 1) }}</p>
+                                        @endif
+                                    </div>
+                                    <div class="relative bg-white rounded border border-gray-200 p-4" style="height: 500px;">
+                                        <svg viewBox="0 0 {{ count($visionData) * 100 + 80 }} 200" class="w-full" style="height: 100%;">
+                                            <!-- グリッドライン -->
+                                            <line x1="40" y1="20" x2="40" y2="160" stroke="#d1d5db" stroke-width="2"/>
+                                            <line x1="40" y1="160" x2="{{ count($visionData) * 100 + 40 }}" y2="160" stroke="#d1d5db" stroke-width="2"/>
+
+                                            <!-- Y軸目盛り -->
+                                            <text x="25" y="165" font-size="10" fill="#6b7280">0.0</text>
+                                            <text x="25" y="130" font-size="10" fill="#6b7280">0.3</text>
+                                            <text x="25" y="95" font-size="10" fill="#6b7280">0.6</text>
+                                            <text x="25" y="60" font-size="10" fill="#6b7280">0.9</text>
+                                            <text x="25" y="25" font-size="10" fill="#6b7280">1.2</text>
+
+                                            @if(count($leftEyeValues) > 1)
+                                                @php
+                                                    $points = [];
+                                                    foreach($leftEyeValues as $index => $value) {
+                                                        $x = 80 + ($index * 100);
+                                                        $y = 160 - ($value / 1.2 * 140);
+                                                        $points[] = "$x,$y";
+                                                    }
+                                                    $polylinePoints = implode(' ', $points);
+                                                @endphp
+
+                                                <!-- 折れ線 -->
+                                                <polyline
+                                                    points="{{ $polylinePoints }}"
+                                                    fill="none"
+                                                    stroke="#16a34a"
+                                                    stroke-width="3"
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                />
+
+                                                <!-- データポイント円と値ラベル -->
+                                                @foreach($leftEyeValues as $index => $value)
+                                                    @php
+                                                        $x = 80 + ($index * 100);
+                                                        $y = 160 - ($value / 1.2 * 140);
+                                                    @endphp
+                                                    <!-- 値ラベル背景 -->
+                                                    <rect x="{{ $x - 12 }}" y="{{ $y - 18 }}" width="24" height="14" fill="white" opacity="0.9"/>
+                                                    <!-- データポイント円 -->
+                                                    <circle cx="{{ $x }}" cy="{{ $y }}" r="5" fill="#16a34a"/>
+                                                    <!-- 値ラベル -->
+                                                    <text x="{{ $x }}" y="{{ $y - 8 }}" font-size="11" font-weight="bold" fill="#1e293b" text-anchor="middle">{{ number_format($value, 1) }}</text>
+                                                    <!-- X軸ラベル -->
+                                                    <text x="{{ $x }}" y="180" font-size="10" fill="#6b7280" text-anchor="middle">{{ $visionData[$index]['session'] }}回目</text>
+                                                @endforeach
+                                            @endif
+                                        </svg>
+                                    </div>
+                                </div>
+
+                                {{-- 統計情報 --}}
+                                <div class="p-3 bg-white rounded border border-blue-200">
+                                    <p class="text-sm text-gray-700">
+                                        @if(count($rightEyeValues) > 0)
+                                            <span class="font-semibold text-blue-600">右目:</span> {{ number_format(max($rightEyeValues) - min($rightEyeValues), 1) }}向上 |
+                                        @endif
+                                        @if(count($leftEyeValues) > 0)
+                                            <span class="font-semibold text-green-600">左目:</span> {{ number_format(max($leftEyeValues) - min($leftEyeValues), 1) }}向上
+                                        @endif
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
+                    <div class="border-t border-gray-200 pt-4">
+                        <h4 class="text-lg font-bold text-gray-900 mb-4">カルテ一覧</h4>
+                    </div>
+
+                    <!-- カルテリスト -->
+                    @forelse($allMedicalRecords as $index => $record)
+                        @php
+                            // 新しい順にソートされているので、逆順で回数を計算
+                            $totalCount = $allMedicalRecords->count();
+                            $sessionNumber = $totalCount - $index;
+                        @endphp
+                        <div class="border border-gray-200 rounded-lg p-4 {{ $index === 0 ? 'bg-blue-50 border-blue-200' : 'bg-gray-50' }}">
+                            <div class="flex items-start justify-between mb-3">
+                                <div>
+                                    <p class="text-lg font-bold text-gray-900">
+                                        {{ $sessionNumber }}回目 - {{ \Carbon\Carbon::parse($record->treatment_date)->isoFormat('YYYY年M月D日（ddd）') }}
+                                    </p>
+                                    <p class="text-sm text-gray-500">{{ $record->staff->name ?? '担当者なし' }}</p>
+                                </div>
+                                @if($index === 0)
+                                    <span class="px-2 py-1 bg-blue-600 text-white text-xs font-medium rounded">最新</span>
+                                @endif
+                            </div>
+
+                            @php
+                                $latestVision = $record->getLatestVisionRecord();
+                            @endphp
+
+                            @if($latestVision)
+                                <div class="grid grid-cols-3 gap-4 mb-3">
+                                    <div>
+                                        <p class="text-xs text-gray-500 mb-1">強度</p>
+                                        <p class="text-base font-semibold text-gray-900">{{ $latestVision['intensity'] ?? '-' }}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs text-gray-500 mb-1">右目視力</p>
+                                        <p class="text-base font-semibold text-gray-900">
+                                            {{ $latestVision['before_naked_right'] ?? '-' }} → {{ $latestVision['after_naked_right'] ?? '-' }}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs text-gray-500 mb-1">左目視力</p>
+                                        <p class="text-base font-semibold text-gray-900">
+                                            {{ $latestVision['before_naked_left'] ?? '-' }} → {{ $latestVision['after_naked_left'] ?? '-' }}
+                                        </p>
+                                    </div>
+                                </div>
+                            @endif
+
+                            @if($record->notes)
+                                <div class="mt-2 p-2 bg-white rounded border border-gray-200">
+                                    <p class="text-xs text-gray-500 mb-1">メモ</p>
+                                    <p class="text-sm text-gray-700">{{ $record->notes }}</p>
+                                </div>
+                            @endif
+
+                            <div class="mt-3">
+                                <a
+                                    href="{{ route('filament.admin.resources.medical-records.view', ['record' => $record->id]) }}"
+                                    target="_blank"
+                                    class="inline-flex items-center text-sm text-blue-600 hover:text-blue-700 font-medium"
+                                >
+                                    詳細を見る →
+                                </a>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="text-center py-8 text-gray-500">
+                            カルテ記録がありません
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- 予約履歴モーダル --}}
+    @if($showReservationHistoryModal && $selectedReservation)
+        <div
+            x-data="{
+                show: true,
+                close() {
+                    this.show = false;
+                    document.body.style.overflow = '';
+                    setTimeout(() => {
+                        @this.set('showReservationHistoryModal', false);
+                    }, 300);
+                }
+            }"
+            x-show="show"
+            x-init="document.body.style.overflow = 'hidden'"
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            x-on:click="close()"
+            class="fixed inset-0 z-50 flex items-start justify-center bg-black bg-opacity-50 overflow-y-auto"
+            style="padding: 24px;"
+        >
+            <div
+                x-on:click.stop
+                class="bg-white rounded-lg shadow-xl w-full max-w-4xl flex flex-col"
+                style="max-height: 85vh;"
+            >
+                <!-- ヘッダー -->
+                <div class="flex-shrink-0 bg-white border-b border-gray-200 p-6">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="text-2xl font-bold text-gray-900 mb-1">予約履歴</h3>
+                            <p class="text-sm text-gray-500">{{ $selectedReservation->customer->last_name ?? '' }} {{ $selectedReservation->customer->first_name ?? '' }} 様</p>
+                        </div>
+                        <button x-on:click="close()" class="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+                    </div>
+                </div>
+
+                <!-- コンテンツ（スクロール可能） -->
+                <div class="flex-1 overflow-y-auto p-6 space-y-6">
+                    @php
+                        // この顧客の全予約を取得（最新50件）
+                        $allReservations = \App\Models\Reservation::where('customer_id', $selectedReservation->customer_id)
+                            ->with(['menu', 'staff', 'store'])
+                            ->orderBy('reservation_date', 'desc')
+                            ->orderBy('start_time', 'desc')
+                            ->take(50)
+                            ->get();
+
+                        // 今日の日付
+                        $today = \Carbon\Carbon::today();
+
+                        // 未来と過去に分ける
+                        $futureReservations = $allReservations->filter(function($r) use ($today) {
+                            return \Carbon\Carbon::parse($r->reservation_date)->isAfter($today) && $r->status === 'booked';
+                        });
+
+                        $pastReservations = $allReservations->filter(function($r) use ($today) {
+                            return \Carbon\Carbon::parse($r->reservation_date)->isSameDay($today) || \Carbon\Carbon::parse($r->reservation_date)->isBefore($today);
+                        });
+                    @endphp
+
+                    <!-- 未来の予約 -->
+                    @if($futureReservations->count() > 0)
+                        <div>
+                            <h4 class="text-lg font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">今後の予約</h4>
+                            <div class="space-y-3">
+                                @foreach($futureReservations as $reservation)
+                                    <button
+                                        wire:click="selectReservation({{ $reservation->id }})"
+                                        class="w-full text-left border-2 border-blue-300 rounded-lg p-4 bg-blue-50 hover:bg-blue-100 transition-colors"
+                                    >
+                                        <div class="flex items-start justify-between">
+                                            <div class="flex-1">
+                                                <p class="text-xl font-bold text-gray-900 mb-1">
+                                                    {{ \Carbon\Carbon::parse($reservation->reservation_date)->isoFormat('M月D日（ddd）') }}
+                                                    {{ \Carbon\Carbon::parse($reservation->start_time)->format('H:i') }}
+                                                </p>
+                                                <p class="text-sm text-gray-600 mb-2">{{ $reservation->menu->name ?? 'メニュー未設定' }}</p>
+                                                <p class="text-sm text-gray-500">
+                                                    {{ $reservation->store->name ?? '' }} |
+                                                    席{{ $reservation->seat_number ?? '-' }} |
+                                                    担当: {{ $reservation->staff->name ?? '未割当' }}
+                                                </p>
+                                            </div>
+                                            <span class="px-2 py-1 bg-blue-600 text-white text-xs font-medium rounded">
+                                                {{ \Carbon\Carbon::parse($reservation->reservation_date)->diffForHumans() }}
+                                            </span>
+                                        </div>
+                                    </button>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+
+                    <!-- 過去の予約 -->
+                    <div>
+                        <h4 class="text-lg font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">過去の予約</h4>
+                        <div class="space-y-3">
+                            @forelse($pastReservations as $reservation)
+                                <button
+                                    wire:click="selectReservation({{ $reservation->id }})"
+                                    class="w-full text-left border border-gray-200 rounded-lg p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
+                                >
+                                    <div class="flex items-start justify-between">
+                                        <div class="flex-1">
+                                            <p class="text-lg font-bold text-gray-900 mb-1">
+                                                {{ \Carbon\Carbon::parse($reservation->reservation_date)->isoFormat('YYYY年M月D日（ddd）') }}
+                                                {{ \Carbon\Carbon::parse($reservation->start_time)->format('H:i') }}
+                                            </p>
+                                            <p class="text-sm text-gray-600 mb-2">{{ $reservation->menu->name ?? 'メニュー未設定' }}</p>
+                                            <p class="text-sm text-gray-500">
+                                                {{ $reservation->store->name ?? '' }} |
+                                                席{{ $reservation->seat_number ?? '-' }} |
+                                                担当: {{ $reservation->staff->name ?? '未割当' }}
+                                            </p>
+                                        </div>
+                                        @php
+                                            $statusColors = [
+                                                'booked' => 'bg-blue-100 text-blue-700',
+                                                'completed' => 'bg-green-100 text-green-700',
+                                                'cancelled' => 'bg-red-100 text-red-700',
+                                                'canceled' => 'bg-red-100 text-red-700',
+                                                'no_show' => 'bg-gray-100 text-gray-700',
+                                            ];
+                                            $statusLabels = [
+                                                'booked' => '予約済',
+                                                'completed' => '完了',
+                                                'cancelled' => 'キャンセル',
+                                                'canceled' => 'キャンセル',
+                                                'no_show' => '無断欠席',
+                                            ];
+                                        @endphp
+                                        <span class="px-2 py-1 rounded text-xs font-medium {{ $statusColors[$reservation->status] ?? 'bg-gray-100 text-gray-700' }}">
+                                            {{ $statusLabels[$reservation->status] ?? $reservation->status }}
+                                        </span>
+                                    </div>
+                                </button>
+                            @empty
+                                <div class="text-center py-8 text-gray-500">
+                                    過去の予約がありません
+                                </div>
+                            @endforelse
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

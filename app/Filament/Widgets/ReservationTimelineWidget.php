@@ -27,7 +27,11 @@ class ReservationTimelineWidget extends Widget
     public $timelineData = [];
     public $categories = [];
     public $selectedReservation = null;
-    
+
+    // モーダル表示フラグ
+    public $showMedicalHistoryModal = false;
+    public $showReservationHistoryModal = false;
+
     // 新規予約作成用のプロパティ
     public $showNewReservationModal = false;
     public $modalMode = 'reservation'; // 'reservation' or 'block'
@@ -766,7 +770,12 @@ class ReservationTimelineWidget extends Widget
     {
         $this->selectedReservation = null;
     }
-    
+
+    public function selectReservation($reservationId): void
+    {
+        $this->openReservationDetail($reservationId);
+    }
+
     public function moveToSub($reservationId): void
     {
         \Log::info('=== moveToSub START ===', ['reservation_id' => $reservationId]);
