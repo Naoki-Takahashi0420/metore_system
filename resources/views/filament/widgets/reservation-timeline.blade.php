@@ -1729,7 +1729,7 @@
                                         </p>
                                     </div>
                                     <span class="px-2 py-1 bg-blue-600 text-white text-xs font-medium rounded">
-                                        {{ \Carbon\Carbon::parse($nextReservation->reservation_date)->diffForHumans() }}
+                                        {{ \Carbon\Carbon::parse($nextReservation->reservation_date->format('Y-m-d') . ' ' . $nextReservation->start_time)->diffForHumans() }}
                                     </span>
                                 </div>
                             </button>
@@ -2240,7 +2240,7 @@
                                                 </p>
                                             </div>
                                             <span class="px-2 py-1 bg-blue-600 text-white text-xs font-medium rounded">
-                                                {{ \Carbon\Carbon::parse($reservation->reservation_date)->diffForHumans() }}
+                                                {{ \Carbon\Carbon::parse($reservation->reservation_date->format('Y-m-d') . ' ' . $reservation->start_time)->diffForHumans() }}
                                             </span>
                                         </div>
                                     </button>
