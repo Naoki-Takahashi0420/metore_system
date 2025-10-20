@@ -32,11 +32,28 @@ class MenuCategoryResource extends Resource
                     ->schema([
                         Forms\Components\Select::make('store_id')
                             ->label('店舗')
-                            ->relationship('store', 'name')
+                            ->options(function () {
+                                $user = auth()->user();
+
+                                // super_adminは全店舗を表示
+                                if ($user->hasRole('super_admin')) {
+                                    return \App\Models\Store::where('is_active', true)
+                                        ->pluck('name', 'id');
+                                }
+
+                                // ownerは管理可能店舗を表示
+                                if ($user->hasRole('owner')) {
+                                    return $user->manageableStores()
+                                        ->where('stores.is_active', true)
+                                        ->pluck('stores.name', 'stores.id');
+                                }
+
+                                // managerは自店舗のみ（選択肢なし）
+                                return [];
+                            })
                             ->required()
-                            ->disabled(!auth()->user()->hasRole('super_admin'))
                             ->default(auth()->user()->store_id)
-                            ->visible(auth()->user()->hasRole('super_admin')),
+                            ->visible(fn () => auth()->user()->hasRole(['super_admin', 'owner'])),
 
                         Forms\Components\TextInput::make('name')
                             ->label('カテゴリー名')
