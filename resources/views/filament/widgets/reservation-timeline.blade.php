@@ -1875,10 +1875,23 @@
                         }
                     @endphp
 
+                    @php
+                        // デバッグ: 視力データ確認
+                        \Log::info('視力推移グラフデバッグ', [
+                            'customer_id' => $selectedReservation->customer_id,
+                            'vision_data_count' => count($visionData),
+                            'right_eye_values_count' => count($rightEyeValues),
+                            'left_eye_values_count' => count($leftEyeValues),
+                            'vision_data' => $visionData,
+                            'right_eye_values' => $rightEyeValues,
+                            'left_eye_values' => $leftEyeValues
+                        ]);
+                    @endphp
+
                     @if(count($visionData) > 0)
                         <!-- 視力推移グラフ -->
                         <div class="border border-gray-200 rounded-lg bg-gradient-to-br from-blue-50 to-white p-5">
-                            <h4 class="text-lg font-bold text-gray-900 mb-4">視力推移グラフ</h4>
+                            <h4 class="text-lg font-bold text-gray-900 mb-4">視力推移グラフ (データ: {{ count($visionData) }}件, 右目: {{ count($rightEyeValues) }}点, 左目: {{ count($leftEyeValues) }}点)</h4>
                             <div class="space-y-8">
                                 <!-- 右目 -->
                                 <div>
@@ -2028,7 +2041,7 @@
                     @endif
 
                     <div class="border-t border-gray-200 pt-4">
-                        <h4 class="text-lg font-bold text-gray-900 mb-4">カルテ一覧</h4>
+                        <h4 class="text-lg font-bold text-gray-900 mb-4">カルテ一覧 (全{{ $allMedicalRecords->count() }}件)</h4>
                     </div>
 
                     <!-- カルテリスト -->
@@ -2037,6 +2050,16 @@
                             // 新しい順にソートされているので、逆順で回数を計算
                             $totalCount = $allMedicalRecords->count();
                             $sessionNumber = $totalCount - $index;
+
+                            // デバッグログ
+                            \Log::info('カルテ回数表示', [
+                                'customer_id' => $selectedReservation->customer_id,
+                                'record_id' => $record->id,
+                                'index' => $index,
+                                'total_count' => $totalCount,
+                                'session_number' => $sessionNumber,
+                                'treatment_date' => $record->treatment_date
+                            ]);
                         @endphp
                         <div class="border border-gray-200 rounded-lg p-4 {{ $index === 0 ? 'bg-blue-50 border-blue-200' : 'bg-gray-50' }}">
                             <div class="flex items-start justify-between mb-3">
