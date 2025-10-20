@@ -2594,8 +2594,25 @@ class ReservationTimelineWidget extends Widget
             }
         }
 
-        // 回数券メニューの場合も同様に処理（将来の拡張用）
-        // 現状では回数券プランとメニューの紐付けが複雑なため、手動選択に依存
+        // 回数券メニューの場合、顧客のアクティブな回数券IDを自動設定
+        if ($menu && !$menu->is_subscription && $this->selectedCustomer) {
+            $activeTicket = \App\Models\CustomerTicket::where('customer_id', $this->selectedCustomer->id)
+                ->where('status', 'active')
+                ->where('remaining_count', '>', 0)
+                ->whereHas('ticketPlan', function($q) use ($menuId) {
+                    $q->where('menu_id', $menuId);
+                })
+                ->first();
+
+            if ($activeTicket) {
+                $this->newReservation['customer_ticket_id'] = $activeTicket->id;
+                \Log::info('Auto-set ticket ID', [
+                    'ticket_id' => $activeTicket->id,
+                    'menu_id' => $menuId,
+                    'customer_id' => $this->selectedCustomer->id
+                ]);
+            }
+        }
 
         // オプションメニューを読み込む
         $this->loadAvailableOptions($menuId);
