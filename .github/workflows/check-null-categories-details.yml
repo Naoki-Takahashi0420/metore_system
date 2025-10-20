@@ -1,0 +1,77 @@
+name: Check NULL Categories Details
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check NULL categories usage and details
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'REMOTE'
+        cd /var/www/html
+
+        echo "=== store_id=NULL のカテゴリ詳細調査 ==="
+        echo ""
+
+        sudo php artisan tinker --execute="
+        \$nullCategories = App\Models\MenuCategory::whereNull('store_id')->get();
+
+        echo \"見つかったNULLカテゴリ: \" . \$nullCategories->count() . \"件\n\n\";
+
+        foreach (\$nullCategories as \$cat) {
+            echo \"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\";
+            echo \"ID: {\$cat->id}\n\";
+            echo \"名前: {\$cat->name}\n\";
+            echo \"スラッグ: {\$cat->slug}\n\";
+            echo \"作成日: {\$cat->created_at}\n\";
+            echo \"有効状態: \" . (\$cat->is_active ? '有効' : '無効') . \"\n\";
+
+            // メニュー数を確認
+            \$menuCount = \$cat->menus()->count();
+            echo \"紐づくメニュー数: {\$menuCount}件\n\";
+
+            if (\$menuCount > 0) {
+                echo \"⚠️ メニューが存在します:\n\";
+                foreach (\$cat->menus as \$menu) {
+                    echo \"  - メニューID: {\$menu->id}, 名前: {\$menu->name}\n\";
+                }
+            } else {
+                echo \"✓ メニューなし（削除可能）\n\";
+            }
+
+            echo \"\n\";
+        }
+
+        echo \"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\";
+        echo \"\n推奨アクション:\n\";
+
+        \$safeToDelete = \$nullCategories->filter(function(\$cat) {
+            return \$cat->menus()->count() === 0;
+        });
+
+        \$hasMenus = \$nullCategories->filter(function(\$cat) {
+            return \$cat->menus()->count() > 0;
+        });
+
+        if (\$safeToDelete->count() > 0) {
+            echo \"✅ 削除可能（メニューなし）: \" . \$safeToDelete->pluck('id')->implode(', ') . \"\n\";
+        }
+
+        if (\$hasMenus->count() > 0) {
+            echo \"⚠️ 要注意（メニューあり）: \" . \$hasMenus->pluck('id')->implode(', ') . \"\n\";
+            echo \"   → store_idを手動で設定する必要があります\n\";
+        }
+        "
+        REMOTE
+
+        rm deploy_key.pem
