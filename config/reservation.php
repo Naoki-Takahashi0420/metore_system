@@ -29,6 +29,12 @@ return [
         'channel_access_token' => env('LINE_CHANNEL_ACCESS_TOKEN'),
         'channel_secret' => env('LINE_CHANNEL_SECRET'),
     ],
+
+    // オプションメニュー設定
+    'option_menu' => [
+        // オプションとして選択可能な通常メニューの最大価格（円）
+        'max_price' => env('OPTION_MENU_MAX_PRICE', 3000),
+    ],
     
     // 確認通知メッセージテンプレート
     'messages' => [
