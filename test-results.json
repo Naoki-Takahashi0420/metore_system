@@ -10,7 +10,9 @@
     "grep": {},
     "grepInvert": null,
     "maxFailures": 0,
-    "metadata": {},
+    "metadata": {
+      "actualWorkers": 1
+    },
     "preserveOutput": "always",
     "reporter": [
       [
@@ -40,7 +42,9 @@
         "outputDir": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results",
         "repeatEach": 1,
         "retries": 1,
-        "metadata": {},
+        "metadata": {
+          "actualWorkers": 1
+        },
         "id": "chromium",
         "name": "chromium",
         "testDir": "/Applications/MAMP/htdocs/Xsyumeno-main/tests",
@@ -62,19 +66,155 @@
       "reuseExistingServer": true
     }
   },
-  "suites": [],
-  "errors": [
+  "suites": [
     {
-      "message": "Error: No tests found.\nMake sure that arguments are regular expressions matching test files.\nYou may need to escape symbols like \"$\" or \"*\" and quote the arguments.",
-      "stack": "Error: No tests found.\nMake sure that arguments are regular expressions matching test files.\nYou may need to escape symbols like \"$\" or \"*\" and quote the arguments."
+      "title": "vision-graph-test.spec.js",
+      "file": "vision-graph-test.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "vision graph accordion height test",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 13629,
+                  "error": {
+                    "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('table') to be visible\u001b[22m\n",
+                    "stack": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('table') to be visible\u001b[22m\n\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/vision-graph-test.spec.js:15:14",
+                    "location": {
+                      "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/vision-graph-test.spec.js",
+                      "column": 14,
+                      "line": 15
+                    },
+                    "snippet": "  13 |\n  14 |   // 予約をクリックしてモーダルを開く\n> 15 |   await page.waitForSelector('table', { timeout: 10000 });\n     |              ^\n  16 |\n  17 |   // 予約詳細モーダルを開く（セルをクリック）\n  18 |   const cells = await page.locator('td[style*=\"background\"]').all();"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/vision-graph-test.spec.js",
+                        "column": 14,
+                        "line": 15
+                      },
+                      "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('table') to be visible\u001b[22m\n\n\n  13 |\n  14 |   // 予約をクリックしてモーダルを開く\n> 15 |   await page.waitForSelector('table', { timeout: 10000 });\n     |              ^\n  16 |\n  17 |   // 予約詳細モーダルを開く（セルをクリック）\n  18 |   const cells = await page.locator('td[style*=\"background\"]').all();\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/vision-graph-test.spec.js:15:14"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2025-10-20T13:37:58.010Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/vision-graph-test-vision-graph-accordion-height-test-chromium/test-failed-1.png"
+                    },
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/vision-graph-test-vision-graph-accordion-height-test-chromium/video.webm"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/vision-graph-test-vision-graph-accordion-height-test-chromium/error-context.md"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/vision-graph-test.spec.js",
+                    "column": 14,
+                    "line": 15
+                  }
+                },
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 13959,
+                  "error": {
+                    "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('table') to be visible\u001b[22m\n",
+                    "stack": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('table') to be visible\u001b[22m\n\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/vision-graph-test.spec.js:15:14",
+                    "location": {
+                      "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/vision-graph-test.spec.js",
+                      "column": 14,
+                      "line": 15
+                    },
+                    "snippet": "  13 |\n  14 |   // 予約をクリックしてモーダルを開く\n> 15 |   await page.waitForSelector('table', { timeout: 10000 });\n     |              ^\n  16 |\n  17 |   // 予約詳細モーダルを開く（セルをクリック）\n  18 |   const cells = await page.locator('td[style*=\"background\"]').all();"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/vision-graph-test.spec.js",
+                        "column": 14,
+                        "line": 15
+                      },
+                      "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('table') to be visible\u001b[22m\n\n\n  13 |\n  14 |   // 予約をクリックしてモーダルを開く\n> 15 |   await page.waitForSelector('table', { timeout: 10000 });\n     |              ^\n  16 |\n  17 |   // 予約詳細モーダルを開く（セルをクリック）\n  18 |   const cells = await page.locator('td[style*=\"background\"]').all();\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/vision-graph-test.spec.js:15:14"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 1,
+                  "startTime": "2025-10-20T13:38:13.517Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/vision-graph-test-vision-graph-accordion-height-test-chromium-retry1/test-failed-1.png"
+                    },
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/vision-graph-test-vision-graph-accordion-height-test-chromium-retry1/video.webm"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/vision-graph-test-vision-graph-accordion-height-test-chromium-retry1/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/vision-graph-test-vision-graph-accordion-height-test-chromium-retry1/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/vision-graph-test.spec.js",
+                    "column": 14,
+                    "line": 15
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "83de4a877653f36efe31-6861165320f809ae874d",
+          "file": "vision-graph-test.spec.js",
+          "line": 3,
+          "column": 1
+        }
+      ]
     }
   ],
+  "errors": [],
   "stats": {
-    "startTime": "2025-10-07T16:41:42.429Z",
-    "duration": 910.2720000000002,
+    "startTime": "2025-10-20T13:37:57.415Z",
+    "duration": 30760.700999999997,
     "expected": 0,
     "skipped": 0,
-    "unexpected": 0,
+    "unexpected": 1,
     "flaky": 0
   }
 }

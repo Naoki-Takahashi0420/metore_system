@@ -2597,54 +2597,28 @@ class ReservationTimelineWidget extends Widget
                 return;
             }
 
-            // まず、メニューに紐づいたオプション（menu_optionsテーブル）を確認
-            $menuOptions = $mainMenu->options()
-                ->where('is_active', true)
-                ->orderBy('sort_order')
-                ->get();
+            // 店舗の全メニューから条件に合うものをオプションとして表示
+            // is_option=true または 設定金額以下のメニュー
+            // ただし、show_in_upsell=true（追加オプション提案用）は除外
+            $maxPrice = config('reservation.option_menu.max_price', 3000);
 
-            if ($menuOptions->count() > 0) {
-                // メニュー専用のオプションが設定されている場合はそれを使用
-                $this->availableOptions = $menuOptions->map(function($option) {
-                    return [
-                        'id' => 'option_' . $option->id,  // menu_optionのIDであることを示す
-                        'name' => $option->name,
-                        'description' => $option->description,
-                        'price' => $option->price,
-                        'duration_minutes' => $option->duration_minutes,
-                        'is_menu_option' => true,  // menu_optionsテーブルのデータであることを示す
-                        'menu_option_id' => $option->id,
-                    ];
-                })->toArray();
+            $this->availableOptions = \App\Models\Menu::where('is_available', true)
+                ->where('store_id', $mainMenu->store_id)
+                ->where('id', '!=', $menuId)
+                ->where('show_in_upsell', false) // 追加オプション提案メニューを除外
+                ->where(function($q) use ($maxPrice) {
+                    $q->where('is_option', true)
+                      ->orWhere('price', '<=', $maxPrice); // 設定金額以下（サブスク含む）
+                })
+                ->orderBy('price')
+                ->get()
+                ->toArray();
 
-                \Log::info('Loaded menu-specific options', [
-                    'menu_id' => $menuId,
-                    'options_count' => count($this->availableOptions),
-                ]);
-            } else {
-                // メニュー専用オプションがない場合は、店舗の全メニューから条件に合うものを表示
-                // is_option=true または 設定金額以下のメニュー
-                // ただし、show_in_upsell=true（追加オプション提案用）は除外
-                $maxPrice = config('reservation.option_menu.max_price', 3000);
-
-                $this->availableOptions = \App\Models\Menu::where('is_available', true)
-                    ->where('store_id', $mainMenu->store_id)
-                    ->where('id', '!=', $menuId)
-                    ->where('show_in_upsell', false) // 追加オプション提案メニューを除外
-                    ->where(function($q) use ($maxPrice) {
-                        $q->where('is_option', true)
-                          ->orWhere('price', '<=', $maxPrice); // 設定金額以下（サブスク含む）
-                    })
-                    ->orderBy('price')
-                    ->get()
-                    ->toArray();
-
-                \Log::info('Loaded general available options', [
-                    'menu_id' => $menuId,
-                    'options_count' => count($this->availableOptions),
-                    'option_names' => array_column($this->availableOptions, 'name')
-                ]);
-            }
+            \Log::info('Loaded available options', [
+                'menu_id' => $menuId,
+                'options_count' => count($this->availableOptions),
+                'option_names' => array_column($this->availableOptions, 'name')
+            ]);
 
         } catch (\Exception $e) {
             \Log::error('Failed to load available options', [
