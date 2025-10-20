@@ -1,0 +1,58 @@
+name: Debug Announcement Error
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Debug Announcement Error
+        env:
+          EC2_KEY: ${{ secrets.EC2_KEY }}
+          EC2_HOST: 54.64.54.226
+          EC2_USER: ubuntu
+        run: |
+          echo "$EC2_KEY" > debug_key.pem
+          chmod 600 debug_key.pem
+
+          ssh -o StrictHostKeyChecking=no -i debug_key.pem ${EC2_USER}@${EC2_HOST} << 'DEBUG'
+            cd /var/www/html
+
+            echo "=== Composerオートロード確認 ==="
+            sudo cat composer.json | grep -A 10 "autoload"
+
+            echo ""
+            echo "=== TextHelper存在確認 ==="
+            ls -la app/Helpers/TextHelper.php || echo "ファイルなし"
+
+            echo ""
+            echo "=== linkify_urls関数確認 ==="
+            sudo php -r "
+            require 'vendor/autoload.php';
+            if (function_exists('linkify_urls')) {
+                echo 'linkify_urls関数: 定義済み\n';
+                echo 'テスト: ' . linkify_urls('https://example.com') . '\n';
+            } else {
+                echo 'linkify_urls関数: 未定義\n';
+            }
+            "
+
+            echo ""
+            echo "=== ストレージ権限確認 ==="
+            ls -la storage/app/public/announcements 2>/dev/null || echo "announcements ディレクトリなし"
+
+            echo ""
+            echo "=== 最新のエラーログ（announcement関連） ==="
+            sudo tail -200 storage/logs/laravel.log | grep -A 5 -B 5 -i "announcement\|texthelper\|linkify" || echo "関連エラーなし"
+
+            echo ""
+            echo "=== PHP-FPMエラーログ ==="
+            sudo tail -50 /var/log/php8.3-fpm.log | grep -i "error\|fatal" || echo "エラーなし"
+
+            echo ""
+            echo "=== Nginxエラーログ ==="
+            sudo tail -50 /var/log/nginx/error.log | grep -i "announcement" || echo "関連エラーなし"
+          DEBUG
+
+          rm debug_key.pem
