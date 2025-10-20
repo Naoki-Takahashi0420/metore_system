@@ -12,8 +12,10 @@ use Illuminate\Support\Facades\Storage;
 class ImagesRelationManager extends RelationManager
 {
     protected static string $relationship = 'attachedImages';
-    
+
     protected static ?string $title = '画像管理';
+
+    protected static ?string $inverseRelationship = 'medicalRecord';
 
     public function form(Form $form): Form
     {
@@ -74,6 +76,23 @@ class ImagesRelationManager extends RelationManager
             ]);
     }
 
+    protected function getTableQuery(): ?\Illuminate\Database\Eloquent\Builder
+    {
+        // 現在のカルテの顧客IDを取得
+        $currentMedicalRecord = $this->getOwnerRecord();
+        $customerId = $currentMedicalRecord->customer_id;
+
+        // この顧客の全カルテのIDを取得
+        $medicalRecordIds = \App\Models\MedicalRecord::where('customer_id', $customerId)
+            ->pluck('id')
+            ->toArray();
+
+        // この顧客の全カルテの画像を取得
+        return \App\Models\MedicalRecordImage::query()
+            ->whereIn('medical_record_id', $medicalRecordIds)
+            ->with('medicalRecord');
+    }
+
     public function table(Table $table): Table
     {
         return $table
@@ -83,11 +102,16 @@ class ImagesRelationManager extends RelationManager
                     ->disk('public')
                     ->square()
                     ->size(80),
-                    
+
                 Tables\Columns\TextColumn::make('title')
                     ->label('タイトル')
                     ->searchable(),
-                    
+
+                Tables\Columns\TextColumn::make('medicalRecord.treatment_date')
+                    ->label('カルテ日付')
+                    ->date('Y年n月j日')
+                    ->sortable(),
+
                 Tables\Columns\SelectColumn::make('image_type')
                     ->label('タイプ')
                     ->options([
@@ -96,23 +120,29 @@ class ImagesRelationManager extends RelationManager
                         'progress' => '経過',
                         'reference' => '参考',
                         'other' => 'その他',
-                    ]),
-                    
+                    ])
+                    ->disabled(fn ($record) => $record->medical_record_id !== $this->getOwnerRecord()->id),
+
                 Tables\Columns\TextColumn::make('display_order')
                     ->label('表示順')
                     ->sortable(),
-                    
+
                 Tables\Columns\ToggleColumn::make('is_visible_to_customer')
-                    ->label('顧客表示'),
+                    ->label('顧客表示')
+                    ->disabled(fn ($record) => $record->medical_record_id !== $this->getOwnerRecord()->id),
             ])
-            ->defaultSort('display_order', 'asc')
-            ->reorderable('display_order')
+            ->defaultSort('medicalRecord.treatment_date', 'desc')
             ->filters([
                 //
             ])
             ->headerActions([
                 Tables\Actions\CreateAction::make()
-                    ->label('画像を追加'),
+                    ->label('画像を追加')
+                    ->using(function (array $data): \App\Models\MedicalRecordImage {
+                        // 現在のカルテに画像を追加
+                        $data['medical_record_id'] = $this->getOwnerRecord()->id;
+                        return \App\Models\MedicalRecordImage::create($data);
+                    }),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make()
@@ -123,12 +153,28 @@ class ImagesRelationManager extends RelationManager
                             'record' => $record,
                         ]);
                     }),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn ($record) => $record->medical_record_id === $this->getOwnerRecord()->id)
+                    ->using(function (\App\Models\MedicalRecordImage $record, array $data): \App\Models\MedicalRecordImage {
+                        $record->update($data);
+                        return $record;
+                    }),
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn ($record) => $record->medical_record_id === $this->getOwnerRecord()->id)
+                    ->using(function (\App\Models\MedicalRecordImage $record): void {
+                        $record->delete();
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->using(function ($records) {
+                            // 現在のカルテの画像のみ削除
+                            $currentMedicalRecordId = $this->getOwnerRecord()->id;
+                            $records->filter(function ($record) use ($currentMedicalRecordId) {
+                                return $record->medical_record_id === $currentMedicalRecordId;
+                            })->each->delete();
+                        }),
                 ]),
             ]);
     }

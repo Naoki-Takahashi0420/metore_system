@@ -42,23 +42,41 @@ class MedicalRecordResource extends Resource
                                     ->schema([
                                         Forms\Components\Select::make('store_id')
                                             ->label('店舗')
-                                            ->options(function () {
+                                            ->options(function ($operation, $record) {
                                                 $user = auth()->user();
                                                 if (!$user) return [];
 
+                                                $options = [];
+
                                                 // スーパーアドミンは全店舗
                                                 if ($user->hasRole('super_admin')) {
-                                                    return \App\Models\Store::where('is_active', true)->pluck('name', 'id');
+                                                    $options = \App\Models\Store::where('is_active', true)->pluck('name', 'id')->toArray();
                                                 }
                                                 // オーナーは管理可能店舗
-                                                if ($user->hasRole('owner')) {
-                                                    return $user->manageableStores()->pluck('stores.name', 'stores.id');
+                                                elseif ($user->hasRole('owner')) {
+                                                    $options = $user->manageableStores()->pluck('stores.name', 'stores.id')->toArray();
                                                 }
                                                 // その他は所属店舗のみ
-                                                if ($user->store) {
-                                                    return [$user->store_id => $user->store->name];
+                                                elseif ($user->store) {
+                                                    $options = [$user->store_id => $user->store->name];
                                                 }
-                                                return [];
+
+                                                // 編集時：既存の店舗が選択肢にない場合は追加
+                                                if ($operation === 'edit' && $record && $record->store_id) {
+                                                    if (!isset($options[$record->store_id])) {
+                                                        $existingStore = \App\Models\Store::find($record->store_id);
+                                                        if ($existingStore) {
+                                                            $options[$record->store_id] = $existingStore->name;
+                                                        }
+                                                    }
+                                                }
+
+                                                return $options;
+                                            })
+                                            ->getOptionLabelUsing(function ($value) {
+                                                if (!$value) return null;
+                                                $store = \App\Models\Store::find($value);
+                                                return $store ? $store->name : $value;
                                             })
                                             ->default(function () {
                                                 $user = auth()->user();
@@ -69,7 +87,9 @@ class MedicalRecordResource extends Resource
                                                 return null;
                                             })
                                             ->required()
-                                            ->reactive(),
+                                            ->reactive()
+                                            ->dehydrated()
+                                            ->disabled(fn ($operation) => $operation === 'edit'),
 
                                         Forms\Components\Select::make('customer_id')
                                             ->label('顧客')

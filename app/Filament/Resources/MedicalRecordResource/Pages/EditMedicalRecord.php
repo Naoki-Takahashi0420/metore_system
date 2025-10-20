@@ -77,6 +77,14 @@ class EditMedicalRecord extends EditRecord
 
     protected function mutateFormDataBeforeFill(array $data): array
     {
+        // 予約から店舗情報を取得してフォームに表示（表示のみ、DBには保存しない）
+        if ($this->record->reservation_id) {
+            $reservation = \App\Models\Reservation::find($this->record->reservation_id);
+            if ($reservation && $reservation->store_id) {
+                $data['store_id'] = $reservation->store_id;
+            }
+        }
+
         // 既存の老眼詳細測定データを読み込む
         $before = $this->record->presbyopiaMeasurements()->where('status', '施術前')->first();
         $after = $this->record->presbyopiaMeasurements()->where('status', '施術後')->first();

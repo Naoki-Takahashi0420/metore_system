@@ -99,7 +99,7 @@ class MedicalRecord extends Model
     }
 
     /**
-     * リレーション: 添付画像
+     * リレーション: 添付画像（このカルテのみ）
      */
     public function attachedImages()
     {

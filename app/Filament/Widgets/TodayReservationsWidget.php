@@ -305,14 +305,23 @@ class TodayReservationsWidget extends BaseWidget
                     ->successNotificationTitle('予約を削除しました'),
 
                 Tables\Actions\Action::make('create_medical_record')
-                    ->label('カルテ作成')
+                    ->label(function ($record) {
+                        $hasMedicalRecord = $record->medicalRecords->count() > 0;
+                        return $hasMedicalRecord ? 'カルテ編集' : 'カルテ作成';
+                    })
                     ->icon('heroicon-m-document-plus')
-                    ->color('primary')
-                    ->url(fn ($record) => "/admin/medical-records/create?reservation_id={$record->id}")
-                    ->visible(fn ($record) =>
-                        $record->status === 'completed' &&
-                        !$record->medicalRecords->count()
-                    ),
+                    ->color(function ($record) {
+                        $hasMedicalRecord = $record->medicalRecords->count() > 0;
+                        return $hasMedicalRecord ? 'info' : 'success';
+                    })
+                    ->url(function ($record) {
+                        $medicalRecord = $record->medicalRecords->first();
+                        if ($medicalRecord) {
+                            return "/admin/medical-records/{$medicalRecord->id}/edit";
+                        }
+                        return "/admin/medical-records/create?reservation_id={$record->id}&customer_id={$record->customer_id}";
+                    })
+                    ->visible(fn ($record) => $record->status === 'completed'),
             ])
             ->bulkActions([])
             ->paginated(false)
