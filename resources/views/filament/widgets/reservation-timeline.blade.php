@@ -1841,12 +1841,17 @@
 
                         // 視力推移データを収集（最大10件）
                         $visionData = [];
-                        foreach($allMedicalRecords->take(10)->reverse() as $record) {
+                        $recordsWithVision = $allMedicalRecords->take(10)->reverse();
+
+                        foreach($recordsWithVision as $index => $record) {
                             $latestVision = $record->getLatestVisionRecord();
                             if ($latestVision) {
+                                // 回数は古い順のインデックス+1で計算
+                                $sessionNumber = $index + 1;
+
                                 $visionData[] = [
                                     'date' => $record->treatment_date,
-                                    'session' => $record->session_number ?? count($visionData) + 1,
+                                    'session' => $sessionNumber,
                                     'right_before' => $latestVision['before_naked_right'] ?? null,
                                     'right_after' => $latestVision['after_naked_right'] ?? null,
                                     'left_before' => $latestVision['before_naked_left'] ?? null,
