@@ -1904,26 +1904,27 @@
                                             <text x="25" y="60" font-size="10" fill="#6b7280">0.9</text>
                                             <text x="25" y="25" font-size="10" fill="#6b7280">1.2</text>
 
-                                            @if(count($rightEyeValues) > 1)
-                                                @php
-                                                    $points = [];
-                                                    foreach($rightEyeValues as $index => $value) {
-                                                        $x = 80 + ($index * 100);
-                                                        $y = 160 - ($value / 1.2 * 140);
-                                                        $points[] = "$x,$y";
-                                                    }
-                                                    $polylinePoints = implode(' ', $points);
-                                                @endphp
-
-                                                <!-- 折れ線 -->
-                                                <polyline
-                                                    points="{{ $polylinePoints }}"
-                                                    fill="none"
-                                                    stroke="#2563eb"
-                                                    stroke-width="3"
-                                                    stroke-linecap="round"
-                                                    stroke-linejoin="round"
-                                                />
+                                            @if(count($rightEyeValues) > 0)
+                                                <!-- 折れ線（2点以上の場合のみ） -->
+                                                @if(count($rightEyeValues) > 1)
+                                                    @php
+                                                        $points = [];
+                                                        foreach($rightEyeValues as $index => $value) {
+                                                            $x = 80 + ($index * 100);
+                                                            $y = 160 - ($value / 1.2 * 140);
+                                                            $points[] = "$x,$y";
+                                                        }
+                                                        $polylinePoints = implode(' ', $points);
+                                                    @endphp
+                                                    <polyline
+                                                        points="{{ $polylinePoints }}"
+                                                        fill="none"
+                                                        stroke="#2563eb"
+                                                        stroke-width="3"
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                    />
+                                                @endif
 
                                                 <!-- データポイント円と値ラベル -->
                                                 @foreach($rightEyeValues as $index => $value)
@@ -1969,26 +1970,27 @@
                                             <text x="25" y="60" font-size="10" fill="#6b7280">0.9</text>
                                             <text x="25" y="25" font-size="10" fill="#6b7280">1.2</text>
 
-                                            @if(count($leftEyeValues) > 1)
-                                                @php
-                                                    $points = [];
-                                                    foreach($leftEyeValues as $index => $value) {
-                                                        $x = 80 + ($index * 100);
-                                                        $y = 160 - ($value / 1.2 * 140);
-                                                        $points[] = "$x,$y";
-                                                    }
-                                                    $polylinePoints = implode(' ', $points);
-                                                @endphp
-
-                                                <!-- 折れ線 -->
-                                                <polyline
-                                                    points="{{ $polylinePoints }}"
-                                                    fill="none"
-                                                    stroke="#16a34a"
-                                                    stroke-width="3"
-                                                    stroke-linecap="round"
-                                                    stroke-linejoin="round"
-                                                />
+                                            @if(count($leftEyeValues) > 0)
+                                                <!-- 折れ線（2点以上の場合のみ） -->
+                                                @if(count($leftEyeValues) > 1)
+                                                    @php
+                                                        $points = [];
+                                                        foreach($leftEyeValues as $index => $value) {
+                                                            $x = 80 + ($index * 100);
+                                                            $y = 160 - ($value / 1.2 * 140);
+                                                            $points[] = "$x,$y";
+                                                        }
+                                                        $polylinePoints = implode(' ', $points);
+                                                    @endphp
+                                                    <polyline
+                                                        points="{{ $polylinePoints }}"
+                                                        fill="none"
+                                                        stroke="#16a34a"
+                                                        stroke-width="3"
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                    />
+                                                @endif
 
                                                 <!-- データポイント円と値ラベル -->
                                                 @foreach($leftEyeValues as $index => $value)
