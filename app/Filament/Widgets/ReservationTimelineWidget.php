@@ -2590,39 +2590,65 @@ class ReservationTimelineWidget extends Widget
     public function loadAvailableOptions($menuId)
     {
         try {
-            // 選択されたメニューと同じ店舗のオプションメニューを取得
+            // 選択されたメニューを取得
             $mainMenu = \App\Models\Menu::find($menuId);
             if (!$mainMenu) {
                 $this->availableOptions = [];
                 return;
             }
 
-            // オプションとして選択可能なメニュー
-            // 1. is_option=trueのメニュー、または
-            // 2. 通常メニュー（is_subscription=false）かつ設定金額以下
-            // ただし、show_in_upsell=true（追加オプション提案用）は除外
-            $maxPrice = config('reservation.option_menu.max_price', 3000);
+            // まず、メニューに紐づいたオプション（menu_optionsテーブル）を確認
+            $menuOptions = $mainMenu->options()
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->get();
 
-            $this->availableOptions = \App\Models\Menu::where('is_available', true)
-                ->where('store_id', $mainMenu->store_id)
-                ->where('id', '!=', $menuId)
-                ->where('show_in_upsell', false) // 追加オプション提案メニューを除外
-                ->where(function($q) use ($maxPrice) {
-                    $q->where('is_option', true)
-                      ->orWhere(function($q2) use ($maxPrice) {
-                          $q2->where('is_subscription', false)  // サブスクメニューを除外
-                             ->where('price', '<=', $maxPrice); // 設定金額以下の通常メニュー
-                      });
-                })
-                ->orderBy('price')
-                ->get()
-                ->toArray();
+            if ($menuOptions->count() > 0) {
+                // メニュー専用のオプションが設定されている場合はそれを使用
+                $this->availableOptions = $menuOptions->map(function($option) {
+                    return [
+                        'id' => 'option_' . $option->id,  // menu_optionのIDであることを示す
+                        'name' => $option->name,
+                        'description' => $option->description,
+                        'price' => $option->price,
+                        'duration_minutes' => $option->duration_minutes,
+                        'is_menu_option' => true,  // menu_optionsテーブルのデータであることを示す
+                        'menu_option_id' => $option->id,
+                    ];
+                })->toArray();
 
-            \Log::info('Loaded available options', [
-                'menu_id' => $menuId,
-                'options_count' => count($this->availableOptions),
-                'option_names' => array_column($this->availableOptions, 'name')
-            ]);
+                \Log::info('Loaded menu-specific options', [
+                    'menu_id' => $menuId,
+                    'options_count' => count($this->availableOptions),
+                ]);
+            } else {
+                // メニュー専用オプションがない場合は、店舗の全メニューから条件に合うものを表示
+                // 1. is_option=trueのメニュー、または
+                // 2. 通常メニュー（is_subscription=false）かつ設定金額以下
+                // ただし、show_in_upsell=true（追加オプション提案用）は除外
+                $maxPrice = config('reservation.option_menu.max_price', 3000);
+
+                $this->availableOptions = \App\Models\Menu::where('is_available', true)
+                    ->where('store_id', $mainMenu->store_id)
+                    ->where('id', '!=', $menuId)
+                    ->where('show_in_upsell', false) // 追加オプション提案メニューを除外
+                    ->where(function($q) use ($maxPrice) {
+                        $q->where('is_option', true)
+                          ->orWhere(function($q2) use ($maxPrice) {
+                              $q2->where('is_subscription', false)  // サブスクメニューを除外
+                                 ->where('price', '<=', $maxPrice); // 設定金額以下の通常メニュー
+                          });
+                    })
+                    ->orderBy('price')
+                    ->get()
+                    ->toArray();
+
+                \Log::info('Loaded general available options', [
+                    'menu_id' => $menuId,
+                    'options_count' => count($this->availableOptions),
+                    'option_names' => array_column($this->availableOptions, 'name')
+                ]);
+            }
 
         } catch (\Exception $e) {
             \Log::error('Failed to load available options', [
