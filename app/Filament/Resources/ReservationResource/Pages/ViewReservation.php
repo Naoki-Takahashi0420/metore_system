@@ -18,6 +18,36 @@ class ViewReservation extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('create_medical_record')
+                ->label(function () {
+                    // カルテが既に存在する場合は「カルテ編集」、存在しない場合は「カルテ作成」
+                    $existingRecord = \App\Models\MedicalRecord::where('reservation_id', $this->record->id)->first();
+                    return $existingRecord ? 'カルテ編集' : 'カルテ作成';
+                })
+                ->icon('heroicon-o-document-text')
+                ->color(function () {
+                    // カルテが既に存在する場合は「info」、存在しない場合は「success」
+                    $existingRecord = \App\Models\MedicalRecord::where('reservation_id', $this->record->id)->first();
+                    return $existingRecord ? 'info' : 'success';
+                })
+                ->url(function () {
+                    // カルテが既に存在するかチェック
+                    $existingRecord = \App\Models\MedicalRecord::where('reservation_id', $this->record->id)->first();
+
+                    if ($existingRecord) {
+                        // 既存のカルテを編集
+                        return route('filament.admin.resources.medical-records.edit', [
+                            'record' => $existingRecord->id
+                        ]);
+                    } else {
+                        // 新しいカルテを作成
+                        return route('filament.admin.resources.medical-records.create', [
+                            'customer_id' => $this->record->customer_id,
+                            'reservation_id' => $this->record->id
+                        ]);
+                    }
+                })
+                ->visible(fn (): bool => $this->record->status === 'completed'),
             Actions\Action::make('change_line')
                 ->label('ライン変更')
                 ->icon('heroicon-o-arrows-right-left')

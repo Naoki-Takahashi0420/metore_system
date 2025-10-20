@@ -404,7 +404,7 @@
         console.log('✅ ガントチャートJavaScript loaded');
         
         // グローバル関数として確実に定義
-        window.openReservationModalFromData = function(element) {
+        window.openReservationModalFromData = async function(element) {
             console.log('openReservationModalFromData called', element);
 
             try {
@@ -434,6 +434,32 @@
                 const phone = element.dataset.phone || '-';
                 const status = element.dataset.status || 'booked';
                 const lineType = element.dataset.lineType || 'main';
+
+                // カルテの存在を確認
+                let medicalRecordButtonLabel = 'カルテ作成/編集';
+                let medicalRecordButtonColor = '#10b981';
+
+                if (status === 'completed') {
+                    try {
+                        const checkResponse = await fetch(`/api/admin/medical-records/check-by-reservation/${reservationId}`, {
+                            method: 'GET',
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                            }
+                        });
+                        const checkData = await checkResponse.json();
+                        if (checkData.exists) {
+                            medicalRecordButtonLabel = '📝 カルテ編集';
+                            medicalRecordButtonColor = '#3b82f6'; // 青色
+                        } else {
+                            medicalRecordButtonLabel = '📝 カルテ作成';
+                            medicalRecordButtonColor = '#10b981'; // 緑色
+                        }
+                    } catch (error) {
+                        console.error('Check medical record error:', error);
+                    }
+                }
 
                 // モーダルのHTMLを構築
                 content.innerHTML = `
@@ -533,8 +559,8 @@
 
                         ${status === 'completed' ? `
                         <div style="display: flex; gap: 10px; margin-top: 10px;">
-                            <button onclick="createMedicalRecord('${reservationId}', '${customerId}')" style="flex: 1; padding: 10px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
-                                📝 カルテ作成
+                            <button onclick="createOrEditMedicalRecord('${reservationId}', '${customerId}')" style="flex: 1; padding: 10px; background: ${medicalRecordButtonColor}; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                                ${medicalRecordButtonLabel}
                             </button>
                         </div>
                         ` : ''}
@@ -730,6 +756,34 @@
         window.createMedicalRecord = function(reservationId, customerId) {
             const url = `/admin/medical-records/create?customer_id=${customerId}&reservation_id=${reservationId}`;
             window.location.href = url;
+        }
+
+        // カルテ作成または編集（既存カルテの有無を確認）
+        window.createOrEditMedicalRecord = async function(reservationId, customerId) {
+            try {
+                // 既存のカルテがあるかチェック
+                const response = await fetch(`/api/admin/medical-records/check-by-reservation/${reservationId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.exists && data.medical_record_id) {
+                    // カルテが既に存在する場合は編集画面へ
+                    window.location.href = `/admin/medical-records/${data.medical_record_id}/edit`;
+                } else {
+                    // カルテが存在しない場合は作成画面へ
+                    window.location.href = `/admin/medical-records/create?customer_id=${customerId}&reservation_id=${reservationId}`;
+                }
+            } catch (error) {
+                console.error('Check medical record error:', error);
+                // エラー時はとりあえず作成画面へ（既に存在する場合はバックエンドでエラーになる）
+                window.location.href = `/admin/medical-records/create?customer_id=${customerId}&reservation_id=${reservationId}`;
+            }
         }
 
         // 予約キャンセル

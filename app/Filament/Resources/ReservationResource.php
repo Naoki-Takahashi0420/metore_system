@@ -986,21 +986,37 @@ class ReservationResource extends Resource
                     })
                     ->visible(fn ($record) => $record->line_type === 'sub' && $record->status === 'booked'),
                 Tables\Actions\Action::make('create_medical_record')
-                    ->label('カルテ作成')
+                    ->label(function ($record) {
+                        // カルテが既に存在する場合は「カルテ編集」、存在しない場合は「カルテ作成」
+                        $existingRecord = \App\Models\MedicalRecord::where('reservation_id', $record->id)->first();
+                        $label = $existingRecord ? 'カルテ編集' : 'カルテ作成';
+                        \Log::info('🔍 Reservation ' . $record->id . ' - Medical Record: ' . ($existingRecord ? 'EXISTS (ID: ' . $existingRecord->id . ')' : 'NONE') . ' - Label: ' . $label);
+                        return $label;
+                    })
                     ->icon('heroicon-o-document-text')
-                    ->color('success')
-                    ->url(fn ($record) => route('filament.admin.resources.medical-records.create', [
-                        'customer_id' => $record->customer_id,
-                        'reservation_id' => $record->id
-                    ]))
-                    ->visible(function ($record) {
-                        if ($record->status !== 'completed') {
-                            return false;
+                    ->color(function ($record) {
+                        // カルテが既に存在する場合は「info」、存在しない場合は「success」
+                        $existingRecord = \App\Models\MedicalRecord::where('reservation_id', $record->id)->first();
+                        return $existingRecord ? 'info' : 'success';
+                    })
+                    ->url(function ($record) {
+                        // カルテが既に存在するかチェック
+                        $existingRecord = \App\Models\MedicalRecord::where('reservation_id', $record->id)->first();
+
+                        if ($existingRecord) {
+                            // 既存のカルテを編集
+                            return route('filament.admin.resources.medical-records.edit', [
+                                'record' => $existingRecord->id
+                            ]);
+                        } else {
+                            // 新しいカルテを作成
+                            return route('filament.admin.resources.medical-records.create', [
+                                'customer_id' => $record->customer_id,
+                                'reservation_id' => $record->id
+                            ]);
                         }
-                        // カルテが既に作成されている場合は非表示
-                        $hasMedicalRecord = \App\Models\MedicalRecord::where('reservation_id', $record->id)->exists();
-                        return !$hasMedicalRecord;
-                    }),
+                    })
+                    ->visible(fn ($record) => $record->status === 'completed'),
                 Tables\Actions\Action::make('receipt')
                     ->label('領収証')
                     ->icon('heroicon-o-document-text')

@@ -127,3 +127,9 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
     Route::post('reservations/{id}/move-to-sub', [ReservationController::class, 'adminMoveToSubLine']);
     Route::post('reservations/{id}/move-to-main', [ReservationController::class, 'adminMoveToMainLine']);
 });
+
+// 管理者向けAPI（Web認証 - Filament用）
+Route::middleware('auth:web')->prefix('admin')->group(function () {
+    // カルテ存在チェック
+    Route::get('medical-records/check-by-reservation/{reservationId}', [\App\Http\Controllers\Api\MedicalRecordController::class, 'checkByReservation']);
+});

@@ -20,36 +20,60 @@ class CreateMedicalRecord extends CreateRecord
     protected function fillForm(): void
     {
         $data = [];
-        
+
         // URLパラメータから顧客IDと予約IDを取得して自動設定
         $customerId = request()->query('customer_id');
         $reservationId = request()->query('reservation_id');
-        
+
         if ($customerId) {
             $data['customer_id'] = (int) $customerId;
         }
-        
+
         if ($reservationId) {
             $data['reservation_id'] = (int) $reservationId;
-            
+
             // 予約情報から自動設定
             $reservation = Reservation::with(['customer', 'store', 'staff'])->find($reservationId);
             if ($reservation) {
                 // 施術日を予約日に設定 - Carbon::parseで文字列を日付オブジェクトに変換
                 $data['treatment_date'] = \Carbon\Carbon::parse($reservation->reservation_date)->format('Y-m-d');
-                
+
+                // 店舗IDを予約から取得
+                $data['store_id'] = $reservation->store_id;
+
                 // 顧客IDが未設定の場合は予約から取得
                 if (!isset($data['customer_id'])) {
                     $data['customer_id'] = $reservation->customer_id;
                 }
-                
+
                 // 担当スタッフがいる場合は対応者に設定
                 if ($reservation->staff_id && $reservation->staff) {
                     $data['handled_by'] = $reservation->staff->name;
                 }
             }
         }
-        
+
+        // 顧客の前回のカルテから変わらない情報（顧客管理情報）を引き継ぐ
+        $finalCustomerId = $data['customer_id'] ?? null;
+        if ($finalCustomerId) {
+            $latestRecord = \App\Models\MedicalRecord::where('customer_id', $finalCustomerId)
+                ->orderBy('treatment_date', 'desc')
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if ($latestRecord) {
+                // 変わらない情報を引き継ぐ（既に設定されていない場合のみ）
+                $data['payment_method'] = $data['payment_method'] ?? $latestRecord->payment_method;
+                $data['reservation_source'] = $data['reservation_source'] ?? $latestRecord->reservation_source;
+                $data['visit_purpose'] = $data['visit_purpose'] ?? $latestRecord->visit_purpose;
+                $data['genetic_possibility'] = $data['genetic_possibility'] ?? $latestRecord->genetic_possibility;
+                $data['has_astigmatism'] = $data['has_astigmatism'] ?? $latestRecord->has_astigmatism;
+                $data['eye_diseases'] = $data['eye_diseases'] ?? $latestRecord->eye_diseases;
+                $data['workplace_address'] = $data['workplace_address'] ?? $latestRecord->workplace_address;
+                $data['device_usage'] = $data['device_usage'] ?? $latestRecord->device_usage;
+            }
+        }
+
         $this->form->fill($data);
     }
     
