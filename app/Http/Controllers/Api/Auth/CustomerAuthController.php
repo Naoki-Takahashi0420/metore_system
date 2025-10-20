@@ -52,9 +52,18 @@ class CustomerAuthController extends Controller
             ], 429);
         }
         */
-        
-        // OTP送信
-        if (!$this->otpService->sendOtp($request->phone)) {
+
+        // 既存顧客のメールアドレスを取得（再送信時のメール送信用）
+        $normalizedPhone = PhoneHelper::normalize($request->phone);
+        $customer = Customer::where('phone', $normalizedPhone)
+            ->orWhere('phone', $request->phone)
+            ->whereNotNull('email')
+            ->first();
+
+        $email = $customer && $customer->email ? $customer->email : null;
+
+        // OTP送信（メールアドレスがあればメールでも送信）
+        if (!$this->otpService->sendOtp($request->phone, $email)) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -64,10 +73,17 @@ class CustomerAuthController extends Controller
             ], 500);
         }
         
+        // 送信先に応じてメッセージを変更
+        $message = '認証コードを送信しました';
+        if ($email) {
+            $message = '認証コードをSMSとメールに送信しました';
+        }
+
         return response()->json([
             'success' => true,
             'data' => [
-                'message' => '認証コードを送信しました',
+                'message' => $message,
+                'email_sent' => $email !== null, // メール送信したかどうかをフロントに伝える
             ],
         ]);
     }

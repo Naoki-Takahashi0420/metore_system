@@ -10,19 +10,22 @@ use Illuminate\Support\Str;
 class OtpService
 {
     private SmsService $smsService;
-    
-    public function __construct(SmsService $smsService)
+    private EmailService $emailService;
+
+    public function __construct(SmsService $smsService, EmailService $emailService)
     {
         $this->smsService = $smsService;
+        $this->emailService = $emailService;
     }
     
     /**
      * OTPを生成して送信
      *
      * @param string $phone
+     * @param string|null $email オプション：メールアドレスが指定された場合はメールでも送信
      * @return bool
      */
-    public function sendOtp(string $phone): bool
+    public function sendOtp(string $phone, ?string $email = null): bool
     {
         // 電話番号を正規化
         $normalizedPhone = PhoneHelper::normalize($phone);
@@ -45,7 +48,24 @@ class OtpService
         ]);
 
         // SMS送信（元の電話番号形式で送信）
-        return $this->smsService->sendOtp($phone, $otp);
+        $smsSent = $this->smsService->sendOtp($phone, $otp);
+
+        // メールアドレスが指定されている場合はメールでも送信
+        if ($email) {
+            $emailSent = $this->emailService->sendOtpEmail($email, $otp);
+
+            \Log::info('OTP送信完了', [
+                'phone' => $phone,
+                'email' => $email,
+                'sms_sent' => $smsSent,
+                'email_sent' => $emailSent,
+            ]);
+
+            // SMS または メールのどちらかが送信成功すればOK
+            return $smsSent || $emailSent;
+        }
+
+        return $smsSent;
     }
     
     /**
