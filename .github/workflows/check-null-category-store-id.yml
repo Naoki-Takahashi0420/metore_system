@@ -1,0 +1,40 @@
+name: Check NULL Category Store ID
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check for categories without store_id
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'REMOTE'
+        cd /var/www/html
+
+        echo "=== store_id=NULL のメニューカテゴリを確認 ==="
+
+        sudo php artisan tinker --execute="
+        \$nullCategories = App\Models\MenuCategory::whereNull('store_id')->get();
+
+        if (\$nullCategories->isEmpty()) {
+            echo \"✅ 問題ありません。すべてのカテゴリにstore_idが設定されています。\n\";
+        } else {
+            echo \"⚠️ store_id=NULLのカテゴリが見つかりました:\n\n\";
+            foreach (\$nullCategories as \$cat) {
+                echo \"ID: {\$cat->id}, 名前: {\$cat->name}, 作成日: {\$cat->created_at}\n\";
+            }
+            echo \"\n合計: \" . \$nullCategories->count() . \"件\n\";
+        }
+        "
+        REMOTE
+
+        rm deploy_key.pem
