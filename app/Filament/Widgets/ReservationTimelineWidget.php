@@ -2576,6 +2576,27 @@ class ReservationTimelineWidget extends Widget
             $this->newReservation['duration'] = $menu->duration_minutes;
         }
 
+        // サブスクメニューの場合、顧客のアクティブなサブスクリプションIDを自動設定
+        if ($menu && $menu->is_subscription && $this->selectedCustomer) {
+            $activeSubscription = \App\Models\CustomerSubscription::where('customer_id', $this->selectedCustomer->id)
+                ->where('menu_id', $menuId)
+                ->where('status', 'active')
+                ->where('is_paused', false)
+                ->first();
+
+            if ($activeSubscription) {
+                $this->newReservation['customer_subscription_id'] = $activeSubscription->id;
+                \Log::info('Auto-set subscription ID', [
+                    'subscription_id' => $activeSubscription->id,
+                    'menu_id' => $menuId,
+                    'customer_id' => $this->selectedCustomer->id
+                ]);
+            }
+        }
+
+        // 回数券メニューの場合も同様に処理（将来の拡張用）
+        // 現状では回数券プランとメニューの紐付けが複雑なため、手動選択に依存
+
         // オプションメニューを読み込む
         $this->loadAvailableOptions($menuId);
 
