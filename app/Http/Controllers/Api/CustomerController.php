@@ -38,9 +38,101 @@ class CustomerController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Customer $customer)
+    public function update(Request $request)
     {
-        //
+        $customer = $request->user();
+
+        // バリデーション（管理画面と同じルールを適用）
+        $validator = Validator::make($request->all(), [
+            'last_name' => ['required', 'string', 'max:50'],
+            'first_name' => ['required', 'string', 'max:50'],
+            'last_name_kana' => ['nullable', 'string', 'max:100', 'regex:/^[ァ-ヶー\s]+$/u'],
+            'first_name_kana' => ['nullable', 'string', 'max:100', 'regex:/^[ァ-ヶー\s]+$/u'],
+            'email' => ['nullable', 'email', 'max:100', 'unique:customers,email,' . $customer->id . ',id,store_id,' . $customer->store_id],
+            'birth_date' => ['nullable', 'date', 'before:today'],
+            'gender' => ['nullable', 'in:male,female,other,prefer_not_to_say'],
+            'postal_code' => ['nullable', 'string', 'regex:/^\d{3}-?\d{4}$/'],
+            'address' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'VALIDATION_ERROR',
+                    'message' => '入力内容に誤りがあります',
+                    'details' => $validator->errors(),
+                ],
+            ], 422);
+        }
+
+        try {
+            // 更新データを準備
+            $updateData = $request->only([
+                'last_name',
+                'first_name',
+                'last_name_kana',
+                'first_name_kana',
+                'email',
+                'birth_date',
+                'gender',
+                'postal_code',
+                'address',
+            ]);
+
+            // 空文字列をnullに変換
+            foreach ($updateData as $key => $value) {
+                if ($value === '') {
+                    $updateData[$key] = null;
+                }
+            }
+
+            // 顧客情報を更新
+            $customer->update($updateData);
+
+            \Log::info('プロフィール更新成功', [
+                'customer_id' => $customer->id,
+                'updated_fields' => array_keys($updateData),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'message' => 'プロフィールを更新しました',
+                    'customer' => [
+                        'id' => $customer->id,
+                        'last_name' => $customer->last_name,
+                        'first_name' => $customer->first_name,
+                        'full_name' => $customer->full_name,
+                        'last_name_kana' => $customer->last_name_kana,
+                        'first_name_kana' => $customer->first_name_kana,
+                        'phone' => $customer->phone,
+                        'email' => $customer->email,
+                        'birth_date' => $customer->birth_date?->format('Y-m-d'),
+                        'gender' => $customer->gender,
+                        'postal_code' => $customer->postal_code,
+                        'address' => $customer->address,
+                        'store_id' => $customer->store_id,
+                        'store_name' => $customer->store?->name ?? null,
+                    ],
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('プロフィール更新エラー', [
+                'customer_id' => $customer->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'UPDATE_FAILED',
+                    'message' => 'プロフィールの更新に失敗しました',
+                ],
+            ], 500);
+        }
     }
 
     /**
@@ -309,11 +401,11 @@ class CustomerController extends Controller
         }
 
         // 条件2: 予約履歴がある店舗を取得（顧客レコードにない店舗）
+        // キャンセルされた予約も含める（過去に利用した店舗として表示）
         $reservationStores = \DB::table('reservations')
             ->join('stores', 'reservations.store_id', '=', 'stores.id')
             ->join('customers', 'reservations.customer_id', '=', 'customers.id')
             ->whereIn('reservations.customer_id', $customerIds)
-            ->whereNotIn('reservations.status', ['cancelled', 'canceled'])
             ->select(
                 'customers.id as customer_id',
                 'stores.id as store_id',

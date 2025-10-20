@@ -35,26 +35,6 @@
             </div>
         </div>
 
-        <!-- 次回の予約 -->
-        <div id="next-reservation" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm mb-4 p-6">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div class="flex-1">
-                    <h2 class="text-lg font-semibold mb-3 text-gray-900">次回のご予約</h2>
-                    <div id="next-reservation-details">
-                        <!-- 動的に挿入 -->
-                    </div>
-                </div>
-                <div class="flex gap-2">
-                    <button id="next-change-btn" class="border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                        日程変更
-                    </button>
-                    <button id="next-cancel-btn" class="border border-red-200 hover:bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                        キャンセル
-                    </button>
-                </div>
-            </div>
-        </div>
-
         <!-- サブスクリプション会員用ボタン -->
         <div id="subscription-section" class="hidden bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl shadow-sm mb-4 p-6">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -201,6 +181,118 @@
     </div>
 </div>
 
+<!-- Profile Edit Modal -->
+<div id="profileEditModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div class="relative mx-auto border w-full max-w-2xl shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-900">プロフィール編集</h2>
+                <button id="closeProfileModal" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <form id="profileEditForm" class="space-y-6">
+                <!-- 基本情報 -->
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-800">基本情報</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">姓 <span class="text-red-500">*</span></label>
+                            <input type="text" id="edit-last-name" name="last_name" required maxlength="50" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">名 <span class="text-red-500">*</span></label>
+                            <input type="text" id="edit-first-name" name="first_name" required maxlength="50" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">姓（カナ）</label>
+                            <input type="text" id="edit-last-name-kana" name="last_name_kana" maxlength="100" placeholder="ヤマダ" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">名（カナ）</label>
+                            <input type="text" id="edit-first-name-kana" name="first_name_kana" maxlength="100" placeholder="タロウ" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 連絡先情報 -->
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-800">連絡先情報</h3>
+                    <div class="grid grid-cols-1 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">電話番号</label>
+                            <input type="tel" id="edit-phone" name="phone" disabled class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed">
+                            <p class="text-xs text-gray-500 mt-1">※ 電話番号は変更できません（認証に使用）</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">メールアドレス</label>
+                            <input type="email" id="edit-email" name="email" maxlength="100" placeholder="example@example.com" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                            <p class="text-xs text-gray-500 mt-1">※ メールアドレスを登録すると、SMSが届かない場合にメールでも認証コードを受信できます</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">郵便番号</label>
+                            <input type="text" id="edit-postal-code" name="postal_code" placeholder="123-4567" pattern="\d{3}-?\d{4}" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">住所</label>
+                            <input type="text" id="edit-address" name="address" maxlength="255" placeholder="東京都渋谷区..." class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 個人情報 -->
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-800">個人情報</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">生年月日</label>
+                            <input type="date" id="edit-birth-date" name="birth_date" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">性別</label>
+                            <select id="edit-gender" name="gender" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                                <option value="">選択してください</option>
+                                <option value="male">男性</option>
+                                <option value="female">女性</option>
+                                <option value="other">その他</option>
+                                <option value="prefer_not_to_say">回答しない</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 成功メッセージ -->
+                <div id="profile-edit-success" class="hidden p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div class="flex items-center gap-3">
+                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <p class="text-green-800 font-medium">✅ 保存しました！</p>
+                    </div>
+                </div>
+
+                <!-- エラーメッセージ -->
+                <div id="profile-edit-error" class="hidden p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <p class="text-red-800 text-sm"></p>
+                </div>
+
+                <!-- ボタン -->
+                <div class="flex gap-3 pt-4">
+                    <button type="button" id="cancelProfileEdit" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors">
+                        キャンセル
+                    </button>
+                    <button type="submit" class="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors">
+                        保存する
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Store Switcher Modal -->
 <div id="storeSwitcherModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
     <div class="relative mx-auto border w-full max-w-md shadow-lg rounded-md bg-white">
@@ -270,12 +362,6 @@
 <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
     <div class="w-full">
         <div class="grid grid-cols-4 gap-0">
-            <a href="#" onclick="goToReservation(); return false;" class="flex flex-col items-center justify-center py-3 hover:bg-gray-50 transition-colors">
-                <svg class="w-6 h-6 text-gray-600 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-                <span class="text-xs text-gray-600">予約</span>
-            </a>
             <a href="#reservations" class="flex flex-col items-center justify-center py-3 hover:bg-gray-50 transition-colors">
                 <svg class="w-6 h-6 text-gray-600 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -287,6 +373,12 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 <span class="text-xs text-gray-600">カルテ</span>
+            </a>
+            <a href="#" onclick="document.getElementById('profile-edit-btn')?.click() || openProfileEditModal(); return false;" class="flex flex-col items-center justify-center py-3 hover:bg-gray-50 transition-colors">
+                <svg class="w-6 h-6 text-gray-600 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span class="text-xs text-gray-600">マイページ</span>
             </a>
             <a href="#" onclick="document.getElementById('logout-btn').click(); return false;" class="flex flex-col items-center justify-center py-3 hover:bg-gray-50 transition-colors">
                 <svg class="w-6 h-6 text-gray-600 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -859,63 +951,18 @@ function displayNextReservation() {
             return dateA - dateB;
         });
     
-    if (upcomingReservations.length > 0) {
-        const nextReservation = upcomingReservations[0];
-        const nextReservationElement = document.getElementById('next-reservation');
-        nextReservationElement.classList.remove('hidden');
-        
-        document.getElementById('next-reservation-details').innerHTML = `
-            <div class="space-y-2">
-                <p class="text-2xl font-bold text-gray-900">${nextReservation.menu?.name || 'メニュー'}</p>
-                ${nextReservation.option_menus && nextReservation.option_menus.length > 0 ? `
-                    <div class="flex flex-wrap gap-2 mt-1">
-                        ${nextReservation.option_menus.map(option => `
-                            <span class="inline-block bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded">
-                                +${option.name}
-                            </span>
-                        `).join('')}
-                    </div>
-                ` : ''}
-                <div class="flex flex-wrap gap-4 text-gray-600">
-                    <span class="flex items-center">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        ${formatDate(nextReservation.reservation_date)}
-                    </span>
-                    <span class="flex items-center">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        ${formatTime(nextReservation.start_time)}
-                    </span>
-                    <span class="flex items-center">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        </svg>
-                        ${nextReservation.store?.name || '店舗'}
-                    </span>
-                </div>
-                <div class="text-lg font-semibold text-gray-900 mt-2">
-                    ${(() => {
-                        const hasOptions = nextReservation.option_menus && nextReservation.option_menus.length > 0;
-                        if (hasOptions) {
-                            const basePrice = nextReservation.menu?.is_subscription ?
-                                (nextReservation.menu?.subscription_monthly_price || 0) :
-                                (nextReservation.menu?.price || 0);
-                            const optionTotal = nextReservation.option_menus.reduce((sum, opt) => sum + (opt.pivot?.price || 0), 0);
-                            return `合計: ¥${Math.floor(nextReservation.total_amount || 0).toLocaleString()}`;
-                        }
-                        return `¥${Math.floor(nextReservation.total_amount || 0).toLocaleString()}`;
-                    })()}
-                </div>
-            </div>
-        `;
-        
-        // ボタンのイベント
-        document.getElementById('next-change-btn').onclick = () => changeReservationDate(nextReservation.id);
-        document.getElementById('next-cancel-btn').onclick = () => cancelReservation(nextReservation.id);
-    }
+    // 「次回の予約」セクションは削除されました
+    // if (upcomingReservations.length > 0) {
+    //     const nextReservation = upcomingReservations[0];
+    //     const nextReservationElement = document.getElementById('next-reservation');
+    //     nextReservationElement.classList.remove('hidden');
+    //
+    //     document.getElementById('next-reservation-details').innerHTML = `...`;
+    //
+    //     // ボタンのイベント
+    //     document.getElementById('next-change-btn').onclick = () => changeReservationDate(nextReservation.id);
+    //     document.getElementById('next-cancel-btn').onclick = () => cancelReservation(nextReservation.id);
+    // }
 }
 
 function updateReservationCount() {
@@ -1942,16 +1989,29 @@ function closeStoreSwitcherModal() {
 // 初期化時に複数店舗チェック
 async function initializeStoreSwitcher() {
     try {
-        const customerData = JSON.parse(localStorage.getItem('customer_data'));
-        if (!customerData || !customerData.phone) return;
+        const token = localStorage.getItem('customer_token');
+        if (!token) return;
 
-        // 本来はAPIで同じ電話番号を持つ customer_id をすべて取得
-        // 複数ある場合のみボタンを表示
-        // 現時点では常に表示（テスト用）
-        const switcherBtn = document.getElementById('store-switcher-btn');
-        if (switcherBtn) {
-            switcherBtn.classList.remove('hidden');
-            switcherBtn.classList.add('flex');
+        // APIで利用可能な店舗一覧を取得
+        const response = await fetch('/api/customer/available-stores', {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.stores && data.stores.length > 1) {
+            // 2店舗以上ある場合のみボタンを表示
+            const switcherBtn = document.getElementById('store-switcher-btn');
+            if (switcherBtn) {
+                switcherBtn.classList.remove('hidden');
+                switcherBtn.classList.add('flex');
+            }
+            console.log('店舗切り替えボタンを表示:', data.stores.length + '店舗');
+        } else {
+            console.log('店舗切り替えボタン非表示: 利用店舗数', data.stores?.length || 0);
         }
     } catch (error) {
         console.error('Error initializing store switcher:', error);
@@ -1960,5 +2020,158 @@ async function initializeStoreSwitcher() {
 
 // ページロード時に初期化
 initializeStoreSwitcher();
+
+// ========================================
+// プロフィール編集機能
+// ========================================
+
+// プロフィール編集モーダルを開く関数
+async function openProfileEditModal() {
+    const modal = document.getElementById('profileEditModal');
+    const token = localStorage.getItem('customer_token');
+
+    try {
+        // 現在の顧客情報を取得
+        const response = await fetch('/api/customer/me', {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.data.customer) {
+            const customer = data.data.customer;
+
+            // フォームに現在の値を設定
+            document.getElementById('edit-last-name').value = customer.last_name || '';
+            document.getElementById('edit-first-name').value = customer.first_name || '';
+            document.getElementById('edit-last-name-kana').value = customer.last_name_kana || '';
+            document.getElementById('edit-first-name-kana').value = customer.first_name_kana || '';
+            document.getElementById('edit-phone').value = customer.phone || '';
+            document.getElementById('edit-email').value = customer.email || '';
+            document.getElementById('edit-postal-code').value = customer.postal_code || '';
+            document.getElementById('edit-address').value = customer.address || '';
+            document.getElementById('edit-birth-date').value = customer.birth_date || '';
+            document.getElementById('edit-gender').value = customer.gender || '';
+
+            // モーダルを表示
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+    } catch (error) {
+        console.error('Error loading customer data:', error);
+        alert('顧客情報の読み込みに失敗しました');
+    }
+}
+
+// プロフィール編集モーダルを閉じる
+document.getElementById('closeProfileModal').addEventListener('click', function() {
+    const modal = document.getElementById('profileEditModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.getElementById('profile-edit-error').classList.add('hidden');
+    document.getElementById('profile-edit-success').classList.add('hidden');
+});
+
+document.getElementById('cancelProfileEdit').addEventListener('click', function() {
+    const modal = document.getElementById('profileEditModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.getElementById('profile-edit-error').classList.add('hidden');
+    document.getElementById('profile-edit-success').classList.add('hidden');
+});
+
+// プロフィール更新フォーム送信
+document.getElementById('profileEditForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const token = localStorage.getItem('customer_token');
+    const errorDiv = document.getElementById('profile-edit-error');
+    const errorText = errorDiv.querySelector('p');
+    const successDiv = document.getElementById('profile-edit-success');
+
+    // メッセージを非表示
+    errorDiv.classList.add('hidden');
+    successDiv.classList.add('hidden');
+
+    // フォームデータを取得
+    const formData = {
+        last_name: document.getElementById('edit-last-name').value,
+        first_name: document.getElementById('edit-first-name').value,
+        last_name_kana: document.getElementById('edit-last-name-kana').value || null,
+        first_name_kana: document.getElementById('edit-first-name-kana').value || null,
+        email: document.getElementById('edit-email').value || null,
+        postal_code: document.getElementById('edit-postal-code').value || null,
+        address: document.getElementById('edit-address').value || null,
+        birth_date: document.getElementById('edit-birth-date').value || null,
+        gender: document.getElementById('edit-gender').value || null,
+    };
+
+    try {
+        const response = await fetch('/api/customer/profile', {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            // localStorageの顧客データを更新
+            const customerData = JSON.parse(localStorage.getItem('customer_data'));
+            if (customerData) {
+                customerData.name = data.data.customer.full_name;
+                customerData.last_name = data.data.customer.last_name;
+                customerData.first_name = data.data.customer.first_name;
+                customerData.email = data.data.customer.email;
+                localStorage.setItem('customer_data', JSON.stringify(customerData));
+            }
+
+            // 表示中の顧客情報を更新
+            document.getElementById('customer-info').textContent = data.data.customer.full_name + ' 様';
+
+            // 成功メッセージを表示
+            successDiv.classList.remove('hidden');
+
+            // ボタンを無効化（連打防止）
+            const submitBtn = document.querySelector('#profileEditForm button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.textContent = '保存しました！';
+
+            // 2秒後にモーダルを閉じる
+            setTimeout(() => {
+                const modal = document.getElementById('profileEditModal');
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                successDiv.classList.add('hidden');
+                submitBtn.disabled = false;
+                submitBtn.textContent = '保存する';
+            }, 2000);
+
+        } else {
+            // エラーメッセージを表示
+            let errorMessage = '更新に失敗しました';
+            if (data.error && data.error.message) {
+                errorMessage = data.error.message;
+            } else if (data.error && data.error.details) {
+                const errors = Object.values(data.error.details);
+                errorMessage = errors.flat().join('、');
+            }
+            errorText.textContent = errorMessage;
+            errorDiv.classList.remove('hidden');
+        }
+    } catch (error) {
+        console.error('Error updating profile:', error);
+        errorText.textContent = 'プロフィールの更新中にエラーが発生しました';
+        errorDiv.classList.remove('hidden');
+    }
+});
+
 </script>
 @endsection
