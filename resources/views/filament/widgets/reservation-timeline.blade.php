@@ -2826,7 +2826,9 @@
                                                 $displayMenus = $this->getFilteredMenus();
                                             } else {
                                                 $displayMenusQuery = \App\Models\Menu::where('is_available', true)
-                                                    ->where('is_visible_to_customer', true);
+                                                    ->where('is_visible_to_customer', true)
+                                                    ->where('is_option', false)  // オプションメニューを除外
+                                                    ->where('show_in_upsell', false);  // アップセル用メニューを除外
 
                                                 // 選択された店舗のメニューのみ表示
                                                 if ($selectedStore) {
