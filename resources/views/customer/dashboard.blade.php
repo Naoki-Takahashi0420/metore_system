@@ -7,33 +7,39 @@
 @endsection
 
 @section('content')
-<div class="bg-gray-50 min-h-screen py-8 pb-20">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <!-- ヘッダー -->
-        <div class="bg-white rounded-lg shadow-md p-4 md:p-6 mb-6">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h1 class="text-xl md:text-2xl font-bold text-gray-900 mb-2">マイページ</h1>
-                    <p class="text-sm md:text-base text-gray-600" id="customer-info">
-                        読み込み中...
-                    </p>
-                    <p class="text-xs md:text-sm text-gray-500 mt-1" id="store-info">
-                        <!-- 店舗情報が動的に挿入されます -->
-                    </p>
-                </div>
-                <div class="flex gap-2">
-                    <button id="store-switcher-btn" class="hidden bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors items-center gap-2">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
-                        </svg>
-                        店舗切替
-                    </button>
-                    <button id="logout-btn" class="bg-gray-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-600 transition-colors">
-                        ログアウト
-                    </button>
+<div class="bg-gray-50 min-h-screen pb-20">
+    <!-- Fixed Header Bar -->
+    <div class="fixed top-0 left-0 right-0 bg-white border-b border-gray-200 shadow-sm z-40">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="py-4 md:py-5">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-4">
+                    <div>
+                        <h1 class="text-xl md:text-2xl font-bold text-gray-900 mb-1 md:mb-2">マイページ</h1>
+                        <p class="text-sm md:text-base text-gray-600" id="customer-info">
+                            読み込み中...
+                        </p>
+                        <p class="text-xs md:text-sm text-gray-500 mt-1" id="store-info">
+                            <!-- 店舗情報が動的に挿入されます -->
+                        </p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="store-switcher-btn" class="hidden bg-blue-500 text-white px-3 md:px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                            </svg>
+                            <span class="hidden md:inline">店舗切替</span>
+                        </button>
+                        <button id="logout-btn" class="bg-gray-500 text-white px-3 md:px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-600 transition-colors">
+                            ログアウト
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Content with top padding to account for fixed header -->
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 md:pt-36">
 
         <!-- サブスクリプション会員用ボタン -->
         <div id="subscription-section" class="hidden bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl shadow-sm mb-4 p-6">
@@ -153,8 +159,8 @@
                 </a>
             </div>
         </div>
-    </div>
-</div>
+    </div><!-- /.max-w-6xl -->
+</div><!-- /.bg-gray-50 -->
 
 <!-- キャンセル確認モーダル -->
 <div id="cancelModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">

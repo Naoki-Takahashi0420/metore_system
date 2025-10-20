@@ -4,36 +4,42 @@
 
 @section('content')
 <div class="bg-white min-h-screen pb-20 md:pb-0">
-    <div class="max-w-4xl mx-auto px-4">
-        <!-- Header -->
-        <div class="py-6 border-b border-gray-100">
-            <div class="flex justify-between items-center">
-                <div>
-                    <h1 class="text-xl font-semibold text-gray-900">カルテ</h1>
-                    <p class="text-sm text-gray-500 mt-1" id="customer-info">
-                        読み込み中...
-                    </p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <button onclick="history.back()" class="text-gray-600 hover:text-gray-900 p-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19l-7-7 7-7" />
-                        </svg>
-                    </button>
-                    <a href="/customer/dashboard" class="text-gray-600 hover:text-gray-900 p-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                        </svg>
-                    </a>
-                    <a href="/customer/reservations" class="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm">
-                        予約履歴
-                    </a>
-                    <a href="#" onclick="goToReservation(); return false;" class="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-800 transition-colors">
-                        新規予約
-                    </a>
+    <!-- Fixed Header Bar -->
+    <div class="fixed top-0 left-0 right-0 bg-white border-b border-gray-200 shadow-sm z-40">
+        <div class="max-w-4xl mx-auto px-4">
+            <div class="py-4 md:py-6">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="text-xl font-semibold text-gray-900">カルテ</h1>
+                        <p class="text-sm text-gray-500 mt-1" id="customer-info">
+                            読み込み中...
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="history.back()" class="text-gray-600 hover:text-gray-900 p-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+                        <a href="/customer/dashboard" class="text-gray-600 hover:text-gray-900 p-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                            </svg>
+                        </a>
+                        <a href="/customer/reservations" class="hidden md:block text-gray-600 hover:text-gray-900 px-3 py-2 text-sm">
+                            予約履歴
+                        </a>
+                        <a href="#" onclick="goToReservation(); return false;" class="bg-gray-900 text-white px-3 md:px-4 py-2 rounded-lg text-sm hover:bg-gray-800 transition-colors">
+                            新規予約
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Content with top padding to account for fixed header -->
+    <div class="max-w-4xl mx-auto px-4 pt-24 md:pt-28">
 
         <!-- 視力推移グラフ -->
         <div id="vision-chart-container" class="hidden py-6">
@@ -75,8 +81,8 @@
             <p class="text-sm text-gray-500">まだトレーニングを受けていらっしゃいません</p>
         </div>
 
-    </div>
-</div>
+    </div><!-- /.max-w-4xl -->
+</div><!-- /.bg-white -->
 
 <!-- 画像詳細モーダル -->
 <div id="imageModal" class="hidden fixed inset-0 bg-black overflow-y-auto h-full w-full z-50 transition-opacity duration-300 opacity-0" onclick="closeImageModalGallery()">
