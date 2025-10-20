@@ -109,11 +109,20 @@ class TicketPlanResource extends Resource
 
                 Forms\Components\Section::make('有効期限設定')
                     ->schema([
+                        Forms\Components\TextInput::make('validity_months')
+                            ->label('有効期限（月）')
+                            ->numeric()
+                            ->suffix('ヶ月')
+                            ->default(6)
+                            ->disabled()
+                            ->helperText('すべての回数券は6ヶ月固定です（変更不可）'),
+
                         Forms\Components\Placeholder::make('validity_info')
-                            ->label('有効期限')
-                            ->content('すべての回数券の有効期限は購入日から6ヶ月間です（変更不可）')
+                            ->label('補足')
+                            ->content('回数券の有効期限は購入日から6ヶ月間です')
                             ->columnSpanFull(),
-                    ]),
+                    ])
+                    ->columns(2),
             ]);
     }
 
