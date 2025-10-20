@@ -2598,18 +2598,16 @@ class ReservationTimelineWidget extends Widget
             }
 
             // 店舗の全メニューから条件に合うものをオプションとして表示
-            // is_option=true または (通常メニューかつ設定金額以下)
-            // ただし、show_in_upsell=true（追加オプション提案用）とサブスクは除外
-            $maxPrice = config('reservation.option_menu.max_price', 3000);
-
+            // show_in_upsell=trueのメニュー（アップセル用メニュー = オプション）
+            // または is_option=true のメニュー
+            // サブスクメニューは除外
             $this->availableOptions = \App\Models\Menu::where('is_available', true)
                 ->where('store_id', $mainMenu->store_id)
                 ->where('id', '!=', $menuId)
-                ->where('show_in_upsell', false) // 追加オプション提案メニューを除外
                 ->where('is_subscription', false) // サブスクメニューを除外
-                ->where(function($q) use ($maxPrice) {
-                    $q->where('is_option', true)
-                      ->orWhere('price', '<=', $maxPrice); // 設定金額以下の通常メニュー
+                ->where(function($q) {
+                    $q->where('show_in_upsell', true)  // アップセル用メニュー = オプション
+                      ->orWhere('is_option', true);    // または明示的にオプション設定されたもの
                 })
                 ->orderBy('price')
                 ->get()
