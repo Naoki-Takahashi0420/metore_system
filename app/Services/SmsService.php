@@ -14,21 +14,34 @@ class SmsService
         // AWS認証情報をconfigから取得（本番環境対応）
         $awsKey = config('services.sns.key');
         $awsSecret = config('services.sns.secret');
-        
-        // AWS認証情報がある場合のみSNSクライアントを初期化
-        if ($awsKey && $awsSecret) {
-            $this->snsClient = new SnsClient([
-                'region' => config('services.sns.region', 'ap-northeast-1'),
-                'version' => 'latest',
-                'credentials' => [
-                    'key' => $awsKey,
-                    'secret' => $awsSecret,
-                ],
-            ]);
+        $region = config('services.sns.region', 'ap-northeast-1');
+
+        // AWS認証情報とリージョンがすべて揃っている場合のみSNSクライアントを初期化
+        if ($awsKey && $awsSecret && $region) {
+            try {
+                $this->snsClient = new SnsClient([
+                    'region' => $region,
+                    'version' => 'latest',
+                    'credentials' => [
+                        'key' => $awsKey,
+                        'secret' => $awsSecret,
+                    ],
+                ]);
+
+                Log::info('SmsService: AWS SNS initialized successfully', [
+                    'region' => $region,
+                ]);
+            } catch (\Exception $e) {
+                Log::error('SmsService: Failed to initialize AWS SNS', [
+                    'error' => $e->getMessage(),
+                    'region' => $region,
+                ]);
+            }
         } else {
             Log::warning('SmsService: AWS認証情報が見つかりません', [
-                'config_key' => config('services.sns.key'),
-                'config_secret_exists' => !empty(config('services.sns.secret')),
+                'has_key' => !empty($awsKey),
+                'has_secret' => !empty($awsSecret),
+                'has_region' => !empty($region),
             ]);
         }
     }

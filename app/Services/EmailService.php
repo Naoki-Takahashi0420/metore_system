@@ -14,21 +14,34 @@ class EmailService
         // AWS認証情報をconfigから取得
         $awsKey = config('services.ses.key');
         $awsSecret = config('services.ses.secret');
+        $region = config('services.ses.region', 'ap-northeast-1');
 
-        // AWS認証情報がある場合のみSESクライアントを初期化
-        if ($awsKey && $awsSecret) {
-            $this->sesClient = new SesClient([
-                'region' => config('services.ses.region', 'ap-northeast-1'),
-                'version' => 'latest',
-                'credentials' => [
-                    'key' => $awsKey,
-                    'secret' => $awsSecret,
-                ],
-            ]);
+        // AWS認証情報とリージョンがすべて揃っている場合のみSESクライアントを初期化
+        if ($awsKey && $awsSecret && $region) {
+            try {
+                $this->sesClient = new SesClient([
+                    'region' => $region,
+                    'version' => 'latest',
+                    'credentials' => [
+                        'key' => $awsKey,
+                        'secret' => $awsSecret,
+                    ],
+                ]);
+
+                Log::info('EmailService: AWS SES initialized successfully', [
+                    'region' => $region,
+                ]);
+            } catch (\Exception $e) {
+                Log::error('EmailService: Failed to initialize AWS SES', [
+                    'error' => $e->getMessage(),
+                    'region' => $region,
+                ]);
+            }
         } else {
             Log::warning('EmailService: AWS認証情報が見つかりません', [
-                'config_key' => config('services.ses.key'),
-                'config_secret_exists' => !empty(config('services.ses.secret')),
+                'has_key' => !empty($awsKey),
+                'has_secret' => !empty($awsSecret),
+                'has_region' => !empty($region),
             ]);
         }
     }
