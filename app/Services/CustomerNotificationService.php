@@ -15,10 +15,10 @@ class CustomerNotificationService
     private SimpleLineService $lineService;
     private SmsService $smsService;
 
-    public function __construct()
+    public function __construct(SimpleLineService $lineService, SmsService $smsService)
     {
-        $this->lineService = new SimpleLineService();
-        $this->smsService = new SmsService();
+        $this->lineService = $lineService;
+        $this->smsService = $smsService;
     }
 
     /**

@@ -205,12 +205,19 @@ document.addEventListener('DOMContentLoaded', function() {
     // Form submission
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
-        
+
         const phone = document.getElementById('phone').value;
         if (!phone) return;
-        
+
+        const sendButton = document.getElementById('send-otp-button');
+
+        // ダブルクリック防止
+        if (sendButton.disabled) return;
+        sendButton.disabled = true;
+        sendButton.textContent = '送信中...';
+
         currentPhone = phone;
-        
+
         try {
             const response = await fetch('/api/auth/customer/send-otp', {
                 method: 'POST',
@@ -223,7 +230,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     is_resend: false  // 初回送信
                 })
             });
-            
+
             const data = await response.json();
             
             if (response.ok) {
@@ -262,6 +269,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     type: 'error'
                 }
             }));
+        } finally {
+            // ボタンを再有効化
+            sendButton.disabled = false;
+            sendButton.textContent = 'SMS認証コードを送信';
         }
     });
     
