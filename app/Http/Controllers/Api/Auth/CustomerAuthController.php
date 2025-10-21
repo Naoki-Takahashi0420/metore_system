@@ -60,7 +60,9 @@ class CustomerAuthController extends Controller
         $email = $customer && $customer->email ? $customer->email : null;
 
         // OTP送信（メールアドレスがあればメールでも送信）
-        if (!$this->otpService->sendOtp($request->phone, $email)) {
+        $result = $this->otpService->sendOtp($request->phone, $email);
+
+        if (!$result['success']) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -69,18 +71,23 @@ class CustomerAuthController extends Controller
                 ],
             ], 500);
         }
-        
+
         // 送信先に応じてメッセージを変更
         $message = '認証コードを送信しました';
-        if ($email) {
+        if ($result['sms_sent'] && $result['email_sent']) {
             $message = '認証コードをSMSとメールに送信しました';
+        } elseif ($result['email_sent']) {
+            $message = '認証コードをメールに送信しました';
+        } elseif ($result['sms_sent']) {
+            $message = '認証コードをSMSに送信しました';
         }
 
         return response()->json([
             'success' => true,
             'data' => [
                 'message' => $message,
-                'email_sent' => $email !== null, // メール送信したかどうかをフロントに伝える
+                'email_sent' => $result['email_sent'], // 実際のメール送信結果を返す
+                'sms_sent' => $result['sms_sent'], // SMS送信結果も返す
             ],
         ]);
     }

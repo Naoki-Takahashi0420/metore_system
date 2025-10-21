@@ -23,9 +23,9 @@ class OtpService
      *
      * @param string $phone
      * @param string|null $email オプション：メールアドレスが指定された場合はメールでも送信
-     * @return bool
+     * @return array ['success' => bool, 'sms_sent' => bool, 'email_sent' => bool]
      */
-    public function sendOtp(string $phone, ?string $email = null): bool
+    public function sendOtp(string $phone, ?string $email = null): array
     {
         // 電話番号を正規化
         $normalizedPhone = PhoneHelper::normalize($phone);
@@ -51,6 +51,7 @@ class OtpService
         $smsSent = $this->smsService->sendOtp($phone, $otp);
 
         // メールアドレスが指定されている場合はメールでも送信
+        $emailSent = false;
         if ($email) {
             $emailSent = $this->emailService->sendOtpEmail($email, $otp);
 
@@ -60,12 +61,16 @@ class OtpService
                 'sms_sent' => $smsSent,
                 'email_sent' => $emailSent,
             ]);
-
-            // SMS または メールのどちらかが送信成功すればOK
-            return $smsSent || $emailSent;
         }
 
-        return $smsSent;
+        // SMS または メールのどちらかが送信成功すればOK
+        $success = $smsSent || $emailSent;
+
+        return [
+            'success' => $success,
+            'sms_sent' => $smsSent,
+            'email_sent' => $emailSent,
+        ];
     }
     
     /**
