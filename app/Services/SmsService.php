@@ -98,6 +98,14 @@ class SmsService
      */
     public function sendOtp(string $phone, string $otp): bool
     {
+        Log::info('🚀 [SMS] sendOtp called', [
+            'phone' => $phone,
+            'otp' => $otp,
+            'env' => config('app.env'),
+            'sns_enabled' => config('services.sns.enabled', true),
+            'has_sns_client' => $this->snsClient !== null,
+        ]);
+
         // 開発環境ではOTPコードをログに出力
         if (config('app.env') === 'local') {
             Log::info('📱 SMS認証コード（開発環境用）', [
@@ -108,8 +116,9 @@ class SmsService
 
         // SMS送信が無効化されている場合はここでリターン
         if (!config('services.sns.enabled', true)) {
-            Log::info('SMS送信が無効化されています（OTPコードは上記のログを確認）', [
+            Log::info('⚠️ [SMS] SMS送信が無効化されています', [
                 'phone' => $phone,
+                'otp' => $otp,
             ]);
             return true;
         }
@@ -118,7 +127,7 @@ class SmsService
         if (!$this->snsClient) {
             // ローカル環境では警告、本番環境ではエラー
             $logLevel = (config('app.env') === 'production') ? 'error' : 'warning';
-            Log::$logLevel('AWS SNS認証情報が設定されていません', [
+            Log::$logLevel('❌ [SMS] AWS SNS認証情報が設定されていません', [
                 'phone' => $phone,
                 'env' => config('app.env'),
                 'key_exists' => config('services.sns.key') !== null,
@@ -143,7 +152,19 @@ class SmsService
             $otp
         );
 
-        return $this->sendSms($phone, $message);
+        Log::info('📤 [SMS] sendSms呼び出し', [
+            'phone' => $phone,
+            'message_length' => strlen($message),
+        ]);
+
+        $result = $this->sendSms($phone, $message);
+
+        Log::info('✅ [SMS] sendSms結果', [
+            'phone' => $phone,
+            'result' => $result,
+        ]);
+
+        return $result;
     }
     
     /**
