@@ -7,18 +7,30 @@ use Illuminate\Support\Facades\Log;
 
 class EmailService
 {
-    private SesClient $sesClient;
-    
+    private ?SesClient $sesClient = null;
+
     public function __construct()
     {
-        $this->sesClient = new SesClient([
-            'region' => config('services.ses.region', 'ap-northeast-1'),
-            'version' => 'latest',
-            'credentials' => [
-                'key' => config('services.ses.key'),
-                'secret' => config('services.ses.secret'),
-            ],
-        ]);
+        // AWS認証情報をconfigから取得
+        $awsKey = config('services.ses.key');
+        $awsSecret = config('services.ses.secret');
+
+        // AWS認証情報がある場合のみSESクライアントを初期化
+        if ($awsKey && $awsSecret) {
+            $this->sesClient = new SesClient([
+                'region' => config('services.ses.region', 'ap-northeast-1'),
+                'version' => 'latest',
+                'credentials' => [
+                    'key' => $awsKey,
+                    'secret' => $awsSecret,
+                ],
+            ]);
+        } else {
+            Log::warning('EmailService: AWS認証情報が見つかりません', [
+                'config_key' => config('services.ses.key'),
+                'config_secret_exists' => !empty(config('services.ses.secret')),
+            ]);
+        }
     }
     
     /**
@@ -32,10 +44,29 @@ class EmailService
      */
     public function sendEmail(string $to, string $subject, string $body, ?string $textBody = null): bool
     {
+        // AWS認証情報が設定されていない場合
+        if (!$this->sesClient) {
+            Log::warning('AWS SES認証情報が設定されていないため、メール送信をスキップ', [
+                'to' => $to,
+                'subject' => $subject,
+            ]);
+
+            // ローカル環境では成功扱い（開発を妨げない）
+            if (config('app.env') === 'local' || config('app.env') === 'testing') {
+                Log::info('開発環境のため、メール送信をスキップしました', [
+                    'to' => $to,
+                    'subject' => $subject,
+                ]);
+                return true;
+            }
+
+            return false;
+        }
+
         try {
             $fromEmail = config('services.ses.from_email', 'noreply@meno-training.com');
             $fromName = config('services.ses.from_name', '目のトレーニング');
-            
+
             // 本番環境でメール送信
             $result = $this->sesClient->sendEmail([
                 'Source' => "$fromName <$fromEmail>",
@@ -86,6 +117,14 @@ class EmailService
      */
     public function sendOtpEmail(string $email, string $otp): bool
     {
+        // 開発環境ではOTPコードをログに出力
+        if (config('app.env') === 'local') {
+            Log::info('📧 メール認証コード（開発環境用）', [
+                'email' => $email,
+                'otp' => $otp,
+            ]);
+        }
+
         $appName = config('app.name');
         
         $subject = "【{$appName}】認証コードのお知らせ";
