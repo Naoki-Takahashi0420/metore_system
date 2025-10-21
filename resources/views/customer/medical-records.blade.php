@@ -58,6 +58,12 @@
                             <canvas id="correctedVisionChart"></canvas>
                         </div>
                     </div>
+                    <div id="presbyopia-vision-chart-wrapper" class="hidden">
+                        <h3 class="text-base font-medium mb-3 text-gray-700">老眼測定（近見距離 A95%）</h3>
+                        <div class="relative" style="height: 300px;">
+                            <canvas id="presbyopiaVisionChart"></canvas>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -951,8 +957,140 @@ function renderVisionCharts(records) {
         }
     }
 
+    // 老眼グラフ（A95%の値を使用）
+    const leftPresbyopiaBefore = [];
+    const leftPresbyopiaAfter = [];
+    const rightPresbyopiaBefore = [];
+    const rightPresbyopiaAfter = [];
+    let hasPresbyopiaData = false;
+
+    records.forEach(record => {
+        if (record.presbyopia_before || record.presbyopia_after) {
+            hasPresbyopiaData = true;
+
+            // 施術前のA95%値
+            const leftPresbyB = record.presbyopia_before?.a_95_left ? parseFloat(record.presbyopia_before.a_95_left) : null;
+            const rightPresbyB = record.presbyopia_before?.a_95_right ? parseFloat(record.presbyopia_before.a_95_right) : null;
+
+            // 施術後のA95%値
+            const leftPresbyA = record.presbyopia_after?.a_95_left ? parseFloat(record.presbyopia_after.a_95_left) : null;
+            const rightPresbyA = record.presbyopia_after?.a_95_right ? parseFloat(record.presbyopia_after.a_95_right) : null;
+
+            leftPresbyopiaBefore.push(leftPresbyB);
+            leftPresbyopiaAfter.push(leftPresbyA);
+            rightPresbyopiaBefore.push(rightPresbyB);
+            rightPresbyopiaAfter.push(rightPresbyA);
+        } else {
+            // データがない場合はnullを追加して日付を揃える
+            leftPresbyopiaBefore.push(null);
+            leftPresbyopiaAfter.push(null);
+            rightPresbyopiaBefore.push(null);
+            rightPresbyopiaAfter.push(null);
+        }
+    });
+
+    if (hasPresbyopiaData) {
+        const presbyopiaWrapper = document.getElementById('presbyopia-vision-chart-wrapper');
+        const presbyopiaCanvas = document.getElementById('presbyopiaVisionChart');
+
+        if (presbyopiaWrapper && presbyopiaCanvas) {
+            presbyopiaWrapper.classList.remove('hidden');
+            new Chart(presbyopiaCanvas, {
+                ...chartConfig,
+                data: {
+                    labels: dates,
+                    datasets: [
+                        {
+                            label: '左眼 施術前',
+                            data: leftPresbyopiaBefore,
+                            borderColor: 'rgb(139, 92, 246)',
+                            backgroundColor: 'rgb(139, 92, 246)',
+                            borderDash: [5, 5],
+                            pointStyle: 'rect',
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            tension: 0.4,
+                            spanGaps: true
+                        },
+                        {
+                            label: '左眼 施術後',
+                            data: leftPresbyopiaAfter,
+                            borderColor: 'rgb(139, 92, 246)',
+                            backgroundColor: 'rgb(139, 92, 246)',
+                            pointStyle: 'circle',
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            tension: 0.4,
+                            spanGaps: true
+                        },
+                        {
+                            label: '右眼 施術前',
+                            data: rightPresbyopiaBefore,
+                            borderColor: 'rgb(234, 88, 12)',
+                            backgroundColor: 'rgb(234, 88, 12)',
+                            borderDash: [5, 5],
+                            pointStyle: 'rect',
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            tension: 0.4,
+                            spanGaps: true
+                        },
+                        {
+                            label: '右眼 施術後',
+                            data: rightPresbyopiaAfter,
+                            borderColor: 'rgb(234, 88, 12)',
+                            backgroundColor: 'rgb(234, 88, 12)',
+                            pointStyle: 'circle',
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            tension: 0.4,
+                            spanGaps: true
+                        }
+                    ]
+                },
+                options: {
+                    ...chartConfig.options,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                font: {
+                                    size: window.innerWidth < 640 ? 10 : 11
+                                },
+                                callback: function(value) {
+                                    return value + 'cm';
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: '近見距離（cm）',
+                                font: {
+                                    size: window.innerWidth < 640 ? 11 : 12
+                                }
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                font: {
+                                    size: window.innerWidth < 640 ? 10 : 11
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: '測定日',
+                                font: {
+                                    size: window.innerWidth < 640 ? 11 : 12
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
     // グラフコンテナを表示
-    if (hasNakedData || hasCorrectedData) {
+    if (hasNakedData || hasCorrectedData || hasPresbyopiaData) {
         chartContainer.classList.remove('hidden');
     }
 }
