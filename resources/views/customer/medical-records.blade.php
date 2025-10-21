@@ -670,7 +670,9 @@ function renderVisionCharts(records) {
             record.vision_records.forEach(vision => {
                 allVisionRecords.push({
                     ...vision,
-                    treatment_date: record.treatment_date || record.record_date
+                    // カルテの記録日を使用（vision.dateは使用しない）
+                    date: record.record_date || record.treatment_date || record.created_at,
+                    treatment_date: record.record_date || record.treatment_date || record.created_at
                 });
             });
         }
@@ -680,7 +682,7 @@ function renderVisionCharts(records) {
                  record.before_corrected_left || record.after_corrected_left ||
                  record.before_corrected_right || record.after_corrected_right) {
             allVisionRecords.push({
-                date: record.treatment_date || record.record_date,
+                date: record.record_date || record.treatment_date || record.created_at,
                 before_naked_left: record.before_naked_left,
                 after_naked_left: record.after_naked_left,
                 before_naked_right: record.before_naked_right,
@@ -689,7 +691,7 @@ function renderVisionCharts(records) {
                 after_corrected_left: record.after_corrected_left,
                 before_corrected_right: record.before_corrected_right,
                 after_corrected_right: record.after_corrected_right,
-                treatment_date: record.treatment_date || record.record_date
+                treatment_date: record.record_date || record.treatment_date || record.created_at
             });
         }
     });

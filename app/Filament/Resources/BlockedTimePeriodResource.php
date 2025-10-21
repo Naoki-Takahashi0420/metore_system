@@ -140,7 +140,18 @@ class BlockedTimePeriodResource extends Resource
                 Tables\Columns\TextColumn::make('reason')
                     ->label('理由')
                     ->limit(30),
-                    
+
+                Tables\Columns\TextColumn::make('creator.name')
+                    ->label('作成者')
+                    ->sortable()
+                    ->searchable()
+                    ->default('不明'),
+
+                Tables\Columns\TextColumn::make('created_at')
+                    ->label('作成日時')
+                    ->dateTime('Y/m/d H:i')
+                    ->sortable(),
+
                 Tables\Columns\IconColumn::make('is_recurring')
                     ->label('繰り返し')
                     ->boolean(),

@@ -18,7 +18,8 @@ class BlockedTimePeriod extends Model
         'recurrence_pattern',
         'line_type',
         'line_number',
-        'staff_id'
+        'staff_id',
+        'created_by'
     ];
 
     protected $casts = [
@@ -35,5 +36,10 @@ class BlockedTimePeriod extends Model
     public function staff(): BelongsTo
     {
         return $this->belongsTo(User::class, 'staff_id');
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 }

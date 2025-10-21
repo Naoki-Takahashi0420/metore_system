@@ -261,14 +261,47 @@ class CustomerSubscriptionResource extends Resource
                     ->schema([
                         Forms\Components\Select::make('payment_method')
                             ->label('決済方法')
-                            ->options([
-                                'robopay' => 'ロボットペイメント',
-                                'credit' => 'クレジットカード',
-                                'bank' => '銀行振込',
-                                'cash' => '現金',
-                            ])
-                            ->required(),
-                        
+                            ->options(function (callable $get) {
+                                $storeId = $get('store_id');
+                                if (!$storeId) {
+                                    return [
+                                        'robopay' => 'ロボットペイメント',
+                                        'credit' => 'クレジットカード',
+                                        'bank' => '銀行振込',
+                                        'cash' => '現金',
+                                    ];
+                                }
+
+                                $store = \App\Models\Store::find($storeId);
+                                if (!$store || !$store->payment_methods) {
+                                    return [
+                                        'robopay' => 'ロボットペイメント',
+                                        'credit' => 'クレジットカード',
+                                        'bank' => '銀行振込',
+                                        'cash' => '現金',
+                                    ];
+                                }
+
+                                // 店舗で設定された決済方法を取得
+                                $paymentMethods = [];
+                                foreach ($store->payment_methods as $index => $method) {
+                                    if (isset($method['name']) && !empty($method['name'])) {
+                                        $paymentMethods[$method['name']] = $method['name'];
+                                    }
+                                }
+
+                                return !empty($paymentMethods) ? $paymentMethods : [
+                                    'robopay' => 'ロボットペイメント',
+                                    'credit' => 'クレジットカード',
+                                    'bank' => '銀行振込',
+                                    'cash' => '現金',
+                                ];
+                            })
+                            ->required()
+                            ->reactive()
+                            ->searchable()
+                            ->helperText('店舗で設定された決済方法から選択'),
+
                         Forms\Components\TextInput::make('payment_reference')
                             ->label('決済参照番号')
                             ->helperText('外部決済サービスの参照番号'),

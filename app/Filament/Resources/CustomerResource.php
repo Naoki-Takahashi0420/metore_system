@@ -60,6 +60,46 @@ class CustomerResource extends Resource
             ->schema([
                 Forms\Components\Section::make('基本情報')
                     ->schema([
+                        Forms\Components\Select::make('store_id')
+                            ->label('所属店舗')
+                            ->options(function () {
+                                $user = auth()->user();
+
+                                if ($user->hasRole('super_admin')) {
+                                    return \App\Models\Store::where('is_active', true)->pluck('name', 'id');
+                                } elseif ($user->hasRole('owner')) {
+                                    return $user->manageableStores()
+                                        ->select('stores.id', 'stores.name', 'stores.is_active')
+                                        ->where('stores.is_active', true)
+                                        ->pluck('name', 'stores.id');
+                                } else {
+                                    // 店長・スタッフは自店舗のみ
+                                    return $user->store ? collect([$user->store->id => $user->store->name]) : collect();
+                                }
+                            })
+                            ->searchable()
+                            ->default(function () {
+                                $user = auth()->user();
+                                // スタッフ・店長は自店舗をデフォルト選択
+                                if ($user->hasRole(['staff', 'manager']) && $user->store_id) {
+                                    return $user->store_id;
+                                }
+                                return null;
+                            })
+                            ->disabled(function () {
+                                $user = auth()->user();
+                                // スタッフ・店長は店舗選択を変更不可
+                                return $user->hasRole(['staff', 'manager']);
+                            })
+                            ->helperText(function () {
+                                $user = auth()->user();
+                                if ($user->hasRole(['staff', 'manager'])) {
+                                    return '自店舗の顧客として登録されます';
+                                }
+                                return '顧客の主要な所属店舗を選択してください（任意）';
+                            })
+                            ->columnSpanFull(),
+
                         Forms\Components\TextInput::make('last_name')
                             ->label('姓')
                             ->required()

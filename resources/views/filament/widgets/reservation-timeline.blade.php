@@ -62,6 +62,218 @@
         }
     </script>
 
+    <!-- メニュー変更用JavaScript -->
+    <script>
+        // メニュー変更用のグローバル変数
+        window.menusData = window.menusData || [];
+        window.optionsData = window.optionsData || [];
+        window.currentReservationId = window.currentReservationId || null;
+
+        // メニュー変更編集モードの切り替え
+        window.toggleMenuEdit = async function(reservationId, storeId) {
+            console.log('🍽️ toggleMenuEdit called:', { reservationId, storeId });
+
+            const menuDisplay = document.getElementById('menuDisplay');
+            const menuEdit = document.getElementById('menuEdit');
+            const menuChangeBtn = document.getElementById('menuChangeBtn');
+
+            if (!menuDisplay || !menuEdit) {
+                console.error('Menu change elements not found');
+                alert('エラー: メニュー変更エリアが見つかりません');
+                return;
+            }
+
+            // 編集モードに切り替え
+            menuDisplay.style.display = 'none';
+            menuEdit.style.display = 'block';
+
+            if (menuChangeBtn) {
+                menuChangeBtn.textContent = '💾 保存';
+                menuChangeBtn.style.background = '#10b981';
+                menuChangeBtn.onclick = function() { saveMenuChange(reservationId); };
+            }
+
+            window.currentReservationId = reservationId;
+
+            try {
+                // メニュー一覧を取得
+                await loadMenus(storeId);
+
+                // オプション一覧を取得
+                await loadOptions(storeId);
+
+            } catch (error) {
+                console.error('Error loading menus/options:', error);
+                alert('メニュー情報の取得に失敗しました');
+            }
+        }
+
+        // メニュー一覧を取得
+        async function loadMenus(storeId) {
+            try {
+                const response = await fetch(`/api/admin/stores/${storeId}/menus`, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    }
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    window.menusData = result.data;
+                    const menuSelect = document.getElementById('menuSelect');
+                    menuSelect.innerHTML = '<option value="">メニューを選択...</option>';
+
+                    window.menusData.forEach(menu => {
+                        const option = document.createElement('option');
+                        option.value = menu.id;
+                        option.textContent = `${menu.name} (¥${menu.price.toLocaleString()} / ${menu.duration_minutes}分)`;
+                        menuSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading menus:', error);
+                alert('メニュー一覧の取得に失敗しました');
+            }
+        }
+
+        // オプション一覧を取得
+        async function loadOptions(storeId) {
+            try {
+                const response = await fetch(`/api/admin/stores/${storeId}/options`, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    }
+                });
+                const result = await response.json();
+
+                if (result.success && result.data.length > 0) {
+                    window.optionsData = result.data;
+                    const optionSection = document.getElementById('optionSection');
+                    const optionCheckboxes = document.getElementById('optionCheckboxes');
+
+                    optionSection.style.display = 'block';
+                    optionCheckboxes.innerHTML = '';
+
+                    window.optionsData.forEach(option => {
+                        const div = document.createElement('div');
+                        div.style.marginBottom = '8px';
+
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.id = `option_${option.id}`;
+                        checkbox.value = option.id;
+                        checkbox.style.marginRight = '8px';
+
+                        const label = document.createElement('label');
+                        label.htmlFor = `option_${option.id}`;
+                        label.textContent = `${option.name} (+¥${option.price.toLocaleString()} / +${option.duration_minutes}分)`;
+                        label.style.cursor = 'pointer';
+
+                        div.appendChild(checkbox);
+                        div.appendChild(label);
+                        optionCheckboxes.appendChild(div);
+                    });
+                } else {
+                    const optionSection = document.getElementById('optionSection');
+                    if (optionSection) {
+                        optionSection.style.display = 'none';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading options:', error);
+                const optionSection = document.getElementById('optionSection');
+                if (optionSection) {
+                    optionSection.style.display = 'none';
+                }
+            }
+        }
+
+        // メニュー変更を保存
+        window.saveMenuChange = async function(reservationId) {
+            const menuSelect = document.getElementById('menuSelect');
+            const selectedMenuId = menuSelect.value;
+
+            if (!selectedMenuId) {
+                alert('メニューを選択してください');
+                return;
+            }
+
+            // 選択されたオプションを取得
+            const selectedOptionIds = [];
+            const optionCheckboxes = document.querySelectorAll('#optionCheckboxes input[type="checkbox"]:checked');
+            optionCheckboxes.forEach(checkbox => {
+                selectedOptionIds.push(parseInt(checkbox.value));
+            });
+
+            // 確認ダイアログ
+            const selectedMenu = window.menusData.find(m => m.id == selectedMenuId);
+            let confirmMessage = `メニューを「${selectedMenu.name}」に変更します。\n\n`;
+
+            if (selectedOptionIds.length > 0) {
+                confirmMessage += 'オプション:\n';
+                selectedOptionIds.forEach(optionId => {
+                    const option = window.optionsData.find(o => o.id == optionId);
+                    if (option) {
+                        confirmMessage += `  - ${option.name}\n`;
+                    }
+                });
+                confirmMessage += '\n';
+            }
+
+            confirmMessage += 'よろしいですか？';
+
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+
+            const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+            try {
+                const response = await fetch(`/api/admin/reservations/${reservationId}/change-menu`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        menu_id: selectedMenuId,
+                        option_menu_ids: selectedOptionIds
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('メニューを変更しました\n\n' +
+                          `合計時間: ${result.details.total_duration}\n` +
+                          `新しい終了時刻: ${result.details.new_end_time}`);
+                    window.location.reload();
+                } else {
+                    // エラーメッセージを表示
+                    let errorMsg = result.message;
+                    if (result.details) {
+                        errorMsg += '\n\n詳細:\n';
+                        errorMsg += `新しい終了時刻: ${result.details.new_end_time}\n`;
+                        errorMsg += `重複する予約: ${result.details.conflicting_times}\n`;
+                        errorMsg += `合計時間: ${result.details.total_duration}`;
+                    }
+                    alert(errorMsg);
+                }
+            } catch (error) {
+                console.error('Menu change error:', error);
+                alert('メニュー変更中にエラーが発生しました');
+            }
+        }
+
+        console.log('✅ Menu change functions loaded:', {
+            toggleMenuEdit: typeof window.toggleMenuEdit,
+            saveMenuChange: typeof window.saveMenuChange
+        });
+    </script>
+
     <x-filament::card>
         <!-- Tom Select CSS -->
         <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
@@ -1391,6 +1603,9 @@
                                 @endif
                                 {{ $selectedReservation->customer->last_name ?? '' }} {{ $selectedReservation->customer->first_name ?? '' }} 様
                             </p>
+                            <p class="text-xs text-gray-400 mt-1">
+                                予約ID: #{{ $selectedReservation->id }}
+                            </p>
                         </div>
                         <button
                             x-on:click="close()"
@@ -1574,9 +1789,291 @@
                     <div>
                         <h4 class="text-sm font-bold text-gray-900 mb-3 pb-2 border-b border-gray-200">予約内容</h4>
                         <div class="grid grid-cols-3 gap-4">
-                            <div>
+                            <div x-data="{
+                                menuEdit: false,
+                                menus: [],
+                                filteredMenus: [],
+                                menuSearch: '',
+                                options: [],
+                                selectedMenuId: null,
+                                selectedMenu: null,
+                                selectedOptionIds: [],
+
+                                async startEdit() {
+                                    console.log('🍽️ メニュー編集開始');
+                                    this.menuEdit = true;
+                                    await this.loadMenus();
+                                    await this.loadOptions();
+                                },
+
+                                filterMenus() {
+                                    if (!this.menuSearch || this.menuSearch.trim() === '') {
+                                        this.filteredMenus = this.menus.slice(0, 10);
+                                    } else {
+                                        const searchLower = this.menuSearch.toLowerCase();
+                                        this.filteredMenus = this.menus.filter(menu =>
+                                            menu.name.toLowerCase().includes(searchLower) ||
+                                            (menu.category && menu.category.toLowerCase().includes(searchLower))
+                                        ).slice(0, 10);
+                                    }
+                                },
+
+                                selectMenu(menu) {
+                                    this.selectedMenuId = menu.id;
+                                    this.selectedMenu = menu;
+                                    this.menuSearch = menu.name;
+                                    this.filteredMenus = [];
+                                },
+
+                                async loadMenus() {
+                                    try {
+                                        console.log('📡 メニュー読み込み開始（Livewire）...');
+
+                                        const result = await $wire.call('getMenusForStore', {{ $selectedReservation->store_id }});
+                                        console.log('Response:', result);
+
+                                        if (result.success) {
+                                            this.menus = result.data;
+                                            this.filteredMenus = result.data.slice(0, 10);
+                                            console.log('✅ メニュー読み込み完了:', this.menus.length, '件');
+                                        } else {
+                                            console.error('❌ 失敗:', result);
+                                            alert('メニュー一覧の取得に失敗しました: ' + (result.message || 'Unknown error'));
+                                        }
+                                    } catch (error) {
+                                        console.error('❌ メニュー取得エラー:', error);
+                                        alert('メニュー一覧の取得に失敗しました: ' + error.message);
+                                    }
+                                },
+
+                                async loadOptions() {
+                                    try {
+                                        console.log('📡 オプション読み込み開始（Livewire）...');
+
+                                        const result = await $wire.call('getOptionsForStore', {{ $selectedReservation->store_id }});
+                                        console.log('Response:', result);
+
+                                        if (result.success && result.data.length > 0) {
+                                            this.options = result.data;
+                                            console.log('✅ オプション読み込み完了:', this.options.length, '件');
+                                        } else {
+                                            console.log('ℹ️ オプションなし');
+                                        }
+                                    } catch (error) {
+                                        console.error('❌ オプション取得エラー:', error);
+                                    }
+                                },
+
+                                async saveMenu() {
+                                    if (!this.selectedMenuId) {
+                                        alert('メニューを選択してください');
+                                        return;
+                                    }
+
+                                    const selectedMenu = this.menus.find(m => m.id == this.selectedMenuId);
+                                    let confirmMessage = `メニューを「${selectedMenu.name}」に変更します。\n\n`;
+
+                                    if (this.selectedOptionIds.length > 0) {
+                                        confirmMessage += 'オプション:\n';
+                                        this.selectedOptionIds.forEach(optionId => {
+                                            const option = this.options.find(o => o.id == optionId);
+                                            if (option) {
+                                                confirmMessage += `  - ${option.name}\n`;
+                                            }
+                                        });
+                                        confirmMessage += '\n';
+                                    }
+
+                                    confirmMessage += 'よろしいですか？';
+
+                                    if (!confirm(confirmMessage)) {
+                                        return;
+                                    }
+
+                                    try {
+                                        console.log('💾 メニュー保存中（Livewire）...');
+
+                                        const result = await $wire.call('changeReservationMenu',
+                                            {{ $selectedReservation->id }},
+                                            this.selectedMenuId,
+                                            this.selectedOptionIds
+                                        );
+
+                                        console.log('Response:', result);
+
+                                        if (result.success) {
+                                            alert('メニューを変更しました\n\n' +
+                                                  `合計時間: ${result.details.total_duration}\n` +
+                                                  `新しい終了時刻: ${result.details.new_end_time}`);
+                                            window.location.reload();
+                                        } else {
+                                            let errorMsg = result.message;
+                                            if (result.details) {
+                                                errorMsg += '\n\n詳細:\n';
+                                                errorMsg += `新しい終了時刻: ${result.details.new_end_time}\n`;
+                                                errorMsg += `重複する予約: ${result.details.conflicting_times}\n`;
+                                                errorMsg += `合計時間: ${result.details.total_duration}`;
+                                            }
+                                            alert(errorMsg);
+                                        }
+                                    } catch (error) {
+                                        console.error('メニュー変更エラー:', error);
+                                        alert('メニュー変更中にエラーが発生しました: ' + error.message);
+                                    }
+                                }
+                            }">
                                 <p class="text-xs text-gray-500 mb-1">メニュー</p>
-                                <p class="text-base text-gray-700">{{ $selectedReservation->menu->name ?? 'なし' }}</p>
+
+                                <!-- 表示モード -->
+                                <div x-show="!menuEdit">
+                                    <div class="flex items-center justify-between">
+                                        <p class="text-base text-gray-700">{{ $selectedReservation->menu->name ?? 'なし' }}</p>
+                                        <button
+                                            @click="startEdit()"
+                                            class="text-xs text-blue-600 hover:text-blue-700 font-medium ml-2"
+                                        >
+                                            変更
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- 編集モード -->
+                                <div x-show="menuEdit" style="display: none;">
+                                    <!-- 変更前後の比較表示 -->
+                                    <div class="mb-3 p-3 bg-gray-50 rounded-md border border-gray-200">
+                                        <!-- 変更前 -->
+                                        <div class="mb-2">
+                                            <p class="text-xs text-gray-500 mb-1">変更前</p>
+                                            <div class="font-medium text-sm text-gray-900">{{ $selectedReservation->menu->name ?? 'なし' }}</div>
+                                            <div class="text-xs text-gray-600 mt-0.5">
+                                                <span>¥{{ number_format($selectedReservation->menu->price ?? 0) }}</span>
+                                                <span class="mx-1">•</span>
+                                                <span>{{ $selectedReservation->menu->duration_minutes ?? 0 }}分</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- 矢印 -->
+                                        <div class="flex justify-center my-2">
+                                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+                                            </svg>
+                                        </div>
+
+                                        <!-- 変更後 -->
+                                        <div>
+                                            <div class="flex items-center justify-between mb-1">
+                                                <p class="text-xs text-gray-500">変更後</p>
+                                                <button
+                                                    x-show="selectedMenu"
+                                                    type="button"
+                                                    @click="selectedMenuId = null; selectedMenu = null; menuSearch = ''; filteredMenus = menus.slice(0, 10)"
+                                                    class="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                                                >
+                                                    変更
+                                                </button>
+                                            </div>
+                                            <div x-show="!selectedMenu" class="text-sm text-gray-400 italic">メニューを検索して選択してください</div>
+                                            <div x-show="selectedMenu">
+                                                <div class="font-medium text-sm text-blue-700" x-text="selectedMenu?.name"></div>
+                                                <div class="text-xs text-blue-600 mt-0.5">
+                                                    <span x-text="selectedMenu ? `¥${Math.floor(selectedMenu.price).toLocaleString()}` : ''"></span>
+                                                    <span class="mx-1">•</span>
+                                                    <span x-text="selectedMenu ? `${selectedMenu.duration_minutes}分` : ''"></span>
+                                                </div>
+                                                <!-- 差分表示 -->
+                                                <div class="text-xs mt-1">
+                                                    <template x-if="selectedMenu && selectedMenu.price !== {{ $selectedReservation->menu->price ?? 0 }}">
+                                                        <span :class="selectedMenu.price > {{ $selectedReservation->menu->price ?? 0 }} ? 'text-red-600' : 'text-green-600'">
+                                                            <span x-text="selectedMenu.price > {{ $selectedReservation->menu->price ?? 0 }} ? '+' : ''"></span>
+                                                            <span x-text="`¥${Math.floor(Math.abs(selectedMenu.price - {{ $selectedReservation->menu->price ?? 0 }})).toLocaleString()}`"></span>
+                                                        </span>
+                                                    </template>
+                                                    <template x-if="selectedMenu && selectedMenu.duration_minutes !== {{ $selectedReservation->menu->duration_minutes ?? 0 }}">
+                                                        <span class="ml-2" :class="selectedMenu.duration_minutes > {{ $selectedReservation->menu->duration_minutes ?? 0 }} ? 'text-orange-600' : 'text-blue-600'">
+                                                            <span x-text="selectedMenu.duration_minutes > {{ $selectedReservation->menu->duration_minutes ?? 0 }} ? '+' : ''"></span>
+                                                            <span x-text="`${selectedMenu.duration_minutes - {{ $selectedReservation->menu->duration_minutes ?? 0 }}}分`"></span>
+                                                        </span>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- メニュー検索 -->
+                                    <div class="relative">
+                                        <input
+                                            type="text"
+                                            x-model="menuSearch"
+                                            @input="filterMenus()"
+                                            @focus="filteredMenus = menus.slice(0, 10)"
+                                            placeholder="メニューを検索..."
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                        />
+
+                                        <!-- 検索結果ドロップダウン -->
+                                        <div
+                                            x-show="filteredMenus.length > 0 && !selectedMenuId"
+                                            @click.away="filteredMenus = []"
+                                            class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto"
+                                            style="display: none;"
+                                        >
+                                            <template x-for="menu in filteredMenus" :key="menu.id">
+                                                <button
+                                                    type="button"
+                                                    @click="selectMenu(menu)"
+                                                    class="w-full px-3 py-2 text-left hover:bg-blue-50 border-b border-gray-100 last:border-0"
+                                                >
+                                                    <div class="font-medium text-sm text-gray-900" x-text="menu.name"></div>
+                                                    <div class="text-xs text-gray-500 mt-1">
+                                                        <span x-text="`¥${Math.floor(menu.price).toLocaleString()}`"></span>
+                                                        <span class="mx-1">•</span>
+                                                        <span x-text="`${menu.duration_minutes}分`"></span>
+                                                        <template x-if="menu.category">
+                                                            <span>
+                                                                <span class="mx-1">•</span>
+                                                                <span x-text="menu.category"></span>
+                                                            </span>
+                                                        </template>
+                                                    </div>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
+
+                                    <!-- オプション -->
+                                    <div x-show="options.length > 0" class="mt-3" style="display: none;">
+                                        <p class="text-xs text-gray-600 mb-2">オプション（複数選択可）</p>
+                                        <div class="max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2 bg-gray-50">
+                                            <template x-for="option in options" :key="option.id">
+                                                <label class="flex items-center gap-2 mb-2 cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        :value="option.id"
+                                                        x-model="selectedOptionIds"
+                                                        class="rounded"
+                                                    />
+                                                    <span x-text="`${option.name} (+¥${Math.floor(option.price).toLocaleString()} / +${option.duration_minutes}分)`" class="text-sm"></span>
+                                                </label>
+                                            </template>
+                                        </div>
+                                    </div>
+
+                                    <!-- ボタン -->
+                                    <div class="mt-3 flex gap-2">
+                                        <button
+                                            @click="saveMenu()"
+                                            class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors"
+                                        >
+                                            保存
+                                        </button>
+                                        <button
+                                            @click="menuEdit = false; selectedMenuId = null; selectedOptionIds = []"
+                                            class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded-md transition-colors"
+                                        >
+                                            キャンセル
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                             <div>
                                 <p class="text-xs text-gray-500 mb-1">担当スタッフ</p>
@@ -1661,23 +2158,71 @@
                                     📋 前回の施術結果（{{ \Carbon\Carbon::parse($previousMedicalRecord->treatment_date)->isoFormat('YYYY年M月D日（ddd）') }}）
                                 </p>
                                 @if($latestVision)
-                                    <div class="grid grid-cols-3 gap-4">
-                                        <div>
+                                    <div class="space-y-4">
+                                        <!-- 強度 -->
+                                        <div class="pb-3 border-b border-blue-200">
                                             <p class="text-xs text-gray-600 mb-1">強度</p>
                                             <p class="text-lg font-bold text-gray-900">{{ $intensity ?? '-' }}</p>
                                         </div>
+
+                                        <!-- 裸眼視力 -->
                                         <div>
-                                            <p class="text-xs text-gray-600 mb-1">視力（右目）</p>
-                                            <p class="text-lg font-bold text-gray-900">
-                                                {{ $latestVision['after_naked_right'] ?? $latestVision['before_naked_right'] ?? '-' }}
-                                            </p>
+                                            <p class="text-xs text-blue-700 font-semibold mb-2">裸眼視力</p>
+                                            <div class="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <p class="text-xs text-gray-500 mb-1">右目</p>
+                                                    <p class="text-base font-bold text-gray-900">
+                                                        {{ $latestVision['after_naked_right'] ?? $latestVision['before_naked_right'] ?? '-' }}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p class="text-xs text-gray-500 mb-1">左目</p>
+                                                    <p class="text-base font-bold text-gray-900">
+                                                        {{ $latestVision['after_naked_left'] ?? $latestVision['before_naked_left'] ?? '-' }}
+                                                    </p>
+                                                </div>
+                                            </div>
                                         </div>
+
+                                        <!-- 矯正視力 -->
                                         <div>
-                                            <p class="text-xs text-gray-600 mb-1">視力（左目）</p>
-                                            <p class="text-lg font-bold text-gray-900">
-                                                {{ $latestVision['after_naked_left'] ?? $latestVision['before_naked_left'] ?? '-' }}
-                                            </p>
+                                            <p class="text-xs text-blue-700 font-semibold mb-2">矯正視力</p>
+                                            <div class="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <p class="text-xs text-gray-500 mb-1">右目</p>
+                                                    <p class="text-base font-bold text-gray-900">
+                                                        {{ $latestVision['after_corrected_right'] ?? $latestVision['before_corrected_right'] ?? '-' }}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p class="text-xs text-gray-500 mb-1">左目</p>
+                                                    <p class="text-base font-bold text-gray-900">
+                                                        {{ $latestVision['after_corrected_left'] ?? $latestVision['before_corrected_left'] ?? '-' }}
+                                                    </p>
+                                                </div>
+                                            </div>
                                         </div>
+
+                                        <!-- 老眼視力 -->
+                                        @if(isset($latestVision['reading_vision_right']) || isset($latestVision['reading_vision_left']) || isset($previousMedicalRecord->reading_vision_right) || isset($previousMedicalRecord->reading_vision_left))
+                                        <div>
+                                            <p class="text-xs text-blue-700 font-semibold mb-2">老眼視力</p>
+                                            <div class="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <p class="text-xs text-gray-500 mb-1">右目</p>
+                                                    <p class="text-base font-bold text-gray-900">
+                                                        {{ $latestVision['reading_vision_right'] ?? $previousMedicalRecord->reading_vision_right ?? '-' }}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p class="text-xs text-gray-500 mb-1">左目</p>
+                                                    <p class="text-base font-bold text-gray-900">
+                                                        {{ $latestVision['reading_vision_left'] ?? $previousMedicalRecord->reading_vision_left ?? '-' }}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        @endif
                                     </div>
                                 @else
                                     <div class="text-center py-2 text-gray-600 text-sm">
@@ -1785,6 +2330,217 @@
                     @include('filament.widgets.reservation-detail-modal-movement')
                 </div>
             </div>
+
+            <!-- メニュー変更用JavaScript（モーダル内で実行） -->
+            <script>
+                (function() {
+                    console.log('🍽️ Menu change script executing in modal...');
+
+                    // メニュー変更用のグローバル変数
+                    window.menusData = window.menusData || [];
+                    window.optionsData = window.optionsData || [];
+                    window.currentReservationId = window.currentReservationId || null;
+
+                    // メニュー変更編集モードの切り替え
+                    window.toggleMenuEdit = async function(reservationId, storeId) {
+                        console.log('🍽️ toggleMenuEdit called:', { reservationId, storeId });
+
+                        const menuDisplay = document.getElementById('menuDisplay');
+                        const menuEdit = document.getElementById('menuEdit');
+
+                        if (!menuDisplay || !menuEdit) {
+                            console.error('Menu change elements not found');
+                            alert('エラー: メニュー変更エリアが見つかりません');
+                            return;
+                        }
+
+                        // 編集モードに切り替え
+                        menuDisplay.style.display = 'none';
+                        menuEdit.style.display = 'block';
+
+                        window.currentReservationId = reservationId;
+
+                        try {
+                            // メニュー一覧を取得
+                            await loadMenus(storeId);
+
+                            // オプション一覧を取得
+                            await loadOptions(storeId);
+
+                        } catch (error) {
+                            console.error('Error loading menus/options:', error);
+                            alert('メニュー情報の取得に失敗しました');
+                        }
+                    }
+
+                    // メニュー一覧を取得
+                    window.loadMenus = async function(storeId) {
+                        try {
+                            const response = await fetch(`/api/admin/stores/${storeId}/menus`, {
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                                }
+                            });
+                            const result = await response.json();
+
+                            if (result.success) {
+                                window.menusData = result.data;
+                                const menuSelect = document.getElementById('menuSelect');
+                                menuSelect.innerHTML = '<option value="">メニューを選択...</option>';
+
+                                window.menusData.forEach(menu => {
+                                    const option = document.createElement('option');
+                                    option.value = menu.id;
+                                    option.textContent = `${menu.name} (¥${menu.price.toLocaleString()} / ${menu.duration_minutes}分)`;
+                                    menuSelect.appendChild(option);
+                                });
+                            }
+                        } catch (error) {
+                            console.error('Error loading menus:', error);
+                            alert('メニュー一覧の取得に失敗しました');
+                        }
+                    }
+
+                    // オプション一覧を取得
+                    window.loadOptions = async function(storeId) {
+                        try {
+                            const response = await fetch(`/api/admin/stores/${storeId}/options`, {
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                                }
+                            });
+                            const result = await response.json();
+
+                            if (result.success && result.data.length > 0) {
+                                window.optionsData = result.data;
+                                const optionSection = document.getElementById('optionSection');
+                                const optionCheckboxes = document.getElementById('optionCheckboxes');
+
+                                optionSection.style.display = 'block';
+                                optionCheckboxes.innerHTML = '';
+
+                                window.optionsData.forEach(option => {
+                                    const div = document.createElement('div');
+                                    div.style.marginBottom = '8px';
+
+                                    const checkbox = document.createElement('input');
+                                    checkbox.type = 'checkbox';
+                                    checkbox.id = `option_${option.id}`;
+                                    checkbox.value = option.id;
+                                    checkbox.style.marginRight = '8px';
+
+                                    const label = document.createElement('label');
+                                    label.htmlFor = `option_${option.id}`;
+                                    label.textContent = `${option.name} (+¥${option.price.toLocaleString()} / +${option.duration_minutes}分)`;
+                                    label.style.cursor = 'pointer';
+
+                                    div.appendChild(checkbox);
+                                    div.appendChild(label);
+                                    optionCheckboxes.appendChild(div);
+                                });
+                            } else {
+                                const optionSection = document.getElementById('optionSection');
+                                if (optionSection) {
+                                    optionSection.style.display = 'none';
+                                }
+                            }
+                        } catch (error) {
+                            console.error('Error loading options:', error);
+                            const optionSection = document.getElementById('optionSection');
+                            if (optionSection) {
+                                optionSection.style.display = 'none';
+                            }
+                        }
+                    }
+
+                    // メニュー変更を保存
+                    window.saveMenuChange = async function(reservationId) {
+                        const menuSelect = document.getElementById('menuSelect');
+                        const selectedMenuId = menuSelect.value;
+
+                        if (!selectedMenuId) {
+                            alert('メニューを選択してください');
+                            return;
+                        }
+
+                        // 選択されたオプションを取得
+                        const selectedOptionIds = [];
+                        const optionCheckboxes = document.querySelectorAll('#optionCheckboxes input[type="checkbox"]:checked');
+                        optionCheckboxes.forEach(checkbox => {
+                            selectedOptionIds.push(parseInt(checkbox.value));
+                        });
+
+                        // 確認ダイアログ
+                        const selectedMenu = window.menusData.find(m => m.id == selectedMenuId);
+                        let confirmMessage = `メニューを「${selectedMenu.name}」に変更します。\n\n`;
+
+                        if (selectedOptionIds.length > 0) {
+                            confirmMessage += 'オプション:\n';
+                            selectedOptionIds.forEach(optionId => {
+                                const option = window.optionsData.find(o => o.id == optionId);
+                                if (option) {
+                                    confirmMessage += `  - ${option.name}\n`;
+                                }
+                            });
+                            confirmMessage += '\n';
+                        }
+
+                        confirmMessage += 'よろしいですか？';
+
+                        if (!confirm(confirmMessage)) {
+                            return;
+                        }
+
+                        const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+                        try {
+                            const response = await fetch(`/api/admin/reservations/${reservationId}/change-menu`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': token,
+                                    'Accept': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    menu_id: selectedMenuId,
+                                    option_menu_ids: selectedOptionIds
+                                })
+                            });
+
+                            const result = await response.json();
+
+                            if (result.success) {
+                                alert('メニューを変更しました\n\n' +
+                                      `合計時間: ${result.details.total_duration}\n` +
+                                      `新しい終了時刻: ${result.details.new_end_time}`);
+                                window.location.reload();
+                            } else {
+                                // エラーメッセージを表示
+                                let errorMsg = result.message;
+                                if (result.details) {
+                                    errorMsg += '\n\n詳細:\n';
+                                    errorMsg += `新しい終了時刻: ${result.details.new_end_time}\n`;
+                                    errorMsg += `重複する予約: ${result.details.conflicting_times}\n`;
+                                    errorMsg += `合計時間: ${result.details.total_duration}`;
+                                }
+                                alert(errorMsg);
+                            }
+                        } catch (error) {
+                            console.error('Menu change error:', error);
+                            alert('メニュー変更中にエラーが発生しました');
+                        }
+                    }
+
+                    console.log('✅ Menu change functions loaded in modal:', {
+                        toggleMenuEdit: typeof window.toggleMenuEdit,
+                        saveMenuChange: typeof window.saveMenuChange,
+                        loadMenus: typeof window.loadMenus,
+                        loadOptions: typeof window.loadOptions
+                    });
+                })();
+            </script>
         </div>
     @endif
 
@@ -1838,232 +2594,7 @@
                             ->orderBy('treatment_date', 'desc')
                             ->orderBy('created_at', 'desc')
                             ->get();
-
-                        // 視力推移データを収集（最大10件）
-                        $visionData = [];
-                        $recordsWithVision = $allMedicalRecords->take(10)->reverse();
-
-                        foreach($recordsWithVision as $index => $record) {
-                            $latestVision = $record->getLatestVisionRecord();
-                            if ($latestVision) {
-                                // 回数は古い順のインデックス+1で計算
-                                $sessionNumber = $index + 1;
-
-                                $visionData[] = [
-                                    'date' => $record->treatment_date,
-                                    'session' => $sessionNumber,
-                                    'right_before' => $latestVision['before_naked_right'] ?? null,
-                                    'right_after' => $latestVision['after_naked_right'] ?? null,
-                                    'left_before' => $latestVision['before_naked_left'] ?? null,
-                                    'left_after' => $latestVision['after_naked_left'] ?? null,
-                                    'intensity' => $latestVision['intensity'] ?? null,
-                                ];
-                            }
-                        }
-
-                        // グラフ用のデータポイント（右目）- 元のインデックスとセッション番号も保持
-                        $rightEyeValues = [];
-                        foreach($visionData as $dataIndex => $data) {
-                            $val = $data['right_after'] ?? $data['right_before'];
-                            if ($val !== null) {
-                                $rightEyeValues[] = [
-                                    'value' => floatval($val),
-                                    'session' => $data['session'],
-                                    'originalIndex' => $dataIndex
-                                ];
-                            }
-                        }
-
-                        // グラフ用のデータポイント（左目）- 元のインデックスとセッション番号も保持
-                        $leftEyeValues = [];
-                        foreach($visionData as $dataIndex => $data) {
-                            $val = $data['left_after'] ?? $data['left_before'];
-                            if ($val !== null) {
-                                $leftEyeValues[] = [
-                                    'value' => floatval($val),
-                                    'session' => $data['session'],
-                                    'originalIndex' => $dataIndex
-                                ];
-                            }
-                        }
                     @endphp
-
-                    @php
-                        // デバッグ: 視力データ確認
-                        \Log::info('視力推移グラフデバッグ', [
-                            'customer_id' => $selectedReservation->customer_id,
-                            'vision_data_count' => count($visionData),
-                            'right_eye_values_count' => count($rightEyeValues),
-                            'left_eye_values_count' => count($leftEyeValues),
-                            'vision_data' => $visionData,
-                            'right_eye_values' => $rightEyeValues,
-                            'left_eye_values' => $leftEyeValues
-                        ]);
-                    @endphp
-
-                    @if(count($visionData) > 0)
-                        <!-- 視力推移グラフ -->
-                        <div class="border border-gray-200 rounded-lg bg-gradient-to-br from-blue-50 to-white p-5">
-                            <h4 class="text-lg font-bold text-gray-900 mb-4">視力推移グラフ (データ: {{ count($visionData) }}件, 右目: {{ count($rightEyeValues) }}点, 左目: {{ count($leftEyeValues) }}点)</h4>
-                            <div class="space-y-8">
-                                <!-- 右目 -->
-                                <div>
-                                    <div class="flex items-center justify-between mb-3">
-                                        <div class="flex items-center gap-2">
-                                            <div class="w-3 h-3 rounded-full bg-blue-600"></div>
-                                            <p class="text-sm font-semibold text-gray-700">右目（裸眼）</p>
-                                        </div>
-                                        @if(count($rightEyeValues) > 0)
-                                            @php
-                                                $rightValues = array_column($rightEyeValues, 'value');
-                                            @endphp
-                                            <p class="text-xs text-gray-500">{{ number_format(min($rightValues), 1) }} → {{ number_format(max($rightValues), 1) }}</p>
-                                        @endif
-                                    </div>
-                                    <div class="relative bg-white rounded border border-gray-200 p-4" style="height: 500px;">
-                                        <svg viewBox="0 0 {{ count($visionData) * 100 + 80 }} 200" class="w-full" style="height: 100%;">
-                                            <!-- グリッドライン -->
-                                            <line x1="40" y1="20" x2="40" y2="160" stroke="#d1d5db" stroke-width="2"/>
-                                            <line x1="40" y1="160" x2="{{ count($visionData) * 100 + 40 }}" y2="160" stroke="#d1d5db" stroke-width="2"/>
-
-                                            <!-- Y軸目盛り -->
-                                            <text x="25" y="165" font-size="10" fill="#6b7280">0.0</text>
-                                            <text x="25" y="130" font-size="10" fill="#6b7280">0.3</text>
-                                            <text x="25" y="95" font-size="10" fill="#6b7280">0.6</text>
-                                            <text x="25" y="60" font-size="10" fill="#6b7280">0.9</text>
-                                            <text x="25" y="25" font-size="10" fill="#6b7280">1.2</text>
-
-                                            @if(count($rightEyeValues) > 0)
-                                                <!-- 折れ線（2点以上の場合のみ） -->
-                                                @if(count($rightEyeValues) > 1)
-                                                    @php
-                                                        $points = [];
-                                                        foreach($rightEyeValues as $index => $item) {
-                                                            $x = 80 + ($index * 100);
-                                                            $y = 160 - ($item['value'] / 1.2 * 140);
-                                                            $points[] = "$x,$y";
-                                                        }
-                                                        $polylinePoints = implode(' ', $points);
-                                                    @endphp
-                                                    <polyline
-                                                        points="{{ $polylinePoints }}"
-                                                        fill="none"
-                                                        stroke="#2563eb"
-                                                        stroke-width="3"
-                                                        stroke-linecap="round"
-                                                        stroke-linejoin="round"
-                                                    />
-                                                @endif
-
-                                                <!-- データポイント円と値ラベル -->
-                                                @foreach($rightEyeValues as $index => $item)
-                                                    @php
-                                                        $x = 80 + ($index * 100);
-                                                        $y = 160 - ($item['value'] / 1.2 * 140);
-                                                    @endphp
-                                                    <!-- 値ラベル背景 -->
-                                                    <rect x="{{ $x - 12 }}" y="{{ $y - 18 }}" width="24" height="14" fill="white" opacity="0.9"/>
-                                                    <!-- データポイント円 -->
-                                                    <circle cx="{{ $x }}" cy="{{ $y }}" r="5" fill="#2563eb"/>
-                                                    <!-- 値ラベル -->
-                                                    <text x="{{ $x }}" y="{{ $y - 8 }}" font-size="11" font-weight="bold" fill="#1e293b" text-anchor="middle">{{ number_format($item['value'], 1) }}</text>
-                                                    <!-- X軸ラベル -->
-                                                    <text x="{{ $x }}" y="180" font-size="10" fill="#6b7280" text-anchor="middle">{{ $item['session'] }}回目</text>
-                                                @endforeach
-                                            @endif
-                                        </svg>
-                                    </div>
-                                </div>
-
-                                <!-- 左目 -->
-                                <div>
-                                    <div class="flex items-center justify-between mb-3">
-                                        <div class="flex items-center gap-2">
-                                            <div class="w-3 h-3 rounded-full bg-green-600"></div>
-                                            <p class="text-sm font-semibold text-gray-700">左目（裸眼）</p>
-                                        </div>
-                                        @if(count($leftEyeValues) > 0)
-                                            @php
-                                                $leftValues = array_column($leftEyeValues, 'value');
-                                            @endphp
-                                            <p class="text-xs text-gray-500">{{ number_format(min($leftValues), 1) }} → {{ number_format(max($leftValues), 1) }}</p>
-                                        @endif
-                                    </div>
-                                    <div class="relative bg-white rounded border border-gray-200 p-4" style="height: 500px;">
-                                        <svg viewBox="0 0 {{ count($visionData) * 100 + 80 }} 200" class="w-full" style="height: 100%;">
-                                            <!-- グリッドライン -->
-                                            <line x1="40" y1="20" x2="40" y2="160" stroke="#d1d5db" stroke-width="2"/>
-                                            <line x1="40" y1="160" x2="{{ count($visionData) * 100 + 40 }}" y2="160" stroke="#d1d5db" stroke-width="2"/>
-
-                                            <!-- Y軸目盛り -->
-                                            <text x="25" y="165" font-size="10" fill="#6b7280">0.0</text>
-                                            <text x="25" y="130" font-size="10" fill="#6b7280">0.3</text>
-                                            <text x="25" y="95" font-size="10" fill="#6b7280">0.6</text>
-                                            <text x="25" y="60" font-size="10" fill="#6b7280">0.9</text>
-                                            <text x="25" y="25" font-size="10" fill="#6b7280">1.2</text>
-
-                                            @if(count($leftEyeValues) > 0)
-                                                <!-- 折れ線（2点以上の場合のみ） -->
-                                                @if(count($leftEyeValues) > 1)
-                                                    @php
-                                                        $points = [];
-                                                        foreach($leftEyeValues as $index => $item) {
-                                                            $x = 80 + ($index * 100);
-                                                            $y = 160 - ($item['value'] / 1.2 * 140);
-                                                            $points[] = "$x,$y";
-                                                        }
-                                                        $polylinePoints = implode(' ', $points);
-                                                    @endphp
-                                                    <polyline
-                                                        points="{{ $polylinePoints }}"
-                                                        fill="none"
-                                                        stroke="#16a34a"
-                                                        stroke-width="3"
-                                                        stroke-linecap="round"
-                                                        stroke-linejoin="round"
-                                                    />
-                                                @endif
-
-                                                <!-- データポイント円と値ラベル -->
-                                                @foreach($leftEyeValues as $index => $item)
-                                                    @php
-                                                        $x = 80 + ($index * 100);
-                                                        $y = 160 - ($item['value'] / 1.2 * 140);
-                                                    @endphp
-                                                    <!-- 値ラベル背景 -->
-                                                    <rect x="{{ $x - 12 }}" y="{{ $y - 18 }}" width="24" height="14" fill="white" opacity="0.9"/>
-                                                    <!-- データポイント円 -->
-                                                    <circle cx="{{ $x }}" cy="{{ $y }}" r="5" fill="#16a34a"/>
-                                                    <!-- 値ラベル -->
-                                                    <text x="{{ $x }}" y="{{ $y - 8 }}" font-size="11" font-weight="bold" fill="#1e293b" text-anchor="middle">{{ number_format($item['value'], 1) }}</text>
-                                                    <!-- X軸ラベル -->
-                                                    <text x="{{ $x }}" y="180" font-size="10" fill="#6b7280" text-anchor="middle">{{ $item['session'] }}回目</text>
-                                                @endforeach
-                                            @endif
-                                        </svg>
-                                    </div>
-                                </div>
-
-                                {{-- 統計情報 --}}
-                                <div class="p-3 bg-white rounded border border-blue-200">
-                                    <p class="text-sm text-gray-700">
-                                        @if(count($rightEyeValues) > 0)
-                                            @php
-                                                $rightValues = array_column($rightEyeValues, 'value');
-                                            @endphp
-                                            <span class="font-semibold text-blue-600">右目:</span> {{ number_format(max($rightValues) - min($rightValues), 1) }}向上 |
-                                        @endif
-                                        @if(count($leftEyeValues) > 0)
-                                            @php
-                                                $leftValues = array_column($leftEyeValues, 'value');
-                                            @endphp
-                                            <span class="font-semibold text-green-600">左目:</span> {{ number_format(max($leftValues) - min($leftValues), 1) }}向上
-                                        @endif
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    @endif
 
                     <div class="border-t border-gray-200 pt-4">
                         <h4 class="text-lg font-bold text-gray-900 mb-4">カルテ一覧 (全{{ $allMedicalRecords->count() }}件)</h4>

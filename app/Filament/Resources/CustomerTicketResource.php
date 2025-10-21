@@ -196,6 +196,52 @@ class CustomerTicketResource extends Resource
                             ->columnSpanFull(),
                     ])
                     ->columns(2),
+
+                Forms\Components\Section::make('決済情報')
+                    ->schema([
+                        Forms\Components\Select::make('payment_method')
+                            ->label('決済方法')
+                            ->options(function (callable $get) {
+                                $storeId = $get('store_id');
+                                if (!$storeId) {
+                                    return [
+                                        'cash' => '現金',
+                                        'credit' => 'クレジットカード',
+                                        'bank' => '銀行振込',
+                                    ];
+                                }
+
+                                $store = \App\Models\Store::find($storeId);
+                                if (!$store || !$store->payment_methods) {
+                                    return [
+                                        'cash' => '現金',
+                                        'credit' => 'クレジットカード',
+                                        'bank' => '銀行振込',
+                                    ];
+                                }
+
+                                // 店舗で設定された決済方法を取得
+                                $paymentMethods = [];
+                                foreach ($store->payment_methods as $index => $method) {
+                                    if (isset($method['name']) && !empty($method['name'])) {
+                                        $paymentMethods[$method['name']] = $method['name'];
+                                    }
+                                }
+
+                                return !empty($paymentMethods) ? $paymentMethods : [
+                                    'cash' => '現金',
+                                    'credit' => 'クレジットカード',
+                                    'bank' => '銀行振込',
+                                ];
+                            })
+                            ->searchable()
+                            ->helperText('店舗で設定された決済方法から選択'),
+
+                        Forms\Components\TextInput::make('payment_reference')
+                            ->label('決済参照番号')
+                            ->helperText('外部決済サービスの参照番号など'),
+                    ])
+                    ->columns(2),
             ]);
     }
 
@@ -254,6 +300,12 @@ class CustomerTicketResource extends Resource
                 Tables\Columns\TextColumn::make('plan_name')
                     ->label('回数券名')
                     ->searchable(),
+
+                Tables\Columns\TextColumn::make('ticketPlan.menu.name')
+                    ->label('対象コース')
+                    ->sortable()
+                    ->searchable()
+                    ->default('未設定'),
 
                 Tables\Columns\TextColumn::make('store.name')
                     ->label('店舗')

@@ -93,7 +93,7 @@ class Announcements extends Page
 
     public static function canAccess(): bool
     {
-        // スーパーアドミン以外のユーザーにアクセスを許可
-        return !auth()->user()?->hasRole('super_admin') ?? true;
+        // 全ユーザーがアクセス可能（お知らせを確認できる）
+        return auth()->check();
     }
 }
