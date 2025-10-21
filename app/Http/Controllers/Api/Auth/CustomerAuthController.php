@@ -26,8 +26,9 @@ class CustomerAuthController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'phone' => ['required', 'string', 'regex:/^[0-9\-]+$/'],
+            'is_resend' => ['boolean'],
         ]);
-        
+
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
@@ -38,7 +39,7 @@ class CustomerAuthController extends Controller
                 ],
             ], 422);
         }
-        
+
         // 再送信チェック（30秒以内の再送信を制限）
         if (!$this->otpService->canResend($request->phone)) {
             return response()->json([
@@ -50,16 +51,22 @@ class CustomerAuthController extends Controller
             ], 429);
         }
 
-        // 既存顧客のメールアドレスを取得（再送信時のメール送信用）
-        $normalizedPhone = PhoneHelper::normalize($request->phone);
-        $customer = Customer::where('phone', $normalizedPhone)
-            ->orWhere('phone', $request->phone)
-            ->whereNotNull('email')
-            ->first();
+        // メールアドレスは再送信時のみ取得して送信
+        $email = null;
+        $isResend = $request->boolean('is_resend', false);
 
-        $email = $customer && $customer->email ? $customer->email : null;
+        if ($isResend) {
+            // 既存顧客のメールアドレスを取得（再送信時のメール送信用）
+            $normalizedPhone = PhoneHelper::normalize($request->phone);
+            $customer = Customer::where('phone', $normalizedPhone)
+                ->orWhere('phone', $request->phone)
+                ->whereNotNull('email')
+                ->first();
 
-        // OTP送信（メールアドレスがあればメールでも送信）
+            $email = $customer && $customer->email ? $customer->email : null;
+        }
+
+        // OTP送信（再送信時のみメールアドレスを渡す）
         $result = $this->otpService->sendOtp($request->phone, $email);
 
         if (!$result['success']) {

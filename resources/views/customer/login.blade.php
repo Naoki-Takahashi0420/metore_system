@@ -218,7 +218,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
                 },
-                body: JSON.stringify({ phone: phone })
+                body: JSON.stringify({
+                    phone: phone,
+                    is_resend: false  // 初回送信
+                })
             });
             
             const data = await response.json();
@@ -405,7 +408,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
                 },
-                body: JSON.stringify({ phone: currentPhone })
+                body: JSON.stringify({
+                    phone: currentPhone,
+                    is_resend: true  // 再送信
+                })
             });
 
             const data = await response.json();
