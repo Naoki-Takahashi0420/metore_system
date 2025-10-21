@@ -40,6 +40,14 @@ class OtpService
         // 新しいOTPを生成
         $otp = $this->generateOtp();
 
+        \Log::info('🔑 [OTP] OTP生成', [
+            'phone' => $phone,
+            'normalized_phone' => $normalizedPhone,
+            'otp' => $otp,
+            'email' => $email,
+            'timestamp' => now()->toIso8601String(),
+        ]);
+
         // データベースに保存（正規化した電話番号で保存）
         OtpVerification::create([
             'phone' => $normalizedPhone,
@@ -48,16 +56,35 @@ class OtpService
         ]);
 
         // SMS送信（元の電話番号形式で送信）
+        \Log::info('📱 [OTP] SMS送信開始', [
+            'phone' => $phone,
+            'otp' => $otp,
+        ]);
         $smsSent = $this->smsService->sendOtp($phone, $otp);
+        \Log::info('📱 [OTP] SMS送信完了', [
+            'phone' => $phone,
+            'otp' => $otp,
+            'result' => $smsSent,
+        ]);
 
         // メールアドレスが指定されている場合はメールでも送信
         $emailSent = false;
         if ($email) {
+            \Log::info('📧 [OTP] メール送信開始', [
+                'email' => $email,
+                'otp' => $otp,
+            ]);
             $emailSent = $this->emailService->sendOtpEmail($email, $otp);
+            \Log::info('📧 [OTP] メール送信完了', [
+                'email' => $email,
+                'otp' => $otp,
+                'result' => $emailSent,
+            ]);
 
             \Log::info('OTP送信完了', [
                 'phone' => $phone,
                 'email' => $email,
+                'otp' => $otp,
                 'sms_sent' => $smsSent,
                 'email_sent' => $emailSent,
             ]);
