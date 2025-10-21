@@ -1,0 +1,29 @@
+name: Check Customer
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check Customer 08033372305
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'ENDSSH'
+        set -e
+
+        cd /var/www/html
+
+        sudo -u www-data php check-customer.php
+
+        ENDSSH
+
+        rm deploy_key.pem
