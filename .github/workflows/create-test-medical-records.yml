@@ -1,0 +1,35 @@
+name: Create Test Medical Records
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create-records:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Create Test Medical Records for 08033372305
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'ENDSSH'
+        set -e
+
+        cd /var/www/html
+
+        echo "=== テストカルテ作成開始 ==="
+        echo ""
+
+        sudo -u www-data php create-test-medical-records.php
+
+        echo ""
+        echo "=== 完了 ==="
+
+        ENDSSH
+
+        rm deploy_key.pem

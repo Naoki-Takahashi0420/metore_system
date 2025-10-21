@@ -30,10 +30,10 @@ class SendFollowUpNotifications extends Command
 
     private CustomerNotificationService $notificationService;
 
-    public function __construct()
+    public function __construct(CustomerNotificationService $notificationService)
     {
         parent::__construct();
-        $this->notificationService = new CustomerNotificationService();
+        $this->notificationService = $notificationService;
     }
 
     /**

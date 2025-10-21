@@ -276,7 +276,7 @@ runTest("SMS通知無効の顧客はSMS送信スキップ", function() {
         'sms_notifications_enabled' => false,
     ]);
 
-    $notificationService = new CustomerNotificationService();
+    $notificationService = app(CustomerNotificationService::class);
     $canSend = $notificationService->canSendNotification($customer, 'ticket_expiry');
 
     echo "  SMS送信可能: " . ($canSend['sms'] ? 'true' : 'false') . "\n";
@@ -459,7 +459,7 @@ runTest("電話番号がない顧客はSMS送信スキップ", function() {
         'email' => 'nophone@example.com',
     ]);
 
-    $notificationService = new CustomerNotificationService();
+    $notificationService = app(CustomerNotificationService::class);
     $canSend = $notificationService->canSendNotification($customer, 'ticket_expiry');
 
     echo "  SMS送信可能: " . ($canSend['sms'] ? 'true' : 'false') . "\n";
