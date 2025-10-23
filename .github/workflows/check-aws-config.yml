@@ -1,0 +1,38 @@
+name: Check AWS Config
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-config:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check AWS Configuration
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=== Checking AWS config in .env ==="
+        grep -E "AWS_|SNS_|SES_" .env | sed 's/=.*/=***/'
+
+        echo ""
+        echo "=== Checking services config ==="
+        php artisan tinker --execute="
+        echo 'SNS Key exists: ' . (config('services.sns.key') ? 'YES' : 'NO') . PHP_EOL;
+        echo 'SNS Secret exists: ' . (config('services.sns.secret') ? 'YES' : 'NO') . PHP_EOL;
+        echo 'SNS Region: ' . config('services.sns.region') . PHP_EOL;
+        echo 'SES Key exists: ' . (config('services.ses.key') ? 'YES' : 'NO') . PHP_EOL;
+        echo 'SES Secret exists: ' . (config('services.ses.secret') ? 'YES' : 'NO') . PHP_EOL;
+        echo 'SES Region: ' . config('services.ses.region') . PHP_EOL;
+        "
+        EOF
+
+        rm deploy_key.pem
