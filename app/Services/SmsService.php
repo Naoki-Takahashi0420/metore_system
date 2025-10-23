@@ -86,6 +86,13 @@ class SmsService
                 ];
             }
 
+            Log::info('📤 [SMS] AWS SNS publish準備', [
+                'phone' => $phone,
+                'sender_id' => $senderId,
+                'has_sender_id_attribute' => isset($messageAttributes['AWS.SNS.SMS.SenderID']),
+                'message_attributes' => $messageAttributes,
+            ]);
+
             $result = $this->snsClient->publish([
                 'Message' => $message,
                 'PhoneNumber' => $phone,
