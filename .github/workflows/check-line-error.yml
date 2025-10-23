@@ -1,0 +1,46 @@
+name: Check LINE Error Details
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-line-error:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check LINE Token Error
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=== LINE Token Verification Errors (最新10件) ==="
+        sudo grep "LINE token verification API failed" storage/logs/laravel.log | tail -10
+
+        echo ""
+        echo "=== 完全なエラー詳細 (最新1件) ==="
+        sudo grep -A 20 "LINE token verification API failed" storage/logs/laravel.log | tail -25
+
+        echo ""
+        echo "=== LINE Link Attempt Logs (最新5件) ==="
+        sudo grep "line_link.*attempt" storage/logs/laravel.log | tail -5
+
+        echo ""
+        echo "=== エラー発生時刻 ==="
+        sudo grep "LINE token verification API failed" storage/logs/laravel.log | tail -5
+
+        echo ""
+        echo "=== LINEチャネル設定確認 ==="
+        sudo php artisan tinker --execute="
+        echo 'LINE_CHANNEL_ID: ' . (config('services.line.channel_id') ?: 'NOT SET') . PHP_EOL;
+        echo 'LINE_LIFF_ID: ' . (config('services.line.liff_id') ?: 'NOT SET') . PHP_EOL;
+        "
+        EOF
+
+        rm deploy_key.pem
