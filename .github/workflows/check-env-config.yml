@@ -1,0 +1,53 @@
+name: Check ENV Config
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-env:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check AWS Config
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=== AWS設定確認 ==="
+        echo "AWS_ACCESS_KEY_ID存在: $(grep -q '^AWS_ACCESS_KEY_ID=' .env && echo 'Yes' || echo 'No')"
+        echo "AWS_SECRET_ACCESS_KEY存在: $(grep -q '^AWS_SECRET_ACCESS_KEY=' .env && echo 'Yes' || echo 'No')"
+        echo "AWS_DEFAULT_REGION存在: $(grep -q '^AWS_DEFAULT_REGION=' .env && echo 'Yes' || echo 'No')"
+
+        echo ""
+        echo "=== SNS/SES設定確認 ==="
+        echo "SNS_KEY存在: $(grep -q '^SNS_KEY=' .env && echo 'Yes' || echo 'No')"
+        echo "SNS_SECRET存在: $(grep -q '^SNS_SECRET=' .env && echo 'Yes' || echo 'No')"
+        echo "SNS_REGION存在: $(grep -q '^SNS_REGION=' .env && echo 'Yes' || echo 'No')"
+        echo "SES_KEY存在: $(grep -q '^SES_KEY=' .env && echo 'Yes' || echo 'No')"
+        echo "SES_SECRET存在: $(grep -q '^SES_SECRET=' .env && echo 'Yes' || echo 'No')"
+        echo "SES_REGION存在: $(grep -q '^SES_REGION=' .env && echo 'Yes' || echo 'No')"
+
+        echo ""
+        echo "=== キャッシュ状態 ==="
+        ls -lh bootstrap/cache/config.php 2>/dev/null || echo "config cache not found"
+
+        echo ""
+        echo "=== Config値確認 ==="
+        sudo php artisan tinker --execute="
+        echo 'services.sns.key: ' . (config('services.sns.key') ? 'SET (length: ' . strlen(config('services.sns.key')) . ')' : 'NOT SET') . PHP_EOL;
+        echo 'services.sns.secret: ' . (config('services.sns.secret') ? 'SET (length: ' . strlen(config('services.sns.secret')) . ')' : 'NOT SET') . PHP_EOL;
+        echo 'services.sns.region: ' . (config('services.sns.region') ?: 'NOT SET') . PHP_EOL;
+        echo 'services.ses.key: ' . (config('services.ses.key') ? 'SET (length: ' . strlen(config('services.ses.key')) . ')' : 'NOT SET') . PHP_EOL;
+        echo 'services.ses.secret: ' . (config('services.ses.secret') ? 'SET (length: ' . strlen(config('services.ses.secret')) . ')' : 'NOT SET') . PHP_EOL;
+        echo 'services.ses.region: ' . (config('services.ses.region') ?: 'NOT SET') . PHP_EOL;
+        "
+        EOF
+
+        rm deploy_key.pem
