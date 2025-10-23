@@ -1,0 +1,47 @@
+name: Clear Rate Limit
+
+on:
+  workflow_dispatch:
+
+jobs:
+  clear-rate-limit:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Clear All Rate Limits
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=== Clearing all caches ==="
+        sudo php artisan cache:clear
+        sudo php artisan route:clear
+        sudo php artisan config:clear
+        sudo php artisan view:clear
+
+        echo ""
+        echo "=== Removing all cache files ==="
+        sudo rm -rf storage/framework/cache/data/*
+        sudo rm -rf bootstrap/cache/*.php
+
+        echo ""
+        echo "=== Rebuilding config cache ==="
+        sudo php artisan config:cache
+
+        echo ""
+        echo "=== Fixing permissions ==="
+        sudo chown -R www-data:www-data storage/ bootstrap/cache/
+        sudo chmod -R 775 storage/ bootstrap/cache/
+
+        echo ""
+        echo "✅ Rate limits cleared!"
+        EOF
+
+        rm deploy_key.pem
