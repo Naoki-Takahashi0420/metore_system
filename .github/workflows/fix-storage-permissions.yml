@@ -1,0 +1,39 @@
+name: Fix Storage Permissions
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix-permissions:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Fix Storage Permissions
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=== Current permissions ==="
+        sudo ls -la storage/logs/laravel-2025-10-23.log
+
+        echo ""
+        echo "=== Fixing permissions ==="
+        sudo chown -R www-data:www-data storage/
+        sudo chmod -R 775 storage/
+
+        echo ""
+        echo "=== After fix ==="
+        sudo ls -la storage/logs/laravel-2025-10-23.log
+
+        echo ""
+        echo "✅ Permissions fixed!"
+        EOF
+
+        rm deploy_key.pem
