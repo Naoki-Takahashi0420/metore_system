@@ -1,0 +1,42 @@
+name: Check SMS Config
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-sms-config:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check SMS Configuration
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=== .envファイルのSMS設定 ==="
+        grep "SMS_FROM_NAME" .env || echo "SMS_FROM_NAME: 未設定"
+
+        echo ""
+        echo "=== Config値確認 ==="
+        sudo php artisan tinker --execute="
+        echo 'services.sns.sender_id: ' . (config('services.sns.sender_id') ?: 'NOT SET') . PHP_EOL;
+        echo 'services.sns.enabled: ' . (config('services.sns.enabled') ? 'true' : 'false') . PHP_EOL;
+        "
+
+        echo ""
+        echo "=== 最新のSMS送信ログ（成功） ==="
+        sudo grep "SMS送信成功" storage/logs/laravel.log | tail -3
+
+        echo ""
+        echo "=== AWS SNS publish呼び出しのログ ==="
+        sudo grep -B 5 -A 10 "SMS送信成功" storage/logs/laravel.log | tail -30
+        EOF
+
+        rm deploy_key.pem
