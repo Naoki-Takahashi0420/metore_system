@@ -159,7 +159,28 @@ class BlockedTimePeriodResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('store_id')
                     ->label('店舗')
-                    ->relationship('store', 'name')
+                    ->options(function () {
+                        $user = auth()->user();
+
+                        if ($user->hasRole('super_admin')) {
+                            return Store::where('is_active', true)
+                                ->pluck('name', 'id');
+                        }
+
+                        if ($user->hasRole('owner')) {
+                            return $user->manageableStores()
+                                ->select('stores.id', 'stores.name')
+                                ->where('stores.is_active', true)
+                                ->pluck('name', 'stores.id');
+                        }
+
+                        // 店長・スタッフ
+                        if ($user->store) {
+                            return collect([$user->store->id => $user->store->name]);
+                        }
+
+                        return collect();
+                    })
                     ->searchable(),
             ])
             ->actions([
