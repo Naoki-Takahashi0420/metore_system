@@ -1,0 +1,74 @@
+name: Check Reservation Details
+
+on:
+  workflow_dispatch:
+    inputs:
+      reservation_id:
+        description: 'Reservation ID to check'
+        required: true
+        type: string
+
+jobs:
+  check-reservation:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check Reservation Data
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+        RESERVATION_ID: ${{ github.event.inputs.reservation_id }}
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=== Checking Reservation #${RESERVATION_ID} ==="
+        sudo -u www-data php artisan tinker --execute="
+        \$reservation = \App\Models\Reservation::with(['menu', 'customer', 'reservationOptions'])->find(${RESERVATION_ID});
+
+        if (!\$reservation) {
+            echo '予約が見つかりません' . PHP_EOL;
+            exit;
+        }
+
+        echo '=== 予約情報 ===' . PHP_EOL;
+        echo 'ID: ' . \$reservation->id . PHP_EOL;
+        echo '顧客: ' . \$reservation->customer->name . PHP_EOL;
+        echo '日時: ' . \$reservation->reservation_date . ' ' . \$reservation->start_time . ' - ' . \$reservation->end_time . PHP_EOL;
+        echo 'メニュー: ' . (\$reservation->menu ? \$reservation->menu->name : 'なし') . PHP_EOL;
+        echo 'メニュー所要時間: ' . (\$reservation->menu ? \$reservation->menu->duration_minutes . '分' : 'なし') . PHP_EOL;
+
+        // 実際の予約時間を計算
+        \$start = \Carbon\Carbon::parse(\$reservation->reservation_date . ' ' . \$reservation->start_time);
+        \$end = \Carbon\Carbon::parse(\$reservation->reservation_date . ' ' . \$reservation->end_time);
+        \$actualMinutes = \$start->diffInMinutes(\$end);
+        echo '実際の予約時間: ' . \$actualMinutes . '分' . PHP_EOL;
+
+        // オプション確認
+        echo PHP_EOL . '=== オプション ===' . PHP_EOL;
+        if (\$reservation->reservationOptions && \$reservation->reservationOptions->count() > 0) {
+            foreach (\$reservation->reservationOptions as \$option) {
+                echo '- ' . \$option->name . ' (所要時間: ' . \$option->duration_minutes . '分)' . PHP_EOL;
+            }
+        } else {
+            echo 'オプションなし' . PHP_EOL;
+        }
+
+        // 合計所要時間
+        \$totalDuration = \$reservation->menu ? \$reservation->menu->duration_minutes : 0;
+        if (\$reservation->reservationOptions) {
+            foreach (\$reservation->reservationOptions as \$option) {
+                \$totalDuration += \$option->duration_minutes;
+            }
+        }
+        echo PHP_EOL . '合計所要時間（メニュー+オプション）: ' . \$totalDuration . '分' . PHP_EOL;
+        echo '実際の予約枠: ' . \$actualMinutes . '分' . PHP_EOL;
+        echo '差異: ' . (\$actualMinutes - \$totalDuration) . '分' . PHP_EOL;
+        "
+        EOF
+
+        rm deploy_key.pem
