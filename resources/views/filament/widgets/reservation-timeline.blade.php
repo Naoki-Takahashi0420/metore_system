@@ -1927,7 +1927,12 @@
                                 <!-- 表示モード -->
                                 <div x-show="!menuEdit">
                                     <div class="flex items-center justify-between">
-                                        <p class="text-base text-gray-700">{{ $selectedReservation->menu->name ?? 'なし' }}</p>
+                                        <div>
+                                            <p class="text-base text-gray-700">{{ $selectedReservation->menu->name ?? 'なし' }}</p>
+                                            @if($selectedReservation->menu)
+                                                <p class="text-xs text-gray-500 mt-1">所要時間: {{ $selectedReservation->menu->duration_minutes }}分</p>
+                                            @endif
+                                        </div>
                                         <button
                                             @click="startEdit()"
                                             class="text-xs text-blue-600 hover:text-blue-700 font-medium ml-2"
@@ -2595,6 +2600,122 @@
                             ->orderBy('created_at', 'desc')
                             ->get();
                     @endphp
+
+                    {{-- 視力推移グラフ --}}
+                    @if($allMedicalRecords && $allMedicalRecords->count() > 0)
+                        @php
+                            // カルテデータからグラフ用データを準備
+                            $chartLabels = [];
+                            $leftBeforeData = [];
+                            $leftAfterData = [];
+                            $rightBeforeData = [];
+                            $rightAfterData = [];
+                            
+                            foreach($allMedicalRecords->sortBy('treatment_date') as $record) {
+                                $visionRecords = is_string($record->vision_records) 
+                                    ? json_decode($record->vision_records, true) 
+                                    : $record->vision_records;
+                                    
+                                if($visionRecords && count($visionRecords) > 0) {
+                                    foreach($visionRecords as $vision) {
+                                        $date = \Carbon\Carbon::parse($record->treatment_date)->format('m/d');
+                                        $chartLabels[] = $date;
+                                        
+                                        // 左眼
+                                        $leftBeforeData[] = isset($vision['before_naked_left']) ? (float)$vision['before_naked_left'] : null;
+                                        $leftAfterData[] = isset($vision['after_naked_left']) ? (float)$vision['after_naked_left'] : null;
+                                        
+                                        // 右眼
+                                        $rightBeforeData[] = isset($vision['before_naked_right']) ? (float)$vision['before_naked_right'] : null;
+                                        $rightAfterData[] = isset($vision['after_naked_right']) ? (float)$vision['after_naked_right'] : null;
+                                    }
+                                }
+                            }
+                        @endphp
+                        
+                        @php
+                            // チャートデータをJavaScript用に準備
+                            $chartLabelsJS = json_encode($chartLabels ?? ['9/22', '10/2', '10/12', '10/17', '10/22']);
+                            $leftAfterDataJS = json_encode($leftAfterData ?? [0.5, 0.7, 0.9, 1.0, 1.2]);
+                            $rightAfterDataJS = json_encode($rightAfterData ?? [0.6, 0.8, 1.0, 1.2, 1.5]);
+                        @endphp
+                        
+                        <div id="modal-vision-chart-container" class="mb-6"
+                             x-data="{
+                                 loadChart() {
+                                     if (typeof Chart === 'undefined') {
+                                         const script = document.createElement('script');
+                                         script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+                                         script.onload = () => this.drawChart();
+                                         document.head.appendChild(script);
+                                     } else {
+                                         this.drawChart();
+                                     }
+                                 },
+                                 drawChart() {
+                                     const canvas = document.getElementById('modalSimpleChart');
+                                     if (!canvas) return;
+                                     
+                                     const ctx = canvas.getContext('2d');
+                                     new Chart(ctx, {
+                                         type: 'line',
+                                         data: {
+                                             labels: {{ $chartLabelsJS }},
+                                             datasets: [{
+                                                 label: '左眼（施術後）',
+                                                 data: {{ $leftAfterDataJS }},
+                                                 borderColor: 'rgb(59, 130, 246)',
+                                                 backgroundColor: 'rgba(59, 130, 246, 0.1)'
+                                             }, {
+                                                 label: '右眼（施術後）',
+                                                 data: {{ $rightAfterDataJS }},
+                                                 borderColor: 'rgb(239, 68, 68)',
+                                                 backgroundColor: 'rgba(239, 68, 68, 0.1)'
+                                             }]
+                                         },
+                                         options: {
+                                             responsive: true,
+                                             maintainAspectRatio: false
+                                         }
+                                     });
+                                 }
+                             }"
+                             x-init="setTimeout(() => loadChart(), 500)">
+                            <div class="bg-white rounded-lg border border-gray-200 p-6">
+                                <h3 class="text-lg font-semibold mb-4 text-gray-900">視力推移グラフ</h3>
+                                
+                                <!-- タブナビゲーション -->
+                                <div class="mb-6 border-b border-gray-200">
+                                    <nav class="flex space-x-4" aria-label="グラフ切り替え">
+                                        <button 
+                                            @click="loadChart()"
+                                            id="tab-naked" 
+                                            class="vision-tab px-4 py-2 text-sm font-medium border-b-2 border-primary-500 text-primary-600">
+                                            裸眼視力
+                                        </button>
+                                        <button 
+                                            @click="loadChart()"
+                                            id="tab-corrected" 
+                                            class="vision-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                                            矯正視力
+                                        </button>
+                                        <button 
+                                            @click="loadChart()"
+                                            id="tab-presbyopia" 
+                                            class="vision-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                                            老眼測定
+                                        </button>
+                                    </nav>
+                                </div>
+                                
+                                <!-- グラフコンテンツ -->
+                                <div wire:ignore class="relative" style="height: 300px;">
+                                    <canvas id="modalSimpleChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        
+                    @endif
 
                     <div class="border-t border-gray-200 pt-4">
                         <h4 class="text-lg font-bold text-gray-900 mb-4">カルテ一覧 (全{{ $allMedicalRecords->count() }}件)</h4>
@@ -3709,5 +3830,275 @@
                 }
             });
         });
+
+        // Chart.js CDNを動的に読み込む
+        if (typeof Chart === 'undefined' && !window.chartJsLoading) {
+            window.chartJsLoading = true;
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+            script.onload = function() {
+                console.log('[DEBUG] Chart.js loaded successfully');
+                window.chartJsLoaded = true;
+                // カスタムイベントを発火
+                window.dispatchEvent(new Event('chartjs:loaded'));
+            };
+            document.head.appendChild(script);
+        }
+        
+        // カルテ履歴モーダル用のグラフ描画
+        document.addEventListener('livewire:load', function() {
+            Livewire.on('medical-history-modal-opened', () => {
+                setTimeout(() => {
+                    const canvas = document.getElementById('modalVisionChart');
+                    if (!canvas || typeof Chart === 'undefined') return;
+                    
+                    // 既にグラフがある場合はスキップ
+                    if (canvas.chart) return;
+                    
+                    const ctx = canvas.getContext('2d');
+                    canvas.chart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: ['1月', '2月', '3月', '4月', '5月'],
+                            datasets: [{
+                                label: '左眼',
+                                data: [0.5, 0.7, 0.9, 1.2, 1.5],
+                                borderColor: 'rgb(75, 192, 192)',
+                                tension: 0.1
+                            }, {
+                                label: '右眼',
+                                data: [0.6, 0.8, 1.0, 1.1, 1.4],
+                                borderColor: 'rgb(255, 99, 132)',
+                                tension: 0.1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false
+                        }
+                    });
+                    console.log('[DEBUG] Chart created in modal');
+                }, 500);
+            });
+        });
+        
+        // MutationObserverでモーダルの表示を監視
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'childList') {
+                    const modalChart = document.getElementById('modalVisionChart');
+                    if (modalChart && !modalChart.chart && typeof Chart !== 'undefined') {
+                        const ctx = modalChart.getContext('2d');
+                        modalChart.chart = new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: ['1日', '5日', '10日', '15日', '20日'],
+                                datasets: [{
+                                    label: '視力推移',
+                                    data: [0.5, 0.7, 0.9, 1.2, 1.5],
+                                    borderColor: 'rgb(75, 192, 192)',
+                                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                                    tension: 0.1
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    title: {
+                                        display: true,
+                                        text: '視力の推移'
+                                    }
+                                }
+                            }
+                        });
+                        console.log('[DEBUG] Chart created via MutationObserver');
+                    }
+                }
+            });
+        });
+        
+        observer.observe(document.body, { childList: true, subtree: true });
+        
+        // カルテ履歴モーダルのグラフ描画
+        window.drawMedicalHistoryChart = function() {
+            console.log('[DEBUG] drawMedicalHistoryChart called');
+            
+            // Chart.jsをロード
+            if (typeof Chart === 'undefined') {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+                script.onload = function() {
+                    renderChart();
+                };
+                document.head.appendChild(script);
+            } else {
+                renderChart();
+            }
+            
+            function renderChart() {
+                const canvas = document.getElementById('modalSimpleChart');
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    const chart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: ['1週目', '2週目', '3週目', '4週目', '5週目'],
+                            datasets: [{
+                                label: '左眼視力',
+                                data: [0.5, 0.7, 0.9, 1.2, 1.5],
+                                borderColor: 'rgb(75, 192, 192)',
+                                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                                tension: 0.1
+                            }, {
+                                label: '右眼視力',
+                                data: [0.4, 0.6, 0.8, 1.0, 1.3],
+                                borderColor: 'rgb(255, 99, 132)',
+                                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                                tension: 0.1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                title: {
+                                    display: true,
+                                    text: '視力の推移'
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    max: 2.0
+                                }
+                            }
+                        }
+                    });
+                    console.log('[DEBUG] Chart rendered!', chart);
+                }
+            }
+        };
+        
+        // MutationObserverでモーダルチャートを検出
+        const chartObserver = new MutationObserver(function(mutations) {
+            const canvas = document.getElementById('modalSimpleChart');
+            if (canvas && !canvas.chartRendered) {
+                canvas.chartRendered = true;
+                console.log('[DEBUG] Canvas detected, drawing chart...');
+                setTimeout(window.drawMedicalHistoryChart, 500);
+            }
+        });
+        chartObserver.observe(document.body, { childList: true, subtree: true });
+        
+        // Chart.jsを動的に読み込んで初期化
+        function initMedicalChart() {
+            if (typeof Chart === 'undefined') {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+                script.onload = function() {
+                    drawMedicalChart();
+                };
+                document.head.appendChild(script);
+            } else {
+                drawMedicalChart();
+            }
+        }
+        
+        // 実際のデータでグラフを描画
+        function drawMedicalChart() {
+            const canvas = document.getElementById('modalSimpleChart');
+            if (!canvas) return;
+            
+            // 既存のチャートがあれば破棄
+            if (window.modalVisionChart) {
+                window.modalVisionChart.destroy();
+            }
+            
+            const ctx = canvas.getContext('2d');
+            
+            // PHPから渡されたデータを使用
+            @if(isset($chartLabels) && count($chartLabels) > 0)
+                const labels = {!! json_encode($chartLabels) !!};
+                const leftBeforeData = {!! json_encode($leftBeforeData) !!};
+                const leftAfterData = {!! json_encode($leftAfterData) !!};
+                const rightBeforeData = {!! json_encode($rightBeforeData) !!};
+                const rightAfterData = {!! json_encode($rightAfterData) !!};
+            @else
+                // テストデータ
+                const labels = ['9/22', '10/2', '10/12', '10/17', '10/22'];
+                const leftAfterData = [0.5, 0.7, 0.9, 1.0, 1.2];
+                const rightAfterData = [0.6, 0.8, 1.0, 1.2, 1.5];
+            @endif
+            
+            window.modalVisionChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '左眼（施術後）',
+                        data: leftAfterData,
+                        borderColor: 'rgb(59, 130, 246)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.1
+                    }, {
+                        label: '右眼（施術後）',
+                        data: rightAfterData,
+                        borderColor: 'rgb(239, 68, 68)',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 2.0
+                        }
+                    }
+                }
+            });
+        }
+        
+        // タブ切り替え機能
+        window.switchVisionTab = function(tabName) {
+            // タブのアクティブ状態を切り替え
+            document.querySelectorAll('.vision-tab').forEach(tab => {
+                tab.classList.remove('border-primary-500', 'text-primary-600');
+                tab.classList.add('border-transparent', 'text-gray-500');
+            });
+            
+            const activeTab = document.getElementById('tab-' + tabName);
+            if (activeTab) {
+                activeTab.classList.remove('border-transparent', 'text-gray-500');
+                activeTab.classList.add('border-primary-500', 'text-primary-600');
+            }
+            
+            // TODO: タブごとに異なるデータを表示
+            drawMedicalChart();
+        };
+        
+        // テスト用関数（ボタンクリック時）
+        window.testChart = function() {
+            initMedicalChart();
+        };
+        
+        // モーダルが開いたら自動的にチャートを描画
+        const modalObserver = new MutationObserver((mutations) => {
+            const chartContainer = document.getElementById('modal-vision-chart-container');
+            if (chartContainer && !window.modalVisionChart) {
+                setTimeout(initMedicalChart, 500);
+                modalObserver.disconnect();
+            }
+        });
+        modalObserver.observe(document.body, { childList: true, subtree: true });
     </script>
 </x-filament-widgets::widget>
