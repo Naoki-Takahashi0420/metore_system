@@ -1,0 +1,59 @@
+name: Check Reservation SQL
+
+on:
+  workflow_dispatch:
+    inputs:
+      reservation_id:
+        description: 'Reservation ID to check'
+        required: true
+        type: string
+
+jobs:
+  check-reservation:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check Reservation Data via SQL
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+        RESERVATION_ID: ${{ github.event.inputs.reservation_id }}
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=== 予約ID ${RESERVATION_ID} の情報 ==="
+        sqlite3 database/database.sqlite << 'SQL'
+.headers on
+.mode column
+
+SELECT
+    r.id as '予約ID',
+    c.name as '顧客名',
+    r.reservation_date as '予約日',
+    r.start_time as '開始時間',
+    r.end_time as '終了時間',
+    CAST((julianday(r.reservation_date || ' ' || r.end_time) - julianday(r.reservation_date || ' ' || r.start_time)) * 1440 AS INTEGER) as '実際の分数',
+    m.name as 'メニュー名',
+    m.duration_minutes as 'メニュー所要時間'
+FROM reservations r
+LEFT JOIN customers c ON r.customer_id = c.id
+LEFT JOIN menus m ON r.menu_id = m.id
+WHERE r.id = ${RESERVATION_ID};
+
+-- オプション確認
+SELECT
+    ro.reservation_id as '予約ID',
+    mo.name as 'オプション名',
+    mo.duration_minutes as 'オプション所要時間'
+FROM reservation_options ro
+LEFT JOIN menu_options mo ON ro.menu_option_id = mo.id
+WHERE ro.reservation_id = ${RESERVATION_ID};
+SQL
+        EOF
+
+        rm deploy_key.pem
