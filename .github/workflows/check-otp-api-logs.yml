@@ -1,0 +1,51 @@
+name: Check OTP API Logs
+
+on:
+  workflow_dispatch:
+    inputs:
+      phone:
+        description: 'Phone number to check (optional)'
+        required: false
+        default: ''
+
+jobs:
+  check-otp-api:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check OTP API Request Logs
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+        PHONE: ${{ github.event.inputs.phone }}
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=== 最新のOTP API リクエスト (最新20件) ==="
+        sudo grep "POST.*send-otp\|🔑.*OTP生成\|📱.*SMS送信" storage/logs/laravel.log | tail -20
+
+        echo ""
+        echo "=== OTP送信エラー (最新10件) ==="
+        sudo grep -i "error.*otp\|failed.*otp\|exception.*otp" storage/logs/laravel.log | tail -10
+
+        if [ -n "${PHONE}" ]; then
+          echo ""
+          echo "=== ${PHONE} に関連するログ (最新20件) ==="
+          sudo grep "${PHONE}" storage/logs/laravel.log | tail -20
+        fi
+
+        echo ""
+        echo "=== レート制限エラー (最新5件) ==="
+        sudo grep "Too many attempts\|Rate limit" storage/logs/laravel.log | tail -5
+
+        echo ""
+        echo "=== バリデーションエラー (最新10件) ==="
+        sudo grep "validation\|Validation" storage/logs/laravel.log | tail -10
+        EOF
+
+        rm deploy_key.pem
