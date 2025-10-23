@@ -1,0 +1,39 @@
+name: Test SMS Direct
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-sms:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Test SMS Functionality
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=== Testing SMS Service directly ==="
+        sudo -u www-data php artisan tinker --execute="
+        try {
+            \$smsService = app(App\Services\SmsService::class);
+            echo 'SMS Service created successfully' . PHP_EOL;
+
+            // Try to send test OTP
+            \$result = \$smsService->sendOtp('08033372305', '123456');
+            echo 'SendOTP result: ' . (\$result ? 'SUCCESS' : 'FAILED') . PHP_EOL;
+        } catch (\Exception \$e) {
+            echo 'ERROR: ' . \$e->getMessage() . PHP_EOL;
+            echo 'Trace: ' . \$e->getTraceAsString() . PHP_EOL;
+        }
+        "
+        EOF
+
+        rm deploy_key.pem
