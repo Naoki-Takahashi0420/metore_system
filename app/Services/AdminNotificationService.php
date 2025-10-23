@@ -144,7 +144,7 @@ class AdminNotificationService
         // 店舗オーナーと管理者を取得
         // store_managersテーブルに登録があればそこから、なければstore_idで検索
         if ($store->managers()->exists()) {
-            $storeManagerIds = $store->managers()->pluck('users.id');
+            $storeManagerIds = $store->managers()->pluck('users.id')->unique();
             $adminIds = $adminIds->merge($storeManagerIds);
         } else {
             // store_managersテーブルが空の場合は、store_idが一致するユーザーを取得
