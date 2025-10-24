@@ -33,9 +33,8 @@ class BlockedTimePeriodResource extends Resource
                             return Store::where('is_active', true)->pluck('name', 'id');
                         } elseif ($user->hasRole('owner')) {
                             return $user->manageableStores()
-                                ->select('stores.id', 'stores.name', 'stores.is_active')
                                 ->where('stores.is_active', true)
-                                ->pluck('name', 'stores.id');
+                                ->pluck('stores.name', 'stores.id');
                         } else {
                             // 店長・スタッフは自店舗のみ
                             return $user->store ? collect([$user->store->id => $user->store->name]) : collect();
@@ -169,9 +168,8 @@ class BlockedTimePeriodResource extends Resource
 
                         if ($user->hasRole('owner')) {
                             return $user->manageableStores()
-                                ->select('stores.id', 'stores.name')
                                 ->where('stores.is_active', true)
-                                ->pluck('name', 'stores.id');
+                                ->pluck('stores.name', 'stores.id');
                         }
 
                         // 店長・スタッフ
