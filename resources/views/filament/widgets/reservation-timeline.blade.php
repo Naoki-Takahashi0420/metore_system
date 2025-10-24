@@ -2660,15 +2660,15 @@
                                      new Chart(ctx, {
                                          type: 'line',
                                          data: {
-                                             labels: {{ $chartLabelsJS }},
+                                             labels: {!! $chartLabelsJS !!},
                                              datasets: [{
                                                  label: '左眼（施術後）',
-                                                 data: {{ $leftAfterDataJS }},
+                                                 data: {!! $leftAfterDataJS !!},
                                                  borderColor: 'rgb(59, 130, 246)',
                                                  backgroundColor: 'rgba(59, 130, 246, 0.1)'
                                              }, {
                                                  label: '右眼（施術後）',
-                                                 data: {{ $rightAfterDataJS }},
+                                                 data: {!! $rightAfterDataJS !!},
                                                  borderColor: 'rgb(239, 68, 68)',
                                                  backgroundColor: 'rgba(239, 68, 68, 0.1)'
                                              }]
