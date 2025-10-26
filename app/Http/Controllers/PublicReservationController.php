@@ -1814,13 +1814,6 @@ class PublicReservationController extends Controller
     
     public function store(Request $request, ReservationContextService $contextService)
     {
-        \Log::info('🎯 store() メソッド開始', [
-            'request_url' => $request->fullUrl(),
-            'request_method' => $request->method(),
-            'has_change_reservation_id' => Session::has('change_reservation_id'),
-            'change_reservation_id' => Session::get('change_reservation_id')
-        ]);
-
         // パラメータベースでコンテキストを取得
         $context = $contextService->extractContextFromRequest($request);
 
@@ -1989,19 +1982,15 @@ class PublicReservationController extends Controller
         
         // 日程変更の場合の処理
         if (Session::has('change_reservation_id')) {
-            \Log::info('🔄 予約変更モード検出');
-
             $reservationId = Session::get('change_reservation_id');
             $existingReservation = Reservation::find($reservationId);
-
+            
             if ($existingReservation) {
-                \Log::info('✅ 既存予約を発見', ['reservation_id' => $reservationId]);
-
                 // 既存予約を更新
                 $menu = Menu::find($validated['menu_id']);
                 $startTime = Carbon::parse($validated['date'] . ' ' . $validated['time']);
                 $endTime = $startTime->copy()->addMinutes($menu->duration ?? 60);
-
+                
                 // 変更前の予約情報を保持
                 $oldReservation = $existingReservation->replicate();
 
@@ -2013,24 +2002,8 @@ class PublicReservationController extends Controller
                     'menu_id' => $validated['menu_id'],
                 ]);
 
-                \Log::info('✅ 予約を更新しました', [
-                    'reservation_number' => $existingReservation->reservation_number,
-                    'new_date' => $validated['date'],
-                    'new_time' => $validated['time']
-                ]);
-
                 // 日程変更通知を送信（顧客と管理者の両方に）
-                try {
-                    event(new \App\Events\ReservationChanged($oldReservation, $existingReservation));
-                    \Log::info('✅ イベント発火成功');
-                } catch (\Exception $e) {
-                    \Log::error('❌ イベント発火エラー', [
-                        'error' => $e->getMessage(),
-                        'file' => $e->getFile(),
-                        'line' => $e->getLine()
-                    ]);
-                    // イベントエラーは無視して処理を続行
-                }
+                event(new \App\Events\ReservationChanged($oldReservation, $existingReservation));
 
                 // セッションをクリア
                 Session::forget('change_reservation_id');
@@ -2038,18 +2011,10 @@ class PublicReservationController extends Controller
                 Session::forget('original_reservation_date');
                 Session::forget('original_reservation_time');
 
-                \Log::info('🎉 リダイレクト準備完了', [
-                    'redirect_url' => route('reservation.complete', $existingReservation->reservation_number)
-                ]);
-
                 // 予約変更完了ページへ
                 return redirect()->route('reservation.complete', $existingReservation->reservation_number)
                     ->with('success', '予約日時を変更しました');
-            } else {
-                \Log::error('❌ 予約IDが見つかりません', ['reservation_id' => $reservationId]);
             }
-        } else {
-            \Log::info('ℹ️ 通常の新規予約モード（予約変更ではない）');
         }
         
         // 顧客情報の処理

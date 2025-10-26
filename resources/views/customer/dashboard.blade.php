@@ -1179,12 +1179,12 @@ function displayReservations() {
                 </div>
                 
                 <div class="flex gap-2">
-                    ${!isPast && !['cancelled', 'canceled', 'completed', 'no_show'].includes(reservation.status) ? `
+                    ${!isPast && reservation.can_cancel ? `
                         <button onclick="changeReservationDate(${reservation.id})"
                                 class="border border-gray-300 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
                             日程変更
                         </button>
-                        <button onclick="cancelReservation(${reservation.id})"
+                        <button onclick="cancelReservation(${reservation.id})" 
                                 class="border border-red-300 text-red-600 px-3 py-2 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors">
                             キャンセル
                         </button>

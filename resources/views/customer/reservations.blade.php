@@ -158,7 +158,7 @@ function displayReservations(reservations) {
                 </div>
                 
                 <div class="flex items-center gap-2">
-                    ${!['cancelled', 'canceled', 'completed', 'no_show'].includes(reservation.status) ? `
+                    ${reservation.can_cancel ? `
                         <button onclick="cancelReservation(${reservation.id})"
                                 class="text-red-600 hover:text-red-700 text-sm">
                             キャンセル
@@ -237,19 +237,12 @@ async function cancelReservation(reservationId) {
     const reservation = allReservations.find(r => r.id === reservationId);
     const deadlineHours = reservation?.cancellation_deadline_hours || 24;
 
-    // キャンセル期限をチェック
-    if (!reservation.can_cancel) {
-        // 期限切れの場合は電話案内モーダルを表示
-        showPhoneContactModal(reservation);
-        return;
-    }
-
     if (!confirm(`本当にこの予約をキャンセルしますか？\n${deadlineHours}時間前までのキャンセルのみ無料です。`)) {
         return;
     }
 
     const reason = prompt('キャンセル理由をお聞かせください（任意）:');
-
+    
     try {
         const token = localStorage.getItem('customer_token');
         const response = await fetch(`/api/customer/reservations/${reservationId}/cancel`, {
@@ -262,21 +255,21 @@ async function cancelReservation(reservationId) {
                 cancel_reason: reason || '顧客都合'
             })
         });
-
+        
         if (!response.ok) {
             throw new Error('キャンセルに失敗しました');
         }
-
+        
         window.dispatchEvent(new CustomEvent('show-toast', {
             detail: {
                 message: '予約をキャンセルしました',
                 type: 'success'
             }
         }));
-
+        
         // ページを再読み込み
         location.reload();
-
+        
     } catch (error) {
         console.error('Cancel error:', error);
         window.dispatchEvent(new CustomEvent('show-toast', {
@@ -286,39 +279,6 @@ async function cancelReservation(reservationId) {
             }
         }));
     }
-}
-
-// 電話連絡を促すモーダルを表示
-function showPhoneContactModal(reservation) {
-    const deadlineHours = reservation.cancellation_deadline_hours || 24;
-
-    const modal = document.createElement('div');
-    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
-    modal.innerHTML = `
-        <div class="bg-white rounded-lg p-6 max-w-md w-full">
-            <h3 class="text-lg font-semibold mb-4">予約キャンセル</h3>
-            <p class="text-gray-700 mb-4">
-                予約まで${deadlineHours}時間を切っています。<br>
-                キャンセルをご希望の場合は、お手数ですが店舗へ直接お電話でご連絡ください。
-            </p>
-            <div class="bg-gray-50 p-4 rounded mb-4">
-                <p class="font-semibold mb-2">${reservation.store?.name || '店舗'}</p>
-                <p class="text-gray-700">TEL: ${reservation.store?.phone || ''}</p>
-            </div>
-            <button onclick="this.closest('.fixed').remove()"
-                    class="w-full bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-800">
-                閉じる
-            </button>
-        </div>
-    `;
-    document.body.appendChild(modal);
-
-    // モーダル背景クリックで閉じる
-    modal.addEventListener('click', function(e) {
-        if (e.target === modal) {
-            modal.remove();
-        }
-    });
 }
 
 function modifyReservation(reservationId) {
