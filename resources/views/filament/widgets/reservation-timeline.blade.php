@@ -950,8 +950,25 @@
                                             </div>
                                         @else
                                             @foreach($seat['reservations'] as $reservation)
-                                                @if($reservation['start_slot'] == $index)
-                                                    <div class="booking-block 
+                                                @php
+                                                    // 🔍 詳細デバッグログ
+                                                    $shouldDisplay = floor($reservation['start_slot']) == $index;
+                                                    $logData = [
+                                                        'reservation_id' => $reservation['id'],
+                                                        'customer' => $reservation['customer_name'] ?? 'unknown',
+                                                        'start_slot' => $reservation['start_slot'],
+                                                        'start_slot_floor' => floor($reservation['start_slot']),
+                                                        'span' => $reservation['span'],
+                                                        'index' => $index,
+                                                        'should_display' => $shouldDisplay,
+                                                        'old_condition' => ($reservation['start_slot'] == $index),
+                                                    ];
+                                                @endphp
+                                                <script>
+                                                    console.log('🔍 [RESERVATION DISPLAY]', @json($logData));
+                                                </script>
+                                                @if(floor($reservation['start_slot']) == $index)
+                                                    <div class="booking-block
                                                         course-{{ $reservation['course_type'] }}
                                                         span-{{ ceil($reservation['span']) }}
                                                         {{ $reservation['is_conflicting'] ?? false ? 'conflicting-reservation' : '' }}"
