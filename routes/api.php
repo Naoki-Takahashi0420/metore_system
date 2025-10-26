@@ -130,6 +130,61 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
 
 // 管理者向けAPI（Web認証 - Filament用）
 Route::middleware('auth:web')->prefix('admin')->group(function () {
+    // 予約のメニュー変更
+    Route::post('reservations/{id}/change-menu', [\App\Http\Controllers\Api\ReservationController::class, 'adminChangeMenu']);
+
+    // 店舗のメニュー一覧取得
+    Route::get('stores/{storeId}/menus', [\App\Http\Controllers\Api\ReservationController::class, 'getAvailableMenus']);
+
+    // 店舗のオプションメニュー一覧取得
+    Route::get('stores/{storeId}/options', [\App\Http\Controllers\Api\ReservationController::class, 'getAvailableOptions']);
+
     // カルテ存在チェック
     Route::get('medical-records/check-by-reservation/{reservationId}', [\App\Http\Controllers\Api\MedicalRecordController::class, 'checkByReservation']);
+
+    // 顧客のカルテ一覧取得（グラフ表示用）
+    Route::get('customers/{id}/medical-records', function ($id) {
+        $customer = \App\Models\Customer::findOrFail($id);
+
+        $records = $customer->medicalRecords()
+            ->with(['presbyopiaMeasurements', 'reservation.menu', 'staff'])
+            ->orderBy('record_date', 'desc')
+            ->get()
+            ->map(function ($record) {
+                // vision_recordsをデコード
+                $visionRecords = is_string($record->vision_records)
+                    ? json_decode($record->vision_records, true)
+                    : $record->vision_records;
+
+                // 老眼測定データを整形
+                $presbyopiaData = [
+                    'before' => null,
+                    'after' => null,
+                ];
+
+                foreach ($record->presbyopiaMeasurements as $measurement) {
+                    if ($measurement->status === '施術前') {
+                        $presbyopiaData['before'] = $measurement;
+                    } elseif ($measurement->status === '施術後') {
+                        $presbyopiaData['after'] = $measurement;
+                    }
+                }
+
+                return [
+                    'id' => $record->id,
+                    'record_date' => $record->record_date,
+                    'treatment_date' => $record->treatment_date,
+                    'session_number' => $record->session_number,
+                    'vision_records' => $visionRecords,
+                    'presbyopia_measurements' => $presbyopiaData,
+                    'menu_name' => $record->reservation?->menu?->name,
+                    'staff_name' => $record->staff?->name,
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => $records,
+        ]);
+    });
 });

@@ -45,24 +45,36 @@
         <div id="vision-chart-container" class="hidden py-6">
             <div class="bg-white rounded-lg border border-gray-200 p-6">
                 <h2 class="text-lg font-semibold mb-4 text-gray-900">視力推移グラフ</h2>
-                <div class="space-y-6">
-                    <div id="naked-vision-chart-wrapper" class="hidden">
-                        <h3 class="text-base font-medium mb-3 text-gray-700">裸眼視力</h3>
-                        <div class="relative" style="height: 300px;">
-                            <canvas id="nakedVisionChart"></canvas>
-                        </div>
+
+                <!-- タブナビゲーション -->
+                <div class="mb-6 border-b border-gray-200">
+                    <nav class="flex space-x-4" aria-label="グラフ切り替え">
+                        <button id="tab-naked" onclick="switchVisionChart('naked')" class="vision-tab px-4 py-2 text-sm font-medium border-b-2 border-blue-500 text-blue-600">
+                            裸眼視力
+                        </button>
+                        <button id="tab-corrected" onclick="switchVisionChart('corrected')" class="vision-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                            矯正視力
+                        </button>
+                        <button id="tab-presbyopia" onclick="switchVisionChart('presbyopia')" class="vision-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                            老眼測定
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- グラフコンテンツ -->
+                <div id="naked-vision-chart-wrapper" class="chart-content">
+                    <div class="relative" style="height: 300px;">
+                        <canvas id="nakedVisionChart"></canvas>
                     </div>
-                    <div id="corrected-vision-chart-wrapper" class="hidden">
-                        <h3 class="text-base font-medium mb-3 text-gray-700">矯正視力</h3>
-                        <div class="relative" style="height: 300px;">
-                            <canvas id="correctedVisionChart"></canvas>
-                        </div>
+                </div>
+                <div id="corrected-vision-chart-wrapper" class="chart-content hidden">
+                    <div class="relative" style="height: 300px;">
+                        <canvas id="correctedVisionChart"></canvas>
                     </div>
-                    <div id="presbyopia-vision-chart-wrapper" class="hidden">
-                        <h3 class="text-base font-medium mb-3 text-gray-700">老眼測定（近見距離 A95%）</h3>
-                        <div class="relative" style="height: 300px;">
-                            <canvas id="presbyopiaVisionChart"></canvas>
-                        </div>
+                </div>
+                <div id="presbyopia-vision-chart-wrapper" class="chart-content hidden">
+                    <div class="relative" style="height: 300px;">
+                        <canvas id="presbyopiaVisionChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -665,6 +677,32 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
+// 視力グラフ切り替え関数
+function switchVisionChart(type) {
+    // 全てのタブとコンテンツを非アクティブに
+    document.querySelectorAll('.vision-tab').forEach(tab => {
+        tab.classList.remove('border-blue-500', 'text-blue-600');
+        tab.classList.add('border-transparent', 'text-gray-500');
+    });
+
+    document.querySelectorAll('.chart-content').forEach(content => {
+        content.classList.add('hidden');
+    });
+
+    // 選択されたタブとコンテンツをアクティブに
+    const activeTab = document.getElementById(`tab-${type}`);
+    const activeContent = document.getElementById(`${type}-vision-chart-wrapper`);
+
+    if (activeTab) {
+        activeTab.classList.remove('border-transparent', 'text-gray-500');
+        activeTab.classList.add('border-blue-500', 'text-blue-600');
+    }
+
+    if (activeContent) {
+        activeContent.classList.remove('hidden');
+    }
+}
+
 // 視力推移グラフを描画
 function renderVisionCharts(records) {
     // 全カルテから視力記録を収集
@@ -831,11 +869,9 @@ function renderVisionCharts(records) {
 
     // 裸眼視力グラフ
     if (hasNakedData) {
-        const nakedWrapper = document.getElementById('naked-vision-chart-wrapper');
         const nakedCanvas = document.getElementById('nakedVisionChart');
 
-        if (nakedWrapper && nakedCanvas) {
-            nakedWrapper.classList.remove('hidden');
+        if (nakedCanvas) {
             new Chart(nakedCanvas, {
                 ...chartConfig,
                 data: {
@@ -895,11 +931,9 @@ function renderVisionCharts(records) {
 
     // 矯正視力グラフ
     if (hasCorrectedData) {
-        const correctedWrapper = document.getElementById('corrected-vision-chart-wrapper');
         const correctedCanvas = document.getElementById('correctedVisionChart');
 
-        if (correctedWrapper && correctedCanvas) {
-            correctedWrapper.classList.remove('hidden');
+        if (correctedCanvas) {
             new Chart(correctedCanvas, {
                 ...chartConfig,
                 data: {
@@ -990,11 +1024,9 @@ function renderVisionCharts(records) {
     });
 
     if (hasPresbyopiaData) {
-        const presbyopiaWrapper = document.getElementById('presbyopia-vision-chart-wrapper');
         const presbyopiaCanvas = document.getElementById('presbyopiaVisionChart');
 
-        if (presbyopiaWrapper && presbyopiaCanvas) {
-            presbyopiaWrapper.classList.remove('hidden');
+        if (presbyopiaCanvas) {
             new Chart(presbyopiaCanvas, {
                 ...chartConfig,
                 data: {
@@ -1092,6 +1124,35 @@ function renderVisionCharts(records) {
     // グラフコンテナを表示
     if (hasNakedData || hasCorrectedData || hasPresbyopiaData) {
         chartContainer.classList.remove('hidden');
+
+        // デフォルトで最初に表示するタブを決定
+        let defaultTab = null;
+        if (hasNakedData) {
+            defaultTab = 'naked';
+        } else if (hasCorrectedData) {
+            defaultTab = 'corrected';
+        } else if (hasPresbyopiaData) {
+            defaultTab = 'presbyopia';
+        }
+
+        // データがないタブを非表示にする
+        if (!hasNakedData) {
+            const nakedTab = document.getElementById('tab-naked');
+            if (nakedTab) nakedTab.style.display = 'none';
+        }
+        if (!hasCorrectedData) {
+            const correctedTab = document.getElementById('tab-corrected');
+            if (correctedTab) correctedTab.style.display = 'none';
+        }
+        if (!hasPresbyopiaData) {
+            const presbyopiaTab = document.getElementById('tab-presbyopia');
+            if (presbyopiaTab) presbyopiaTab.style.display = 'none';
+        }
+
+        // デフォルトタブを表示
+        if (defaultTab) {
+            switchVisionChart(defaultTab);
+        }
     }
 }
 

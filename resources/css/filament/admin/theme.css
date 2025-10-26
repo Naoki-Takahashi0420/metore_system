@@ -51,4 +51,14 @@
     .fixed.inset-0 {
         transition: all 0.3s ease-in-out;
     }
+
+    /* お知らせウィジェットのモーダル背景 */
+    .announcement-modal-backdrop {
+        backdrop-filter: blur(8px) !important;
+        -webkit-backdrop-filter: blur(8px) !important;
+        background-color: rgba(17, 24, 39, 0.6) !important;
+        will-change: backdrop-filter, opacity;
+        transform: translateZ(0);
+        transition: opacity 0.3s ease-in-out;
+    }
 }

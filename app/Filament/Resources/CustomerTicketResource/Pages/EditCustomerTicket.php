@@ -10,6 +10,8 @@ class EditCustomerTicket extends EditRecord
 {
     protected static string $resource = CustomerTicketResource::class;
 
+    protected static bool $shouldCheckUnsavedChanges = true;
+
     protected function getHeaderActions(): array
     {
         return [

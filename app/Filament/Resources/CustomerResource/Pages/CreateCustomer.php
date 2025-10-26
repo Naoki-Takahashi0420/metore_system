@@ -10,6 +10,8 @@ class CreateCustomer extends CreateRecord
 {
     protected static string $resource = CustomerResource::class;
 
+    protected static bool $shouldCheckUnsavedChanges = true;
+
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         $user = auth()->user();

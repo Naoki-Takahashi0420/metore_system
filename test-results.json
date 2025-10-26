@@ -68,153 +68,294 @@
   },
   "suites": [
     {
-      "title": "vision-graph-test.spec.js",
-      "file": "vision-graph-test.spec.js",
+      "title": "e2e/menu-change-test.spec.js",
+      "file": "e2e/menu-change-test.spec.js",
       "column": 0,
       "line": 0,
-      "specs": [
+      "specs": [],
+      "suites": [
         {
-          "title": "vision graph accordion height test",
-          "ok": false,
-          "tags": [],
-          "tests": [
+          "title": "メニュー変更機能のテスト",
+          "file": "e2e/menu-change-test.spec.js",
+          "line": 3,
+          "column": 6,
+          "specs": [
             {
-              "timeout": 60000,
-              "annotations": [],
-              "expectedStatus": "passed",
-              "projectId": "chromium",
-              "projectName": "chromium",
-              "results": [
+              "title": "予約詳細モーダルでメニュー名をクリックして変更できる",
+              "ok": false,
+              "tags": [],
+              "tests": [
                 {
-                  "workerIndex": 0,
-                  "parallelIndex": 0,
-                  "status": "failed",
-                  "duration": 13629,
-                  "error": {
-                    "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('table') to be visible\u001b[22m\n",
-                    "stack": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('table') to be visible\u001b[22m\n\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/vision-graph-test.spec.js:15:14",
-                    "location": {
-                      "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/vision-graph-test.spec.js",
-                      "column": 14,
-                      "line": 15
-                    },
-                    "snippet": "  13 |\n  14 |   // 予約をクリックしてモーダルを開く\n> 15 |   await page.waitForSelector('table', { timeout: 10000 });\n     |              ^\n  16 |\n  17 |   // 予約詳細モーダルを開く（セルをクリック）\n  18 |   const cells = await page.locator('td[style*=\"background\"]').all();"
-                  },
-                  "errors": [
-                    {
-                      "location": {
-                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/vision-graph-test.spec.js",
-                        "column": 14,
-                        "line": 15
-                      },
-                      "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('table') to be visible\u001b[22m\n\n\n  13 |\n  14 |   // 予約をクリックしてモーダルを開く\n> 15 |   await page.waitForSelector('table', { timeout: 10000 });\n     |              ^\n  16 |\n  17 |   // 予約詳細モーダルを開く（セルをクリック）\n  18 |   const cells = await page.locator('td[style*=\"background\"]').all();\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/vision-graph-test.spec.js:15:14"
-                    }
-                  ],
-                  "stdout": [],
-                  "stderr": [],
-                  "retry": 0,
-                  "startTime": "2025-10-20T13:37:58.010Z",
+                  "timeout": 60000,
                   "annotations": [],
-                  "attachments": [
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
                     {
-                      "name": "screenshot",
-                      "contentType": "image/png",
-                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/vision-graph-test-vision-graph-accordion-height-test-chromium/test-failed-1.png"
-                    },
-                    {
-                      "name": "video",
-                      "contentType": "video/webm",
-                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/vision-graph-test-vision-graph-accordion-height-test-chromium/video.webm"
-                    },
-                    {
-                      "name": "error-context",
-                      "contentType": "text/markdown",
-                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/vision-graph-test-vision-graph-accordion-height-test-chromium/error-context.md"
-                    }
-                  ],
-                  "errorLocation": {
-                    "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/vision-graph-test.spec.js",
-                    "column": 14,
-                    "line": 15
-                  }
-                },
-                {
-                  "workerIndex": 1,
-                  "parallelIndex": 0,
-                  "status": "failed",
-                  "duration": 13959,
-                  "error": {
-                    "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('table') to be visible\u001b[22m\n",
-                    "stack": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('table') to be visible\u001b[22m\n\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/vision-graph-test.spec.js:15:14",
-                    "location": {
-                      "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/vision-graph-test.spec.js",
-                      "column": 14,
-                      "line": 15
-                    },
-                    "snippet": "  13 |\n  14 |   // 予約をクリックしてモーダルを開く\n> 15 |   await page.waitForSelector('table', { timeout: 10000 });\n     |              ^\n  16 |\n  17 |   // 予約詳細モーダルを開く（セルをクリック）\n  18 |   const cells = await page.locator('td[style*=\"background\"]').all();"
-                  },
-                  "errors": [
-                    {
-                      "location": {
-                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/vision-graph-test.spec.js",
-                        "column": 14,
-                        "line": 15
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 32198,
+                      "error": {
+                        "message": "TimeoutError: page.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"email\"]')\u001b[22m\n",
+                        "stack": "TimeoutError: page.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"email\"]')\u001b[22m\n\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/menu-change-test.spec.js:7:20",
+                        "location": {
+                          "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/menu-change-test.spec.js",
+                          "column": 20,
+                          "line": 7
+                        },
+                        "snippet": "   5 |         // 管理画面にログイン\n   6 |         await page.goto('http://localhost:8000/admin/login');\n>  7 |         await page.fill('input[name=\"email\"]', 'admin@eye-training.com');\n     |                    ^\n   8 |         await page.fill('input[name=\"password\"]', 'password');\n   9 |         await page.click('button[type=\"submit\"]');\n  10 |         await page.waitForURL('**/admin');"
                       },
-                      "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('table') to be visible\u001b[22m\n\n\n  13 |\n  14 |   // 予約をクリックしてモーダルを開く\n> 15 |   await page.waitForSelector('table', { timeout: 10000 });\n     |              ^\n  16 |\n  17 |   // 予約詳細モーダルを開く（セルをクリック）\n  18 |   const cells = await page.locator('td[style*=\"background\"]').all();\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/vision-graph-test.spec.js:15:14"
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/menu-change-test.spec.js",
+                            "column": 20,
+                            "line": 7
+                          },
+                          "message": "TimeoutError: page.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"email\"]')\u001b[22m\n\n\n   5 |         // 管理画面にログイン\n   6 |         await page.goto('http://localhost:8000/admin/login');\n>  7 |         await page.fill('input[name=\"email\"]', 'admin@eye-training.com');\n     |                    ^\n   8 |         await page.fill('input[name=\"password\"]', 'password');\n   9 |         await page.click('button[type=\"submit\"]');\n  10 |         await page.waitForURL('**/admin');\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/menu-change-test.spec.js:7:20"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-21T01:24:49.824Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-menu-change-test-メニュー変更機能のテスト-予約詳細モーダルでメニュー名をクリックして変更できる-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-menu-change-test-メニュー変更機能のテスト-予約詳細モーダルでメニュー名をクリックして変更できる-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-menu-change-test-メニュー変更機能のテスト-予約詳細モーダルでメニュー名をクリックして変更できる-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/menu-change-test.spec.js",
+                        "column": 20,
+                        "line": 7
+                      }
+                    },
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 31670,
+                      "error": {
+                        "message": "TimeoutError: page.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"email\"]')\u001b[22m\n",
+                        "stack": "TimeoutError: page.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"email\"]')\u001b[22m\n\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/menu-change-test.spec.js:7:20",
+                        "location": {
+                          "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/menu-change-test.spec.js",
+                          "column": 20,
+                          "line": 7
+                        },
+                        "snippet": "   5 |         // 管理画面にログイン\n   6 |         await page.goto('http://localhost:8000/admin/login');\n>  7 |         await page.fill('input[name=\"email\"]', 'admin@eye-training.com');\n     |                    ^\n   8 |         await page.fill('input[name=\"password\"]', 'password');\n   9 |         await page.click('button[type=\"submit\"]');\n  10 |         await page.waitForURL('**/admin');"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/menu-change-test.spec.js",
+                            "column": 20,
+                            "line": 7
+                          },
+                          "message": "TimeoutError: page.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"email\"]')\u001b[22m\n\n\n   5 |         // 管理画面にログイン\n   6 |         await page.goto('http://localhost:8000/admin/login');\n>  7 |         await page.fill('input[name=\"email\"]', 'admin@eye-training.com');\n     |                    ^\n   8 |         await page.fill('input[name=\"password\"]', 'password');\n   9 |         await page.click('button[type=\"submit\"]');\n  10 |         await page.waitForURL('**/admin');\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/menu-change-test.spec.js:7:20"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 1,
+                      "startTime": "2025-10-21T01:25:24.941Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-menu-change-test-メニュー変更機能のテスト-予約詳細モーダルでメニュー名をクリックして変更できる-chromium-retry1/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-menu-change-test-メニュー変更機能のテスト-予約詳細モーダルでメニュー名をクリックして変更できる-chromium-retry1/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-menu-change-test-メニュー変更機能のテスト-予約詳細モーダルでメニュー名をクリックして変更できる-chromium-retry1/error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-menu-change-test-メニュー変更機能のテスト-予約詳細モーダルでメニュー名をクリックして変更できる-chromium-retry1/trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/menu-change-test.spec.js",
+                        "column": 20,
+                        "line": 7
+                      }
                     }
                   ],
-                  "stdout": [],
-                  "stderr": [],
-                  "retry": 1,
-                  "startTime": "2025-10-20T13:38:13.517Z",
-                  "annotations": [],
-                  "attachments": [
-                    {
-                      "name": "screenshot",
-                      "contentType": "image/png",
-                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/vision-graph-test-vision-graph-accordion-height-test-chromium-retry1/test-failed-1.png"
-                    },
-                    {
-                      "name": "video",
-                      "contentType": "video/webm",
-                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/vision-graph-test-vision-graph-accordion-height-test-chromium-retry1/video.webm"
-                    },
-                    {
-                      "name": "error-context",
-                      "contentType": "text/markdown",
-                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/vision-graph-test-vision-graph-accordion-height-test-chromium-retry1/error-context.md"
-                    },
-                    {
-                      "name": "trace",
-                      "contentType": "application/zip",
-                      "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/vision-graph-test-vision-graph-accordion-height-test-chromium-retry1/trace.zip"
-                    }
-                  ],
-                  "errorLocation": {
-                    "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/vision-graph-test.spec.js",
-                    "column": 14,
-                    "line": 15
-                  }
+                  "status": "unexpected"
                 }
               ],
-              "status": "unexpected"
+              "id": "79bf518aed9b8221128e-7854ab8028eb2900897e",
+              "file": "e2e/menu-change-test.spec.js",
+              "line": 15,
+              "column": 5
+            },
+            {
+              "title": "JavaScriptのコンソールログを確認",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 31604,
+                      "error": {
+                        "message": "TimeoutError: page.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"email\"]')\u001b[22m\n",
+                        "stack": "TimeoutError: page.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"email\"]')\u001b[22m\n\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/menu-change-test.spec.js:7:20",
+                        "location": {
+                          "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/menu-change-test.spec.js",
+                          "column": 20,
+                          "line": 7
+                        },
+                        "snippet": "   5 |         // 管理画面にログイン\n   6 |         await page.goto('http://localhost:8000/admin/login');\n>  7 |         await page.fill('input[name=\"email\"]', 'admin@eye-training.com');\n     |                    ^\n   8 |         await page.fill('input[name=\"password\"]', 'password');\n   9 |         await page.click('button[type=\"submit\"]');\n  10 |         await page.waitForURL('**/admin');"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/menu-change-test.spec.js",
+                            "column": 20,
+                            "line": 7
+                          },
+                          "message": "TimeoutError: page.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"email\"]')\u001b[22m\n\n\n   5 |         // 管理画面にログイン\n   6 |         await page.goto('http://localhost:8000/admin/login');\n>  7 |         await page.fill('input[name=\"email\"]', 'admin@eye-training.com');\n     |                    ^\n   8 |         await page.fill('input[name=\"password\"]', 'password');\n   9 |         await page.click('button[type=\"submit\"]');\n  10 |         await page.waitForURL('**/admin');\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/menu-change-test.spec.js:7:20"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-21T01:25:58.835Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-menu-change-test-メニュー変更機能のテスト-JavaScriptのコンソールログを確認-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-menu-change-test-メニュー変更機能のテスト-JavaScriptのコンソールログを確認-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-menu-change-test-メニュー変更機能のテスト-JavaScriptのコンソールログを確認-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/menu-change-test.spec.js",
+                        "column": 20,
+                        "line": 7
+                      }
+                    },
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 31415,
+                      "error": {
+                        "message": "TimeoutError: page.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"email\"]')\u001b[22m\n",
+                        "stack": "TimeoutError: page.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"email\"]')\u001b[22m\n\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/menu-change-test.spec.js:7:20",
+                        "location": {
+                          "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/menu-change-test.spec.js",
+                          "column": 20,
+                          "line": 7
+                        },
+                        "snippet": "   5 |         // 管理画面にログイン\n   6 |         await page.goto('http://localhost:8000/admin/login');\n>  7 |         await page.fill('input[name=\"email\"]', 'admin@eye-training.com');\n     |                    ^\n   8 |         await page.fill('input[name=\"password\"]', 'password');\n   9 |         await page.click('button[type=\"submit\"]');\n  10 |         await page.waitForURL('**/admin');"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/menu-change-test.spec.js",
+                            "column": 20,
+                            "line": 7
+                          },
+                          "message": "TimeoutError: page.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"email\"]')\u001b[22m\n\n\n   5 |         // 管理画面にログイン\n   6 |         await page.goto('http://localhost:8000/admin/login');\n>  7 |         await page.fill('input[name=\"email\"]', 'admin@eye-training.com');\n     |                    ^\n   8 |         await page.fill('input[name=\"password\"]', 'password');\n   9 |         await page.click('button[type=\"submit\"]');\n  10 |         await page.waitForURL('**/admin');\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/menu-change-test.spec.js:7:20"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 1,
+                      "startTime": "2025-10-21T01:26:32.393Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-menu-change-test-メニュー変更機能のテスト-JavaScriptのコンソールログを確認-chromium-retry1/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-menu-change-test-メニュー変更機能のテスト-JavaScriptのコンソールログを確認-chromium-retry1/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-menu-change-test-メニュー変更機能のテスト-JavaScriptのコンソールログを確認-chromium-retry1/error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/e2e-menu-change-test-メニュー変更機能のテスト-JavaScriptのコンソールログを確認-chromium-retry1/trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/e2e/menu-change-test.spec.js",
+                        "column": 20,
+                        "line": 7
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "79bf518aed9b8221128e-0a78ceb37574230bfb7c",
+              "file": "e2e/menu-change-test.spec.js",
+              "line": 172,
+              "column": 5
             }
-          ],
-          "id": "83de4a877653f36efe31-6861165320f809ae874d",
-          "file": "vision-graph-test.spec.js",
-          "line": 3,
-          "column": 1
+          ]
         }
       ]
     }
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-10-20T13:37:57.415Z",
-    "duration": 30760.700999999997,
+    "startTime": "2025-10-21T01:24:49.155Z",
+    "duration": 135540.054,
     "expected": 0,
     "skipped": 0,
-    "unexpected": 1,
+    "unexpected": 2,
     "flaky": 0
   }
 }

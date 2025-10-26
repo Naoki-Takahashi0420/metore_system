@@ -11,6 +11,8 @@ class EditCustomer extends EditRecord
 {
     protected static string $resource = CustomerResource::class;
 
+    protected static bool $shouldCheckUnsavedChanges = true;
+
     protected function getHeaderActions(): array
     {
         return [

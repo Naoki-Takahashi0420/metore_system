@@ -10,6 +10,8 @@ class CreateCustomerTicket extends CreateRecord
 {
     protected static string $resource = CustomerTicketResource::class;
 
+    protected static bool $shouldCheckUnsavedChanges = true;
+
     protected function getRedirectUrl(): string
     {
         return $this->getResource()::getUrl('index');

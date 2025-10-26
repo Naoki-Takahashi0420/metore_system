@@ -1,0 +1,192 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - navigation [ref=e5]:
+        - button "ユーザーメニュー" [ref=e9] [cursor=pointer]:
+          - img "Administratorのアバター" [ref=e10] [cursor=pointer]
+      - main [ref=e11]:
+        - generic [ref=e12]:
+          - generic [ref=e13]:
+            - heading "ダッシュボード" [level=1] [ref=e16]
+            - generic [ref=e19]:
+              - generic [ref=e22]:
+                - generic [ref=e23]:
+                  - heading "本部からのお知らせ 8" [level=3] [ref=e24]:
+                    - text: 本部からのお知らせ
+                    - generic [ref=e25]: "8"
+                  - link "すべて見る" [ref=e26] [cursor=pointer]:
+                    - /url: /admin/announcements-list
+                - generic [ref=e31] [cursor=pointer]:
+                  - heading "テスト：営業時間変更のお知らせ" [level=4] [ref=e32] [cursor=pointer]
+                  - generic [ref=e33] [cursor=pointer]: 重要
+                  - generic [ref=e34] [cursor=pointer]: 未読
+              - generic [ref=e42]:
+                - generic [ref=e43]:
+                  - text: 💡
+                  - strong [ref=e44]: "操作方法:"
+                  - text: 予約ブロックをクリックすると詳細画面が開き、通常席⇔サブ枠の移動ができます
+                - generic [ref=e45]:
+                  - generic [ref=e47]: 店舗：
+                  - generic [ref=e48]:
+                    - img [ref=e49]
+                    - generic [ref=e51]: 営業時間ベース
+                    - generic [ref=e52]: （3席）
+                  - generic [ref=e54]:
+                    - button "◀" [ref=e55] [cursor=pointer]
+                    - generic [ref=e56]: 2025年10月22日 (水)
+                    - button "▶" [ref=e57] [cursor=pointer]
+                - generic [ref=e59]: データがありません
+              - generic [ref=e62]:
+                - img [ref=e64]
+                - generic [ref=e66]:
+                  - heading "🚨 サブスク決済失敗 - 要対応（1件）" [level=3] [ref=e67]
+                  - paragraph [ref=e68]: 以下の顧客の決済が失敗しています。至急ご対応ください。
+                  - generic [ref=e71]:
+                    - generic [ref=e72]:
+                      - generic [ref=e73]:
+                        - heading "横井 麻未" [level=4] [ref=e74]
+                        - generic [ref=e75]: 決済失敗
+                      - generic [ref=e76]:
+                        - generic [ref=e77]:
+                          - generic [ref=e78]: "電話番号:"
+                          - generic [ref=e79]: "09014169158"
+                        - generic [ref=e80]:
+                          - generic [ref=e81]: "プラン:"
+                          - generic [ref=e82]: 眼精疲労ケアヶ月1年50分コース
+                        - generic [ref=e83]:
+                          - generic [ref=e84]: "月額:"
+                          - generic [ref=e85]: ¥20,000
+                        - generic [ref=e86]:
+                          - generic [ref=e87]: "失敗日時:"
+                          - generic [ref=e88]: 10/01 23:24
+                      - generic [ref=e90]:
+                        - generic [ref=e91]: "失敗理由:"
+                        - generic [ref=e92]: カードが拒否されました
+                    - link "対応する" [ref=e94] [cursor=pointer]:
+                      - /url: http://127.0.0.1:8000/admin/subscriptions/26/edit
+                      - img [ref=e95] [cursor=pointer]
+                      - text: 対応する
+                  - paragraph [ref=e98]: "💡 ヒント: 「対応する」ボタンをクリックすると、サブスク契約編集画面に移動します。決済が完了したら「決済復旧」ボタンで正常状態に戻してください。"
+              - generic [ref=e100]:
+                - generic [ref=e101]:
+                  - generic [ref=e102]:
+                    - heading "予約一覧 (0件) - 今日 (2025年10月22日)" [level=3] [ref=e105]
+                    - generic [ref=e108]:
+                      - generic [ref=e109]: 検索
+                      - generic [ref=e110]:
+                        - img [ref=e112]
+                        - searchbox "検索" [ref=e115]
+                  - generic [ref=e118]:
+                    - img [ref=e120]
+                    - heading "reservation が見つかりません" [level=4] [ref=e122]
+                - generic:
+                  - dialog
+                - generic:
+                  - dialog
+                - generic:
+                  - dialog
+                - generic:
+                  - dialog
+                - generic:
+                  - dialog
+          - generic:
+            - dialog
+          - generic:
+            - dialog
+          - generic:
+            - dialog
+      - generic [ref=e135]: v474d31a
+    - complementary [ref=e136]:
+      - generic [ref=e138]:
+        - link "目のトレーニング 管理画面ロゴ" [ref=e140] [cursor=pointer]:
+          - /url: http://127.0.0.1:8000/admin
+          - img "目のトレーニング 管理画面ロゴ" [ref=e141] [cursor=pointer]
+        - button "サイドバーを折り畳む" [ref=e142] [cursor=pointer]:
+          - generic [ref=e143] [cursor=pointer]: サイドバーを折り畳む
+          - img [ref=e144] [cursor=pointer]
+      - navigation [ref=e146]:
+        - list [ref=e147]:
+          - listitem [ref=e148]:
+            - list [ref=e149]:
+              - listitem [ref=e150]:
+                - link "ダッシュボード" [ref=e151] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin
+                  - img [ref=e152] [cursor=pointer]
+                  - generic [ref=e154] [cursor=pointer]: ダッシュボード
+              - listitem [ref=e155]:
+                - link "カルテ管理" [ref=e156] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/medical-records
+                  - img [ref=e157] [cursor=pointer]
+                  - generic [ref=e159] [cursor=pointer]: カルテ管理
+              - listitem [ref=e160]:
+                - link "サブスク契約管理" [ref=e161] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/subscriptions
+                  - img [ref=e162] [cursor=pointer]
+                  - generic [ref=e164] [cursor=pointer]: サブスク契約管理
+              - listitem [ref=e165]:
+                - link "顧客回数券管理" [ref=e166] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/customer-tickets
+                  - img [ref=e167] [cursor=pointer]
+                  - generic [ref=e169] [cursor=pointer]: 顧客回数券管理
+          - listitem [ref=e170]:
+            - generic [ref=e171] [cursor=pointer]:
+              - generic [ref=e172] [cursor=pointer]: メニュー管理
+              - button "メニュー管理" [expanded] [ref=e173] [cursor=pointer]:
+                - generic [ref=e174] [cursor=pointer]: メニュー管理
+                - img [ref=e175] [cursor=pointer]
+            - list [ref=e177]:
+              - listitem [ref=e178]:
+                - link "メニュー統合管理" [ref=e179] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/menu-manager
+                  - img [ref=e180] [cursor=pointer]
+                  - generic [ref=e182] [cursor=pointer]: メニュー統合管理
+              - listitem [ref=e183]:
+                - link "回数券設定" [ref=e184] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/ticket-plans
+                  - img [ref=e185] [cursor=pointer]
+                  - generic [ref=e187] [cursor=pointer]: 回数券設定
+          - listitem [ref=e188]:
+            - generic [ref=e189] [cursor=pointer]:
+              - generic [ref=e190] [cursor=pointer]: 売上・会計
+              - button "売上・会計" [expanded] [ref=e191] [cursor=pointer]:
+                - generic [ref=e192] [cursor=pointer]: 売上・会計
+                - img [ref=e193] [cursor=pointer]
+            - list [ref=e195]:
+              - listitem [ref=e196]:
+                - link "売上管理 0" [ref=e197] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/sales
+                  - img [ref=e198] [cursor=pointer]
+                  - generic [ref=e200] [cursor=pointer]: 売上管理
+                  - generic [ref=e204] [cursor=pointer]: "0"
+          - listitem [ref=e205]:
+            - generic [ref=e206] [cursor=pointer]:
+              - generic [ref=e207] [cursor=pointer]: スタッフ管理
+              - button "スタッフ管理" [expanded] [ref=e208] [cursor=pointer]:
+                - generic [ref=e209] [cursor=pointer]: スタッフ管理
+                - img [ref=e210] [cursor=pointer]
+            - list [ref=e212]:
+              - listitem [ref=e213]:
+                - link "シフト管理" [ref=e214] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/simple-shift-management
+                  - img [ref=e215] [cursor=pointer]
+                  - generic [ref=e217] [cursor=pointer]: シフト管理
+          - listitem [ref=e218]:
+            - generic [ref=e219] [cursor=pointer]:
+              - generic [ref=e220] [cursor=pointer]: 顧客管理
+              - button "顧客管理" [expanded] [ref=e221] [cursor=pointer]:
+                - generic [ref=e222] [cursor=pointer]: 顧客管理
+                - img [ref=e223] [cursor=pointer]
+            - list [ref=e225]:
+              - listitem [ref=e226]:
+                - link "顧客インポート" [ref=e227] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/admin/import-customers
+                  - img [ref=e228] [cursor=pointer]
+                  - generic [ref=e230] [cursor=pointer]: 顧客インポート
+  - generic:
+    - status
+  - button "AIヘルプチャット" [ref=e232] [cursor=pointer]:
+    - img [ref=e233] [cursor=pointer]
+```

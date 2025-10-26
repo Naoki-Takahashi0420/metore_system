@@ -10,6 +10,8 @@ class EditMedicalRecord extends EditRecord
 {
     protected static string $resource = MedicalRecordResource::class;
 
+    protected static bool $shouldCheckUnsavedChanges = true;
+
     protected function getHeaderActions(): array
     {
         return [

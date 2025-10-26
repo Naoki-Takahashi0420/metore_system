@@ -11,7 +11,9 @@ use Filament\Resources\Pages\CreateRecord;
 class CreateMedicalRecord extends CreateRecord
 {
     protected static string $resource = MedicalRecordResource::class;
-    
+
+    protected static bool $shouldCheckUnsavedChanges = true;
+
     protected function getFormModel(): string 
     {
         return static::$resource::getModel();

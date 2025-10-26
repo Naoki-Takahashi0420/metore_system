@@ -90,16 +90,32 @@
                 </div>
 
                 {{-- モーダル --}}
+                <!-- 背景オーバーレイ -->
                 <div x-show="showModal"
-                     x-cloak
+                     x-transition:enter="transition-opacity ease-out duration-200"
+                     x-transition:enter-start="opacity-0"
+                     x-transition:enter-end="opacity-100"
+                     x-transition:leave="transition-opacity ease-in duration-150"
+                     x-transition:leave-start="opacity-100"
+                     x-transition:leave-end="opacity-0"
+                     class="fixed inset-0 z-50 bg-gray-900/60"
+                     style="backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);"
+                     @click="showModal = false"
+                     x-cloak></div>
+
+                <!-- モーダルウィンドウ -->
+                <div x-show="showModal"
+                     x-transition:enter="transition ease-out duration-300"
+                     x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                     x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                     x-transition:leave="transition ease-in duration-200"
+                     x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                     x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
                      @click.away="showModal = false"
                      class="fixed inset-0 z-50 overflow-y-auto"
-                     style="display: none;">
+                     x-cloak>
                     <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
-                        <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"
-                             @click="showModal = false"></div>
-
-                        <div class="relative inline-block w-full max-w-2xl px-4 pt-5 pb-4 overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl sm:my-8 sm:align-middle sm:p-6"
+                        <div class="relative inline-block w-full max-w-2xl px-4 pt-5 pb-4 overflow-hidden text-left align-bottom transform bg-white rounded-lg shadow-xl sm:my-8 sm:align-middle sm:p-6"
                              @click.stop>
                             {{-- タイトルと優先度バッジ --}}
                             <div class="mb-4">

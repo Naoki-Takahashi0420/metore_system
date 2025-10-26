@@ -505,11 +505,23 @@ class ReservationTimelineWidget extends Widget
 
             // 実際の予約終了時刻を使用（end_timeがある場合）
             if (!empty($reservation->end_time)) {
-                $endTime = Carbon::parse($reservation->end_time);
-                if ($endTime->format('Y-m-d') !== $date->format('Y-m-d')) {
-                    $endTime = Carbon::parse($date->format('Y-m-d') . ' ' . $endTime->format('H:i:s'));
-                }
+                // 日付を明示的に指定してパース
+                $endTime = Carbon::parse($date->format('Y-m-d') . ' ' . $reservation->end_time);
                 $duration = $startTime->diffInMinutes($endTime);
+
+                // デバッグログ（予約ID 200のみ）
+                if ($reservation->id == 200) {
+                    \Log::info('Reservation 200 timeline calculation', [
+                        'reservation_id' => $reservation->id,
+                        'date' => $date->format('Y-m-d'),
+                        'start_time_raw' => $reservation->start_time,
+                        'end_time_raw' => $reservation->end_time,
+                        'startTime_parsed' => $startTime->format('Y-m-d H:i:s'),
+                        'endTime_parsed' => $endTime->format('Y-m-d H:i:s'),
+                        'duration_minutes' => $duration,
+                        'span' => $duration / $slotDuration
+                    ]);
+                }
             } else {
                 // end_timeがない場合はメニューの所要時間を使用
                 $duration = $reservation->menu->duration_minutes ?? 60;
@@ -2100,9 +2112,18 @@ class ReservationTimelineWidget extends Widget
                 return;
             }
 
-            // 終了時刻を計算
+            // 終了時刻を計算（メニュー + オプションの合計時間）
             $startTime = \Carbon\Carbon::parse($this->newReservation['date'] . ' ' . $this->newReservation['start_time']);
-            $endTime = $startTime->copy()->addMinutes($menu->duration_minutes ?? $this->newReservation['duration']);
+            $totalDuration = $menu->duration_minutes ?? $this->newReservation['duration'];
+
+            // オプションの所要時間を加算
+            if (!empty($this->newReservation['option_menu_ids'])) {
+                $optionsDuration = \App\Models\MenuOption::whereIn('id', $this->newReservation['option_menu_ids'])
+                    ->sum('duration_minutes');
+                $totalDuration += $optionsDuration;
+            }
+
+            $endTime = $startTime->copy()->addMinutes($totalDuration);
 
             // 店舗情報取得
             $store = \App\Models\Store::find($this->selectedStore);
@@ -3148,6 +3169,247 @@ class ReservationTimelineWidget extends Widget
 
         // 未来日は常に表示
         return true;
+    }
+
+    /**
+     * メニュー変更用：店舗のメニュー一覧を取得
+     */
+    public function getMenusForStore($storeId)
+    {
+        $menus = \App\Models\Menu::where('store_id', $storeId)
+            ->where('is_available', true)
+            ->with('menuCategory')
+            ->orderBy('category_id')
+            ->orderBy('name')
+            ->get()
+            ->map(function ($menu) {
+                return [
+                    'id' => $menu->id,
+                    'name' => $menu->name,
+                    'price' => $menu->price ?? 0,
+                    'duration_minutes' => $menu->duration_minutes ?? 0,
+                    'category' => $menu->menuCategory->name ?? null,
+                ];
+            });
+
+        return ['success' => true, 'data' => $menus];
+    }
+
+    /**
+     * メニュー変更用：店舗のオプション一覧を取得
+     */
+    public function getOptionsForStore($storeId)
+    {
+        $options = \App\Models\MenuOption::where('store_id', $storeId)
+            ->where('is_available', true)
+            ->orderBy('name')
+            ->get()
+            ->map(function ($option) {
+                return [
+                    'id' => $option->id,
+                    'name' => $option->name,
+                    'price' => $option->price ?? 0,
+                    'duration_minutes' => $option->duration_minutes ?? 0,
+                ];
+            });
+
+        return ['success' => true, 'data' => $options];
+    }
+
+    /**
+     * メニュー変更用：予約のメニューを変更
+     */
+    public function changeReservationMenu($reservationId, $menuId, $optionIds = [])
+    {
+        $reservation = Reservation::with(['menu', 'store', 'reservationOptions'])->find($reservationId);
+
+        if (!$reservation) {
+            return [
+                'success' => false,
+                'message' => '予約が見つかりません'
+            ];
+        }
+
+        $newMenu = \App\Models\Menu::find($menuId);
+
+        if (!$newMenu) {
+            return [
+                'success' => false,
+                'message' => 'メニューが見つかりません'
+            ];
+        }
+
+        // 合計時間を計算
+        $totalMinutes = $newMenu->duration_minutes;
+
+        // オプションの時間を加算
+        if (!empty($optionIds)) {
+            $options = \App\Models\MenuOption::whereIn('id', $optionIds)->get();
+            foreach ($options as $option) {
+                $totalMinutes += $option->duration_minutes ?? 0;
+            }
+        }
+
+        // 新しい終了時刻を計算
+        $dateOnly = Carbon::parse($reservation->reservation_date)->format('Y-m-d');
+        $startTime = Carbon::parse($dateOnly . ' ' . $reservation->start_time);
+        $newEndTime = $startTime->copy()->addMinutes($totalMinutes);
+
+        // 重複チェック
+        $dateOnly = Carbon::parse($reservation->reservation_date)->format('Y-m-d');
+        $query = Reservation::where('store_id', $reservation->store_id)
+            ->where(function ($q) use ($dateOnly) {
+                $q->whereDate('reservation_date', $dateOnly)
+                  ->orWhere('reservation_date', 'like', $dateOnly . '%');
+            })
+            ->where('id', '!=', $reservation->id)
+            ->whereIn('status', ['booked', 'in_progress']);
+
+        // 座席番号がある場合は座席で絞り込み
+        if (!empty($reservation->seat_number)) {
+            $query->where('seat_number', $reservation->seat_number);
+        }
+        // スタッフIDがある場合はスタッフで絞り込み
+        elseif (!empty($reservation->staff_id)) {
+            $query->where('staff_id', $reservation->staff_id);
+        }
+        // 座席もスタッフもない場合は、店舗全体での重複をチェック
+        // （同じ時間帯に他の予約があっても構わない場合はこのブロックを削除）
+        else {
+            // 座席・スタッフ指定なしの予約のみを対象
+            $query->where(function ($q) {
+                $q->whereNull('seat_number')
+                  ->orWhere('seat_number', 0)
+                  ->orWhere('seat_number', '');
+            })
+            ->where(function ($q) {
+                $q->whereNull('staff_id')
+                  ->orWhere('staff_id', 0)
+                  ->orWhere('staff_id', '');
+            });
+        }
+
+        // デバッグ: クエリSQL出力
+        \Log::info('🔍 [Menu Change] クエリSQL before time check', [
+            'sql' => $query->toSql(),
+            'bindings' => $query->getBindings()
+        ]);
+
+        // 時刻を正規化（秒まで含める）
+        $startTimeStr = $startTime->format('H:i:s');
+        $newEndTimeStr = $newEndTime->format('H:i:s');
+
+        // 全ての候補を取得
+        $allCandidates = $query->where('start_time', '<', $newEndTimeStr)
+                              ->where('end_time', '>', $startTimeStr)
+                              ->get();
+
+        // 境界で接しているだけの予約を除外
+        $conflictingReservations = $allCandidates->filter(function ($candidate) use ($startTimeStr, $newEndTimeStr) {
+            // 相手の終了時刻が自分の開始時刻と一致 → 境界で接しているだけ
+            if ($candidate->end_time === $startTimeStr) {
+                return false;
+            }
+            // 相手の開始時刻が自分の終了時刻と一致 → 境界で接しているだけ
+            if ($candidate->start_time === $newEndTimeStr) {
+                return false;
+            }
+            // それ以外は真の重複
+            return true;
+        });
+
+        // デバッグログ
+        \Log::info('🔍 [Menu Change] 重複チェック', [
+            'reservation_id' => $reservation->id,
+            'seat_number' => $reservation->seat_number,
+            'staff_id' => $reservation->staff_id,
+            'date' => $reservation->reservation_date,
+            'original_time' => $reservation->start_time . ' - ' . $reservation->end_time,
+            'new_time' => $startTimeStr . ' - ' . $newEndTimeStr,
+            'total_minutes' => $totalMinutes,
+            'all_candidates_count' => $allCandidates->count(),
+            'excluded_boundary_count' => $allCandidates->count() - $conflictingReservations->count(),
+            'conflicting_count' => $conflictingReservations->count(),
+            'all_candidates' => $allCandidates->map(function ($r) use ($startTimeStr, $newEndTimeStr) {
+                $isBoundary = ($r->end_time === $startTimeStr || $r->start_time === $newEndTimeStr);
+                return [
+                    'id' => $r->id,
+                    'time' => $r->start_time . ' - ' . $r->end_time,
+                    'is_boundary' => $isBoundary ? 'YES (excluded)' : 'NO',
+                ];
+            })->toArray(),
+            'conflicting_reservations' => $conflictingReservations->map(function ($r) {
+                return [
+                    'id' => $r->id,
+                    'time' => $r->start_time . ' - ' . $r->end_time,
+                    'seat_number' => $r->seat_number,
+                    'staff_id' => $r->staff_id,
+                ];
+            })->toArray()
+        ]);
+
+        if ($conflictingReservations->count() > 0) {
+            $conflictingTimes = $conflictingReservations->map(function ($r) {
+                return $r->start_time . ' - ' . $r->end_time;
+            })->join(', ');
+
+            return [
+                'success' => false,
+                'message' => '新しい時間帯に予約が重複しています',
+                'details' => [
+                    'new_end_time' => $newEndTime->format('H:i'),
+                    'conflicting_times' => $conflictingTimes,
+                    'total_duration' => $totalMinutes . '分'
+                ]
+            ];
+        }
+
+        // トランザクション開始
+        DB::beginTransaction();
+        try {
+            // メニューを更新
+            $reservation->menu_id = $menuId;
+            $reservation->end_time = $newEndTime->format('H:i:s');
+            $reservation->save();
+
+            // 既存のオプションを削除
+            $reservation->reservationOptions()->delete();
+
+            // 新しいオプションを追加
+            if (!empty($optionIds)) {
+                foreach ($optionIds as $optionId) {
+                    $option = \App\Models\MenuOption::find($optionId);
+                    if ($option) {
+                        \App\Models\ReservationOption::create([
+                            'reservation_id' => $reservation->id,
+                            'menu_option_id' => $optionId,
+                            'option_name' => $option->name,
+                            'option_price' => $option->price ?? 0,
+                        ]);
+                    }
+                }
+            }
+
+            DB::commit();
+
+            return [
+                'success' => true,
+                'message' => 'メニューを変更しました',
+                'details' => [
+                    'new_end_time' => $newEndTime->format('H:i'),
+                    'total_duration' => $totalMinutes . '分'
+                ]
+            ];
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Menu change error: ' . $e->getMessage());
+
+            return [
+                'success' => false,
+                'message' => 'メニュー変更中にエラーが発生しました: ' . $e->getMessage()
+            ];
+        }
     }
 
 }

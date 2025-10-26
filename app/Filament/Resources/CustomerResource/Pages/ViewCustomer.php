@@ -24,4 +24,11 @@ class ViewCustomer extends ViewRecord
                 ])),
         ];
     }
+
+    public function getFooter(): ?\Illuminate\Contracts\View\View
+    {
+        return view('filament.resources.customer-resource.pages.view-customer-footer', [
+            'record' => $this->record,
+        ]);
+    }
 }

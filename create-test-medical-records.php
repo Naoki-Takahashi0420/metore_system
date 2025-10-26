@@ -12,7 +12,7 @@ use Carbon\Carbon;
 
 // 電話番号で顧客を検索
 $phoneNumber = '08033372305';
-$customer = Customer::where('phone_number', $phoneNumber)->first();
+$customer = Customer::where('phone', $phoneNumber)->first();
 
 if (!$customer) {
     echo "❌ 顧客が見つかりません: {$phoneNumber}\n";
@@ -78,7 +78,7 @@ for ($i = 0; $i < $recordsToCreate; $i++) {
     // カルテ作成
     $medicalRecord = MedicalRecord::create([
         'customer_id' => $customer->id,
-        'staff_id' => 1, // 適当なスタッフID
+        'staff_id' => 3, // 高橋直希
         'record_date' => $recordDate->format('Y-m-d'),
         'treatment_date' => $recordDate->format('Y-m-d'),
         'age' => $customer->age ?? 30,

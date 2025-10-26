@@ -31,7 +31,9 @@ class ReservationController extends Controller
      */
     public function show(Reservation $reservation)
     {
-        //
+        $reservation->load(['customer', 'menu', 'store', 'reservationOptions.menuOption']);
+
+        return response()->json($reservation);
     }
 
     /**
@@ -296,7 +298,8 @@ class ReservationController extends Controller
             'start_time' => 'required',
             'is_subscription' => 'boolean',
             'customer_ticket_id' => 'nullable|exists:customer_tickets,id',
-            'customer_subscription_id' => 'nullable|exists:customer_subscriptions,id'
+            'customer_subscription_id' => 'nullable|exists:customer_subscriptions,id',
+            'option_ids' => 'nullable|array'
         ]);
 
         // メニュー情報取得
@@ -305,9 +308,18 @@ class ReservationController extends Controller
         // 予約番号生成
         $reservationNumber = 'R' . date('YmdHis') . rand(100, 999);
 
-        // 終了時間計算
+        // 終了時間計算（メニュー + オプションの合計時間）
         $startTime = \Carbon\Carbon::parse($validated['reservation_date'] . ' ' . $validated['start_time']);
-        $endTime = $startTime->copy()->addMinutes($menu->duration_minutes ?? 60);
+        $totalDuration = $menu->duration_minutes ?? 60;
+
+        // オプションの所要時間を加算
+        if (!empty($validated['option_ids'])) {
+            $optionsDuration = \App\Models\MenuOption::whereIn('id', $validated['option_ids'])
+                ->sum('duration_minutes');
+            $totalDuration += $optionsDuration;
+        }
+
+        $endTime = $startTime->copy()->addMinutes($totalDuration);
 
         // 予約作成データ準備
         $reservationData = [
@@ -342,11 +354,26 @@ class ReservationController extends Controller
 
         // 予約作成（既存システムと同じフィールド形式）
         $reservation = Reservation::create($reservationData);
-        
+
+        // オプションを追加
+        if (!empty($validated['option_ids'])) {
+            foreach ($validated['option_ids'] as $optionId) {
+                $option = \App\Models\MenuOption::find($optionId);
+                if ($option) {
+                    $reservation->reservationOptions()->create([
+                        'menu_option_id' => $optionId,
+                        'name' => $option->name,
+                        'price' => $option->price,
+                        'duration_minutes' => $option->duration_minutes
+                    ]);
+                }
+            }
+        }
+
         return response()->json([
             'success' => true,
             'message' => '予約が完了しました',
-            'data' => $reservation->load(['store', 'menu'])
+            'data' => $reservation->load(['store', 'menu', 'reservationOptions'])
         ], 201);
     }
 
@@ -801,6 +828,232 @@ class ReservationController extends Controller
             'success' => true,
             'message' => '予約を変更しました',
             'data' => $reservation->load(['store', 'menu'])
+        ]);
+    }
+
+    /**
+     * 管理者向けメニュー変更（オプション追加・削除にも対応）
+     */
+    public function adminChangeMenu(Request $request, $id)
+    {
+        $reservation = Reservation::with(['menu', 'store', 'reservationOptions'])->find($id);
+
+        if (!$reservation) {
+            return response()->json([
+                'success' => false,
+                'message' => '予約が見つかりません'
+            ], 404);
+        }
+
+        // 完了・キャンセル済みの予約は変更不可
+        if (in_array($reservation->status, ['completed', 'cancelled', 'canceled'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'この予約のメニューは変更できません（ステータス: ' . $reservation->status . '）'
+            ], 400);
+        }
+
+        $validated = $request->validate([
+            'menu_id' => 'sometimes|exists:menus,id',
+            'option_menu_ids' => 'sometimes|array',
+            'option_menu_ids.*' => 'exists:menu_options,id'
+        ]);
+
+        $oldMenu = $reservation->menu;
+        $oldOptions = $reservation->reservationOptions;
+
+        // メニュー変更がある場合
+        if (isset($validated['menu_id'])) {
+            $newMenu = \App\Models\Menu::find($validated['menu_id']);
+
+            // メニューが同じ店舗のものか確認
+            if ($newMenu->store_id !== $reservation->store_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '異なる店舗のメニューには変更できません'
+                ], 400);
+            }
+
+            $menuDuration = $newMenu->duration_minutes ?? 60;
+            $menuPrice = $newMenu->price;
+        } else {
+            // メニュー変更がない場合は現在のメニューを使用
+            $menuDuration = $oldMenu->duration_minutes ?? 60;
+            $menuPrice = $oldMenu->price;
+        }
+
+        // オプションの合計時間と金額を計算
+        $optionsDuration = 0;
+        $optionsPrice = 0;
+        $newOptions = [];
+
+        if (isset($validated['option_menu_ids'])) {
+            foreach ($validated['option_menu_ids'] as $optionId) {
+                $option = \App\Models\MenuOption::find($optionId);
+                if ($option) {
+                    $optionsDuration += $option->duration_minutes ?? 0;
+                    $optionsPrice += $option->price ?? 0;
+                    $newOptions[] = $option;
+                }
+            }
+        }
+
+        // 合計時間を計算
+        $totalDuration = $menuDuration + $optionsDuration;
+
+        // 終了時間を再計算
+        $startTime = \Carbon\Carbon::parse($reservation->reservation_date . ' ' . $reservation->start_time);
+        $newEndTime = $startTime->copy()->addMinutes($totalDuration);
+
+        // 時間重複チェック（新しいメニュー + オプションの合計時間で）
+        $conflictingReservations = Reservation::where('store_id', $reservation->store_id)
+            ->whereDate('reservation_date', $reservation->reservation_date)
+            ->whereNotIn('status', ['cancelled', 'canceled', 'no_show'])
+            ->where('id', '!=', $reservation->id)
+            ->where(function($query) use ($reservation, $newEndTime) {
+                $query->where(function($q) use ($reservation, $newEndTime) {
+                    $q->where('start_time', '<', $newEndTime->format('H:i:s'))
+                      ->where('end_time', '>', $reservation->start_time);
+                });
+            })
+            ->get();
+
+        // 同じline_type（メイン/サブ）の予約のみをフィルタ
+        $originalIsSub = $reservation->is_sub || $reservation->line_type === 'sub';
+        $conflictingReservations = $conflictingReservations->filter(function($r) use ($originalIsSub) {
+            $reservationIsSub = $r->is_sub || $r->line_type === 'sub';
+            return $originalIsSub === $reservationIsSub;
+        });
+
+        if ($conflictingReservations->count() > 0) {
+            $conflictTimes = $conflictingReservations->map(function($r) {
+                return $r->start_time . ' - ' . $r->end_time;
+            })->join(', ');
+
+            return response()->json([
+                'success' => false,
+                'message' => '変更後の終了時間が次の予約と被ってしまいます。',
+                'details' => [
+                    'new_end_time' => $newEndTime->format('H:i'),
+                    'conflicting_times' => $conflictTimes,
+                    'total_duration' => $totalDuration . '分',
+                    'menu_duration' => $menuDuration . '分',
+                    'options_duration' => $optionsDuration . '分'
+                ]
+            ], 400);
+        }
+
+        // データベース更新を開始
+        \DB::beginTransaction();
+        try {
+            // メニュー変更を実行
+            $updateData = [
+                'end_time' => $newEndTime->format('H:i:s'),
+                'total_amount' => $menuPrice + $optionsPrice
+            ];
+
+            if (isset($validated['menu_id'])) {
+                $updateData['menu_id'] = $validated['menu_id'];
+            }
+
+            $reservation->update($updateData);
+
+            // 既存のオプションを削除
+            $reservation->reservationOptions()->delete();
+
+            // 新しいオプションを追加
+            if (!empty($newOptions)) {
+                foreach ($newOptions as $option) {
+                    \App\Models\ReservationOption::create([
+                        'reservation_id' => $reservation->id,
+                        'menu_option_id' => $option->id,
+                        'quantity' => 1,
+                        'price' => $option->price ?? 0,
+                        'duration_minutes' => $option->duration_minutes ?? 0
+                    ]);
+                }
+            }
+
+            \DB::commit();
+
+            // 変更通知イベントを発火
+            $oldReservation = $reservation->replicate();
+            $oldReservation->menu_id = $oldMenu->id;
+            event(new ReservationChanged($oldReservation, $reservation->fresh()));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'メニューを変更しました',
+                'data' => $reservation->fresh()->load(['menu', 'store', 'reservationOptions.menuOption']),
+                'details' => [
+                    'total_duration' => $totalDuration . '分',
+                    'menu_duration' => $menuDuration . '分',
+                    'options_duration' => $optionsDuration . '分',
+                    'new_end_time' => $newEndTime->format('H:i')
+                ]
+            ]);
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            \Log::error('Menu change error', [
+                'reservation_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'メニュー変更中にエラーが発生しました: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * 店舗の利用可能なメニュー一覧を取得
+     */
+    public function getAvailableMenus(Request $request, $storeId)
+    {
+        $menus = \App\Models\Menu::where('store_id', $storeId)
+            ->where('is_available', true)
+            ->with('menuCategory')
+            ->orderBy('category_id')
+            ->orderBy('name')
+            ->get()
+            ->map(function ($menu) {
+                return [
+                    'id' => $menu->id,
+                    'name' => $menu->name,
+                    'price' => $menu->price,
+                    'duration_minutes' => $menu->duration_minutes,
+                    'category_name' => $menu->menuCategory->name ?? '未分類'
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => $menus
+        ]);
+    }
+
+    /**
+     * 店舗の利用可能なオプションメニュー一覧を取得
+     */
+    public function getAvailableOptions(Request $request, $storeId)
+    {
+        $options = \App\Models\MenuOption::where('store_id', $storeId)
+            ->where('is_available', true)
+            ->orderBy('name')
+            ->get()
+            ->map(function ($option) {
+                return [
+                    'id' => $option->id,
+                    'name' => $option->name,
+                    'price' => $option->price ?? 0,
+                    'duration_minutes' => $option->duration_minutes ?? 0
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => $options
         ]);
     }
 

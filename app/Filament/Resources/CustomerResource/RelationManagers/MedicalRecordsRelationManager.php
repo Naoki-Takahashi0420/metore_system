@@ -13,12 +13,18 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 class MedicalRecordsRelationManager extends RelationManager
 {
     protected static string $relationship = 'medicalRecords';
-    
+
     protected static ?string $title = 'カルテ・診療記録';
-    
+
     protected static ?string $modelLabel = 'カルテ';
-    
+
     protected static ?string $pluralModelLabel = 'カルテ';
+
+    public function getTableHeader(): ?\Illuminate\Contracts\View\View
+    {
+        \Log::info('[DEBUG] getTableHeader called for customer: ' . $this->ownerRecord->id);
+        return view('filament.resources.customer-resource.relation-managers.medical-records-header');
+    }
 
     public function form(Form $form): Form
     {
@@ -46,6 +52,7 @@ class MedicalRecordsRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('record_date')
+            ->header(view('filament.resources.customer-resource.relation-managers.medical-records-header'))
             ->columns([
                 Tables\Columns\TextColumn::make('record_date')
                     ->label('記録日')

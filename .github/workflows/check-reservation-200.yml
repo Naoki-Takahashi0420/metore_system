@@ -1,0 +1,52 @@
+name: Check Reservation 200
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-reservation:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check Reservation 200 Data
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=== 予約#200の詳細情報 ==="
+        sqlite3 database/database.sqlite << 'SQL'
+.headers on
+.mode column
+
+SELECT
+    r.id,
+    r.reservation_date,
+    r.start_time,
+    r.end_time,
+    CAST((julianday(r.reservation_date || ' ' || r.end_time) - julianday(r.reservation_date || ' ' || r.start_time)) * 1440 AS INTEGER) as actual_minutes,
+    m.name as menu_name,
+    m.duration_minutes as menu_duration
+FROM reservations r
+LEFT JOIN menus m ON r.menu_id = m.id
+WHERE r.id = 200;
+
+-- オプション確認
+SELECT
+    ro.reservation_id,
+    mo.name as option_name,
+    mo.duration_minutes as option_duration,
+    ro.duration_minutes as saved_option_duration
+FROM reservation_options ro
+LEFT JOIN menu_options mo ON ro.menu_option_id = mo.id
+WHERE ro.reservation_id = 200;
+SQL
+        EOF
+
+        rm deploy_key.pem
