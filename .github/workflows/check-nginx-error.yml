@@ -1,0 +1,37 @@
+name: Check Nginx Error Logs
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-nginx:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Fetch Nginx Error Logs
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'LOGS'
+        echo "=== Nginx Error Log (last 100 lines) ==="
+        sudo tail -n 100 /var/log/nginx/error.log
+
+        echo ""
+        echo "=== PHP-FPM Error Log (last 100 lines) ==="
+        sudo tail -n 100 /var/log/php8.3-fpm.log 2>/dev/null || echo "PHP-FPM log not found"
+
+        echo ""
+        echo "=== Check PHP-FPM Status ==="
+        sudo systemctl status php8.3-fpm --no-pager
+
+        echo ""
+        echo "=== Check Nginx Status ==="
+        sudo systemctl status nginx --no-pager
+        LOGS
+
+        rm deploy_key.pem
