@@ -55,6 +55,14 @@ class CreateMedicalRecord extends CreateRecord
             }
         }
 
+        // 店舗IDが未設定の場合、ユーザーの所属店舗を設定
+        if (!isset($data['store_id'])) {
+            $user = auth()->user();
+            if ($user && $user->store_id) {
+                $data['store_id'] = $user->store_id;
+            }
+        }
+
         // 顧客の前回のカルテから変わらない情報（顧客管理情報）を引き継ぐ
         $finalCustomerId = $data['customer_id'] ?? null;
         if ($finalCustomerId) {
@@ -94,6 +102,14 @@ class CreateMedicalRecord extends CreateRecord
         // staff_idとcreated_byを現在のユーザーに設定
         $data['staff_id'] = auth()->id();
         $data['created_by'] = auth()->id();
+
+        // 店舗IDが未設定の場合、ユーザーの所属店舗を強制設定（最終防衛ライン）
+        if (empty($data['store_id'])) {
+            $user = auth()->user();
+            if ($user && $user->store_id) {
+                $data['store_id'] = $user->store_id;
+            }
+        }
 
         return $data;
     }

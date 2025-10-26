@@ -10,6 +10,7 @@ class MedicalRecord extends Model
     use HasFactory;
 
     protected $fillable = [
+        'store_id',
         'customer_id',
         'staff_id',
         'reservation_id',
@@ -65,6 +66,14 @@ class MedicalRecord extends Model
         'presbyopia_before',
         'presbyopia_after',
     ];
+
+    /**
+     * リレーション: 店舗
+     */
+    public function store()
+    {
+        return $this->belongsTo(Store::class);
+    }
 
     /**
      * リレーション: 顧客
