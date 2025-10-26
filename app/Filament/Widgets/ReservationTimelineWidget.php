@@ -2088,8 +2088,13 @@ class ReservationTimelineWidget extends Widget
             }
 
             // 過去の日時チェック（現在時刻から30分前まで許可）
-            $reservationDateTime = \Carbon\Carbon::parse($this->newReservation['date'] . ' ' . $this->newReservation['start_time']);
-            $minimumTime = \Carbon\Carbon::now()->subMinutes(30);
+            // 日付を明示的にY-m-d形式で解析
+            $dateString = $this->newReservation['date'];
+            if ($dateString instanceof \Carbon\Carbon) {
+                $dateString = $dateString->format('Y-m-d');
+            }
+            $reservationDateTime = \Carbon\Carbon::createFromFormat('Y-m-d H:i', $dateString . ' ' . $this->newReservation['start_time'], 'Asia/Tokyo');
+            $minimumTime = \Carbon\Carbon::now('Asia/Tokyo')->subMinutes(30);
             if ($reservationDateTime->lt($minimumTime)) {
                 \Filament\Notifications\Notification::make()
                     ->danger()
@@ -2335,6 +2340,21 @@ class ReservationTimelineWidget extends Widget
             // スタッフシフトモードかどうか確認（既に取得済みの$storeを使用）
             $useStaffAssignment = $store->use_staff_assignment ?? false;
 
+            // 日付を明示的にYYYY-MM-DD形式の文字列として正規化（タイムゾーン問題を防ぐ）
+            // Carbon::parseではなくCarbon::createFromFormatを使用して、タイムゾーン変換を防ぐ
+            $dateValue = $this->newReservation['date'];
+            if ($dateValue instanceof \Carbon\Carbon) {
+                $reservationDate = $dateValue->format('Y-m-d');
+            } else {
+                // 文字列の場合は、明示的にY-m-d形式で解析してタイムゾーン変換を防ぐ
+                try {
+                    $reservationDate = \Carbon\Carbon::createFromFormat('Y-m-d', $dateValue, 'Asia/Tokyo')->format('Y-m-d');
+                } catch (\Exception $e) {
+                    // フォーマットが異なる場合はparseにフォールバック
+                    $reservationDate = \Carbon\Carbon::parse($dateValue)->format('Y-m-d');
+                }
+            }
+
             // 予約作成時の顧客情報をログに記録
             logger('Creating reservation with customer', [
                 'selectedCustomer' => [
@@ -2343,7 +2363,9 @@ class ReservationTimelineWidget extends Widget
                     'phone' => $this->selectedCustomer->phone,
                     'email' => $this->selectedCustomer->email
                 ],
-                'reservation_date' => $this->newReservation['date'],
+                'original_date_value' => $this->newReservation['date'],
+                'date_type' => gettype($this->newReservation['date']),
+                'normalized_date' => $reservationDate,
                 'start_time' => $this->newReservation['start_time'],
                 'menu_id' => $this->newReservation['menu_id']
             ]);
@@ -2354,7 +2376,7 @@ class ReservationTimelineWidget extends Widget
                 'store_id' => $this->selectedStore,
                 'customer_id' => $this->selectedCustomer->id,
                 'menu_id' => $this->newReservation['menu_id'],
-                'reservation_date' => $this->newReservation['date'],
+                'reservation_date' => $reservationDate,
                 'start_time' => $this->newReservation['start_time'],
                 'end_time' => $endTime->format('H:i'),
                 'guest_count' => 1,

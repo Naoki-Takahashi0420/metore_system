@@ -98,6 +98,11 @@ class Reservation extends Model
             \Log::info('Creating reservation:', [
                 'store_id' => $reservation->store_id,
                 'date' => $reservation->reservation_date,
+                'date_type' => gettype($reservation->reservation_date),
+                'date_class' => is_object($reservation->reservation_date) ? get_class($reservation->reservation_date) : 'not_object',
+                'date_formatted' => $reservation->reservation_date instanceof \Carbon\Carbon
+                    ? $reservation->reservation_date->format('Y-m-d H:i:s T')
+                    : (string)$reservation->reservation_date,
                 'time' => $reservation->start_time . '-' . $reservation->end_time,
                 'staff_id' => $reservation->staff_id ?? null
             ]);

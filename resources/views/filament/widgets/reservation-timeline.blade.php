@@ -3612,12 +3612,12 @@
                             <div class="grid grid-cols-2 gap-2">
                                 <input
                                     type="date"
-                                    wire:model="newReservation.date"
+                                    wire:model.lazy="newReservation.date"
                                     value="{{ $selectedDate }}"
                                     class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
                                 <input
                                     type="time"
-                                    wire:model="newReservation.start_time"
+                                    wire:model.lazy="newReservation.start_time"
                                     class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
                             </div>
 
