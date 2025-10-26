@@ -1,0 +1,40 @@
+name: Clear Cache Only
+
+on:
+  workflow_dispatch:
+
+jobs:
+  clear-cache:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Clear All Caches
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'CLEAR'
+        cd /var/www/html
+        echo "=== Clearing all caches ==="
+        sudo php artisan optimize:clear
+        sudo php artisan view:clear
+        sudo php artisan cache:clear
+        sudo php artisan route:clear
+        sudo php artisan config:clear
+        sudo php artisan clear-compiled
+
+        echo ""
+        echo "=== Restarting services ==="
+        sudo systemctl restart php8.3-fpm
+        sudo systemctl restart nginx
+
+        echo ""
+        echo "=== Done ==="
+        CLEAR
+
+        rm deploy_key.pem
+        echo "✅ Cache cleared successfully!"
