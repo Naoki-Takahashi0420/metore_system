@@ -111,11 +111,20 @@ class LineMessageService
      */
     public function sendMessage(string $lineUserId, $message)
     {
+        // ローカル環境では送信しない
+        if (config('app.env') === 'local') {
+            Log::info('[LOCAL] LINE送信をスキップ（ローカル環境）', [
+                'line_user_id' => $lineUserId,
+                'message_length' => is_string($message) ? strlen($message) : 'array',
+            ]);
+            return true;
+        }
+
         if (!$this->channelToken) {
             Log::warning('LINE Channel Token is not set');
             return false;
         }
-        
+
         try {
             // メッセージの形式を判定
             $messages = [];

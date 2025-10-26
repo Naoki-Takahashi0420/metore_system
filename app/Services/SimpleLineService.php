@@ -139,10 +139,20 @@ class SimpleLineService
      */
     private function sendToStore(Store $store, ?string $lineUserId, string $message): bool
     {
+        // ローカル環境では送信しない
+        if (config('app.env') === 'local') {
+            Log::info('[LOCAL] LINE送信をスキップ（ローカル環境）', [
+                'store_id' => $store->id,
+                'line_user_id' => $lineUserId,
+                'message_length' => strlen($message),
+            ]);
+            return true;
+        }
+
         if (!$lineUserId || !$store->line_channel_access_token) {
             return false;
         }
-        
+
         try {
             $token = $store->line_channel_access_token;
             $tokenPreview = substr($token, 0, 20) . '...' . substr($token, -10);
