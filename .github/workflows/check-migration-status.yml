@@ -1,0 +1,37 @@
+name: Check Migration Status
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check medical_records table
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'ENDSSH'
+        echo "=== Checking medical_records table structure ==="
+        sqlite3 /var/www/html/database/database.sqlite "PRAGMA table_info(medical_records);" | grep store || echo "No store column found"
+
+        echo ""
+        echo "=== Checking migration status ==="
+        sudo -u www-data php /var/www/html/artisan migrate:status | grep "add_store_id" || echo "Migration not found in status"
+
+        echo ""
+        echo "=== Sample data from medical_records ==="
+        sqlite3 /var/www/html/database/database.sqlite "SELECT id, store_id, customer_id, reservation_id FROM medical_records LIMIT 5;"
+
+        echo ""
+        echo "=== Count records with store_id ==="
+        sqlite3 /var/www/html/database/database.sqlite "SELECT COUNT(*) as total, COUNT(store_id) as with_store FROM medical_records;"
+        ENDSSH
+
+        rm deploy_key.pem
