@@ -1179,8 +1179,8 @@ function displayReservations() {
                 </div>
                 
                 <div class="flex gap-2">
-                    ${!isPast && canCancel(reservation) ? `
-                        <button onclick="changeReservationDate(${reservation.id})" 
+                    ${!isPast && reservation.can_cancel ? `
+                        <button onclick="changeReservationDate(${reservation.id})"
                                 class="border border-gray-300 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
                             日程変更
                         </button>
@@ -1243,34 +1243,12 @@ function formatTime(timeString) {
     return timeString.substring(0, 5);
 }
 
+// 注: canCancel は不要（APIから can_cancel フラグを受け取る）
+// デバッグ用にログ出力のみ残す
 function canCancel(reservation) {
-    console.log('=== canCancel called ===');
-    console.log('Reservation ID:', reservation.id);
-    console.log('Status:', reservation.status);
-
-    if (['cancelled', 'canceled', 'completed', 'no_show'].includes(reservation.status)) {
-        console.log('Cannot cancel: invalid status');
-        return false;
-    }
-
-    // 日付フォーマットを正規化して正しくパース
-    const datePart = reservation.reservation_date.split(' ')[0];
-    const [year, month, day] = datePart.split('-').map(Number);
-    const [hours, minutes] = reservation.start_time.split(':').map(Number);
-    const reservationDateTime = new Date(year, month - 1, day, hours, minutes);
-    const now = new Date();
-
-    const isFuture = reservationDateTime > now;
-    const hoursDiff = (reservationDateTime - now) / (1000 * 60 * 60);
-
-    console.log('Reservation DateTime:', reservationDateTime.toISOString());
-    console.log('Current DateTime:', now.toISOString());
-    console.log('Is future:', isFuture);
-    console.log('Hours difference:', hoursDiff.toFixed(2));
-    console.log('Will return:', isFuture);
-
-    // 24時間以内でもボタンは表示する（タップすると電話案内モーダルが出る）
-    return isFuture;
+    console.log('=== canCancel called (deprecated) ===');
+    console.log('Using API can_cancel:', reservation.can_cancel);
+    return reservation.can_cancel;
 }
 
 // マイページから既存顧客として予約
@@ -1437,7 +1415,8 @@ function changeReservationDate(reservationId) {
         return;
     }
 
-    // 24時間前チェック
+    // 店舗のキャンセル期限設定を使用
+    const deadlineHours = reservation.cancellation_deadline_hours || 24;
     const datePart = reservation.reservation_date.split(' ')[0];
     const [year, month, day] = datePart.split('-').map(Number);
     const [hours, minutes] = reservation.start_time.split(':').map(Number);
@@ -1445,8 +1424,8 @@ function changeReservationDate(reservationId) {
     const now = new Date();
     const hoursDiff = (reservationDateTime - now) / (1000 * 60 * 60);
 
-    if (hoursDiff <= 24) {
-        // 24時間以内の場合は電話案内モーダルを表示
+    if (hoursDiff <= deadlineHours) {
+        // キャンセル期限を過ぎている場合は電話案内モーダルを表示
         showPhoneContactModal(reservation, '日程変更');
         return;
     }
@@ -1508,6 +1487,7 @@ let currentReservation = null;
 // 電話連絡を促すモーダルを表示
 function showPhoneContactModal(reservation, actionType) {
     const modalContent = document.getElementById('cancelModalContent');
+    const deadlineHours = reservation.cancellation_deadline_hours || 24;
     modalContent.innerHTML = `
         <div class="text-center">
             <div class="mb-4">
@@ -1515,7 +1495,7 @@ function showPhoneContactModal(reservation, actionType) {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
             </div>
-            <p class="text-lg font-semibold mb-2">予約まで24時間を切っています</p>
+            <p class="text-lg font-semibold mb-2">予約まで${deadlineHours}時間を切っています</p>
             <p class="text-sm text-gray-600 mb-4">${actionType}をご希望の場合は、お手数ですが店舗へ直接お電話でご連絡ください。</p>
 
             <div class="bg-gray-50 p-4 rounded-lg mb-4">
@@ -1543,21 +1523,22 @@ function cancelReservation(reservationId) {
         return;
     }
 
-    // 24時間前チェック
+    // 店舗のキャンセル期限設定を使用
+    const deadlineHours = currentReservation.cancellation_deadline_hours || 24;
     const datePart = currentReservation.reservation_date.split(' ')[0];
     const [year, month, day] = datePart.split('-').map(Number);
     const [hours, minutes] = currentReservation.start_time.split(':').map(Number);
     const reservationDateTime = new Date(year, month - 1, day, hours, minutes);
     const now = new Date();
     const hoursDiff = (reservationDateTime - now) / (1000 * 60 * 60);
-    
-    if (hoursDiff <= 24) {
-        // 24時間以内の場合は電話案内モーダルを表示
+
+    if (hoursDiff <= deadlineHours) {
+        // キャンセル期限を過ぎている場合は電話案内モーダルを表示
         showPhoneContactModal(currentReservation, 'キャンセル');
         return;
     }
     
-    // 24時間以上前の場合は通常のキャンセルモーダル
+    // キャンセル期限内の場合は通常のキャンセルモーダル
     const modalContent = document.getElementById('cancelModalContent');
     modalContent.innerHTML = `
         <p class="text-sm text-gray-600 mb-4">この予約をキャンセルしてもよろしいですか？</p>

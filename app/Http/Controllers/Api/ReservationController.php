@@ -431,7 +431,7 @@ class ReservationController extends Controller
             ->map(function ($reservation) {
                 // タイムゾーンの問題を避けるため、日付を文字列として返す
                 $reservationArray = $reservation->toArray();
-                
+
                 // 日付を安全な形式に変換（タイムゾーン変換を避ける）
                 if ($reservation->reservation_date instanceof \Carbon\Carbon) {
                     $reservationArray['reservation_date'] = $reservation->reservation_date->format('Y-m-d H:i:s');
@@ -457,6 +457,12 @@ class ReservationController extends Controller
                     ]);
                     $reservationArray['option_menus'] = [];
                 }
+
+                // キャンセル可能かどうかを追加（店舗のキャンセル期限設定を使用）
+                $reservationArray['can_cancel'] = $reservation->canCancel();
+
+                // 店舗のキャンセル期限設定を追加（フロントエンドでメッセージ表示に使用）
+                $reservationArray['cancellation_deadline_hours'] = $reservation->store->cancellation_deadline_hours ?? 24;
 
                 return (object) $reservationArray;
             });
@@ -507,6 +513,12 @@ class ReservationController extends Controller
             $reservationData['option_menus'] = [];
         }
 
+        // キャンセル可能かどうかを追加（店舗のキャンセル期限設定を使用）
+        $reservationData['can_cancel'] = $reservation->canCancel();
+
+        // 店舗のキャンセル期限設定を追加（フロントエンドでメッセージ表示に使用）
+        $reservationData['cancellation_deadline_hours'] = $reservation->store->cancellation_deadline_hours ?? 24;
+
         return response()->json([
             'message' => '予約詳細を取得しました',
             'data' => $reservationData
@@ -531,42 +543,14 @@ class ReservationController extends Controller
             ], 404);
         }
 
-        // キャンセル可能かチェック
-        if (in_array($reservation->status, ['cancelled', 'completed', 'no_show'])) {
-            return response()->json([
-                'message' => 'この予約はキャンセルできません'
-            ], 400);
-        }
+        // キャンセル可能かチェック（店舗のキャンセル期限設定を使用）
+        if (!$reservation->canCancel()) {
+            // キャンセル期限を取得
+            $deadlineHours = $reservation->store->cancellation_deadline_hours ?? 24;
 
-        // 24時間前チェック
-        // reservation_dateから日付部分、start_timeから時刻部分を取得
-        $dateStr = is_string($reservation->reservation_date) ? 
-            $reservation->reservation_date : 
-            $reservation->reservation_date->format('Y-m-d');
-        
-        $timeStr = is_string($reservation->start_time) ? 
-            $reservation->start_time : 
-            $reservation->start_time->format('H:i:s');
-            
-        // 日付部分のみを取得（タイムスタンプが含まれている場合）
-        if (strpos($dateStr, ' ') !== false) {
-            $dateStr = explode(' ', $dateStr)[0];
-        }
-        
-        // 時刻部分のみを取得（日付が含まれている場合）
-        if (strpos($timeStr, ' ') !== false) {
-            $parts = explode(' ', $timeStr);
-            $timeStr = end($parts);
-        }
-        
-        $reservationDateTime = \Carbon\Carbon::parse($dateStr . ' ' . $timeStr);
-        $now = \Carbon\Carbon::now();
-        $hoursUntilReservation = $now->diffInHours($reservationDateTime, false);
-        
-        if ($hoursUntilReservation < 24) {
             return response()->json([
                 'success' => false,
-                'message' => '予約の24時間前を過ぎています',
+                'message' => "予約の{$deadlineHours}時間前を過ぎています",
                 'require_phone_contact' => true,
                 'store_phone' => $reservation->store->phone,
                 'store_name' => $reservation->store->name

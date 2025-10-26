@@ -160,6 +160,9 @@
 </div>
 
 <script>
+// グローバル変数として予約情報を保存（キャンセル処理で使用）
+let currentReservation = null;
+
 document.addEventListener('DOMContentLoaded', async function() {
     const reservationId = window.location.pathname.split('/').pop();
     const token = localStorage.getItem('customer_token');
@@ -199,6 +202,9 @@ document.addEventListener('DOMContentLoaded', async function() {
 });
 
 function displayReservationDetail(reservation) {
+    // グローバル変数に保存
+    currentReservation = reservation;
+
     // Hide loading state
     document.getElementById('loading-state').classList.add('hidden');
     document.getElementById('reservation-detail').classList.remove('hidden');
@@ -227,8 +233,8 @@ function displayReservationDetail(reservation) {
         document.getElementById('staff-name').textContent = reservation.staff.name;
     }
     
-    // キャンセルボタンの表示制御
-    if (canCancel(reservation)) {
+    // キャンセルボタンの表示制御（APIのcan_cancelフラグを使用）
+    if (reservation.can_cancel) {
         const cancelBtn = document.getElementById('cancel-btn');
         cancelBtn.style.display = 'inline-block';
         cancelBtn.onclick = () => cancelReservation(reservation.id);
@@ -283,8 +289,8 @@ function displayReservationDetail(reservation) {
         document.getElementById('notes-card').style.display = 'block';
     }
     
-    // Cancel button
-    if (canCancel(reservation)) {
+    // Cancel button (APIのcan_cancelフラグを使用)
+    if (reservation.can_cancel) {
         const cancelBtn = document.getElementById('cancel-btn');
         cancelBtn.style.display = 'block';
         cancelBtn.addEventListener('click', () => cancelReservation(reservation.id));
@@ -341,24 +347,16 @@ function formatTime(timeString) {
     return timeString.substring(0, 5); // HH:MM format
 }
 
-function canCancel(reservation) {
-    if (['cancelled', 'completed', 'no_show'].includes(reservation.status)) {
-        return false;
-    }
-    
-    // 24時間前まではキャンセル可能
-    const reservationDateTime = new Date(reservation.reservation_date + 'T' + reservation.start_time);
-    const now = new Date();
-    const hoursDiff = (reservationDateTime - now) / (1000 * 60 * 60);
-    
-    return hoursDiff > 24;
-}
+// 注: canCancel は不要（APIから can_cancel フラグを受け取る）
 
 async function cancelReservation(reservationId) {
-    if (!confirm('本当にこの予約をキャンセルしますか？\n24時間前までのキャンセルのみ無料です。')) {
+    // グローバル変数から予約情報を取得してキャンセル期限を確認
+    const deadlineHours = currentReservation?.cancellation_deadline_hours || 24;
+
+    if (!confirm(`本当にこの予約をキャンセルしますか？\n${deadlineHours}時間前までのキャンセルのみ無料です。`)) {
         return;
     }
-    
+
     const reason = prompt('キャンセル理由をお聞かせください（任意）:');
     
     try {

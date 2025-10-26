@@ -313,8 +313,8 @@ class Reservation extends Model
             return false;
         }
 
-        // 予約設定から締切時間を取得
-        $deadlineHours = $this->store->reservation_settings['cancellation_deadline_hours'] ?? 24;
+        // 店舗のキャンセル期限設定を取得（デフォルト24時間）
+        $deadlineHours = $this->store->cancellation_deadline_hours ?? 24;
         $deadline = $this->reservation_date->copy()
             ->setTimeFromTimeString($this->start_time)
             ->subHours($deadlineHours);

@@ -118,16 +118,22 @@ document.addEventListener('DOMContentLoaded', async function() {
     });
 });
 
+// グローバル変数として予約一覧を保存（キャンセル処理で使用）
+let allReservations = [];
+
 function displayReservations(reservations) {
     const container = document.getElementById('reservations-container');
     const emptyState = document.getElementById('empty-state');
-    
+
+    // 予約一覧をグローバル変数に保存
+    allReservations = reservations;
+
     if (reservations.length === 0) {
         container.classList.add('hidden');
         emptyState.classList.remove('hidden');
         return;
     }
-    
+
     container.innerHTML = reservations.map(reservation => `
         <div class="border-b border-gray-100 py-4 hover:bg-gray-50 transition-colors">
             <div class="flex justify-between items-start">
@@ -152,13 +158,13 @@ function displayReservations(reservations) {
                 </div>
                 
                 <div class="flex items-center gap-2">
-                    ${canCancel(reservation) ? `
-                        <button onclick="cancelReservation(${reservation.id})" 
+                    ${reservation.can_cancel ? `
+                        <button onclick="cancelReservation(${reservation.id})"
                                 class="text-red-600 hover:text-red-700 text-sm">
                             キャンセル
                         </button>
                     ` : ''}
-                    <a href="/customer/reservations/${reservation.id}" 
+                    <a href="/customer/reservations/${reservation.id}"
                        class="text-gray-600 hover:text-gray-900">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7" />
@@ -218,43 +224,7 @@ function formatTime(timeString) {
     return timeString.substring(0, 5); // 既に '14:00:00' 形式の場合 -> '14:00'
 }
 
-function canModify(reservation) {
-    if (['cancelled', 'completed', 'no_show', 'in_progress'].includes(reservation.status)) {
-        return false;
-    }
-    
-    // 48時間前までは変更可能
-    const reservationDateStr = reservation.reservation_date.split(' ')[0]; // '2025-09-10'
-    const startTimeStr = getTimeString(reservation.start_time); // '14:00:00'
-    const reservationDateTime = new Date(reservationDateStr + 'T' + startTimeStr);
-    const now = new Date();
-    const hoursDiff = (reservationDateTime - now) / (1000 * 60 * 60);
-    
-    return hoursDiff > 48;
-}
-
-function getTimeString(timeData) {
-    // 時間データから時刻部分を取得
-    if (timeData.includes(' ')) {
-        return timeData.split(' ').pop(); // '2025-09-07 14:00:00' -> '14:00:00'
-    }
-    return timeData; // 既に '14:00:00' 形式の場合
-}
-
-function canCancel(reservation) {
-    if (['cancelled', 'completed', 'no_show'].includes(reservation.status)) {
-        return false;
-    }
-    
-    // 24時間前まではキャンセル可能
-    const reservationDateStr = reservation.reservation_date.split(' ')[0]; // '2025-09-10'
-    const startTimeStr = getTimeString(reservation.start_time); // '14:00:00'
-    const reservationDateTime = new Date(reservationDateStr + 'T' + startTimeStr);
-    const now = new Date();
-    const hoursDiff = (reservationDateTime - now) / (1000 * 60 * 60);
-    
-    return hoursDiff > 24;
-}
+// 注: canCancel は不要（APIから can_cancel フラグを受け取る）
 
 function modifyReservation(reservationId) {
     alert('予約変更機能は現在準備中です。\nお手数ですが、店舗に直接お電話でご連絡ください。');
@@ -263,10 +233,14 @@ function modifyReservation(reservationId) {
 }
 
 async function cancelReservation(reservationId) {
-    if (!confirm('本当にこの予約をキャンセルしますか？\n24時間前までのキャンセルのみ無料です。')) {
+    // 予約情報を取得してキャンセル期限を確認
+    const reservation = allReservations.find(r => r.id === reservationId);
+    const deadlineHours = reservation?.cancellation_deadline_hours || 24;
+
+    if (!confirm(`本当にこの予約をキャンセルしますか？\n${deadlineHours}時間前までのキャンセルのみ無料です。`)) {
         return;
     }
-    
+
     const reason = prompt('キャンセル理由をお聞かせください（任意）:');
     
     try {
