@@ -55,6 +55,15 @@ class SmsService
      */
     public function sendSms(string $phone, string $message): bool
     {
+        // ローカル環境では送信しない
+        if (config('app.env') === 'local') {
+            Log::info('[LOCAL] SMS送信をスキップ（ローカル環境）', [
+                'phone' => $phone,
+                'message_length' => strlen($message),
+            ]);
+            return true;
+        }
+
         // AWS認証情報が設定されていない場合
         if (!$this->snsClient) {
             Log::warning('AWS SNS認証情報が設定されていないため、SMS送信をスキップ', [

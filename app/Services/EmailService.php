@@ -57,6 +57,15 @@ class EmailService
      */
     public function sendEmail(string $to, string $subject, string $body, ?string $textBody = null): bool
     {
+        // ローカル環境では送信しない
+        if (config('app.env') === 'local') {
+            Log::info('[LOCAL] メール送信をスキップ（ローカル環境）', [
+                'to' => $to,
+                'subject' => $subject,
+            ]);
+            return true;
+        }
+
         // AWS認証情報が設定されていない場合
         if (!$this->sesClient) {
             Log::warning('AWS SES認証情報が設定されていないため、メール送信をスキップ', [

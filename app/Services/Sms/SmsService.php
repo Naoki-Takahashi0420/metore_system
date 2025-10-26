@@ -38,10 +38,19 @@ class SmsService
      */
     public function sendSms(string $to, string $message): bool
     {
+        // ローカル環境では送信しない
+        if (config('app.env') === 'local') {
+            Log::info('[LOCAL] SMS送信をスキップ（ローカル環境）', [
+                'to' => $to,
+                'message_length' => strlen($message),
+            ]);
+            return true;
+        }
+
         try {
             // 日本の電話番号形式に変換（0901234567 → +81901234567）
             $to = $this->formatPhoneNumber($to);
-            
+
             if (!$this->snsClient) {
                 Log::warning('AWS SNS client not configured. SMS not sent.');
                 return false;
