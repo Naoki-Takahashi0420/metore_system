@@ -224,14 +224,6 @@ function formatTime(timeString) {
     return timeString.substring(0, 5); // 既に '14:00:00' 形式の場合 -> '14:00'
 }
 
-// 注: canCancel は不要（APIから can_cancel フラグを受け取る）
-
-function modifyReservation(reservationId) {
-    alert('予約変更機能は現在準備中です。\nお手数ですが、店舗に直接お電話でご連絡ください。');
-    // 将来的にはここで予約変更画面に遷移
-    // window.location.href = `/customer/reservations/${reservationId}/edit`;
-}
-
 async function cancelReservation(reservationId) {
     // 予約情報を取得してキャンセル期限を確認
     const reservation = allReservations.find(r => r.id === reservationId);
