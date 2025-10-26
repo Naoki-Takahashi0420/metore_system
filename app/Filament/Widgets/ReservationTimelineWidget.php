@@ -1381,6 +1381,14 @@ class ReservationTimelineWidget extends Widget
     {
         \Log::info('Slot clicked:', ['seat' => $seatKey, 'time' => $timeSlot]);
 
+        // 🔍 日付ズレ問題の徹底調査ログ
+        \Log::info('🚨 [DATE DEBUG] openNewReservationFromSlot called', [
+            'selectedDate_before_assignment' => $this->selectedDate,
+            'selectedDate_type' => gettype($this->selectedDate),
+            'server_timezone' => date_default_timezone_get(),
+            'carbon_now' => \Carbon\Carbon::now()->format('Y-m-d H:i:s T')
+        ]);
+
         // 席タイプとライン番号/スタッフIDを解析
         $staffId = '';
         if (strpos($seatKey, 'staff_') === 0) {
@@ -1424,6 +1432,16 @@ class ReservationTimelineWidget extends Widget
             'staff_id' => $staffId,
             'notes' => '電話予約'
         ];
+
+        // 🔍 日付ズレ問題の徹底調査ログ
+        \Log::info('🚨 [DATE DEBUG] newReservation initialized', [
+            'selectedDate' => $this->selectedDate,
+            'newReservation_date' => $this->newReservation['date'],
+            'are_they_same' => $this->selectedDate === $this->newReservation['date'],
+            'selectedDate_type' => gettype($this->selectedDate),
+            'newReservation_date_type' => gettype($this->newReservation['date'])
+        ]);
+
         // 予約ブロック設定もリセット
         $this->blockSettings = [
             'date' => $this->selectedDate,
@@ -2063,10 +2081,18 @@ class ReservationTimelineWidget extends Widget
     public function createReservation(): void
     {
         try {
-            logger('createReservation called', [
+            // 🔍 日付ズレ問題の徹底調査ログ
+            logger('🚨 [DATE DEBUG] createReservation called', [
+                'raw_date_value' => $this->newReservation['date'] ?? null,
+                'date_type' => gettype($this->newReservation['date'] ?? null),
+                'date_is_carbon' => ($this->newReservation['date'] ?? null) instanceof \Carbon\Carbon,
+                'selectedDate_widget' => $this->selectedDate,
+                'selectedDate_type' => gettype($this->selectedDate),
+                'server_timezone' => date_default_timezone_get(),
+                'carbon_now' => \Carbon\Carbon::now()->format('Y-m-d H:i:s T'),
+                'php_date' => date('Y-m-d H:i:s T'),
                 'selectedCustomer' => $this->selectedCustomer ? $this->selectedCustomer->id : null,
                 'menu_id' => $this->newReservation['menu_id'] ?? null,
-                'date' => $this->newReservation['date'] ?? null,
                 'start_time' => $this->newReservation['start_time'] ?? null,
                 'newReservation_full' => $this->newReservation
             ]);
@@ -2274,21 +2300,30 @@ class ReservationTimelineWidget extends Widget
 
                 // 営業時間ベースモードの場合、既存予約との重複をチェック
                 $lineType = $this->newReservation['line_type'] ?? 'main';
+                $lineNumber = $this->newReservation['line_number'] ?? 1;
 
-                // 同じラインの既存予約を取得
+                // 同じライン（席）の既存予約を取得
                 $conflictingReservations = \App\Models\Reservation::where('store_id', $this->selectedStore)
                     ->whereDate('reservation_date', $this->newReservation['date'])
                     ->whereNotIn('status', ['cancelled', 'canceled'])
-                    ->where(function ($q) use ($lineType) {
+                    ->where(function ($q) use ($lineType, $lineNumber) {
                         if ($lineType === 'sub') {
+                            // サブラインの場合は全てのサブ予約をチェック
                             $q->where('line_type', 'sub')->orWhere('is_sub', true);
                         } else {
-                            $q->where(function($q2) {
-                                $q2->where('line_type', 'main')
-                                   ->orWhere(function($q3) {
-                                       $q3->whereNull('line_type')
-                                          ->where('is_sub', false);
-                                   });
+                            // メインラインの場合は、同じ席番号の予約のみをチェック
+                            $q->where(function($q2) use ($lineNumber) {
+                                $q2->where(function($q3) use ($lineNumber) {
+                                    // line_typeがmainで、同じline_numberの予約
+                                    $q3->where('line_type', 'main')
+                                       ->where('line_number', $lineNumber);
+                                })
+                                ->orWhere(function($q4) use ($lineNumber) {
+                                    // 旧式：line_typeがnullで、同じseat_numberの予約
+                                    $q4->whereNull('line_type')
+                                       ->where('is_sub', false)
+                                       ->where('seat_number', $lineNumber);
+                                });
                             });
                         }
                     })
@@ -2298,6 +2333,24 @@ class ReservationTimelineWidget extends Widget
                           ->where('end_time', '>', $startTime->format('H:i'));
                     })
                     ->get();
+
+                // デバッグログ
+                logger('Conflict check for reservation creation', [
+                    'line_type' => $lineType,
+                    'line_number' => $lineNumber,
+                    'start_time' => $startTime->format('H:i'),
+                    'end_time' => $endTime->format('H:i'),
+                    'conflicting_count' => $conflictingReservations->count(),
+                    'conflicting_reservations' => $conflictingReservations->map(function($r) {
+                        return [
+                            'id' => $r->id,
+                            'time' => $r->start_time . '-' . $r->end_time,
+                            'seat_number' => $r->seat_number,
+                            'line_number' => $r->line_number,
+                            'line_type' => $r->line_type
+                        ];
+                    })->toArray()
+                ]);
 
                 if ($conflictingReservations->count() > 0) {
                     $conflictDetails = $conflictingReservations->map(function($r) {
