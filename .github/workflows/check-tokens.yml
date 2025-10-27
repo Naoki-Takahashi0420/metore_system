@@ -1,0 +1,65 @@
+name: Check Customer Tokens
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-tokens:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check personal_access_tokens table
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        echo "=== Checking customer tokens in production DB ==="
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+          cd /var/www/html
+
+          echo "📊 Last 20 customer tokens:"
+          sudo sqlite3 database/database.sqlite << 'SQL'
+.headers on
+.mode column
+SELECT
+  id,
+  tokenable_id as customer_id,
+  name,
+  substr(token, 1, 20) || '...' as token_preview,
+  datetime(expires_at) as expires_at,
+  datetime(created_at) as created_at,
+  ROUND((julianday(expires_at) - julianday(created_at)) * 24, 2) as hours_valid
+FROM personal_access_tokens
+WHERE name LIKE 'customer-auth%'
+ORDER BY created_at DESC
+LIMIT 20;
+SQL
+
+          echo ""
+          echo "📈 Token statistics by name:"
+          sudo sqlite3 database/database.sqlite << 'SQL'
+.headers on
+.mode column
+SELECT
+  name,
+  COUNT(*) as count,
+  AVG(ROUND((julianday(expires_at) - julianday(created_at)) * 24, 2)) as avg_hours_valid,
+  MIN(datetime(created_at)) as oldest,
+  MAX(datetime(created_at)) as newest
+FROM personal_access_tokens
+WHERE name LIKE 'customer-auth%'
+GROUP BY name;
+SQL
+
+          echo ""
+          echo "🔍 Sanctum configuration:"
+          php artisan config:get sanctum.expiration || echo "Config not cached"
+
+EOF
+
+        rm deploy_key.pem
