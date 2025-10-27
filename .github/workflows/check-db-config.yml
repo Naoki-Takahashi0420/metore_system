@@ -1,0 +1,46 @@
+name: Check Database Config
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-config:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check database configuration
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        echo "=== Database Configuration Check ==="
+
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+          cd /var/www/html
+
+          echo "📊 Database Driver:"
+          grep "^DB_CONNECTION=" .env || echo "DB_CONNECTION not set (defaults to sqlite)"
+
+          echo ""
+          echo "📊 Database Path:"
+          grep "^DB_DATABASE=" .env || echo "DB_DATABASE not set"
+
+          echo ""
+          echo "📊 PHP Timezone:"
+          sudo php -r "echo date_default_timezone_get();" && echo ""
+
+          echo ""
+          echo "📊 Database file exists:"
+          ls -lh database/database.sqlite 2>/dev/null || echo "SQLite file not found"
+
+          echo ""
+          echo "📊 Sample timestamp from DB:"
+          sudo sqlite3 database/database.sqlite "SELECT datetime('now', 'localtime') as local_time, datetime('now') as utc_time;" 2>/dev/null || echo "Failed to query"
+
+EOF
+
+        rm deploy_key.pem
