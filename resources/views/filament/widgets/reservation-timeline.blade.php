@@ -850,9 +850,22 @@
                                         $canClickSlot = !$hasReservation && !$isBlocked;
 
                                         if ($canClickSlot && isset($currentStore)) {
-                                            // 参考情報として最小予約時間での可否をチェック（ツールチップ表示用）
-                                            $minDuration = $currentStore->reservation_slot_duration ?? 30;
-                                            $endTime = \Carbon\Carbon::parse($slot)->addMinutes($minDuration)->format('H:i');
+                                            // ✅ 実所要時間（選択メニュー+オプション）での空き判定
+                                            $actualDuration = null;
+                                            if ($this->selectedMenuDuration) {
+                                                // メニュー選択済み: 実所要時間 = メニュー + オプション
+                                                $actualDuration = $this->selectedMenuDuration + ($this->selectedOptionsDuration ?? 0);
+                                            } else {
+                                                // メニュー未選択: フォールバック（店舗の最小枠時間 or 店舗メニューの最大所要時間）
+                                                $storeMenus = \App\Models\Menu::where('store_id', $currentStore->id)
+                                                    ->where('is_active', true)
+                                                    ->get();
+                                                $maxMenuDuration = $storeMenus->max('duration_minutes') ?? 0;
+                                                $minSlotDuration = $currentStore->reservation_slot_duration ?? 30;
+                                                $actualDuration = max($maxMenuDuration, $minSlotDuration);
+                                            }
+
+                                            $endTime = \Carbon\Carbon::parse($slot)->addMinutes($actualDuration)->format('H:i');
 
                                             // ライン種別を判定して渡す
                                             $checkLineType = null;
@@ -866,8 +879,14 @@
                                             $availabilityResult = $this->canReserveAtTimeSlot($slot, $endTime, $currentStore, \Carbon\Carbon::parse($selectedDate), $checkLineType);
 
                                             if (!$availabilityResult['can_reserve']) {
-                                                // 最小予約時間では入らないが、短い時間なら入る可能性がある
-                                                $tooltipMessage = "クリックして予約時間を選択してください";
+                                                // ✅ 実所要時間では入らない → クリック不可 + 理由表示
+                                                $canClickSlot = false;
+                                                $reason = $availabilityResult['reason'] ?? '空きなし';
+                                                if ($this->selectedMenuDuration) {
+                                                    $tooltipMessage = "予約不可（{$slot}〜{$endTime}の{$actualDuration}分間: {$reason}）";
+                                                } else {
+                                                    $tooltipMessage = "予約不可（最大{$actualDuration}分の施術: {$reason}）";
+                                                }
                                             } else {
                                                 $tooltipMessage = "予約可能（空き: {$availabilityResult['available_slots']}/{$availabilityResult['total_capacity']}席）";
                                             }

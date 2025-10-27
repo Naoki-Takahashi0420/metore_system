@@ -164,27 +164,44 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // 既存のトークンをチェック
+document.addEventListener('DOMContentLoaded', async function() {
+    // 既存のトークンをサーバーで検証
     const existingToken = localStorage.getItem('customer_token');
-    const tokenExpiry = localStorage.getItem('token_expiry');
 
-    if (existingToken && tokenExpiry) {
-        const expiryDate = new Date(tokenExpiry);
-        const now = new Date();
+    if (existingToken) {
+        console.log('🔍 Existing token found, verifying with server...');
 
-        // トークンが有効期限内の場合、ダッシュボードへリダイレクト
-        if (expiryDate > now) {
-            console.log('Valid token found, redirecting to dashboard');
-            window.location.href = '/customer/dashboard';
-            return;
-        } else {
-            // 期限切れの場合はクリア
-            console.log('Token expired, clearing localStorage');
-            localStorage.removeItem('customer_token');
-            localStorage.removeItem('customer_data');
-            localStorage.removeItem('token_expiry');
-            localStorage.removeItem('remember_me');
+        try {
+            const response = await fetch('/api/auth/customer/me', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${existingToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log('✅ Token valid, redirecting to dashboard');
+
+                // トークン有効期限を更新（サーバーから取得）
+                if (data.data.token_expires_at) {
+                    localStorage.setItem('token_expiry', data.data.token_expires_at);
+                }
+
+                window.location.href = '/customer/dashboard';
+                return;
+            } else {
+                // トークン無効（401）またはその他のエラー
+                console.log('❌ Token invalid or expired, clearing localStorage');
+                localStorage.removeItem('customer_token');
+                localStorage.removeItem('customer_data');
+                localStorage.removeItem('token_expiry');
+                localStorage.removeItem('remember_me');
+            }
+        } catch (error) {
+            console.error('Token validation error:', error);
+            // ネットワークエラーの場合はlocalStorageをクリアせず、ログインフォームを表示
         }
     }
 
@@ -357,13 +374,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     localStorage.setItem('customer_token', data.data.token);
                     localStorage.setItem('customer_data', JSON.stringify(data.data.customer));
 
-                    // Remember Me設定を保存
-                    if (rememberMe) {
-                        localStorage.setItem('remember_me', 'true');
-                        localStorage.setItem('token_expiry', new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString());
+                    // ✅ サーバーから返された有効期限を使用（クライアント計算を廃止）
+                    if (data.data.expires_at) {
+                        localStorage.setItem('token_expiry', data.data.expires_at);
+                        localStorage.setItem('remember_me', rememberMe ? 'true' : 'false');
+                        console.log('✅ Token expiry set from server:', data.data.expires_at);
                     } else {
-                        localStorage.setItem('remember_me', 'false');
-                        localStorage.setItem('token_expiry', new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString());
+                        // フォールバック：サーバーがexpires_atを返さない場合（互換性維持）
+                        if (rememberMe) {
+                            localStorage.setItem('remember_me', 'true');
+                            localStorage.setItem('token_expiry', new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString());
+                        } else {
+                            localStorage.setItem('remember_me', 'false');
+                            localStorage.setItem('token_expiry', new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString());
+                        }
+                        console.warn('⚠️ Server did not return expires_at, using client-side calculation');
                     }
 
                     console.log('Login successful, token saved:', data.data.token);

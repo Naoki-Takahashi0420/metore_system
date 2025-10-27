@@ -34,6 +34,10 @@ class Customer extends Model
         'notes',
         'characteristics', // 顧客特性（スタッフ用）
         'is_blocked',
+        'risk_override',
+        'risk_flag_source',
+        'risk_flag_reason',
+        'risk_flagged_at',
         'cancellation_count',
         'no_show_count',
         'change_count',
@@ -53,6 +57,9 @@ class Customer extends Model
         'preferences' => 'array',
         'medical_notes' => 'array',
         'is_blocked' => 'boolean',
+        'risk_override' => 'boolean',
+        'risk_flag_reason' => 'array',
+        'risk_flagged_at' => 'datetime',
         'cancellation_count' => 'integer',
         'no_show_count' => 'integer',
         'change_count' => 'integer',
@@ -299,19 +306,26 @@ class Customer extends Model
 
     /**
      * 要注意顧客かどうかチェック
+     * is_blocked の値を尊重（手動上書きも含めて最終判定結果を返す）
      */
     public function isHighRisk(): bool
     {
-        return $this->cancellation_count >= 1 || 
-               $this->no_show_count >= 1 || 
-               $this->change_count >= 3;
+        // is_blocked が最終判定結果（自動判定 + 手動上書き）
+        return (bool) $this->is_blocked;
     }
 
     /**
      * 要注意レベルを取得
+     * is_blocked=false の場合は 'safe'、true の場合はカウントに基づいてレベルを返す
      */
     public function getRiskLevel(): string
     {
+        // is_blocked=false の場合は安全（手動でOFFにした場合も含む）
+        if (!$this->is_blocked) {
+            return 'safe';
+        }
+
+        // is_blocked=true の場合、カウントに基づいてレベルを判定
         if ($this->cancellation_count >= 3 || $this->no_show_count >= 2) {
             return 'high';
         }
@@ -319,6 +333,130 @@ class Customer extends Model
             return 'medium';
         }
         return 'low';
+    }
+
+    /**
+     * 自動リスク判定を実行（is_blockedの自動更新）
+     * risk_override=false の場合のみ実行
+     */
+    public function evaluateRiskStatus(): void
+    {
+        // 手動上書きされている場合は自動判定を行わない
+        if ($this->risk_override) {
+            \Log::info('[Customer::evaluateRiskStatus] Skipped (manual override)', [
+                'customer_id' => $this->id,
+                'risk_override' => true,
+            ]);
+            return;
+        }
+
+        $thresholds = config('customer_risk.thresholds');
+        $shouldBlock = false;
+        $reasons = [];
+
+        // キャンセル: 直近90日で2回以上
+        $recentCancellations = $this->getRecentReservations('cancelled', $thresholds['cancellation']['days']);
+        if ($recentCancellations->count() >= $thresholds['cancellation']['count']) {
+            $shouldBlock = true;
+            $reasons[] = [
+                'type' => 'cancellation',
+                'count' => $recentCancellations->count(),
+                'threshold' => $thresholds['cancellation']['count'],
+                'days' => $thresholds['cancellation']['days'],
+                'reservation_ids' => $recentCancellations->pluck('id')->toArray(),
+            ];
+        }
+
+        // ノーショー: 直近180日で1回以上
+        $recentNoShows = $this->getRecentReservations('no_show', $thresholds['no_show']['days']);
+        if ($recentNoShows->count() >= $thresholds['no_show']['count']) {
+            $shouldBlock = true;
+            $reasons[] = [
+                'type' => 'no_show',
+                'count' => $recentNoShows->count(),
+                'threshold' => $thresholds['no_show']['count'],
+                'days' => $thresholds['no_show']['days'],
+                'reservation_ids' => $recentNoShows->pluck('id')->toArray(),
+            ];
+        }
+
+        // 予約変更: 直近60日で3回以上
+        // TODO: change_count は Reservation に記録されていないため、
+        // 現状は customers.change_count をそのまま使用
+        // より正確には Reservationの更新履歴を追跡する必要がある
+        if ($this->change_count >= $thresholds['change']['count']) {
+            $shouldBlock = true;
+            $reasons[] = [
+                'type' => 'change',
+                'count' => $this->change_count,
+                'threshold' => $thresholds['change']['count'],
+                'days' => $thresholds['change']['days'],
+            ];
+        }
+
+        // is_blocked の更新（状態が変わる場合のみ）
+        $oldBlocked = $this->is_blocked;
+
+        if ($oldBlocked !== $shouldBlock) {
+            $this->is_blocked = $shouldBlock;
+            $this->risk_flag_source = 'auto';
+            $this->risk_flag_reason = $shouldBlock ? $reasons : null; // OFFの場合は理由クリア
+            $this->risk_flagged_at = now();
+
+            $this->saveQuietly(); // Observer を発火させない
+
+            \Log::info('[Customer::evaluateRiskStatus] is_blocked changed by auto evaluation', [
+                'customer_id' => $this->id,
+                'old_blocked' => $oldBlocked,
+                'new_blocked' => $shouldBlock,
+                'reasons' => $reasons,
+                'action' => $shouldBlock ? 'BLOCKED' : 'UNBLOCKED',
+            ]);
+        } else {
+            \Log::info('[Customer::evaluateRiskStatus] No change needed', [
+                'customer_id' => $this->id,
+                'current_blocked' => $oldBlocked,
+                'evaluated_should_block' => $shouldBlock,
+            ]);
+        }
+    }
+
+    /**
+     * 直近N日間の特定ステータスの予約を取得（カウント対象外を除外）
+     */
+    public function getRecentReservations(string $status, int $days)
+    {
+        return $this->reservations()
+            ->where('status', $status)
+            ->where('created_at', '>=', now()->subDays($days))
+            ->where(function ($query) {
+                // cancel_reason が設定されている場合、カウント対象外を除外
+                $query->whereNull('cancel_reason')
+                      ->orWhere(function ($q) {
+                          $excludeReasons = collect(config('customer_risk.cancel_reasons'))
+                              ->filter(fn($config) => $config['exclude_from_count'])
+                              ->keys()
+                              ->toArray();
+
+                          if (!empty($excludeReasons)) {
+                              $q->whereNotIn('cancel_reason', $excludeReasons);
+                          }
+                      });
+            })
+            ->get();
+    }
+
+    /**
+     * cancel_reason がカウント対象外かチェック
+     */
+    public static function shouldExcludeFromCount(?string $cancelReason): bool
+    {
+        if (!$cancelReason) {
+            return false;
+        }
+
+        $config = config("customer_risk.cancel_reasons.{$cancelReason}");
+        return $config['exclude_from_count'] ?? false;
     }
 
     /**

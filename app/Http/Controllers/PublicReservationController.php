@@ -1269,7 +1269,7 @@ class PublicReservationController extends Controller
         return $slots;
     }
     
-    private function getAvailability($storeId, $store, $startDate, $dates, $menuDuration = 60, $customerId = null, $staffId = null)
+    private function getAvailability($storeId, $store, $startDate, $dates, $menuDuration = 60, $customerId = null, $staffId = null, $changeMode = false)
     {
         $availability = [];
         $endDate = $startDate->copy()->addDays(6);
@@ -1280,10 +1280,12 @@ class PublicReservationController extends Controller
         // 既存顧客の場合、既存予約を取得して予約間隔制限用に準備
         $existingReservationDates = [];
         $isSubscriptionBooking = Session::get('is_subscription_booking', false);
+        $isChangeReservation = Session::get('change_reservation_id') ? true : false;  // ✅ セッションからも変更モードを検出
 
         // 既存顧客（マイページ・回数券・サブスク全て）に5日間制限を適用
+        // ただし、変更モードの場合はスキップ
         // 店舗ごとに独立した5日間ルールを適用するため、store_idでもフィルタ
-        if ($customerId) {
+        if ($customerId && !$changeMode && !$isChangeReservation) {
             \Log::info('既存予約取得開始（5日間ルール適用）', [
                 'customer_id' => $customerId,
                 'store_id' => $storeId,
@@ -1970,16 +1972,25 @@ class PublicReservationController extends Controller
 
         // 既存顧客IDが取得できた場合は予約間隔制限をチェック（店舗設定による）
         if ($existingCustomerId) {
-            // 予約変更の場合は、変更元の予約を除外
+            // 予約変更の場合は、5日ルールをスキップ（既存の他の予約との間隔で制限されるのを防ぐ）
             $excludeReservationId = Session::get('change_reservation_id');
 
-            \Log::info('予約間隔制限チェック開始', [
-                'customer_id' => $existingCustomerId,
-                'target_date' => $validated['date'],
-                'store_id' => $validated['store_id'],
-                'exclude_reservation_id' => $excludeReservationId
-            ]);
-            $this->validateFiveDayInterval($existingCustomerId, $validated['date'], $validated['store_id'], $excludeReservationId);
+            if (!$excludeReservationId) {
+                // 新規予約の場合のみ5日ルールをチェック
+                \Log::info('予約間隔制限チェック開始（新規予約）', [
+                    'customer_id' => $existingCustomerId,
+                    'target_date' => $validated['date'],
+                    'store_id' => $validated['store_id']
+                ]);
+                $this->validateFiveDayInterval($existingCustomerId, $validated['date'], $validated['store_id'], null);
+            } else {
+                \Log::info('予約間隔制限をスキップ（予約変更のため）', [
+                    'customer_id' => $existingCustomerId,
+                    'target_date' => $validated['date'],
+                    'store_id' => $validated['store_id'],
+                    'change_reservation_id' => $excludeReservationId
+                ]);
+            }
         } else {
             \Log::info('予約間隔制限をスキップ（新規顧客または顧客情報なし）', [
                 'is_existing_customer' => $isExistingCustomer,
@@ -2994,7 +3005,8 @@ class PublicReservationController extends Controller
             'menu_id' => 'required|exists:menus,id',
             'date' => 'required|date',
             'time' => 'required',
-            'customer_id' => 'nullable|exists:customers,id'  // customer_idを追加（オプション）
+            'customer_id' => 'nullable|exists:customers,id',  // customer_idを追加（オプション）
+            'change_mode' => 'nullable|boolean'  // ✅ 変更モードフラグを追加
         ]);
 
         $store = Store::find($validated['store_id']);
@@ -3003,6 +3015,7 @@ class PublicReservationController extends Controller
         $time = $validated['time'];
         $duration = $menu->duration_minutes ?? 60;
         $customerId = $validated['customer_id'] ?? null;
+        $changeMode = $validated['change_mode'] ?? false;  // ✅ 変更モードを取得
 
         // 店舗の最小予約間隔設定を取得（デフォルト5日）
         $minIntervalDays = $store->min_interval_days ?? 5;
@@ -3012,7 +3025,8 @@ class PublicReservationController extends Controller
             'menu_id' => $menu->id,
             'menu_is_subscription' => $menu->is_subscription,
             'date' => $validated['date'],
-            'time' => $time
+            'time' => $time,
+            'change_mode' => $changeMode  // ✅ ログに変更モードを追加
         ]);
 
         // 時間枠の開始と終了を計算
@@ -3143,7 +3157,8 @@ class PublicReservationController extends Controller
             'other_menu_booked' => false
         ];
 
-        if ($customerId && $menu->is_subscription) {
+        // ✅ 変更モードの場合は5日間制限チェックをスキップ
+        if ($customerId && $menu->is_subscription && !$changeMode) {
             $customer = Customer::find($customerId);
             if ($customer) {
                 // 顧客の既存予約を取得
@@ -3184,6 +3199,12 @@ class PublicReservationController extends Controller
                     }
                 }
             }
+        } elseif ($changeMode) {
+            \Log::info('予約間隔制限チェックをスキップ (変更モード)', [
+                'customer_id' => $customerId,
+                'check_date' => $validated['date'],
+                'change_mode' => true
+            ]);
         }
 
         return response()->json([

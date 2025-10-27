@@ -76,11 +76,14 @@ class ListMedicalRecords extends ListRecords
         // スーパーアドミンは全カルテ表示（店舗フィルターがある場合は適用）
         if ($user->hasRole('super_admin')) {
             if ($this->storeFilter) {
-                // 予約を通じて店舗と関連がある顧客のカルテを表示
-                $query->whereHas('customer', function ($q) {
-                    $q->whereHas('reservations', function ($subQ) {
-                        $subQ->where('store_id', $this->storeFilter);
-                    });
+                // 予約を通じて店舗と関連がある顧客のカルテ OR カルテ自体がその店舗に紐付いている
+                $query->where(function ($q) {
+                    $q->whereHas('customer', function ($customerQ) {
+                        $customerQ->whereHas('reservations', function ($reservationQ) {
+                            $reservationQ->where('store_id', $this->storeFilter);
+                        });
+                    })
+                    ->orWhere('store_id', $this->storeFilter);
                 });
             }
             return $query;
@@ -93,11 +96,14 @@ class ListMedicalRecords extends ListRecords
             if ($this->storeFilter) {
                 // 特定店舗が選択されている場合
                 if (in_array($this->storeFilter, $manageableStoreIds->toArray())) {
-                    // 予約を通じて店舗と関連がある顧客のカルテを表示
-                    $query->whereHas('customer', function ($q) {
-                        $q->whereHas('reservations', function ($subQ) {
-                            $subQ->where('store_id', $this->storeFilter);
-                        });
+                    // 予約を通じて店舗と関連がある顧客のカルテ OR カルテ自体がその店舗に紐付いている
+                    $query->where(function ($q) {
+                        $q->whereHas('customer', function ($customerQ) {
+                            $customerQ->whereHas('reservations', function ($reservationQ) {
+                                $reservationQ->where('store_id', $this->storeFilter);
+                            });
+                        })
+                        ->orWhere('store_id', $this->storeFilter);
                     });
                 } else {
                     // 管理権限がない店舗が選択されている場合は空を返す
@@ -105,11 +111,14 @@ class ListMedicalRecords extends ListRecords
                 }
             } else {
                 // 全店舗の場合は管理可能店舗のカルテのみ
-                // 予約を通じて店舗と関連がある顧客のカルテを表示
-                $query->whereHas('customer', function ($q) use ($manageableStoreIds) {
-                    $q->whereHas('reservations', function ($subQ) use ($manageableStoreIds) {
-                        $subQ->whereIn('store_id', $manageableStoreIds);
-                    });
+                // 予約を通じて店舗と関連がある顧客のカルテ OR カルテ自体が管理可能店舗に紐付いている
+                $query->where(function ($q) use ($manageableStoreIds) {
+                    $q->whereHas('customer', function ($customerQ) use ($manageableStoreIds) {
+                        $customerQ->whereHas('reservations', function ($reservationQ) use ($manageableStoreIds) {
+                            $reservationQ->whereIn('store_id', $manageableStoreIds);
+                        });
+                    })
+                    ->orWhereIn('store_id', $manageableStoreIds);
                 });
             }
             return $query;
@@ -125,11 +134,14 @@ class ListMedicalRecords extends ListRecords
             }
 
             if ($storeId) {
-                // 予約を通じて店舗と関連がある顧客のカルテを表示
-                $query->whereHas('customer', function ($q) use ($storeId) {
-                    $q->whereHas('reservations', function ($subQ) use ($storeId) {
-                        $subQ->where('store_id', $storeId);
-                    });
+                // 予約を通じて店舗と関連がある顧客のカルテ OR カルテ自体がその店舗に紐付いている
+                $query->where(function ($q) use ($storeId) {
+                    $q->whereHas('customer', function ($customerQ) use ($storeId) {
+                        $customerQ->whereHas('reservations', function ($reservationQ) use ($storeId) {
+                            $reservationQ->where('store_id', $storeId);
+                        });
+                    })
+                    ->orWhere('store_id', $storeId);
                 });
             } else {
                 return $query->whereRaw('1 = 0');

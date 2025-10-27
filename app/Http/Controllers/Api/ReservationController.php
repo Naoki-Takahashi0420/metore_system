@@ -81,11 +81,7 @@ class ReservationController extends Controller
             'cancelled_at' => now()
         ]);
 
-        // 顧客のキャンセル回数を更新
-        if ($reservation->customer) {
-            $reservation->customer->increment('cancellation_count');
-            $reservation->customer->update(['last_cancelled_at' => now()]);
-        }
+        // 顧客のキャンセル回数は ReservationObserver で自動更新される（二重加算を防止）
 
         // 回数券を使用（キャンセルでも使用扱い）
         if ($reservation->customer_ticket_id) {
@@ -564,9 +560,7 @@ class ReservationController extends Controller
             'cancelled_at' => now()
         ]);
 
-        // 顧客のキャンセル回数を更新
-        $customer->increment('cancellation_count');
-        $customer->update(['last_cancelled_at' => now()]);
+        // 顧客のキャンセル回数は ReservationObserver で自動更新される（二重加算を防止）
 
         // キャンセル通知を送信
         event(new ReservationCancelled($reservation));

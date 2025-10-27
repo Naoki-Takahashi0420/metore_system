@@ -509,10 +509,17 @@ class ReservationResource extends Resource
                                     $set('cancelled_at', now());
                                 }
                             }),
-                        Forms\Components\Textarea::make('cancel_reason')
+                        Forms\Components\Select::make('cancel_reason')
                             ->label('キャンセル理由')
-                            ->placeholder('電話にて顧客都合でキャンセル、体調不良など')
+                            ->options(function () {
+                                $reasons = config('customer_risk.cancel_reasons', []);
+                                return collect($reasons)->mapWithKeys(function ($config, $key) {
+                                    return [$key => $config['label']];
+                                })->toArray();
+                            })
+                            ->required()
                             ->visible(fn ($get) => $get('status') === 'cancelled')
+                            ->helperText('店舗都合・システム修正はカウント対象外')
                             ->columnSpanFull(),
                         Forms\Components\Select::make('source')
                             ->label('予約経路')
@@ -603,8 +610,15 @@ class ReservationResource extends Resource
                         Forms\Components\Textarea::make('internal_notes')
                             ->label('内部メモ')
                             ->columnSpanFull(),
-                        Forms\Components\Textarea::make('cancel_reason')
+                        Forms\Components\Select::make('cancel_reason')
                             ->label('キャンセル理由')
+                            ->options(function () {
+                                $reasons = config('customer_risk.cancel_reasons', []);
+                                return collect($reasons)->mapWithKeys(function ($config, $key) {
+                                    return [$key => $config['label']];
+                                })->toArray();
+                            })
+                            ->helperText('店舗都合・システム修正はカウント対象外')
                             ->columnSpanFull(),
                     ]),
             ]);

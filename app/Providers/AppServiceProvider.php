@@ -36,6 +36,21 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // タイムゾーンをAsia/Tokyoに統一（SQLiteはDB接続レベルでTZ設定不可）
+        date_default_timezone_set('Asia/Tokyo');
+        \Carbon\Carbon::setTestNow(null);
+
+        // デバッグ用: 予約INSERT時のログ（一時的）
+        \DB::listen(function ($query) {
+            if (str_contains($query->sql, 'reservations') && str_contains($query->sql, 'INSERT')) {
+                \Log::debug('📅 DB INSERT (reservations)', [
+                    'sql' => substr($query->sql, 0, 200),
+                    'bindings_count' => count($query->bindings),
+                    'time' => $query->time . 'ms'
+                ]);
+            }
+        });
+
         Reservation::observe(ReservationObserver::class);
         
         // ポリシーを登録

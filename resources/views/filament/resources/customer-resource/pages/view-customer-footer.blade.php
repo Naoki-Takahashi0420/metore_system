@@ -39,6 +39,43 @@
     </div>
 </div>
 
+@php
+    // PHPで医療記録データを準備（@json()の構文エラーを回避）
+    $medicalRecordsJson = $record->medicalRecords()
+        ->with(['presbyopiaMeasurements', 'reservation.menu', 'staff'])
+        ->orderBy('record_date', 'desc')
+        ->get()
+        ->map(function ($record) {
+            $visionRecords = is_string($record->vision_records)
+                ? json_decode($record->vision_records, true)
+                : $record->vision_records;
+
+            $presbyopiaData = [
+                'before' => null,
+                'after' => null,
+            ];
+
+            foreach ($record->presbyopiaMeasurements as $measurement) {
+                if ($measurement->status === '施術前') {
+                    $presbyopiaData['before'] = $measurement;
+                } elseif ($measurement->status === '施術後') {
+                    $presbyopiaData['after'] = $measurement;
+                }
+            }
+
+            return [
+                'id' => $record->id,
+                'record_date' => $record->record_date,
+                'treatment_date' => $record->treatment_date,
+                'session_number' => $record->session_number,
+                'vision_records' => $visionRecords,
+                'presbyopia_measurements' => $presbyopiaData,
+                'menu_name' => $record->reservation?->menu?->name,
+                'staff_name' => $record->staff?->name,
+            ];
+        });
+@endphp
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 console.log('[DEBUG] View Customer Footer loaded');
@@ -75,39 +112,7 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('[DEBUG] View Customer Footer DOMContentLoaded');
 
     // PHPからデータを直接渡す
-    const medicalRecordsData = @json($record->medicalRecords()
-        ->with(['presbyopiaMeasurements', 'reservation.menu', 'staff'])
-        ->orderBy('record_date', 'desc')
-        ->get()
-        ->map(function ($record) {
-            $visionRecords = is_string($record->vision_records)
-                ? json_decode($record->vision_records, true)
-                : $record->vision_records;
-
-            $presbyopiaData = [
-                'before' => null,
-                'after' => null,
-            ];
-
-            foreach ($record->presbyopiaMeasurements as $measurement) {
-                if ($measurement->status === '施術前') {
-                    $presbyopiaData['before'] = $measurement;
-                } elseif ($measurement->status === '施術後') {
-                    $presbyopiaData['after'] = $measurement;
-                }
-            }
-
-            return [
-                'id' => $record->id,
-                'record_date' => $record->record_date,
-                'treatment_date' => $record->treatment_date,
-                'session_number' => $record->session_number,
-                'vision_records' => $visionRecords,
-                'presbyopia_measurements' => $presbyopiaData,
-                'menu_name' => $record->reservation?->menu?->name,
-                'staff_name' => $record->staff?->name,
-            ];
-        }));
+    const medicalRecordsData = @json($medicalRecordsJson);
 
     console.log('[DEBUG] Medical records loaded:', medicalRecordsData.length);
 

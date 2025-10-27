@@ -139,12 +139,13 @@ let selectedTime = null;
 let storeId = null;
 let menuId = null;
 let customerId = null;
+let isChangeMode = false; // ✅ グローバル変数として宣言
 const maxWeeks = 4; // 最大4週間先まで
 
 document.addEventListener('DOMContentLoaded', async function() {
     // URLパラメータをチェック（変更モードかどうか）
     const urlParams = new URLSearchParams(window.location.search);
-    const isChangeMode = urlParams.get('change') === 'true' || sessionStorage.getItem('isChangingReservation') === 'true';
+    isChangeMode = urlParams.get('change') === 'true' || sessionStorage.getItem('isChangingReservation') === 'true';
     
     // 顧客情報を取得
     const customerData = JSON.parse(localStorage.getItem('customer_data') || '{}');
@@ -357,7 +358,8 @@ async function checkSlotAvailability(date, time, td) {
             menu_id: menuId,
             customer_id: customerId,  // 顧客IDを追加
             date: date,
-            time: time
+            time: time,
+            change_mode: isChangeMode  // ✅ 変更モードフラグを追加
         };
 
         console.log('📤 API Request:', requestBody);
@@ -387,7 +389,8 @@ async function checkSlotAvailability(date, time, td) {
                     console.log(`⚠️ ${date} ${time} - Other menu already booked`);
                     td.innerHTML = '<span class="text-yellow-500 text-xl font-bold">△</span>';
                     td.title = '他メニューで予約済み';
-                } else if (sub.within_five_days) {
+                } else if (sub.within_five_days && !isChangeMode) {
+                    // ✅ 変更モード時は5日間制限を無視
                     // 前回予約から5日以内（予約不可）
                     console.log(`⚠️ ${date} ${time} - Within 5 days restriction`);
                     td.innerHTML = '<span class="text-yellow-500 text-xl font-bold">△</span>';

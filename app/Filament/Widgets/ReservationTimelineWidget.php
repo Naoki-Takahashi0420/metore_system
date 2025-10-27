@@ -68,6 +68,11 @@ class ReservationTimelineWidget extends Widget
         'customer_ticket_id' => null, // 回数券ID
         'customer_subscription_id' => null // サブスクリプションID
     ];
+
+    // メニュー選択時の所要時間（空き判定の動的更新用）
+    public ?int $selectedMenuDuration = null;
+    public ?int $selectedOptionsDuration = null;
+
     // 予約ブロック用のプロパティ
     public $blockSettings = [
         'date' => '',
@@ -2114,12 +2119,20 @@ class ReservationTimelineWidget extends Widget
             }
 
             // 過去の日時チェック（現在時刻から30分前まで許可）
-            // 日付を明示的にY-m-d形式で解析
+            // 日付を明示的にY-m-d形式で正規化（JSTタイムゾーン統一）
             $dateString = $this->newReservation['date'];
             if ($dateString instanceof \Carbon\Carbon) {
                 $dateString = $dateString->format('Y-m-d');
             }
-            $reservationDateTime = \Carbon\Carbon::createFromFormat('Y-m-d H:i', $dateString . ' ' . $this->newReservation['start_time'], 'Asia/Tokyo');
+            // 日付をJSTで正規化してログ出力
+            $normalizedDate = \Carbon\Carbon::createFromFormat('Y-m-d', $dateString, 'Asia/Tokyo')->format('Y-m-d');
+            \Log::info('📅 予約日時正規化', [
+                'original' => $this->newReservation['date'],
+                'normalized' => $normalizedDate,
+                'timezone' => 'Asia/Tokyo'
+            ]);
+
+            $reservationDateTime = \Carbon\Carbon::createFromFormat('Y-m-d H:i', $normalizedDate . ' ' . $this->newReservation['start_time'], 'Asia/Tokyo');
             $minimumTime = \Carbon\Carbon::now('Asia/Tokyo')->subMinutes(30);
             if ($reservationDateTime->lt($minimumTime)) {
                 \Filament\Notifications\Notification::make()
@@ -2393,20 +2406,8 @@ class ReservationTimelineWidget extends Widget
             // スタッフシフトモードかどうか確認（既に取得済みの$storeを使用）
             $useStaffAssignment = $store->use_staff_assignment ?? false;
 
-            // 日付を明示的にYYYY-MM-DD形式の文字列として正規化（タイムゾーン問題を防ぐ）
-            // Carbon::parseではなくCarbon::createFromFormatを使用して、タイムゾーン変換を防ぐ
-            $dateValue = $this->newReservation['date'];
-            if ($dateValue instanceof \Carbon\Carbon) {
-                $reservationDate = $dateValue->format('Y-m-d');
-            } else {
-                // 文字列の場合は、明示的にY-m-d形式で解析してタイムゾーン変換を防ぐ
-                try {
-                    $reservationDate = \Carbon\Carbon::createFromFormat('Y-m-d', $dateValue, 'Asia/Tokyo')->format('Y-m-d');
-                } catch (\Exception $e) {
-                    // フォーマットが異なる場合はparseにフォールバック
-                    $reservationDate = \Carbon\Carbon::parse($dateValue)->format('Y-m-d');
-                }
-            }
+            // 日付は上で正規化済みの$normalizedDateを使用（L2128で定義済み）
+            $reservationDate = $normalizedDate;
 
             // 予約作成時の顧客情報をログに記録
             logger('Creating reservation with customer', [
@@ -2716,6 +2717,58 @@ class ReservationTimelineWidget extends Widget
         // 検索フィールドをクリア & ドロップダウンを閉じる
         $this->menuSearch = '';
         $this->showAllMenus = false;
+    }
+
+    /**
+     * メニュー選択時の処理（Livewireフック）
+     * 空き判定を動的に更新するため、選択メニューの所要時間を保持
+     */
+    public function updatedNewReservationMenuId($value)
+    {
+        if (!$value) {
+            $this->selectedMenuDuration = null;
+            $this->selectedOptionsDuration = null;
+            return;
+        }
+
+        $menu = \App\Models\Menu::find($value);
+        if ($menu) {
+            $this->selectedMenuDuration = $menu->duration_minutes;
+            \Log::info('📋 メニュー選択: 所要時間設定', [
+                'menu_id' => $value,
+                'menu_name' => $menu->name,
+                'duration' => $this->selectedMenuDuration
+            ]);
+
+            // 空き判定を再計算（フロントエンドに通知）
+            $this->dispatch('refresh-slot-availability');
+        }
+    }
+
+    /**
+     * オプションメニュー選択時の処理（Livewireフック）
+     */
+    public function updatedNewReservationOptionMenuIds($value)
+    {
+        if (!$value || !is_array($value)) {
+            $this->selectedOptionsDuration = 0;
+            return;
+        }
+
+        $optionsDuration = \App\Models\MenuOption::whereIn('id', $value)
+            ->sum('duration_minutes');
+
+        $this->selectedOptionsDuration = $optionsDuration;
+
+        \Log::info('📋 オプション選択: 所要時間更新', [
+            'option_ids' => $value,
+            'total_options_duration' => $optionsDuration,
+            'menu_duration' => $this->selectedMenuDuration,
+            'combined_duration' => ($this->selectedMenuDuration ?? 0) + $optionsDuration
+        ]);
+
+        // 空き判定を再計算
+        $this->dispatch('refresh-slot-availability');
     }
 
     /**
@@ -3151,13 +3204,38 @@ class ReservationTimelineWidget extends Widget
             return [];
         }
 
-        $date = Carbon::parse($this->selectedDate);
+        $date = Carbon::parse($this->selectedDate, 'Asia/Tokyo');
         $slotInfo = [];
+
+        // デフォルト所要時間を決定
+        // 優先順位: 1. 選択メニュー所要時間 → 2. 店舗の最大メニュー所要時間
+        if ($this->selectedMenuDuration) {
+            $defaultDuration = $this->selectedMenuDuration + ($this->selectedOptionsDuration ?? 0);
+            \Log::debug('🕒 空き判定: 選択メニュー所要時間使用', [
+                'menu_duration' => $this->selectedMenuDuration,
+                'options_duration' => $this->selectedOptionsDuration ?? 0,
+                'total_duration' => $defaultDuration
+            ]);
+        } else {
+            // 店舗の全メニューから最大所要時間を取得（保守的判定）
+            $maxMenuDuration = \App\Models\Menu::where('store_id', $store->id)
+                ->where('is_available', true)
+                ->max('duration_minutes') ?? 120;
+
+            $defaultDuration = $maxMenuDuration;
+            \Log::debug('🕒 空き判定: 最大メニュー所要時間使用（保守的）', [
+                'max_menu_duration' => $maxMenuDuration,
+                'store_id' => $store->id
+            ]);
+        }
 
         // タイムラインのスロットごとに可否を確認
         foreach ($this->timelineData['slots'] ?? [] as $slot) {
             $startTime = $slot;
-            $endTime = Carbon::parse($slot)->addMinutes($store->reservation_slot_duration ?? 30)->format('H:i');
+            // 実所要時間で終了時刻を計算
+            $endTime = Carbon::parse($slot, 'Asia/Tokyo')
+                ->addMinutes($defaultDuration)
+                ->format('H:i');
 
             $availability = $this->canReserveAtTimeSlot($startTime, $endTime, $store, $date);
 

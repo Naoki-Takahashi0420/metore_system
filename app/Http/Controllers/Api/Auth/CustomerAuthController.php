@@ -186,6 +186,15 @@ class CustomerAuthController extends Controller
         $tokenName = $rememberMe ? 'customer-auth-remember' : 'customer-auth';
         $expiresAt = $rememberMe ? now()->addDays(30) : now()->addHours(2);
 
+        // デバッグログ：トークン発行パラメータ
+        \Log::info('[CustomerAuth::verifyOtp] Token generation', [
+            'customer_id' => $customer->id,
+            'remember_me' => $rememberMe,
+            'token_name' => $tokenName,
+            'expires_at' => $expiresAt->toIso8601String(),
+            'hours_valid' => $rememberMe ? 720 : 2,
+        ]);
+
         $token = $customer->createToken($tokenName, ['*'], $expiresAt)->plainTextToken;
 
         return response()->json([
@@ -193,6 +202,7 @@ class CustomerAuthController extends Controller
             'data' => [
                 'is_new_customer' => false,
                 'token' => $token,
+                'expires_at' => $expiresAt->toIso8601String(),  // フロントエンドに有効期限を返す
                 'customer' => [
                     'id' => $customer->id,
                     'name' => $customer->full_name,
@@ -484,6 +494,44 @@ class CustomerAuthController extends Controller
                     'email' => $targetCustomer->email,
                     'store_id' => $targetStoreId, // 切り替え先の店舗ID
                 ],
+            ],
+        ]);
+    }
+
+    /**
+     * 顧客情報取得（トークン検証も兼ねる）
+     */
+    public function me(Request $request)
+    {
+        $customer = $request->user();
+
+        if (!$customer) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'UNAUTHORIZED',
+                    'message' => 'トークンが無効です',
+                ],
+            ], 401);
+        }
+
+        // トークンの有効期限を取得
+        $token = $request->user()->currentAccessToken();
+        $expiresAt = $token->expires_at;
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'customer' => [
+                    'id' => $customer->id,
+                    'name' => $customer->full_name,
+                    'last_name' => $customer->last_name,
+                    'first_name' => $customer->first_name,
+                    'phone' => $customer->phone,
+                    'email' => $customer->email,
+                    'store_id' => $customer->store_id,
+                ],
+                'token_expires_at' => $expiresAt ? $expiresAt->toIso8601String() : null,
             ],
         ]);
     }

@@ -165,11 +165,28 @@ class IntegratedReservationManagement extends Page implements HasTable, HasForms
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
                     ->visible(fn ($record) => $record->status === 'booked')
-                    ->requiresConfirmation()
+                    ->form([
+                        \Filament\Forms\Components\Select::make('cancel_reason')
+                            ->label('キャンセル理由')
+                            ->options(function () {
+                                $reasons = config('customer_risk.cancel_reasons', []);
+                                return collect($reasons)->mapWithKeys(function ($config, $key) {
+                                    return [$key => $config['label']];
+                                })->toArray();
+                            })
+                            ->required()
+                            ->helperText('店舗都合・システム修正はカウント対象外'),
+                    ])
                     ->modalHeading('予約をキャンセル')
-                    ->modalDescription('この予約をキャンセルしてもよろしいですか？')
-                    ->action(function ($record) {
-                        $record->update(['status' => 'cancelled']);
+                    ->modalDescription('キャンセル理由を選択してください')
+                    ->action(function ($record, array $data) {
+                        // cancel_reason を含めて更新（Observer が処理）
+                        $record->update([
+                            'status' => 'cancelled',
+                            'cancel_reason' => $data['cancel_reason'] ?? 'customer_request',
+                            'cancelled_at' => now(),
+                        ]);
+
                         Notification::make()
                             ->title('予約をキャンセルしました')
                             ->warning()
@@ -181,14 +198,29 @@ class IntegratedReservationManagement extends Page implements HasTable, HasForms
                     ->icon('heroicon-o-user-minus')
                     ->color('warning')
                     ->visible(fn ($record) => $record->status === 'booked')
-                    ->requiresConfirmation()
-                    ->action(function ($record) {
-                        $record->update(['status' => 'no_show']);
+                    ->form([
+                        \Filament\Forms\Components\Select::make('cancel_reason')
+                            ->label('理由')
+                            ->options(function () {
+                                $reasons = config('customer_risk.cancel_reasons', []);
+                                return collect($reasons)->mapWithKeys(function ($config, $key) {
+                                    return [$key => $config['label']];
+                                })->toArray();
+                            })
+                            ->required()
+                            ->helperText('店舗都合・システム修正はカウント対象外'),
+                    ])
+                    ->modalHeading('来店なし')
+                    ->modalDescription('来店なしの理由を選択してください')
+                    ->action(function ($record, array $data) {
+                        // status と cancel_reason を更新（Observer が no_show_count を処理）
+                        $record->update([
+                            'status' => 'no_show',
+                            'cancel_reason' => $data['cancel_reason'] ?? 'customer_request',
+                        ]);
 
-                        // 顧客のno_show_countを更新
-                        if ($record->customer) {
-                            $record->customer->increment('no_show_count');
-                        }
+                        // ✅ 二重加算を防ぐため、ここでの increment は削除
+                        // Observer が自動的に no_show_count を増やす
 
                         Notification::make()
                             ->title('来店なしとして記録しました')

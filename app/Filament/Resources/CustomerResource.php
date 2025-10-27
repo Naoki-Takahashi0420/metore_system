@@ -228,6 +228,89 @@ class CustomerResource extends Resource
                             ->label('要注意顧客')
                             ->default(false)
                             ->helperText('問題のある顧客としてマーク（通知は送信されません）')
+                            ->afterStateUpdated(function ($state, $record) {
+                                if ($record && $record->exists) {
+                                    // 手動でis_blockedを変更した場合、risk_overrideをONにする
+                                    $record->update([
+                                        'risk_override' => true,
+                                        'risk_flag_source' => 'manual',
+                                        'risk_flagged_at' => now(),
+                                        // risk_flag_reason は既存値を保持（null でも可）
+                                    ]);
+
+                                    \Log::info('[CustomerResource] Manual is_blocked change', [
+                                        'customer_id' => $record->id,
+                                        'new_is_blocked' => $state,
+                                        'risk_override' => true,
+                                        'risk_flag_source' => 'manual',
+                                    ]);
+                                }
+                            })
+                            ->columnSpan(1),
+
+                        Forms\Components\Placeholder::make('risk_status_info')
+                            ->label('要注意判定の根拠')
+                            ->content(function ($record) {
+                                if (!$record) {
+                                    return '新規顧客';
+                                }
+
+                                // is_blocked=false の場合は簡潔に表示
+                                if (!$record->is_blocked) {
+                                    $output = "✅ 安全（要注意対象外）";
+                                    if ($record->risk_override) {
+                                        $output .= "\n\n手動でOFFに設定されています";
+                                        if ($record->risk_flagged_at) {
+                                            $output .= "\n最終変更: " . $record->risk_flagged_at->format('Y-m-d H:i');
+                                        }
+                                    }
+                                    return $output;
+                                }
+
+                                // is_blocked=true の場合は詳細を表示
+                                $riskLevel = $record->getRiskLevel();
+                                $riskLevelLabel = match($riskLevel) {
+                                    'high' => '高',
+                                    'medium' => '中',
+                                    'low' => '低',
+                                    default => $riskLevel,
+                                };
+                                $source = $record->risk_flag_source ?? 'なし';
+                                $sourceLabel = match($source) {
+                                    'auto' => '自動判定',
+                                    'manual' => '手動設定',
+                                    default => $source,
+                                };
+                                $flaggedAt = $record->risk_flagged_at?->format('Y-m-d H:i') ?? 'なし';
+
+                                $output = "⚠️ 要注意レベル: {$riskLevelLabel} | 判定元: {$sourceLabel} | 最終更新: {$flaggedAt}";
+
+                                if ($record->risk_override) {
+                                    $output .= "\n\n手動上書き中（自動判定は無効）";
+                                }
+
+                                // 自動判定の根拠を表示
+                                if ($record->risk_flag_reason && is_array($record->risk_flag_reason)) {
+                                    $output .= "\n\n根拠:";
+                                    foreach ($record->risk_flag_reason as $reason) {
+                                        $type = $reason['type'] ?? '不明';
+                                        $count = $reason['count'] ?? 0;
+                                        $threshold = $reason['threshold'] ?? 0;
+                                        $days = $reason['days'] ?? 0;
+
+                                        $typeLabel = match($type) {
+                                            'cancellation' => 'キャンセル',
+                                            'no_show' => 'ノーショー',
+                                            'change' => '変更',
+                                            default => $type,
+                                        };
+
+                                        $output .= "\n- {$typeLabel}: {$count}回 (閾値: {$days}日間で{$threshold}回)";
+                                    }
+                                }
+
+                                return $output;
+                            })
                             ->columnSpan(1),
                     ])
                     ->columns(2),
@@ -643,13 +726,18 @@ class CustomerResource extends Resource
                 Tables\Columns\BadgeColumn::make('risk_status')
                     ->label('ステータス')
                     ->getStateUsing(function ($record) {
-                        // 簡易判定（メモリ節約）
+                        // is_blocked ベースの判定（手動OFF で消えるように）
+                        if (!$record->is_blocked) {
+                            return '通常';
+                        }
+
+                        // is_blocked=true の場合、カウントでレベルを判定
                         if ($record->cancellation_count >= 3 || $record->no_show_count >= 2) {
                             return '要注意(高)';
-                        } elseif ($record->cancellation_count >= 2 || $record->change_count >= 3) {
+                        } elseif ($record->cancellation_count >= 1 || $record->no_show_count >= 1 || $record->change_count >= 3) {
                             return '要注意';
                         }
-                        return '通常';
+                        return '要注意';
                     })
                     ->color(function ($state) {
                         return match($state) {
@@ -664,6 +752,26 @@ class CustomerResource extends Resource
                             '要注意' => 'heroicon-o-exclamation-circle',
                             default => null
                         };
+                    })
+                    ->tooltip(function ($record) {
+                        if (!$record->is_blocked) {
+                            return '安全（要注意対象外）';
+                        }
+
+                        $details = [];
+                        if ($record->cancellation_count > 0) {
+                            $details[] = "キャンセル{$record->cancellation_count}回";
+                        }
+                        if ($record->no_show_count > 0) {
+                            $details[] = "来店なし{$record->no_show_count}回";
+                        }
+                        if ($record->change_count >= 3) {
+                            $details[] = "変更{$record->change_count}回";
+                        }
+
+                        $detailText = implode(' / ', $details);
+                        $source = $record->risk_flag_source === 'auto' ? '自動判定' : '手動設定';
+                        return "要注意顧客 ({$source})\n{$detailText}";
                     }),
                 Tables\Columns\TextColumn::make('latest_store')
                     ->label('最新利用店舗')
@@ -688,39 +796,35 @@ class CustomerResource extends Resource
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('有効状態'),
                 Tables\Filters\Filter::make('high_risk')
-                    ->label('要注意顧客')
-                    ->query(fn ($query) => $query->where(function ($q) {
-                        $q->where('cancellation_count', '>=', 1)
-                          ->orWhere('no_show_count', '>=', 1)
-                          ->orWhere('change_count', '>=', 3);
-                    })),
+                    ->label('要注意顧客（is_blocked=true）')
+                    ->query(fn ($query) => $query->where('is_blocked', true)),
                 Tables\Filters\SelectFilter::make('risk_level')
-                    ->label('リスクレベル')
+                    ->label('リスクレベル（is_blocked内での分類）')
                     ->options([
-                        'high' => '高リスク（キャンセル3回以上/来店なし2回以上）',
-                        'medium' => '中リスク（キャンセル1回以上/変更3回以上）',
-                        'low' => '通常',
+                        'blocked_high' => '要注意（高）',
+                        'blocked_medium' => '要注意（中）',
+                        'safe' => '安全（is_blocked=false）',
                     ])
                     ->query(function ($query, array $data) {
                         $value = $data['value'] ?? null;
                         if (!$value) return $query;
-                        
+
                         return match($value) {
-                            'high' => $query->where(function ($q) {
-                                $q->where('cancellation_count', '>=', 3)
-                                  ->orWhere('no_show_count', '>=', 2);
-                            }),
-                            'medium' => $query->where(function ($q) {
-                                $q->where(function ($q2) {
-                                    $q2->where('cancellation_count', '>=', 1)
-                                       ->where('cancellation_count', '<', 3);
-                                })->orWhere(function ($q2) {
-                                    $q2->where('no_show_count', '=', 1);
-                                })->orWhere('change_count', '>=', 3);
-                            }),
-                            'low' => $query->where('cancellation_count', 0)
-                                          ->where('no_show_count', 0)
-                                          ->where('change_count', '<', 3),
+                            'blocked_high' => $query->where('is_blocked', true)
+                                ->where(function ($q) {
+                                    $q->where('cancellation_count', '>=', 3)
+                                      ->orWhere('no_show_count', '>=', 2);
+                                }),
+                            'blocked_medium' => $query->where('is_blocked', true)
+                                ->where(function ($q) {
+                                    $q->where(function ($q2) {
+                                        $q2->where('cancellation_count', '>=', 1)
+                                           ->where('cancellation_count', '<', 3);
+                                    })->orWhere(function ($q2) {
+                                        $q2->where('no_show_count', '=', 1);
+                                    })->orWhere('change_count', '>=', 3);
+                                }),
+                            'safe' => $query->where('is_blocked', false),
                             default => $query
                         };
                     }),

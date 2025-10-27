@@ -21,51 +21,126 @@ class ReservationObserver
      */
     public function updated(Reservation $reservation): void
     {
+        $customer = $reservation->customer;
+        if (!$customer) {
+            return;
+        }
+
+        $countChanged = false; // カウントが変更されたかのフラグ
+
         // ステータスが変更された場合、顧客のカウントを更新
         if ($reservation->isDirty('status')) {
             $oldStatus = $reservation->getOriginal('status');
             $newStatus = $reservation->status;
-            $customer = $reservation->customer;
-            
-            if (!$customer) {
-                return;
-            }
-            
+
+            // cancel_reason をチェック（カウント対象外かどうか）
+            $cancelReason = $reservation->cancel_reason;
+            $shouldExclude = \App\Models\Customer::shouldExcludeFromCount($cancelReason);
+
             // キャンセルに変更された場合
             if ($oldStatus !== 'cancelled' && $newStatus === 'cancelled') {
-                $customer->increment('cancellation_count');
-                $customer->update(['last_cancelled_at' => now()]);
+                if (!$shouldExclude) {
+                    $customer->increment('cancellation_count');
+                    $customer->update(['last_cancelled_at' => now()]);
+                    $countChanged = true;
+
+                    \Log::info('[ReservationObserver] Cancellation count incremented', [
+                        'customer_id' => $customer->id,
+                        'reservation_id' => $reservation->id,
+                        'cancel_reason' => $cancelReason,
+                        'new_count' => $customer->cancellation_count,
+                    ]);
+                } else {
+                    \Log::info('[ReservationObserver] Cancellation excluded from count', [
+                        'customer_id' => $customer->id,
+                        'reservation_id' => $reservation->id,
+                        'cancel_reason' => $cancelReason,
+                        'reason' => 'Store fault or system fix',
+                    ]);
+                }
             }
             // キャンセルから他のステータスに戻された場合
             elseif ($oldStatus === 'cancelled' && $newStatus !== 'cancelled') {
-                $customer->decrement('cancellation_count');
+                if (!$shouldExclude) {
+                    // 0未満にならないようガード
+                    if ($customer->cancellation_count > 0) {
+                        $customer->decrement('cancellation_count');
+                        $countChanged = true;
+
+                        \Log::info('[ReservationObserver] Cancellation count decremented', [
+                            'customer_id' => $customer->id,
+                            'reservation_id' => $reservation->id,
+                            'new_count' => $customer->cancellation_count,
+                        ]);
+                    }
+                }
             }
-            
+
             // 来店なしに変更された場合
             if ($oldStatus !== 'no_show' && $newStatus === 'no_show') {
-                $customer->increment('no_show_count');
+                if (!$shouldExclude) {
+                    $customer->increment('no_show_count');
+                    $countChanged = true;
+
+                    \Log::info('[ReservationObserver] No-show count incremented', [
+                        'customer_id' => $customer->id,
+                        'reservation_id' => $reservation->id,
+                        'cancel_reason' => $cancelReason,
+                        'new_count' => $customer->no_show_count,
+                    ]);
+                } else {
+                    \Log::info('[ReservationObserver] No-show excluded from count', [
+                        'customer_id' => $customer->id,
+                        'reservation_id' => $reservation->id,
+                        'cancel_reason' => $cancelReason,
+                    ]);
+                }
             }
             // 来店なしから他のステータスに戻された場合
             elseif ($oldStatus === 'no_show' && $newStatus !== 'no_show') {
-                $customer->decrement('no_show_count');
+                if (!$shouldExclude) {
+                    // 0未満にならないようガード
+                    if ($customer->no_show_count > 0) {
+                        $customer->decrement('no_show_count');
+                        $countChanged = true;
+
+                        \Log::info('[ReservationObserver] No-show count decremented', [
+                            'customer_id' => $customer->id,
+                            'reservation_id' => $reservation->id,
+                            'new_count' => $customer->no_show_count,
+                        ]);
+                    }
+                }
             }
         }
-        
+
         // 予約日時が変更された場合（ステータスがキャンセル以外）
-        if ($reservation->status !== 'cancelled' && 
+        if ($reservation->status !== 'cancelled' &&
             ($reservation->isDirty('reservation_date') || $reservation->isDirty('start_time'))) {
             $oldDate = $reservation->getOriginal('reservation_date');
             $oldTime = $reservation->getOriginal('start_time');
             $newDate = $reservation->reservation_date;
             $newTime = $reservation->start_time;
-            
+
             // 実際に日時が変更されているかチェック
             if ($oldDate !== $newDate || $oldTime !== $newTime) {
-                $customer = $reservation->customer;
-                if ($customer) {
-                    $customer->increment('change_count');
-                }
+                $customer->increment('change_count');
+                $countChanged = true;
+
+                \Log::info('[ReservationObserver] Change count incremented', [
+                    'customer_id' => $customer->id,
+                    'reservation_id' => $reservation->id,
+                    'old_date' => $oldDate,
+                    'new_date' => $newDate,
+                    'new_count' => $customer->change_count,
+                ]);
             }
+        }
+
+        // カウントが変更された場合、自動リスク判定を実行
+        if ($countChanged) {
+            $customer->refresh(); // 最新のカウントを取得
+            $customer->evaluateRiskStatus();
         }
     }
 

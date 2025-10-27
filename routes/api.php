@@ -26,6 +26,7 @@ Route::prefix('auth')->group(function () {
         Route::post('register', [CustomerAuthController::class, 'register']);
 
         Route::middleware('auth:sanctum')->group(function () {
+            Route::get('me', [CustomerAuthController::class, 'me']);  // 顧客情報取得（トークン検証も兼ねる）
             Route::post('switch-store', [CustomerAuthController::class, 'switchStore']);
             Route::post('logout', [CustomerAuthController::class, 'logout']);
         });

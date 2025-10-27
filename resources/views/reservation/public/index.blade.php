@@ -300,12 +300,22 @@
                                                 onclick="selectTimeSlot(this)">
                                             ○
                                         </button>
-                                    @elseif($withinFiveDays)
+                                    @elseif($withinFiveDays && !Session::has('is_reservation_change'))
+                                        {{-- ✅ 変更モード時は5日間制限を無視 --}}
                                         {{-- 既存顧客の5日間制限内の場合は△を表示 --}}
                                         <div class="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gray-400 text-white font-bold flex items-center justify-center border-2 border-gray-500 shadow-md text-xs sm:text-base mx-auto"
                                              title="前回予約から5日以内のため予約できません">
                                             △
                                         </div>
+                                    @elseif($withinFiveDays && Session::has('is_reservation_change'))
+                                        {{-- ✅ 変更モード時は予約可能として表示 --}}
+                                        <button type="button"
+                                                class="time-slot w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-green-500 text-white font-bold hover:bg-green-600 text-xs sm:text-base"
+                                                data-date="{{ $dateStr }}"
+                                                data-time="{{ $slot }}"
+                                                onclick="selectTimeSlot(this)">
+                                            ○
+                                        </button>
                                     @else
                                         <span class="text-gray-400 text-lg sm:text-xl">×</span>
                                     @endif
@@ -735,13 +745,34 @@
                 }
                 
                 if (existingReservation) {
+                    // ✅ 変更モード時、変更対象の予約は「予」に置き換えない
+                    if (isReservationChange && originalReservationDate && originalReservationTime) {
+                        // 日付を正規化
+                        let originalDateStr = originalReservationDate;
+                        if (typeof originalDateStr === 'string' && originalDateStr.includes(' ')) {
+                            originalDateStr = originalDateStr.split(' ')[0];
+                        }
+
+                        // 時刻を正規化（HH:MM形式）
+                        let originalTimeStr = originalReservationTime;
+                        if (typeof originalTimeStr === 'string' && originalTimeStr.length > 5) {
+                            originalTimeStr = originalTimeStr.substring(0, 5);
+                        }
+
+                        // 変更対象の予約の場合はスキップ（「●（現在）」として表示）
+                        if (dateStr === originalDateStr && timeStr === originalTimeStr) {
+                            console.log(`🟡 変更対象の予約: ${dateStr} ${timeStr} - 「予」に置き換えない`);
+                            return; // この予約は処理しない
+                        }
+                    }
+
                     const isSameMenu = existingReservation.menu_id &&
                                      existingReservation.menu_id.toString() === currentMenuId.toString();
-                    
+
                     // ボタンを置き換え
                     const td = button.parentElement;
                     td.innerHTML = ''; // 既存のボタンを削除
-                    
+
                     if (isSameMenu) {
                         // 同じメニューの予約
                         const reservedDiv = document.createElement('div');
@@ -757,7 +788,8 @@
                         reservedDiv.title = `他の予約あり: ${existingReservation.menu?.name || 'メニュー'}`;
                         td.appendChild(reservedDiv);
                     }
-                } else if (isWithinFiveDays && isSubscriptionBooking && @json($isExistingCustomer ?? false)) {
+                } else if (isWithinFiveDays && isSubscriptionBooking && @json($isExistingCustomer ?? false) && !isReservationChange) {
+                    // ✅ 変更モード時は5日間制限を無視
                     // 既存顧客のサブスク予約でのみ5日制限を適用
                     console.log(`5日制限適用: ${dateStr} ${timeStr} - blocked by reservations:`, reservationDates);
 

@@ -60,7 +60,32 @@ class Reservation extends Model
         'confirmation_sent_at' => 'datetime',
         'line_confirmation_sent_at' => 'datetime',
     ];
-    
+
+    /**
+     * モデルの起動時処理
+     */
+    protected static function booted()
+    {
+        static::creating(function ($reservation) {
+            \Log::info('🗓️ 予約保存直前チェック', [
+                'original_date' => $reservation->reservation_date,
+                'date_type' => gettype($reservation->reservation_date),
+                'normalized_date' => \Carbon\Carbon::parse($reservation->reservation_date, 'Asia/Tokyo')->format('Y-m-d'),
+                'current_timezone' => date_default_timezone_get(),
+                'carbon_now_jst' => \Carbon\Carbon::now('Asia/Tokyo')->toDateTimeString(),
+                'php_date' => date('Y-m-d H:i:s')
+            ]);
+        });
+
+        static::created(function ($reservation) {
+            \Log::info('✅ 予約保存完了', [
+                'reservation_number' => $reservation->reservation_number,
+                'saved_date' => $reservation->reservation_date,
+                'db_retrieved_date' => \App\Models\Reservation::find($reservation->id)->reservation_date
+            ]);
+        });
+    }
+
     /**
      * サブラインに移動
      */

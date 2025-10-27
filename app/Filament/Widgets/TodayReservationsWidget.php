@@ -278,23 +278,56 @@ class TodayReservationsWidget extends BaseWidget
                     ->label('来店なし')
                     ->icon('heroicon-o-x-circle')
                     ->color('warning')
-                    ->requiresConfirmation()
+                    ->form([
+                        \Filament\Forms\Components\Select::make('cancel_reason')
+                            ->label('理由')
+                            ->options(function () {
+                                $reasons = config('customer_risk.cancel_reasons', []);
+                                return collect($reasons)->mapWithKeys(function ($config, $key) {
+                                    return [$key => $config['label']];
+                                })->toArray();
+                            })
+                            ->required()
+                            ->helperText('店舗都合・システム修正はカウント対象外'),
+                    ])
                     ->modalHeading('来店なしにする')
-                    ->modalDescription('この予約を来店なしにしてもよろしいですか？')
+                    ->modalDescription('来店なしの理由を選択してください')
                     ->modalSubmitActionLabel('来店なしにする')
                     ->visible(fn ($record) => $record->status === 'booked')
-                    ->action(fn ($record) => $record->update(['status' => 'no_show'])),
+                    ->action(function ($record, array $data) {
+                        $record->update([
+                            'status' => 'no_show',
+                            'cancel_reason' => $data['cancel_reason'] ?? 'customer_request',
+                        ]);
+                    }),
 
                 Tables\Actions\Action::make('cancel')
                     ->label('キャンセル')
                     ->icon('heroicon-o-x-mark')
                     ->color('danger')
-                    ->requiresConfirmation()
+                    ->form([
+                        \Filament\Forms\Components\Select::make('cancel_reason')
+                            ->label('キャンセル理由')
+                            ->options(function () {
+                                $reasons = config('customer_risk.cancel_reasons', []);
+                                return collect($reasons)->mapWithKeys(function ($config, $key) {
+                                    return [$key => $config['label']];
+                                })->toArray();
+                            })
+                            ->required()
+                            ->helperText('店舗都合・システム修正はカウント対象外'),
+                    ])
                     ->modalHeading('予約をキャンセル')
-                    ->modalDescription('この予約をキャンセルしてもよろしいですか？')
+                    ->modalDescription('キャンセル理由を選択してください')
                     ->modalSubmitActionLabel('キャンセルする')
                     ->visible(fn ($record) => $record->status === 'booked')
-                    ->action(fn ($record) => $record->update(['status' => 'cancelled'])),
+                    ->action(function ($record, array $data) {
+                        $record->update([
+                            'status' => 'cancelled',
+                            'cancel_reason' => $data['cancel_reason'] ?? 'customer_request',
+                            'cancelled_at' => now(),
+                        ]);
+                    }),
 
                 Tables\Actions\DeleteAction::make()
                     ->label('削除')

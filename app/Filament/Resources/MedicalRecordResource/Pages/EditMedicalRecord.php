@@ -31,6 +31,20 @@ class EditMedicalRecord extends EditRecord
             $data['session_number'] = count($data['vision_records']);
         }
 
+        // 店舗IDが消えないように保護（disabled + dehydrated(true)でも値が送信されないことがある）
+        if (empty($data['store_id'])) {
+            // 既存のstore_idを保持
+            if ($this->record->store_id) {
+                $data['store_id'] = $this->record->store_id;
+            } else {
+                // 既存のstore_idもない場合、ユーザーの所属店舗を設定
+                $user = auth()->user();
+                if ($user && $user->store_id) {
+                    $data['store_id'] = $user->store_id;
+                }
+            }
+        }
+
         return $data;
     }
 
