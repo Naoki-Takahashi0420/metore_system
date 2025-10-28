@@ -35,17 +35,10 @@ $skippedCount = 0;
 
 foreach ($reservations as $reservation) {
     // 予約日時点でアクティブなサブスク契約を検索
+    // ステータスが'active'であれば有効とみなす（終了日を過ぎていても運用されているケースがあるため）
     $activeSubscription = CustomerSubscription::where('customer_id', $reservation->customer_id)
         ->where('store_id', $reservation->store_id)
         ->where('status', 'active')
-        ->where(function($q) use ($reservation) {
-            $q->whereNull('start_date')
-              ->orWhere('start_date', '<=', $reservation->reservation_date);
-        })
-        ->where(function($q) use ($reservation) {
-            $q->whereNull('end_date')
-              ->orWhere('end_date', '>=', $reservation->reservation_date);
-        })
         ->first();
 
     if ($activeSubscription) {

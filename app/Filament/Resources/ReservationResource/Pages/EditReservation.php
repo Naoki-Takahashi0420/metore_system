@@ -166,20 +166,11 @@ class EditReservation extends EditRecord
         }
 
         // 顧客のアクティブなサブスク契約を自動設定（未設定の場合のみ）
+        // ステータスが'active'であれば有効とみなす（終了日を過ぎていても運用されているケースがあるため）
         if (isset($data['customer_id']) && isset($data['store_id']) && !isset($data['customer_subscription_id'])) {
-            $reservationDate = $data['reservation_date'] ?? $this->record->reservation_date;
-
             $activeSubscription = \App\Models\CustomerSubscription::where('customer_id', $data['customer_id'])
                 ->where('store_id', $data['store_id'])
                 ->where('status', 'active')
-                ->where(function($q) use ($reservationDate) {
-                    $q->whereNull('start_date')
-                      ->orWhere('start_date', '<=', $reservationDate);
-                })
-                ->where(function($q) use ($reservationDate) {
-                    $q->whereNull('end_date')
-                      ->orWhere('end_date', '>=', $reservationDate);
-                })
                 ->first();
 
             if ($activeSubscription) {

@@ -222,18 +222,11 @@ class DailyClosing extends Page implements HasForms
             } elseif ($reservation->customer_subscription_id) {
                 $source = 'subscription';
             } else {
-                // customer_subscription_idがNULLでも、予約日時点でアクティブなサブスク契約があれば判定
+                // customer_subscription_idがNULLでも、アクティブなサブスク契約があれば判定
+                // ステータスが'active'であれば有効とみなす（終了日を過ぎていても運用されているケースがあるため）
                 $hasActiveSubscription = \App\Models\CustomerSubscription::where('customer_id', $reservation->customer_id)
                     ->where('store_id', $reservation->store_id)
                     ->where('status', 'active')
-                    ->where(function($q) use ($reservation) {
-                        $q->whereNull('start_date')
-                          ->orWhere('start_date', '<=', $reservation->reservation_date);
-                    })
-                    ->where(function($q) use ($reservation) {
-                        $q->whereNull('end_date')
-                          ->orWhere('end_date', '>=', $reservation->reservation_date);
-                    })
                     ->exists();
 
                 if ($hasActiveSubscription) {
