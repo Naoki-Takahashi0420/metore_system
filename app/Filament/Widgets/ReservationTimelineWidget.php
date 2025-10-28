@@ -2947,8 +2947,9 @@ class ReservationTimelineWidget extends Widget
             ->whereNotIn('status', ['cancelled', 'canceled'])
             ->where(function ($q) use ($startTime, $endTime) {
                 // 時間重複チェック（境界を含まない: 10:00-10:30と10:30-11:00は重複しない）
-                $q->where('start_time', '<', $endTime)
-                  ->where('end_time', '>', $startTime);
+                // 時刻フォーマット統一のためtime()関数を使用（'15:00:00' と '15:00' の比較を正しく処理）
+                $q->whereRaw('time(start_time) < time(?)', [$endTime])
+                  ->whereRaw('time(end_time) > time(?)', [$startTime]);
             })
             ->get();
 

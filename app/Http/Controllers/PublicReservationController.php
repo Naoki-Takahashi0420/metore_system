@@ -2372,8 +2372,8 @@ class PublicReservationController extends Controller
                     $specificStaffAvailable = Shift::where('store_id', $validated['store_id'])
                         ->where('user_id', $validated['staff_id'])
                         ->whereDate('shift_date', $validated['date'])  // whereDateを使用
-                        ->where('start_time', '<=', $validated['time'])
-                        ->where('end_time', '>=', $endTime->format('H:i'))
+                        ->whereRaw('time(start_time) <= time(?)', [$validated['time']])
+                        ->whereRaw('time(end_time) >= time(?)', [$endTime->format('H:i')])
                         ->where('is_available_for_reservation', true)
                         ->whereHas('user', function($query) {
                             $query->where('is_active_staff', true);
@@ -2415,8 +2415,8 @@ class PublicReservationController extends Controller
 
                     $availableStaff = Shift::where('store_id', $validated['store_id'])
                         ->whereDate('shift_date', $validated['date'])  // whereDateを使用（修正）
-                        ->where('start_time', '<=', $validated['time'])
-                        ->where('end_time', '>=', $endTime->format('H:i'))
+                        ->whereRaw('time(start_time) <= time(?)', [$validated['time']])
+                        ->whereRaw('time(end_time) >= time(?)', [$endTime->format('H:i')])
                         ->where('is_available_for_reservation', true)
                         ->whereHas('user', function($query) {
                             $query->where('is_active_staff', true);
@@ -3132,16 +3132,17 @@ class PublicReservationController extends Controller
 
                 $query->where(function($q) use ($startTime, $endTime) {
                     // 既存予約の開始時間が新しい予約の時間範囲内
-                    $q->where('start_time', '>=', $startTime)
-                      ->where('start_time', '<', $endTime);
+                    // 時刻フォーマット統一のためtime()関数を使用
+                    $q->whereRaw('time(start_time) >= time(?)', [$startTime])
+                      ->whereRaw('time(start_time) < time(?)', [$endTime]);
                 })->orWhere(function($q) use ($startTime, $endTime) {
                     // 既存予約の終了時間が新しい予約の時間範囲内
-                    $q->where('end_time', '>', $startTime)
-                      ->where('end_time', '<=', $endTime);
+                    $q->whereRaw('time(end_time) > time(?)', [$startTime])
+                      ->whereRaw('time(end_time) <= time(?)', [$endTime]);
                 })->orWhere(function($q) use ($startTime, $endTime) {
                     // 既存予約が新しい予約を完全に包含
-                    $q->where('start_time', '<=', $startTime)
-                      ->where('end_time', '>=', $endTime);
+                    $q->whereRaw('time(start_time) <= time(?)', [$startTime])
+                      ->whereRaw('time(end_time) >= time(?)', [$endTime]);
                 });
             })
             ->count();
