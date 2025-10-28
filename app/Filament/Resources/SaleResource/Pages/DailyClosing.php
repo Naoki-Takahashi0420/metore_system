@@ -132,7 +132,7 @@ class DailyClosing extends Page implements HasForms
     public function loadSalesData(): void
     {
         $sales = Sale::whereDate('sale_date', $this->closingDate)
-            ->where('store_id', $this->selectedStoreId)
+            ->when($this->selectedStoreId, fn($q) => $q->where('store_id', $this->selectedStoreId))
             ->where('status', 'completed')
             ->get();
 
@@ -183,14 +183,14 @@ class DailyClosing extends Page implements HasForms
         $menuSales = DB::table('sale_items')
             ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
             ->whereDate('sales.sale_date', $this->closingDate)
-            ->where('sales.store_id', auth()->user()->store_id ?? 1)
+            ->when($this->selectedStoreId, fn($q) => $q->where('sales.store_id', $this->selectedStoreId))
             ->where('sales.status', 'completed')
             ->select('sale_items.item_name', DB::raw('SUM(sale_items.amount) as total'), DB::raw('SUM(sale_items.quantity) as count'))
             ->groupBy('sale_items.item_name')
             ->orderByDesc('total')
             ->limit(10)
             ->get();
-            
+
         $this->salesData['top_menus'] = $menuSales;
     }
 
@@ -201,7 +201,7 @@ class DailyClosing extends Page implements HasForms
     {
         // 今日の完了済み予約を全て取得（売上の有無に関わらず）
         $reservations = Reservation::whereDate('reservation_date', $this->closingDate)
-            ->where('store_id', $this->selectedStoreId)
+            ->when($this->selectedStoreId, fn($q) => $q->where('store_id', $this->selectedStoreId))
             ->where('status', 'completed')
             ->with(['customer', 'menu', 'store', 'medicalRecords', 'sale'])
             ->orderBy('start_time')
