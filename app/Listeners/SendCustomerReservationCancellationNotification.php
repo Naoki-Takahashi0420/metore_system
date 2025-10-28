@@ -8,11 +8,27 @@ use App\Services\CustomerNotificationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 
 class SendCustomerReservationCancellationNotification implements ShouldQueue
 {
     use InteractsWithQueue;
+
+    /**
+     * トランザクションコミット後にイベントを処理
+     */
+    public $afterCommit = true;
+
+    /**
+     * リトライ回数
+     */
+    public $tries = 3;
+
+    /**
+     * リトライ間隔（秒）
+     */
+    public $backoff = [30, 60, 120];
 
     private $lineService;
     private $customerNotificationService;
@@ -35,9 +51,30 @@ class SendCustomerReservationCancellationNotification implements ShouldQueue
         $customer = $reservation->customer;
         $store = $reservation->store;
 
+        // 冪等性ガード: 既にキャンセル済みでない場合はスキップ
+        if ($reservation->status !== 'cancelled') {
+            Log::info('⏭️ Skip notification: reservation not cancelled', [
+                'reservation_id' => $reservation->id,
+                'status' => $reservation->status
+            ]);
+            return;
+        }
+
         if (!$customer) {
             Log::warning('Customer not found for reservation cancellation notification', [
                 'reservation_id' => $reservation->id
+            ]);
+            return;
+        }
+
+        // 二重送信防止: 5分間の去重鍵
+        $dedupeKey = "notify:customer:cancellation:{$reservation->id}";
+        if (!Cache::add($dedupeKey, true, now()->addMinutes(5))) {
+            Log::warning('⚠️ Skip duplicate notification', [
+                'deduplication_key' => $dedupeKey,
+                'customer_id' => $customer->id,
+                'reservation_id' => $reservation->id,
+                'reason' => 'Duplicate within 5 minutes'
             ]);
             return;
         }

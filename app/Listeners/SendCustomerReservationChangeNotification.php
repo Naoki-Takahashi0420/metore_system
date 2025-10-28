@@ -8,11 +8,27 @@ use App\Services\CustomerNotificationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 
 class SendCustomerReservationChangeNotification implements ShouldQueue
 {
     use InteractsWithQueue;
+
+    /**
+     * トランザクションコミット後にイベントを処理
+     */
+    public $afterCommit = true;
+
+    /**
+     * リトライ回数
+     */
+    public $tries = 3;
+
+    /**
+     * リトライ間隔（秒）
+     */
+    public $backoff = [30, 60, 120];
 
     private $lineService;
     private $customerNotificationService;
@@ -39,6 +55,18 @@ class SendCustomerReservationChangeNotification implements ShouldQueue
         if (!$customer) {
             Log::warning('Customer not found for reservation change notification', [
                 'reservation_id' => $newReservation->id
+            ]);
+            return;
+        }
+
+        // 二重送信防止: 5分間の去重鍵
+        $dedupeKey = "notify:customer:change:{$newReservation->id}";
+        if (!Cache::add($dedupeKey, true, now()->addMinutes(5))) {
+            Log::warning('⚠️ Skip duplicate notification', [
+                'deduplication_key' => $dedupeKey,
+                'customer_id' => $customer->id,
+                'reservation_id' => $newReservation->id,
+                'reason' => 'Duplicate within 5 minutes'
             ]);
             return;
         }
