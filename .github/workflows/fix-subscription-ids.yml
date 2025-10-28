@@ -1,0 +1,46 @@
+name: Fix Subscription IDs
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "fix" to confirm execution'
+        required: true
+        default: ''
+
+jobs:
+  fix-data:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'fix'
+
+    steps:
+    - name: Fix Subscription IDs
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'FIXSCRIPT'
+        set -e
+        APP_DIR="/var/www/html"
+
+        echo "=== Fix Subscription IDs Script ==="
+        echo "Start time: $(date)"
+        echo ""
+
+        cd $APP_DIR
+        sudo -u www-data php database/scripts/fix-missing-subscription-ids.php
+
+        echo ""
+        echo "=== Clearing cache ==="
+        sudo -u www-data php artisan optimize:clear
+
+        echo ""
+        echo "=== Complete ==="
+        echo "End time: $(date)"
+        FIXSCRIPT
+
+        rm -f deploy_key.pem
