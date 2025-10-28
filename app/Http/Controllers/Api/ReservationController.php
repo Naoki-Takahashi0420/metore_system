@@ -57,7 +57,8 @@ class ReservationController extends Controller
      */
     public function adminCancelReservation(Request $request, $id)
     {
-        $reservation = Reservation::find($id);
+        // 通知に必要な関連データを一緒にロード
+        $reservation = Reservation::with(['customer', 'store', 'menu'])->find($id);
 
         if (!$reservation) {
             return response()->json([
@@ -527,10 +528,11 @@ class ReservationController extends Controller
     public function cancelReservation(Request $request, $id)
     {
         $customer = $request->user();
-        
+
+        // 通知に必要な関連データを一緒にロード
         $reservation = Reservation::where('customer_id', $customer->id)
             ->where('id', $id)
-            ->with(['store'])
+            ->with(['customer', 'store', 'menu'])
             ->first();
 
         if (!$reservation) {

@@ -18,6 +18,7 @@ use App\Events\ReservationChanged;
 use App\Listeners\AdminNotificationListener;
 use App\Listeners\SendCustomerReservationNotification;
 use App\Listeners\SendCustomerReservationChangeNotification;
+use App\Listeners\SendCustomerReservationCancellationNotification;
 use Filament\Support\Facades\FilamentView;
 use Illuminate\Support\Facades\Blade;
 
@@ -84,6 +85,12 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(
             ReservationChanged::class,
             SendCustomerReservationChangeNotification::class
+        );
+
+        // キャンセル時の顧客通知リスナーを登録
+        Event::listen(
+            ReservationCancelled::class,
+            SendCustomerReservationCancellationNotification::class
         );
 
         // Filament: 未保存変更の警告を追加
