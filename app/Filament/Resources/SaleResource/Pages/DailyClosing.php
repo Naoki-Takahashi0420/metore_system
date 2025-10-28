@@ -32,6 +32,11 @@ class DailyClosing extends Page implements HasForms
     public $salesData = [];
     public $unposted = []; // 未計上予約のDTO配列
     public $rowState = []; // 各行のpayment_methodやoverride_source/amountのUI状態
+
+    // 編集ドロワー用
+    public $editingReservationId = null; // 現在編集中の予約ID
+    public $editorOpen = false; // ドロワーの開閉状態
+    public $editorData = []; // 編集中のデータ（予約情報、明細、支払方法等）
     
     public function mount(): void
     {
@@ -125,7 +130,238 @@ class DailyClosing extends Page implements HasForms
     }
 
     /**
-     * 個別の予約を計上
+     * 編集ドロワーを開く
+     */
+    public function openEditor(int $reservationId): void
+    {
+        $reservation = Reservation::with(['customer', 'menu'])->findOrFail($reservationId);
+
+        // 自動判定: payment_source
+        $source = 'spot';
+        if ($reservation->customer_ticket_id) {
+            $source = 'ticket';
+        } elseif ($reservation->customer_subscription_id) {
+            $source = 'subscription';
+        }
+
+        $paymentMethod = ($source === 'spot') ? 'cash' : 'other';
+
+        // エディタデータ初期化
+        $this->editorData = [
+            'reservation' => [
+                'id' => $reservation->id,
+                'reservation_number' => $reservation->reservation_number,
+                'time' => $reservation->start_time,
+                'customer_name' => $reservation->customer?->name ?? '不明',
+                'menu_name' => $reservation->menu?->name ?? '不明',
+            ],
+            'service_item' => [
+                'name' => $reservation->menu?->name ?? 'サービス',
+                'price' => $source === 'spot' ? ($reservation->total_amount ?? 0) : 0,
+                'quantity' => 1,
+            ],
+            'product_items' => [], // 空の物販配列
+            'payment_method' => $paymentMethod,
+            'payment_source' => $source,
+            'subtotal' => $source === 'spot' ? ($reservation->total_amount ?? 0) : 0,
+            'total' => $source === 'spot' ? ($reservation->total_amount ?? 0) : 0,
+        ];
+
+        $this->editingReservationId = $reservationId;
+        $this->editorOpen = true;
+    }
+
+    /**
+     * 編集ドロワーを閉じる
+     */
+    public function closeEditor(): void
+    {
+        $this->editorOpen = false;
+        $this->editingReservationId = null;
+        $this->editorData = [];
+    }
+
+    /**
+     * 物販明細を追加
+     */
+    public function addProductItem(): void
+    {
+        $this->editorData['product_items'][] = [
+            'name' => '',
+            'price' => 0,
+            'quantity' => 1,
+        ];
+    }
+
+    /**
+     * 物販明細を削除
+     */
+    public function removeProductItem(int $index): void
+    {
+        unset($this->editorData['product_items'][$index]);
+        $this->editorData['product_items'] = array_values($this->editorData['product_items']);
+        $this->updateCalculation();
+    }
+
+    /**
+     * 合計を再計算
+     */
+    public function updateCalculation(): void
+    {
+        $serviceTotal = $this->editorData['service_item']['price'] * $this->editorData['service_item']['quantity'];
+
+        $productTotal = 0;
+        foreach ($this->editorData['product_items'] as $item) {
+            $productTotal += ($item['price'] ?? 0) * ($item['quantity'] ?? 1);
+        }
+
+        $this->editorData['subtotal'] = $serviceTotal + $productTotal;
+        $this->editorData['total'] = $this->editorData['subtotal'];
+    }
+
+    /**
+     * 売上を保存（明細付き）
+     */
+    public function saveSaleWithItems(): void
+    {
+        try {
+            // 二重計上チェック
+            if (Sale::where('reservation_id', $this->editingReservationId)->exists()) {
+                Notification::make()
+                    ->title('エラー')
+                    ->body('この予約は既に計上済みです')
+                    ->warning()
+                    ->send();
+                return;
+            }
+
+            $reservation = Reservation::findOrFail($this->editingReservationId);
+            $source = $this->editorData['payment_source'];
+            $method = $this->editorData['payment_method'];
+
+            DB::beginTransaction();
+
+            // 物販がある場合はスポット扱い
+            $hasProducts = count($this->editorData['product_items']) > 0;
+            if ($hasProducts && $source !== 'spot') {
+                throw new \Exception('物販がある場合は支払いソースを「スポット」にしてください');
+            }
+
+            // 予約のtotal_amountを更新（スポットの場合のみ）
+            if ($source === 'spot') {
+                $reservation->update(['total_amount' => $this->editorData['total']]);
+            }
+
+            // 売上作成
+            $saleData = [
+                'sale_number' => Sale::generateSaleNumber(),
+                'reservation_id' => $reservation->id,
+                'customer_id' => $reservation->customer_id,
+                'store_id' => $reservation->store_id,
+                'staff_id' => $reservation->staff_id ?? auth()->id(),
+                'sale_date' => $reservation->reservation_date,
+                'sale_time' => now()->format('H:i'),
+                'subtotal' => $this->editorData['subtotal'],
+                'tax_amount' => 0,
+                'discount_amount' => 0,
+                'total_amount' => $this->editorData['total'],
+                'payment_method' => $method,
+                'payment_source' => $source,
+                'status' => 'completed',
+                'notes' => "予約番号: {$reservation->reservation_number}",
+            ];
+
+            // ソース別処理
+            if ($source === 'subscription') {
+                $saleData['total_amount'] = 0;
+                $saleData['subtotal'] = 0;
+                $saleData['customer_subscription_id'] = $reservation->customer_subscription_id;
+                $saleData['notes'] .= " | サブスク利用";
+            } elseif ($source === 'ticket') {
+                $saleData['total_amount'] = 0;
+                $saleData['subtotal'] = 0;
+                if ($reservation->customer_ticket_id) {
+                    $ticket = CustomerTicket::find($reservation->customer_ticket_id);
+                    if ($ticket) {
+                        $used = $ticket->use($reservation->id, 1);
+                        if ($used) {
+                            $saleData['customer_ticket_id'] = $ticket->id;
+                            $remaining = $ticket->fresh()->remaining_count;
+                            $saleData['notes'] .= " | 回数券利用 (残り: {$remaining}回)";
+                        }
+                    }
+                }
+            }
+
+            $sale = Sale::create($saleData);
+
+            // 明細作成（スポットのみ）
+            if ($source === 'spot') {
+                // サービス明細
+                $sale->items()->create([
+                    'menu_id' => $reservation->menu_id,
+                    'item_type' => 'service',
+                    'item_name' => $this->editorData['service_item']['name'],
+                    'unit_price' => $this->editorData['service_item']['price'],
+                    'quantity' => $this->editorData['service_item']['quantity'],
+                    'discount_amount' => 0,
+                    'tax_rate' => 0,
+                    'tax_amount' => 0,
+                    'amount' => $this->editorData['service_item']['price'] * $this->editorData['service_item']['quantity'],
+                ]);
+
+                // 物販明細
+                foreach ($this->editorData['product_items'] as $item) {
+                    if (!empty($item['name'])) {
+                        $sale->items()->create([
+                            'item_type' => 'product',
+                            'item_name' => $item['name'],
+                            'unit_price' => $item['price'],
+                            'quantity' => $item['quantity'],
+                            'discount_amount' => 0,
+                            'tax_rate' => 0,
+                            'tax_amount' => 0,
+                            'amount' => $item['price'] * $item['quantity'],
+                        ]);
+                    }
+                }
+
+                // ポイント付与
+                $sale->grantPoints();
+            }
+
+            // 予約ステータス更新
+            $reservation->update([
+                'status' => 'completed',
+                'payment_status' => 'paid',
+            ]);
+
+            DB::commit();
+
+            Notification::make()
+                ->title('売上計上完了')
+                ->body("予約番号 {$reservation->reservation_number} を計上しました")
+                ->success()
+                ->send();
+
+            // ドロワーを閉じてデータ再読み込み
+            $this->closeEditor();
+            $this->loadSalesData();
+            $this->loadUnpostedReservations();
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Notification::make()
+                ->title('エラー')
+                ->body('計上処理中にエラーが発生しました: ' . $e->getMessage())
+                ->danger()
+                ->send();
+        }
+    }
+
+    /**
+     * 個別の予約を計上（簡易版・後方互換）
      */
     public function postSale(int $reservationId): void
     {

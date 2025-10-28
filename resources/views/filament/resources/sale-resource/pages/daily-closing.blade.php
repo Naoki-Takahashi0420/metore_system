@@ -166,11 +166,11 @@
                                     </td>
                                     <td class="px-3 py-3">
                                         <x-filament::button
-                                            wire:click="postSale({{ $res['id'] }})"
+                                            wire:click="openEditor({{ $res['id'] }})"
                                             color="primary"
                                             size="xs"
                                         >
-                                            計上
+                                            編集
                                         </x-filament::button>
                                     </td>
                                 </tr>
@@ -245,4 +245,219 @@
             </x-filament::button>
         </div>
     </div>
+
+    <!-- 編集ドロワー -->
+    @if($this->editorOpen)
+        <div class="fixed inset-0 z-50 overflow-hidden" x-data="{ show: @entangle('editorOpen') }">
+            <!-- オーバーレイ -->
+            <div class="absolute inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+                 wire:click="closeEditor"
+                 x-show="show"
+                 x-transition:enter="ease-in-out duration-300"
+                 x-transition:enter-start="opacity-0"
+                 x-transition:enter-end="opacity-100"
+                 x-transition:leave="ease-in-out duration-300"
+                 x-transition:leave-start="opacity-100"
+                 x-transition:leave-end="opacity-0">
+            </div>
+
+            <!-- ドロワーパネル -->
+            <div class="fixed inset-y-0 right-0 max-w-2xl w-full flex"
+                 x-show="show"
+                 x-transition:enter="transform transition ease-in-out duration-300"
+                 x-transition:enter-start="translate-x-full"
+                 x-transition:enter-end="translate-x-0"
+                 x-transition:leave="transform transition ease-in-out duration-300"
+                 x-transition:leave-start="translate-x-0"
+                 x-transition:leave-end="translate-x-full">
+
+                <div class="w-full bg-white shadow-xl overflow-y-auto">
+                    <!-- ヘッダー -->
+                    <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 z-10">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-lg font-semibold text-gray-900">売上編集</h2>
+                            <button wire:click="closeEditor" class="text-gray-400 hover:text-gray-500">
+                                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- コンテンツ -->
+                    <div class="px-6 py-6 space-y-6">
+                        <!-- 予約情報 -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h3 class="text-sm font-medium text-gray-700 mb-3">予約情報</h3>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-500">予約番号:</span>
+                                    <span class="font-medium">{{ $this->editorData['reservation']['reservation_number'] ?? '' }}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-500">顧客:</span>
+                                    <span class="font-medium">{{ $this->editorData['reservation']['customer_name'] ?? '' }}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-500">時刻:</span>
+                                    <span class="font-medium">{{ $this->editorData['reservation']['time'] ?? '' }}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-500">種別:</span>
+                                    <span>
+                                        @if($this->editorData['payment_source'] === 'subscription')
+                                            <span class="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">サブスク</span>
+                                        @elseif($this->editorData['payment_source'] === 'ticket')
+                                            <span class="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded">回数券</span>
+                                        @else
+                                            <span class="px-2 py-0.5 text-xs bg-gray-100 text-gray-700 rounded">スポット</span>
+                                        @endif
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- サービス明細 -->
+                        <div>
+                            <h3 class="text-sm font-medium text-gray-900 mb-3">サービス明細</h3>
+                            <div class="border border-gray-200 rounded-lg p-4">
+                                <div class="grid grid-cols-12 gap-3">
+                                    <div class="col-span-6">
+                                        <label class="block text-xs text-gray-500 mb-1">サービス名</label>
+                                        <input type="text"
+                                               wire:model="editorData.service_item.name"
+                                               class="block w-full text-sm border-gray-300 rounded-md"
+                                               disabled>
+                                    </div>
+                                    <div class="col-span-3">
+                                        <label class="block text-xs text-gray-500 mb-1">単価</label>
+                                        <input type="number"
+                                               wire:model="editorData.service_item.price"
+                                               wire:change="updateCalculation"
+                                               class="block w-full text-sm border-gray-300 rounded-md"
+                                               min="0"
+                                               @if($this->editorData['payment_source'] !== 'spot') disabled @endif>
+                                    </div>
+                                    <div class="col-span-3">
+                                        <label class="block text-xs text-gray-500 mb-1">数量</label>
+                                        <input type="number"
+                                               wire:model="editorData.service_item.quantity"
+                                               wire:change="updateCalculation"
+                                               class="block w-full text-sm border-gray-300 rounded-md"
+                                               min="1"
+                                               disabled>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 物販明細 -->
+                        @if($this->editorData['payment_source'] === 'spot')
+                            <div>
+                                <div class="flex items-center justify-between mb-3">
+                                    <h3 class="text-sm font-medium text-gray-900">物販明細</h3>
+                                    <x-filament::button
+                                        wire:click="addProductItem"
+                                        color="gray"
+                                        size="xs"
+                                    >
+                                        + 追加
+                                    </x-filament::button>
+                                </div>
+
+                                @forelse($this->editorData['product_items'] ?? [] as $index => $item)
+                                    <div class="border border-gray-200 rounded-lg p-4 mb-3">
+                                        <div class="grid grid-cols-12 gap-3">
+                                            <div class="col-span-5">
+                                                <label class="block text-xs text-gray-500 mb-1">商品名</label>
+                                                <input type="text"
+                                                       wire:model="editorData.product_items.{{ $index }}.name"
+                                                       class="block w-full text-sm border-gray-300 rounded-md"
+                                                       placeholder="商品名を入力">
+                                            </div>
+                                            <div class="col-span-3">
+                                                <label class="block text-xs text-gray-500 mb-1">単価</label>
+                                                <input type="number"
+                                                       wire:model="editorData.product_items.{{ $index }}.price"
+                                                       wire:change="updateCalculation"
+                                                       class="block w-full text-sm border-gray-300 rounded-md"
+                                                       min="0">
+                                            </div>
+                                            <div class="col-span-2">
+                                                <label class="block text-xs text-gray-500 mb-1">数量</label>
+                                                <input type="number"
+                                                       wire:model="editorData.product_items.{{ $index }}.quantity"
+                                                       wire:change="updateCalculation"
+                                                       class="block w-full text-sm border-gray-300 rounded-md"
+                                                       min="1">
+                                            </div>
+                                            <div class="col-span-2 flex items-end">
+                                                <button wire:click="removeProductItem({{ $index }})"
+                                                        class="text-red-600 hover:text-red-800 text-sm">
+                                                    削除
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @empty
+                                    <p class="text-sm text-gray-500 italic">物販はありません</p>
+                                @endforelse
+                            </div>
+                        @endif
+
+                        <!-- 支払方法 -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-900 mb-2">支払方法</label>
+                            <select wire:model="editorData.payment_method"
+                                    class="block w-full text-sm border-gray-300 rounded-md"
+                                    @if($this->editorData['payment_source'] !== 'spot') disabled @endif>
+                                <option value="cash">現金</option>
+                                <option value="credit_card">クレジットカード</option>
+                                <option value="debit_card">デビットカード</option>
+                                <option value="paypay">PayPay</option>
+                                <option value="line_pay">LINE Pay</option>
+                                <option value="other">その他</option>
+                            </select>
+                        </div>
+
+                        <!-- 合計 -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <div class="space-y-2">
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-600">小計</span>
+                                    <span class="font-medium">¥{{ number_format($this->editorData['subtotal'] ?? 0) }}</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-600">税額</span>
+                                    <span class="font-medium">¥0</span>
+                                </div>
+                                <div class="flex justify-between text-base font-semibold border-t pt-2">
+                                    <span>合計</span>
+                                    <span class="text-primary-600">¥{{ number_format($this->editorData['total'] ?? 0) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- フッター（固定） -->
+                    <div class="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4">
+                        <div class="flex justify-end space-x-3">
+                            <x-filament::button
+                                wire:click="closeEditor"
+                                color="gray"
+                            >
+                                キャンセル
+                            </x-filament::button>
+                            <x-filament::button
+                                wire:click="saveSaleWithItems"
+                                color="primary"
+                            >
+                                決定
+                            </x-filament::button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 </x-filament-panels::page>

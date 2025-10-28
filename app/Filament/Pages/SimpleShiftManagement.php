@@ -642,6 +642,13 @@ class SimpleShiftManagement extends Page implements HasForms
                         'is_available_for_reservation' => true,
                     ]);
                     $successCount++;
+                } catch (\Illuminate\Database\QueryException $e) {
+                    // UNIQUE制約違反は既存データありと判断してスキップ
+                    if ($e->getCode() == 23000 || str_contains($e->getMessage(), 'UNIQUE constraint failed')) {
+                        // 既存のシフトがあるのでスキップ（updateCountにはカウントしない）
+                        continue;
+                    }
+                    // その他のエラーは無視して続行
                 } catch (\Exception $e) {
                     // エラーは無視して続行
                 }
@@ -757,6 +764,23 @@ class SimpleShiftManagement extends Page implements HasForms
                     ->body($user->name . 'のシフトを登録しました')
                     ->success()
                     ->send();
+            } catch (\Illuminate\Database\QueryException $e) {
+                // UNIQUE制約違反の場合
+                if ($e->getCode() == 23000 || str_contains($e->getMessage(), 'UNIQUE constraint failed')) {
+                    Notification::make()
+                        ->title('既にシフトが登録されています')
+                        ->body($user->name . 'は' . Carbon::parse($this->quickAddDate)->format('Y年m月d日') . 'に既にシフトが登録されています。カレンダーから該当のシフトをクリックして編集してください。')
+                        ->warning()
+                        ->duration(8000)
+                        ->send();
+                } else {
+                    Notification::make()
+                        ->title('エラー')
+                        ->body('シフトの登録に失敗しました: ' . $e->getMessage())
+                        ->danger()
+                        ->send();
+                }
+                return;
             } catch (\Exception $e) {
                 Notification::make()
                     ->title('エラー')
