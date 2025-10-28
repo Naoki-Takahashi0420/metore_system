@@ -24,17 +24,8 @@ class DailyClosing extends Page implements HasForms
 
     protected static ?string $title = '日次精算';
 
-    protected static ?string $navigationLabel = '日次売上管理';
-
-    protected static ?string $navigationIcon = 'heroicon-o-calculator';
-
-    protected static bool $shouldRegisterNavigation = true;
-
-    protected static ?string $navigationGroup = '売上・会計';
-
-    protected static ?int $navigationSort = 2;
-    
     public $closingDate;
+    public $selectedStoreId; // 選択された店舗ID
     public $openingCash = 50000; // デフォルト釣銭準備金
     public $actualCash;
     public $notes;
@@ -51,6 +42,62 @@ class DailyClosing extends Page implements HasForms
     public function mount(): void
     {
         $this->closingDate = today()->format('Y-m-d');
+
+        // 店舗の初期値を設定
+        $accessibleStores = $this->getAccessibleStores();
+        if ($accessibleStores->isEmpty()) {
+            // アクセス可能な店舗がない場合はエラー
+            abort(403, 'アクセス可能な店舗がありません');
+        }
+
+        // デフォルトは自分の所属店舗、なければ最初の管理可能店舗
+        $this->selectedStoreId = auth()->user()->store_id
+            ?? $accessibleStores->first()->id;
+
+        $this->loadSalesData();
+        $this->loadUnpostedReservations();
+    }
+
+    /**
+     * ユーザーがアクセス可能な店舗リストを取得
+     */
+    public function getAccessibleStores()
+    {
+        $user = auth()->user();
+
+        // スーパーアドミンは全店舗
+        if ($user->hasRole('super_admin')) {
+            return \App\Models\Store::all();
+        }
+
+        // 管理可能店舗を取得
+        $manageableStores = $user->manageableStores;
+
+        // 自分の所属店舗も追加（重複を除く）
+        if ($user->store_id) {
+            $ownStore = \App\Models\Store::find($user->store_id);
+            if ($ownStore && !$manageableStores->contains('id', $user->store_id)) {
+                $manageableStores->push($ownStore);
+            }
+        }
+
+        return $manageableStores;
+    }
+
+    /**
+     * 店舗変更時に再読み込み
+     */
+    public function updatedSelectedStoreId(): void
+    {
+        $this->loadSalesData();
+        $this->loadUnpostedReservations();
+    }
+
+    /**
+     * 日付変更時に再読み込み
+     */
+    public function updatedClosingDate(): void
+    {
         $this->loadSalesData();
         $this->loadUnpostedReservations();
     }
@@ -58,20 +105,44 @@ class DailyClosing extends Page implements HasForms
     public function loadSalesData(): void
     {
         $sales = Sale::whereDate('sale_date', $this->closingDate)
-            ->where('store_id', auth()->user()->store_id ?? 1)
+            ->where('store_id', $this->selectedStoreId)
             ->where('status', 'completed')
             ->get();
-        
+
+        // 支払方法別売上を動的に集計
+        $salesByPaymentMethod = $sales->groupBy('payment_method')->map(function ($methodSales, $method) {
+            return [
+                'name' => $method ?: 'その他',
+                'amount' => $methodSales->sum('total_amount'),
+                'count' => $methodSales->count(),
+            ];
+        })->sortByDesc('amount');
+
+        // payment_source別の件数
+        $subscriptionCount = $sales->where('payment_source', 'subscription')->count();
+        $ticketCount = $sales->where('payment_source', 'ticket')->count();
+        $spotCount = $sales->where('payment_source', 'spot')->count();
+
+        // サブスク/回数券で物販ありの件数と金額
+        $subscriptionWithProducts = $sales->where('payment_source', 'subscription')->where('total_amount', '>', 0);
+        $ticketWithProducts = $sales->where('payment_source', 'ticket')->where('total_amount', '>', 0);
+
         $this->salesData = [
-            'cash_sales' => $sales->where('payment_method', 'cash')->sum('total_amount'),
-            'card_sales' => $sales->whereIn('payment_method', ['credit_card', 'debit_card'])->sum('total_amount'),
-            'digital_sales' => $sales->whereIn('payment_method', ['paypay', 'line_pay'])->sum('total_amount'),
+            'sales_by_payment_method' => $salesByPaymentMethod, // 支払方法別売上（動的）
             'total_sales' => $sales->sum('total_amount'),
             'transaction_count' => $sales->count(),
             'customer_count' => $sales->unique('customer_id')->count(),
-            'expected_cash' => $this->openingCash + $sales->where('payment_method', 'cash')->sum('total_amount'),
+            // source別件数
+            'subscription_count' => $subscriptionCount,
+            'ticket_count' => $ticketCount,
+            'spot_count' => $spotCount,
+            // 物販ありの件数と金額（補助指標）
+            'subscription_with_products_count' => $subscriptionWithProducts->count(),
+            'subscription_with_products_amount' => $subscriptionWithProducts->sum('total_amount'),
+            'ticket_with_products_count' => $ticketWithProducts->count(),
+            'ticket_with_products_amount' => $ticketWithProducts->sum('total_amount'),
         ];
-        
+
         // スタッフ別売上
         $this->salesData['sales_by_staff'] = $sales->groupBy('staff_id')->map(function ($staffSales) {
             return [
@@ -101,15 +172,22 @@ class DailyClosing extends Page implements HasForms
      */
     public function loadUnpostedReservations(): void
     {
+        // 今日の完了済み予約を全て取得（売上の有無に関わらず）
         $reservations = Reservation::whereDate('reservation_date', $this->closingDate)
-            ->where('store_id', auth()->user()->store_id ?? 1)
+            ->where('store_id', $this->selectedStoreId)
             ->where('status', 'completed')
-            ->whereDoesntHave('sale')
-            ->with(['customer', 'menu'])
+            ->with(['customer', 'menu', 'store', 'medicalRecords', 'sale'])
             ->orderBy('start_time')
             ->get();
 
-        $this->unposted = $reservations->map(function ($reservation) {
+        // 店舗のデフォルト支払方法を取得（全予約が同じ店舗）
+        $store = $reservations->first()?->store;
+        $storePaymentMethods = $store && $store->payment_methods
+            ? collect($store->payment_methods)->pluck('name')->toArray()
+            : ['現金', 'クレジットカード', 'その他'];
+        $defaultPaymentMethod = $storePaymentMethods[0] ?? '現金';
+
+        $this->unposted = $reservations->map(function ($reservation) use ($defaultPaymentMethod, $storePaymentMethods) {
             // 自動判定: customer_ticket_id > customer_subscription_id > spot
             $source = 'spot';
             if ($reservation->customer_ticket_id) {
@@ -118,8 +196,19 @@ class DailyClosing extends Page implements HasForms
                 $source = 'subscription';
             }
 
-            $paymentMethod = ($source === 'spot') ? 'cash' : 'other';
-            $amount = ($source === 'spot') ? ($reservation->total_amount ?? 0) : 0;
+            // カルテから支払方法を取得（全sourceで優先）
+            $paymentMethod = null;
+            $latestMedicalRecord = $reservation->medicalRecords->sortByDesc('created_at')->first();
+            if ($latestMedicalRecord && $latestMedicalRecord->payment_method) {
+                $paymentMethod = $latestMedicalRecord->payment_method;
+            }
+
+            // カルテにない場合は、店舗のデフォルト支払方法
+            if (!$paymentMethod) {
+                $paymentMethod = $defaultPaymentMethod;
+            }
+
+            $amount = ($source === 'spot') ? (int)($reservation->total_amount ?? 0) : 0;
 
             // 行の初期状態を設定
             $this->rowState[$reservation->id] = [
@@ -131,12 +220,101 @@ class DailyClosing extends Page implements HasForms
             return [
                 'id' => $reservation->id,
                 'time' => $reservation->start_time,
-                'customer_name' => $reservation->customer?->name ?? '不明',
+                'customer_name' => $reservation->customer?->full_name ?? '不明',
                 'menu_name' => $reservation->menu?->name ?? '不明',
                 'source' => $source,
                 'amount' => $amount,
+                'payment_methods' => $storePaymentMethods, // 店舗の支払方法リスト
+                'is_posted' => $reservation->sale ? true : false, // 計上済みかどうか
+                'sale_id' => $reservation->sale?->id, // 売上ID
             ];
         })->toArray();
+    }
+
+    /**
+     * テーブルから直接計上
+     */
+    public function postSingleSale(int $reservationId): void
+    {
+        try {
+            // 既に計上済みかチェック
+            if (Sale::where('reservation_id', $reservationId)->exists()) {
+                Notification::make()
+                    ->warning()
+                    ->title('既に計上済みです')
+                    ->body('この予約は既に売上計上されています')
+                    ->send();
+                return;
+            }
+
+            $reservation = Reservation::findOrFail($reservationId);
+
+            // 行の状態から支払方法と金額を取得
+            $rowData = $this->rowState[$reservationId] ?? [];
+            $paymentMethod = $rowData['payment_method'] ?? '現金';
+            $source = $rowData['source'] ?? 'spot';
+
+            // 売上計上
+            $reservation->completeAndCreateSale($paymentMethod, $source);
+
+            Notification::make()
+                ->success()
+                ->title('計上完了')
+                ->body('売上を計上しました')
+                ->send();
+
+            // リストを再読み込み
+            $this->loadUnpostedReservations();
+            $this->loadSalesData();
+
+        } catch (\Exception $e) {
+            Notification::make()
+                ->danger()
+                ->title('計上失敗')
+                ->body('エラー: ' . $e->getMessage())
+                ->send();
+        }
+    }
+
+    /**
+     * 売上を取り消して未計上に戻す
+     */
+    public function cancelSale(int $reservationId): void
+    {
+        try {
+            $reservation = Reservation::findOrFail($reservationId);
+            $sale = $reservation->sale;
+
+            if (!$sale) {
+                Notification::make()
+                    ->warning()
+                    ->title('売上が見つかりません')
+                    ->body('この予約には売上が紐づいていません')
+                    ->send();
+                return;
+            }
+
+            // SalePostingServiceを使用して売上取り消し
+            $salePostingService = new \App\Services\SalePostingService();
+            $salePostingService->void($sale);
+
+            Notification::make()
+                ->success()
+                ->title('取消完了')
+                ->body('売上を取り消しました。未計上に戻しました。')
+                ->send();
+
+            // リストを再読み込み
+            $this->loadUnpostedReservations();
+            $this->loadSalesData();
+
+        } catch (\Exception $e) {
+            Notification::make()
+                ->danger()
+                ->title('取消失敗')
+                ->body('エラー: ' . $e->getMessage())
+                ->send();
+        }
     }
 
     /**
@@ -154,6 +332,57 @@ class DailyClosing extends Page implements HasForms
             $source = 'subscription';
         }
 
+        // 店舗の支払い方法設定を取得
+        $storePaymentMethods = $reservation->store && $reservation->store->payment_methods
+            ? collect($reservation->store->payment_methods)->pluck('name')->toArray()
+            : ['現金', 'クレジットカード', 'その他'];
+
+        // オプションメニューを取得
+        // 1. まず予約のメインメニューに紐づく MenuOption を取得
+        $optionMenus = [];
+
+        if ($reservation->menu_id) {
+            $menuOptions = \App\Models\MenuOption::where('menu_id', $reservation->menu_id)
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->get()
+                ->map(function ($option) {
+                    return [
+                        'id' => $option->id,
+                        'type' => 'menu_option',
+                        'name' => $option->name,
+                        'price' => $option->price,
+                        'duration_minutes' => $option->duration_minutes,
+                    ];
+                });
+
+            $optionMenus = $menuOptions->toArray();
+        }
+
+        // 2. MenuOption がない場合は、オプション/アップセル専用メニューを取得
+        if (empty($optionMenus)) {
+            $optionMenus = \App\Models\Menu::where('store_id', $reservation->store_id)
+                ->where('is_available', true)
+                ->where(function ($query) {
+                    // is_option=true または show_in_upsell=true のメニュー
+                    $query->where('is_option', true)
+                          ->orWhere('show_in_upsell', true);
+                })
+                ->where('is_subscription', false) // サブスクメニューを除外
+                ->orderBy('sort_order')
+                ->get()
+                ->map(function ($menu) {
+                    return [
+                        'id' => $menu->id,
+                        'type' => 'menu',
+                        'name' => $menu->name,
+                        'price' => $menu->price,
+                        'duration_minutes' => $menu->duration_minutes ?? 0,
+                    ];
+                })
+                ->toArray();
+        }
+
         // カルテから支払い方法を取得（優先）
         $paymentMethod = null;
         $latestMedicalRecord = $reservation->medicalRecords()->latest()->first();
@@ -161,15 +390,30 @@ class DailyClosing extends Page implements HasForms
             $paymentMethod = $latestMedicalRecord->payment_method;
         }
 
-        // カルテにない場合は、デフォルト値
+        // カルテにない場合は、店舗のデフォルト支払方法（リストの最初）
         if (!$paymentMethod) {
-            $paymentMethod = ($source === 'spot') ? '現金' : 'その他';
+            $paymentMethod = ($source === 'spot')
+                ? ($storePaymentMethods[0] ?? '現金')
+                : 'その他';
         }
 
-        // 店舗の支払い方法設定を取得
-        $storePaymentMethods = $reservation->store && $reservation->store->payment_methods
-            ? collect($reservation->store->payment_methods)->pluck('name')->toArray()
-            : ['現金', 'クレジットカード', 'その他'];
+        // 予約のreservationOptionsからオプションを自動読込
+        $autoLoadedOptions = [];
+        $reservationOptions = $reservation->getOptionMenusSafely();
+
+        foreach ($reservationOptions as $reservationOption) {
+            // MenuOption経由の場合
+            if ($reservationOption->menuOption) {
+                $menuOption = $reservationOption->menuOption;
+                $autoLoadedOptions[] = [
+                    'option_id' => $menuOption->id,
+                    'option_type' => 'menu_option',
+                    'name' => $menuOption->name ?? '',
+                    'price' => $reservationOption->price ?? $menuOption->price ?? 0,
+                    'quantity' => $reservationOption->quantity ?? 1,
+                ];
+            }
+        }
 
         // エディタデータ初期化
         $this->editorData = [
@@ -177,7 +421,7 @@ class DailyClosing extends Page implements HasForms
                 'id' => $reservation->id,
                 'reservation_number' => $reservation->reservation_number,
                 'time' => $reservation->start_time,
-                'customer_name' => $reservation->customer?->name ?? '不明',
+                'customer_name' => $reservation->customer?->full_name ?? '不明',
                 'menu_name' => $reservation->menu?->name ?? '不明',
             ],
             'service_item' => [
@@ -185,6 +429,8 @@ class DailyClosing extends Page implements HasForms
                 'price' => $source === 'spot' ? ($reservation->total_amount ?? 0) : 0,
                 'quantity' => 1,
             ],
+            'option_items' => $autoLoadedOptions, // 予約から自動読込されたオプション
+            'option_menus' => $optionMenus, // 選択可能なオプションメニュー
             'product_items' => [], // 空の物販配列
             'payment_method' => $paymentMethod,
             'payment_methods_list' => $storePaymentMethods, // 店舗の支払い方法リスト
@@ -192,6 +438,11 @@ class DailyClosing extends Page implements HasForms
             'subtotal' => $source === 'spot' ? ($reservation->total_amount ?? 0) : 0,
             'total' => $source === 'spot' ? ($reservation->total_amount ?? 0) : 0,
         ];
+
+        // オプションがある場合は合計を再計算
+        if (!empty($autoLoadedOptions)) {
+            $this->updateCalculation();
+        }
 
         $this->editingReservationId = $reservationId;
         $this->editorOpen = true;
@@ -205,6 +456,63 @@ class DailyClosing extends Page implements HasForms
         $this->editorOpen = false;
         $this->editingReservationId = null;
         $this->editorData = [];
+    }
+
+    /**
+     * オプション明細を追加
+     */
+    public function addOptionItem(): void
+    {
+        $this->editorData['option_items'][] = [
+            'option_id' => null,
+            'option_type' => null,
+            'name' => '',
+            'price' => 0,
+            'quantity' => 1,
+        ];
+    }
+
+    /**
+     * オプションメニュー選択時に価格を自動設定
+     */
+    public function selectOptionMenu(int $index, string $value): void
+    {
+        if (empty($value)) {
+            return;
+        }
+
+        // value形式: "type:id" (例: "menu_option:5" または "menu:10")
+        list($type, $id) = explode(':', $value);
+
+        if ($type === 'menu_option') {
+            $option = \App\Models\MenuOption::find($id);
+            if ($option) {
+                $this->editorData['option_items'][$index]['option_id'] = $option->id;
+                $this->editorData['option_items'][$index]['option_type'] = 'menu_option';
+                $this->editorData['option_items'][$index]['name'] = $option->name;
+                $this->editorData['option_items'][$index]['price'] = $option->price;
+                $this->updateCalculation();
+            }
+        } elseif ($type === 'menu') {
+            $menu = \App\Models\Menu::find($id);
+            if ($menu) {
+                $this->editorData['option_items'][$index]['option_id'] = $menu->id;
+                $this->editorData['option_items'][$index]['option_type'] = 'menu';
+                $this->editorData['option_items'][$index]['name'] = $menu->name;
+                $this->editorData['option_items'][$index]['price'] = $menu->price;
+                $this->updateCalculation();
+            }
+        }
+    }
+
+    /**
+     * オプション明細を削除
+     */
+    public function removeOptionItem(int $index): void
+    {
+        unset($this->editorData['option_items'][$index]);
+        $this->editorData['option_items'] = array_values($this->editorData['option_items']);
+        $this->updateCalculation();
     }
 
     /**
@@ -236,12 +544,17 @@ class DailyClosing extends Page implements HasForms
     {
         $serviceTotal = $this->editorData['service_item']['price'] * $this->editorData['service_item']['quantity'];
 
+        $optionTotal = 0;
+        foreach ($this->editorData['option_items'] ?? [] as $item) {
+            $optionTotal += ($item['price'] ?? 0) * ($item['quantity'] ?? 1);
+        }
+
         $productTotal = 0;
-        foreach ($this->editorData['product_items'] as $item) {
+        foreach ($this->editorData['product_items'] ?? [] as $item) {
             $productTotal += ($item['price'] ?? 0) * ($item['quantity'] ?? 1);
         }
 
-        $this->editorData['subtotal'] = $serviceTotal + $productTotal;
+        $this->editorData['subtotal'] = $serviceTotal + $optionTotal + $productTotal;
         $this->editorData['total'] = $this->editorData['subtotal'];
     }
 
@@ -262,97 +575,48 @@ class DailyClosing extends Page implements HasForms
             }
 
             $reservation = Reservation::findOrFail($this->editingReservationId);
-            $source = $this->editorData['payment_source'];
             $method = $this->editorData['payment_method'];
+            $totalAmount = $this->editorData['total'];
+
+            // 合計>0の場合、支払方法をバリデーション（空の場合のみエラー）
+            if ($totalAmount > 0 && empty($method)) {
+                throw new \Exception('オプション/物販がある場合は、支払方法を選択してください');
+            }
 
             DB::beginTransaction();
 
-            // 物販がある場合はスポット扱い
-            $hasProducts = count($this->editorData['product_items']) > 0;
-            if ($hasProducts && $source !== 'spot') {
-                throw new \Exception('物販がある場合は支払いソースを「スポット」にしてください');
-            }
-
-            // 予約のtotal_amountを更新（スポットの場合のみ）
-            if ($source === 'spot') {
-                $reservation->update(['total_amount' => $this->editorData['total']]);
-            }
-
-            // 売上作成
-            $saleData = [
-                'sale_number' => Sale::generateSaleNumber(),
-                'reservation_id' => $reservation->id,
-                'customer_id' => $reservation->customer_id,
-                'store_id' => $reservation->store_id,
-                'staff_id' => $reservation->staff_id ?? auth()->id(),
-                'sale_date' => $reservation->reservation_date,
-                'sale_time' => now()->format('H:i'),
-                'subtotal' => $this->editorData['subtotal'],
-                'tax_amount' => 0,
-                'discount_amount' => 0,
-                'total_amount' => $this->editorData['total'],
-                'payment_method' => $method,
-                'payment_source' => $source,
-                'status' => 'completed',
-                'notes' => "予約番号: {$reservation->reservation_number}",
-            ];
-
-            // ソース別処理
-            if ($source === 'subscription') {
-                $saleData['total_amount'] = 0;
-                $saleData['subtotal'] = 0;
-                $saleData['customer_subscription_id'] = $reservation->customer_subscription_id;
-                $saleData['notes'] .= " | サブスク利用";
-            } elseif ($source === 'ticket') {
-                $saleData['total_amount'] = 0;
-                $saleData['subtotal'] = 0;
-                if ($reservation->customer_ticket_id) {
-                    $ticket = CustomerTicket::find($reservation->customer_ticket_id);
-                    if ($ticket) {
-                        $used = $ticket->use($reservation->id, 1);
-                        if ($used) {
-                            $saleData['customer_ticket_id'] = $ticket->id;
-                            $remaining = $ticket->fresh()->remaining_count;
-                            $saleData['notes'] .= " | 回数券利用 (残り: {$remaining}回)";
-                        }
-                    }
+            // オプションデータの変換
+            $options = [];
+            foreach ($this->editorData['option_items'] ?? [] as $item) {
+                if (!empty($item['name']) && !empty($item['option_id'])) {
+                    $options[] = [
+                        'menu_option_id' => $item['option_type'] === 'menu_option' ? $item['option_id'] : null,
+                        'name' => $item['name'],
+                        'price' => $item['price'],
+                        'quantity' => $item['quantity'],
+                    ];
                 }
             }
 
-            $sale = Sale::create($saleData);
-
-            // 明細作成（スポットのみ）
-            if ($source === 'spot') {
-                // サービス明細
-                $sale->items()->create([
-                    'menu_id' => $reservation->menu_id,
-                    'item_type' => 'service',
-                    'item_name' => $this->editorData['service_item']['name'],
-                    'unit_price' => $this->editorData['service_item']['price'],
-                    'quantity' => $this->editorData['service_item']['quantity'],
-                    'discount_amount' => 0,
-                    'tax_rate' => 0,
-                    'tax_amount' => 0,
-                    'amount' => $this->editorData['service_item']['price'] * $this->editorData['service_item']['quantity'],
-                ]);
-
-                // 物販明細
-                foreach ($this->editorData['product_items'] as $item) {
-                    if (!empty($item['name'])) {
-                        $sale->items()->create([
-                            'item_type' => 'product',
-                            'item_name' => $item['name'],
-                            'unit_price' => $item['price'],
-                            'quantity' => $item['quantity'],
-                            'discount_amount' => 0,
-                            'tax_rate' => 0,
-                            'tax_amount' => 0,
-                            'amount' => $item['price'] * $item['quantity'],
-                        ]);
-                    }
+            // 物販データの変換
+            $products = [];
+            foreach ($this->editorData['product_items'] ?? [] as $item) {
+                if (!empty($item['name'])) {
+                    $products[] = [
+                        'name' => $item['name'],
+                        'price' => $item['price'],
+                        'quantity' => $item['quantity'],
+                        'tax_rate' => 0.1,
+                    ];
                 }
+            }
 
-                // ポイント付与
+            // SalePostingServiceを使用して売上計上
+            $salePostingService = new \App\Services\SalePostingService();
+            $sale = $salePostingService->post($reservation, $method, $options, $products);
+
+            // ポイント付与（スポットまたは合計>0の場合）
+            if ($sale->payment_source === 'spot' || $totalAmount > 0) {
                 $sale->grantPoints();
             }
 

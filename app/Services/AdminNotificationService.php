@@ -171,7 +171,20 @@ class AdminNotificationService
         // 重複を除去してからユーザーオブジェクトを取得
         $uniqueAdminIds = $adminIds->unique()->filter();
 
-        return User::whereIn('id', $uniqueAdminIds)->get();
+        $admins = User::whereIn('id', $uniqueAdminIds)->get();
+
+        // メールアドレスベースで重複除去（同じメールアドレスを持つ複数アカウント対策）
+        $uniqueAdmins = $admins->unique('email')->values();
+
+        Log::info('🔍 [DEBUG] getStoreAdmins result', [
+            'store_id' => $store->id,
+            'total_admin_ids' => $adminIds->count(),
+            'unique_admin_ids' => $uniqueAdminIds->count(),
+            'final_admins_count' => $uniqueAdmins->count(),
+            'admin_emails' => $uniqueAdmins->pluck('email')->toArray(),
+        ]);
+
+        return $uniqueAdmins;
     }
     
     /**

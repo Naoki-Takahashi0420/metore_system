@@ -56,6 +56,10 @@ class SimpleShiftManagement extends Page implements HasForms
     public $editingShiftId = null;
     public $editingShift = null;
     public $editingBreaks = [];
+    public $isEditMode = false; // 編集モードフラグ
+    public $editStaffId; // 編集用スタッフID
+    public $editStartTime; // 編集用開始時間
+    public $editEndTime; // 編集用終了時間
     
     // 一括登録用
     public $selectedDates = [];
@@ -427,7 +431,8 @@ class SimpleShiftManagement extends Page implements HasForms
     {
         $this->editingShiftId = $shiftId;
         $this->editingShift = Shift::with('user')->find($shiftId);
-        
+        $this->isEditMode = false; // 表示モードで開く
+
         if (!$this->editingShift) {
             Notification::make()
                 ->title('エラー')
@@ -436,12 +441,12 @@ class SimpleShiftManagement extends Page implements HasForms
                 ->send();
             return;
         }
-        
+
         // 権限チェックは canEditShift で実施済み
-        
+
         // 既存の休憩時間を読み込み
         $this->editingBreaks = [];
-        
+
         // メインの休憩時間
         if ($this->editingShift->break_start && $this->editingShift->break_end) {
             $this->editingBreaks[] = [
@@ -449,24 +454,34 @@ class SimpleShiftManagement extends Page implements HasForms
                 'end' => $this->editingShift->break_end
             ];
         }
-        
+
         // 追加の休憩時間
         if ($this->editingShift->additional_breaks) {
             // additional_breaksは既に配列としてキャストされている
-            $additionalBreaks = is_array($this->editingShift->additional_breaks) 
-                ? $this->editingShift->additional_breaks 
+            $additionalBreaks = is_array($this->editingShift->additional_breaks)
+                ? $this->editingShift->additional_breaks
                 : json_decode($this->editingShift->additional_breaks, true);
             if ($additionalBreaks) {
                 $this->editingBreaks = array_merge($this->editingBreaks, $additionalBreaks);
             }
         }
-        
+
         // 休憩がない場合は空配列のまま（デフォルトで休憩なし）
         // if (empty($this->editingBreaks)) {
         //     $this->editingBreaks[] = ['start' => '12:00', 'end' => '13:00'];
         // }
-        
+
         $this->showEditModal = true;
+    }
+
+    public function enableEditMode(): void
+    {
+        // 現在の値を編集用プロパティにコピー
+        $this->editStaffId = $this->editingShift->user_id;
+        $this->editStartTime = Carbon::parse($this->editingShift->start_time)->format('H:i');
+        $this->editEndTime = Carbon::parse($this->editingShift->end_time)->format('H:i');
+
+        $this->isEditMode = true;
     }
     
     public function addEditBreak(): void
@@ -499,9 +514,9 @@ class SimpleShiftManagement extends Page implements HasForms
         $additionalBreaks = count($this->editingBreaks) > 1 ? array_slice($this->editingBreaks, 1) : [];
 
         $this->editingShift->update([
-            'user_id' => $this->editingShift->user_id,
-            'start_time' => $this->editingShift->start_time,
-            'end_time' => $this->editingShift->end_time,
+            'user_id' => $this->editStaffId,
+            'start_time' => $this->editStartTime,
+            'end_time' => $this->editEndTime,
             'break_start' => $firstBreak ? $firstBreak['start'] : null,
             'break_end' => $firstBreak ? $firstBreak['end'] : null,
             'additional_breaks' => !empty($additionalBreaks) ? json_encode($additionalBreaks) : null,
@@ -517,6 +532,7 @@ class SimpleShiftManagement extends Page implements HasForms
         $this->editingShiftId = null;
         $this->editingShift = null;
         $this->editingBreaks = [];
+        $this->isEditMode = false;
         $this->loadCalendarData();
     }
 
@@ -558,6 +574,7 @@ class SimpleShiftManagement extends Page implements HasForms
         $this->editingShiftId = null;
         $this->editingShift = null;
         $this->editingBreaks = [];
+        $this->isEditMode = false;
     }
     
     // 一括登録機能

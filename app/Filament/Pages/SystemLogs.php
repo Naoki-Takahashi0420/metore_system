@@ -6,6 +6,7 @@ use Filament\Pages\Page;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
+use App\Models\NotificationLog;
 
 class SystemLogs extends Page
 {
@@ -29,6 +30,8 @@ class SystemLogs extends Page
     public $selectedLogs = [];
     public $selectAll = false;
     public $debugInfo = null; // デバッグ情報
+    public $tab = 'file'; // file, database
+    public $notificationLogs = []; // データベースからの通知ログ
 
     /**
      * スーパーアドミンのみアクセス可能
@@ -49,13 +52,18 @@ class SystemLogs extends Page
     public function mount(): void
     {
         try {
-            $this->loadLogs();
+            if ($this->tab === 'file') {
+                $this->loadLogs();
+            } else {
+                $this->loadNotificationLogs();
+            }
         } catch (\Exception $e) {
             \Log::error('SystemLogs mount error', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
             $this->logs = [];
+            $this->notificationLogs = [];
         }
     }
 
@@ -618,5 +626,41 @@ class SystemLogs extends Page
         $this->loadLogs();
         $this->selectedLogs = [];
         $this->selectAll = false;
+    }
+
+    public function setTab(string $tab): void
+    {
+        $this->tab = $tab;
+
+        if ($tab === 'database') {
+            $this->loadNotificationLogs();
+        } else {
+            $this->loadLogs();
+        }
+    }
+
+    public function loadNotificationLogs(): void
+    {
+        $query = NotificationLog::with(['customer', 'store', 'reservation'])
+            ->orderBy('created_at', 'desc')
+            ->limit(500);
+
+        // フィルター適用
+        if ($this->filter !== 'all') {
+            $filterMap = [
+                'email' => 'email',
+                'sms' => 'sms',
+                'reservation' => null, // 予約関連は全て表示
+                'error' => null, // エラーは status='failed' で判定
+            ];
+
+            if ($this->filter === 'error') {
+                $query->where('status', 'failed');
+            } elseif (isset($filterMap[$this->filter]) && $filterMap[$this->filter]) {
+                $query->where('channel', $filterMap[$this->filter]);
+            }
+        }
+
+        $this->notificationLogs = $query->get()->toArray();
     }
 }

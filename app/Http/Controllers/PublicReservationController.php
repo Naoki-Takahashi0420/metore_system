@@ -2003,7 +2003,8 @@ class PublicReservationController extends Controller
             \Log::info('🔄 予約変更モード検出');
 
             $reservationId = Session::get('change_reservation_id');
-            $existingReservation = Reservation::find($reservationId);
+            // 関連データを一緒にロード（重要！）
+            $existingReservation = Reservation::with(['customer', 'store', 'menu'])->find($reservationId);
 
             if ($existingReservation) {
                 \Log::info('✅ 既存予約を発見', ['reservation_id' => $reservationId]);
@@ -2013,8 +2014,11 @@ class PublicReservationController extends Controller
                 $startTime = Carbon::parse($validated['date'] . ' ' . $validated['time']);
                 $endTime = $startTime->copy()->addMinutes($menu->duration ?? 60);
 
-                // 変更前の予約情報を保持
+                // 変更前の予約情報を保持（関連データも含めて複製）
                 $oldReservation = $existingReservation->replicate();
+                $oldReservation->setRelation('customer', $existingReservation->customer);
+                $oldReservation->setRelation('store', $existingReservation->store);
+                $oldReservation->setRelation('menu', $existingReservation->menu);
 
                 $existingReservation->update([
                     'reservation_date' => $validated['date'],

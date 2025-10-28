@@ -407,90 +407,156 @@
     
     {{-- シフト編集モーダル --}}
     @if($showEditModal && $editingShift)
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-[500px] max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                    シフト編集
-                </h3>
-                <button wire:click="confirmDeleteShift"
-                    class="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 flex items-center gap-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                    </svg>
-                    削除
-                </button>
-            </div>
+    <div class="fixed inset-0 z-50 flex items-center justify-center"
+         style="backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); background: rgba(0, 0, 0, 0.5);"
+         wire:click="closeEditModal">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-[600px] max-h-[85vh] overflow-y-auto"
+             wire:click.stop>
 
-            <div class="space-y-4">
-                {{-- スタッフ選択 --}}
-                <div>
-                    <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">スタッフ</label>
-                    <select wire:model="editingShift.user_id" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">
-                        @foreach($staffList as $staff)
-                            <option value="{{ $staff->id }}">{{ $staff->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
+            @if($isEditMode)
+                {{-- 編集モード --}}
+                <div class="p-6">
+                    @php
+                        $date = \Carbon\Carbon::parse($editingShift->shift_date);
+                        $dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][$date->dayOfWeek];
+                    @endphp
+                    <h3 class="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">
+                        シフト編集 - {{ $date->format('Y年n月j日') }}（{{ $dayOfWeek }}）
+                    </h3>
 
-                {{-- 勤務時間 --}}
-                <div>
-                    <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">勤務時間</label>
-                    <div class="flex items-center gap-2">
-                        <input type="time" wire:model="editingShift.start_time"
-                            class="flex-1 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">
-                        <span class="text-gray-500 dark:text-gray-400">〜</span>
-                        <input type="time" wire:model="editingShift.end_time"
-                            class="flex-1 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">
+                    <div class="space-y-4">
+                        {{-- スタッフ選択 --}}
+                        <div>
+                            <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">スタッフ</label>
+                            <select wire:model="editStaffId"
+                                class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">
+                                @foreach($staffList as $staff)
+                                    <option value="{{ $staff->id }}">{{ $staff->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        {{-- 勤務時間 --}}
+                        <div>
+                            <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">勤務時間</label>
+                            <div class="flex items-center gap-3">
+                                <input type="time" wire:model="editStartTime"
+                                    class="flex-1 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">
+                                <span class="text-gray-500 dark:text-gray-400">〜</span>
+                                <input type="time" wire:model="editEndTime"
+                                    class="flex-1 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">
+                            </div>
+                        </div>
+
+                        {{-- 休憩時間 --}}
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">休憩時間</label>
+                                <button type="button" wire:click="addEditBreak"
+                                    class="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400">
+                                    + 休憩を追加
+                                </button>
+                            </div>
+
+                            @if(!empty($editingBreaks))
+                                <div class="space-y-2">
+                                    @foreach($editingBreaks as $index => $break)
+                                    <div class="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                                        <input type="time" wire:model="editingBreaks.{{ $index }}.start"
+                                            class="flex-1 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-600 dark:text-gray-200 text-sm">
+                                        <span class="text-gray-500 dark:text-gray-400">〜</span>
+                                        <input type="time" wire:model="editingBreaks.{{ $index }}.end"
+                                            class="flex-1 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-600 dark:text-gray-200 text-sm">
+                                        <button type="button" wire:click="removeEditBreak({{ $index }})"
+                                            class="text-red-600 hover:text-red-700 dark:text-red-400">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    @endforeach
+                                </div>
+                            @else
+                                <div class="text-sm text-gray-500 dark:text-gray-400 text-center py-2 bg-gray-50 dark:bg-gray-700 rounded">
+                                    休憩なし
+                                </div>
+                            @endif
+                        </div>
                     </div>
-                </div>
 
-                {{-- 休憩時間 --}}
-                <div>
-                    <div class="flex items-center justify-between mb-2">
-                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">休憩時間</label>
-                        <button type="button" wire:click="addEditBreak"
-                            class="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400">
-                            + 休憩を追加
+                    {{-- 編集モードのボタン --}}
+                    <div class="flex justify-end gap-2 mt-6">
+                        <button wire:click="$set('isEditMode', false)"
+                            class="px-4 py-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 rounded">
+                            キャンセル
+                        </button>
+                        <button wire:click="updateShift"
+                            class="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-900 dark:bg-gray-700 dark:hover:bg-gray-600">
+                            保存する
                         </button>
                     </div>
+                </div>
+            @else
+                {{-- 表示モード --}}
+                <div class="p-6">
+                    @php
+                        $date = \Carbon\Carbon::parse($editingShift->shift_date);
+                        $dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][$date->dayOfWeek];
+                    @endphp
+                    <h3 class="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">
+                        シフト詳細 - {{ $date->format('Y年n月j日') }}（{{ $dayOfWeek }}）
+                    </h3>
 
-                    <div class="space-y-2 max-h-48 overflow-y-auto">
-                        @foreach($editingBreaks as $index => $break)
-                        <div class="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded">
-                            <input type="time" wire:model="editingBreaks.{{ $index }}.start"
-                                class="flex-1 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-600 dark:text-gray-200 text-sm">
-                            <span class="text-gray-500 dark:text-gray-400">〜</span>
-                            <input type="time" wire:model="editingBreaks.{{ $index }}.end"
-                                class="flex-1 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-600 dark:text-gray-200 text-sm">
-                            <button type="button" wire:click="removeEditBreak({{ $index }})"
-                                class="text-red-600 hover:text-red-700 dark:text-red-400">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                </svg>
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <span class="text-sm text-gray-500 dark:text-gray-400">スタッフ</span>
+                                <p class="font-medium text-gray-800 dark:text-gray-200">{{ $editingShift->user->name }}</p>
+                            </div>
+                            <div>
+                                <span class="text-sm text-gray-500 dark:text-gray-400">勤務時間</span>
+                                <p class="font-medium text-gray-800 dark:text-gray-200">
+                                    {{ \Carbon\Carbon::parse($editingShift->start_time)->format('H:i') }} 〜
+                                    {{ \Carbon\Carbon::parse($editingShift->end_time)->format('H:i') }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="border-t pt-4">
+                            <span class="text-sm text-gray-500 dark:text-gray-400">休憩時間</span>
+                            @if(!empty($editingBreaks))
+                                <div class="space-y-1 mt-1">
+                                    @foreach($editingBreaks as $break)
+                                    <p class="font-medium text-gray-800 dark:text-gray-200">
+                                        {{ $break['start'] }} 〜 {{ $break['end'] }}
+                                    </p>
+                                    @endforeach
+                                </div>
+                            @else
+                                <p class="text-gray-500 dark:text-gray-400 mt-1">休憩なし</p>
+                            @endif
+                        </div>
+                    </div>
+
+                    {{-- 表示モードのボタン --}}
+                    <div class="border-t pt-4 flex justify-between gap-2 mt-6">
+                        <button wire:click="confirmDeleteShift"
+                            class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
+                            削除
+                        </button>
+                        <div class="flex gap-2">
+                            <button wire:click="closeEditModal"
+                                class="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600">
+                                閉じる
+                            </button>
+                            <button wire:click="enableEditMode"
+                                class="px-4 py-2 !bg-gray-900 !text-white rounded hover:!bg-black dark:!bg-gray-600 dark:hover:!bg-gray-500">
+                                編集
                             </button>
                         </div>
-                        @endforeach
-
-                        @if(empty($editingBreaks))
-                        <div class="text-sm text-gray-500 dark:text-gray-400 text-center py-2">
-                            休憩なし
-                        </div>
-                        @endif
                     </div>
                 </div>
-            </div>
-
-            <div class="flex justify-end gap-2 mt-6">
-                <button wire:click="closeEditModal"
-                    class="px-4 py-2 text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
-                    キャンセル
-                </button>
-                <button wire:click="updateShift"
-                    class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-                    更新
-                </button>
-            </div>
+            @endif
         </div>
     </div>
     @endif

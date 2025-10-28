@@ -758,97 +758,21 @@ class Reservation extends Model
                 'payment_status' => 'paid',
             ]);
 
-            // 基本の売上データ
-            $saleData = [
-                'sale_number' => Sale::generateSaleNumber(),
-                'reservation_id' => $this->id,
-                'customer_id' => $this->customer_id,
-                'store_id' => $this->store_id,
-                'staff_id' => $this->staff_id ?? auth()->id(),
-                'sale_date' => $this->reservation_date,
-                'sale_time' => now()->format('H:i'),
-                'discount_amount' => 0,
-                'payment_source' => $paymentSource,
-                'status' => 'completed',
-                'notes' => "予約番号: {$this->reservation_number}",
-            ];
-
-            // 支払いソースに応じた処理
-            switch ($paymentSource) {
-                case 'subscription':
-                    // サブスク: 0円計上（Subscriptionは動的集計なのでdecrement不要）
-                    $saleData['subtotal'] = 0;
-                    $saleData['tax_amount'] = 0;
-                    $saleData['total_amount'] = 0;
-                    $saleData['payment_method'] = 'other';
-
-                    if ($this->customer_subscription_id) {
-                        $saleData['customer_subscription_id'] = $this->customer_subscription_id;
-                        $saleData['notes'] .= " | サブスク利用";
-                    }
-                    break;
-
-                case 'ticket':
-                    // 回数券: 0円計上、履歴ベースで消費
-                    $saleData['subtotal'] = 0;
-                    $saleData['tax_amount'] = 0;
-                    $saleData['total_amount'] = 0;
-                    $saleData['payment_method'] = 'other';
-
-                    if ($this->customer_ticket_id) {
-                        $ticket = CustomerTicket::find($this->customer_ticket_id);
-                        if ($ticket) {
-                            // 履歴ベースで消費（use()メソッドを使用）
-                            $used = $ticket->use($this->id, 1);
-                            if ($used) {
-                                $saleData['customer_ticket_id'] = $ticket->id;
-                                $remaining = $ticket->fresh()->remaining_count;
-                                $saleData['notes'] .= " | 回数券利用 (残り: {$remaining}回)";
-                            }
-                        }
-                    }
-                    break;
-
-                case 'spot':
-                default:
-                    // スポット: 予約total_amountを税込として扱う（二重課税しない）
-                    $saleData['subtotal'] = $this->total_amount ?? 0;
-                    $saleData['tax_amount'] = 0;
-                    $saleData['total_amount'] = $this->total_amount ?? 0;
-                    $saleData['payment_method'] = $paymentMethod;
-                    break;
-            }
-
-            // 売上レコードを作成
-            $sale = Sale::create($saleData);
-
-            // メニュー明細を作成（スポットのみ）
-            if ($paymentSource === 'spot' && $this->menu) {
-                $sale->items()->create([
-                    'menu_id' => $this->menu_id,
-                    'item_type' => 'service',
-                    'item_name' => $this->menu->name,
-                    'item_description' => $this->menu->description,
-                    'unit_price' => $this->total_amount ?? 0,
-                    'quantity' => 1,
-                    'discount_amount' => 0,
-                    'tax_rate' => 0,
-                    'tax_amount' => 0,
-                    'amount' => $this->total_amount ?? 0,
-                ]);
-            }
+            // SalePostingServiceを使用して売上計上（統一ロジック）
+            $salePostingService = new \App\Services\SalePostingService();
+            $sale = $salePostingService->post($this, $paymentMethod, [], []);
 
             // ポイント付与（スポット支払いの場合のみ）
-            if ($paymentSource === 'spot') {
+            if ($sale->payment_source === 'spot') {
                 $sale->grantPoints();
             }
 
             \DB::commit();
 
-            \Log::info('売上計上完了', [
+            \Log::info('売上計上完了（Reservation経由）', [
                 'reservation_number' => $this->reservation_number,
-                'sale_number' => $sale->sale_number,
-                'payment_source' => $paymentSource,
+                'sale_id' => $sale->id,
+                'payment_source' => $sale->payment_source,
                 'total_amount' => $sale->total_amount,
             ]);
 

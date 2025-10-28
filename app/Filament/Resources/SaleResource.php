@@ -424,13 +424,6 @@ class SaleResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
-            ])
-            ->headerActions([
-                Tables\Actions\Action::make('daily_closing')
-                    ->label('日次精算')
-                    ->icon('heroicon-o-calculator')
-                    ->color('warning')
-                    ->url(fn () => static::getUrl('daily-closing')),
             ]);
     }
 

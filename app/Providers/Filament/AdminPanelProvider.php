@@ -63,6 +63,13 @@ class AdminPanelProvider extends PanelProvider
                 \App\Filament\Widgets\ShiftManagementLinkWidget::class,
                 \App\Filament\Widgets\SubscriptionStatsWidget::class,
             ])
+            ->navigationItems([
+                \Filament\Navigation\NavigationItem::make('日次売上管理')
+                    ->url('/admin/sales/daily-closing')
+                    ->icon('heroicon-o-calculator')
+                    ->group('売上・会計')
+                    ->sort(2),
+            ])
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

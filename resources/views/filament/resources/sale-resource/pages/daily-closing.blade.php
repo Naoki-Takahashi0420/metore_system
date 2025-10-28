@@ -1,9 +1,29 @@
 <x-filament-panels::page>
     <div class="space-y-6">
-        <!-- 精算情報入力フォーム -->
-        <form wire:submit.prevent="performClosing">
-            {{ $this->form }}
-        </form>
+        <!-- 店舗・日付選択 -->
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="flex items-center gap-6">
+                <div class="flex items-center gap-4">
+                    <label class="text-sm font-medium text-gray-700">店舗：</label>
+                    <select
+                        wire:model.live="selectedStoreId"
+                        class="block w-64 text-sm border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                    >
+                        @foreach($this->getAccessibleStores() as $store)
+                            <option value="{{ $store->id }}">{{ $store->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="flex items-center gap-4">
+                    <label class="text-sm font-medium text-gray-700">日付：</label>
+                    <input
+                        type="date"
+                        wire:model.live="closingDate"
+                        class="block w-48 text-sm border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                    />
+                </div>
+            </div>
+        </div>
 
         <!-- 売上サマリー -->
         <div class="bg-white rounded-lg shadow p-6">
@@ -39,58 +59,54 @@
                 </div>
             </div>
 
-            <!-- 支払方法別売上 -->
-            <div class="border-t pt-4">
-                <h3 class="text-md font-medium text-gray-900 mb-3">支払方法別売上</h3>
+            <!-- 利用内訳（件数） -->
+            <div class="border-t pt-4 mt-4">
+                <h3 class="text-md font-medium text-gray-900 mb-3">利用内訳</h3>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
-                        <span class="text-sm text-gray-600">現金</span>
-                        <span class="font-semibold">¥{{ number_format($this->salesData['cash_sales'] ?? 0) }}</span>
+                    <div class="flex justify-between items-center p-3 bg-blue-50 rounded">
+                        <span class="text-sm text-gray-600">サブスク利用</span>
+                        <span class="font-semibold">
+                            {{ $this->salesData['subscription_count'] ?? 0 }}件
+                            @if(($this->salesData['subscription_with_products_count'] ?? 0) > 0)
+                                <span class="text-xs text-gray-500 ml-1">
+                                    (うち物販: {{ $this->salesData['subscription_with_products_count'] }}件、¥{{ number_format($this->salesData['subscription_with_products_amount']) }})
+                                </span>
+                            @endif
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-green-50 rounded">
+                        <span class="text-sm text-gray-600">回数券利用</span>
+                        <span class="font-semibold">
+                            {{ $this->salesData['ticket_count'] ?? 0 }}件
+                            @if(($this->salesData['ticket_with_products_count'] ?? 0) > 0)
+                                <span class="text-xs text-gray-500 ml-1">
+                                    (うち物販: {{ $this->salesData['ticket_with_products_count'] }}件、¥{{ number_format($this->salesData['ticket_with_products_amount']) }})
+                                </span>
+                            @endif
+                        </span>
                     </div>
                     <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
-                        <span class="text-sm text-gray-600">カード</span>
-                        <span class="font-semibold">¥{{ number_format($this->salesData['card_sales'] ?? 0) }}</span>
-                    </div>
-                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
-                        <span class="text-sm text-gray-600">電子マネー</span>
-                        <span class="font-semibold">¥{{ number_format($this->salesData['digital_sales'] ?? 0) }}</span>
+                        <span class="text-sm text-gray-600">スポット</span>
+                        <span class="font-semibold">{{ $this->salesData['spot_count'] ?? 0 }}件</span>
                     </div>
                 </div>
             </div>
 
-            <!-- 現金計算 -->
-            <div class="border-t pt-4 mt-4">
-                <h3 class="text-md font-medium text-gray-900 mb-3">現金計算</h3>
-                <div class="space-y-2">
-                    <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-600">釣銭準備金</span>
-                        <span>¥{{ number_format($this->openingCash ?? 0) }}</span>
+            <!-- 支払方法別売上 -->
+            @if(!empty($this->salesData['sales_by_payment_method']) && count($this->salesData['sales_by_payment_method']) > 0)
+                <div class="border-t pt-4">
+                    <h3 class="text-md font-medium text-gray-900 mb-3">支払方法別売上</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        @foreach($this->salesData['sales_by_payment_method'] as $method)
+                            <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
+                                <span class="text-sm text-gray-600">{{ $method['name'] }}</span>
+                                <span class="font-semibold">¥{{ number_format($method['amount']) }} ({{ $method['count'] }}件)</span>
+                            </div>
+                        @endforeach
                     </div>
-                    <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-600">現金売上</span>
-                        <span>¥{{ number_format($this->salesData['cash_sales'] ?? 0) }}</span>
-                    </div>
-                    <div class="flex justify-between items-center font-semibold border-t pt-2">
-                        <span>予定現金残高</span>
-                        <span class="text-lg">¥{{ number_format($this->salesData['expected_cash'] ?? 0) }}</span>
-                    </div>
-                    @if($this->actualCash)
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-600">実際の現金残高</span>
-                            <span>¥{{ number_format($this->actualCash) }}</span>
-                        </div>
-                        <div class="flex justify-between items-center font-semibold">
-                            <span>差異</span>
-                            @php
-                                $difference = $this->actualCash - ($this->salesData['expected_cash'] ?? 0);
-                            @endphp
-                            <span class="text-lg {{ $difference >= 0 ? 'text-green-600' : 'text-red-600' }}">
-                                {{ $difference >= 0 ? '+' : '' }}¥{{ number_format($difference) }}
-                            </span>
-                        </div>
-                    @endif
                 </div>
-            </div>
+            @endif
+
         </div>
 
         <!-- 本日の未計上予約 -->
@@ -121,8 +137,13 @@
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             @foreach($this->unposted as $res)
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-3 py-3 text-sm text-gray-900">{{ $res['time'] }}</td>
+                                <tr class="hover:bg-gray-50 {{ $res['is_posted'] ? 'bg-green-50' : '' }}">
+                                    <td class="px-3 py-3 text-sm text-gray-900">
+                                        {{ $res['time'] }}
+                                        @if($res['is_posted'])
+                                            <span class="ml-2 px-2 py-0.5 text-xs bg-green-600 text-white rounded font-medium">計上済み</span>
+                                        @endif
+                                    </td>
                                     <td class="px-3 py-3 text-sm text-gray-900">{{ $res['customer_name'] }}</td>
                                     <td class="px-3 py-3 text-sm text-gray-900">{{ $res['menu_name'] }}</td>
                                     <td class="px-3 py-3">
@@ -135,21 +156,15 @@
                                         @endif
                                     </td>
                                     <td class="px-3 py-3">
-                                        @if($res['source'] === 'spot')
-                                            <select
-                                                wire:model="rowState.{{ $res['id'] }}.payment_method"
-                                                class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                                            >
-                                                <option value="cash">現金</option>
-                                                <option value="credit_card">クレジットカード</option>
-                                                <option value="debit_card">デビットカード</option>
-                                                <option value="paypay">PayPay</option>
-                                                <option value="line_pay">LINE Pay</option>
-                                                <option value="other">その他</option>
-                                            </select>
-                                        @else
-                                            <span class="text-xs text-gray-500">その他</span>
-                                        @endif
+                                        <select
+                                            wire:model="rowState.{{ $res['id'] }}.payment_method"
+                                            class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                            {{ $res['is_posted'] ? 'disabled' : '' }}
+                                        >
+                                            @foreach($res['payment_methods'] ?? ['現金'] as $method)
+                                                <option value="{{ $method }}">{{ $method }}</option>
+                                            @endforeach
+                                        </select>
                                     </td>
                                     <td class="px-3 py-3">
                                         @if($res['source'] === 'spot')
@@ -159,18 +174,45 @@
                                                 class="block w-24 text-sm border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500"
                                                 min="0"
                                                 step="1"
+                                                {{ $res['is_posted'] ? 'disabled' : '' }}
                                             />
                                         @else
                                             <span class="text-xs text-gray-500">¥0</span>
                                         @endif
                                     </td>
                                     <td class="px-3 py-3">
-                                        <button
-                                            wire:click="openEditor({{ $res['id'] }})"
-                                            class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gray-400 transition-colors"
-                                        >
-                                            編集
-                                        </button>
+                                        <div class="flex gap-2">
+                                            @if($res['is_posted'])
+                                                <!-- 計上済み：取消ボタンのみ -->
+                                                <button
+                                                    wire:click="cancelSale({{ $res['id'] }})"
+                                                    wire:confirm="本当にこの売上を取り消しますか？\n\n顧客名: {{ $res['customer_name'] }}\nメニュー: {{ $res['menu_name'] }}\n金額: ¥{{ number_format($res['amount']) }}\n\nこの操作は監査ログに記録されます。"
+                                                    style="display: inline-block !important; visibility: visible !important; opacity: 1 !important; background-color: #fef3c7 !important; color: #92400e !important; padding: 6px 12px !important; border-radius: 6px !important; font-size: 12px !important; font-weight: 500 !important; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important; border: 1px solid #fbbf24 !important;"
+                                                    onmouseover="this.style.backgroundColor='#fde68a'"
+                                                    onmouseout="this.style.backgroundColor='#fef3c7'"
+                                                >
+                                                    取消
+                                                </button>
+                                            @else
+                                                <!-- 未計上：計上ボタンと編集ボタン -->
+                                                <button
+                                                    wire:click="postSingleSale({{ $res['id'] }})"
+                                                    style="display: inline-block !important; visibility: visible !important; opacity: 1 !important; background-color: #dbeafe !important; color: #1e40af !important; padding: 6px 12px !important; border-radius: 6px !important; font-size: 12px !important; font-weight: 500 !important; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important; border: 1px solid #93c5fd !important;"
+                                                    onmouseover="this.style.backgroundColor='#bfdbfe'"
+                                                    onmouseout="this.style.backgroundColor='#dbeafe'"
+                                                >
+                                                    計上
+                                                </button>
+                                                <button
+                                                    wire:click="openEditor({{ $res['id'] }})"
+                                                    style="background-color: #f9fafb; color: #374151; padding: 6px 12px; border: 2px solid #d1d5db; border-radius: 6px; font-size: 12px; font-weight: 500; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);"
+                                                    onmouseover="this.style.backgroundColor='#f3f4f6'"
+                                                    onmouseout="this.style.backgroundColor='#f9fafb'"
+                                                >
+                                                    編集
+                                                </button>
+                                            @endif
+                                        </div>
                                     </td>
                                 </tr>
                             @endforeach
@@ -231,41 +273,38 @@
                 </div>
             </div>
         @endif
-
-        <!-- アクションボタン -->
-        <div class="flex justify-end space-x-3">
-            <x-filament::button
-                wire:click="performClosing"
-                color="success"
-                size="lg"
-                :disabled="!$this->actualCash"
-            >
-                日次精算を実行
-            </x-filament::button>
-        </div>
     </div>
 
     <!-- 編集ドロワー -->
     @if($this->editorOpen)
-        <!-- オーバーレイ（ぼかし効果付き） -->
-        <div class="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-md z-40"
-             wire:click="closeEditor">
-        </div>
-
-        <!-- ドロワーパネル -->
-        <div class="fixed inset-y-0 right-0 w-full max-w-2xl bg-white shadow-2xl overflow-y-auto z-50"
-             style="animation: slideIn 0.3s ease-out;">
-
+        <div class="fixed inset-0 z-50 flex justify-end">
+            <!-- ヘルプボタンを隠す -->
             <style>
-                @keyframes slideIn {
-                    from {
-                        transform: translateX(100%);
-                    }
-                    to {
-                        transform: translateX(0);
-                    }
+                div[style*="position:fixed"][style*="bottom:24px"][style*="right:24px"] {
+                    display: none !important;
                 }
             </style>
+
+            <!-- オーバーレイ（ぼかし効果付き） -->
+            <div class="absolute inset-0 bg-gray-900/50"
+                 style="backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);"
+                 wire:click="closeEditor">
+            </div>
+
+            <!-- ドロワーパネル -->
+            <div class="relative w-full max-w-2xl bg-white shadow-2xl overflow-y-auto"
+                 style="animation: slideIn 0.3s ease-out;">
+
+                <style>
+                    @keyframes slideIn {
+                        from {
+                            transform: translateX(100%);
+                        }
+                        to {
+                            transform: translateX(0);
+                        }
+                    }
+                </style>
                     <!-- ヘッダー -->
                     <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 z-10">
                         <div class="flex items-center justify-between">
@@ -345,72 +384,151 @@
                             </div>
                         </div>
 
-                        <!-- 物販明細 -->
-                        @if($this->editorData['payment_source'] === 'spot')
-                            <div>
-                                <div class="flex items-center justify-between mb-3">
-                                    <h3 class="text-sm font-medium text-gray-900">物販明細</h3>
-                                    <button
-                                        wire:click="addProductItem"
-                                        class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gray-400 transition-colors"
-                                    >
-                                        + 追加
-                                    </button>
-                                </div>
+                        <!-- オプション明細 -->
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="text-sm font-medium text-gray-900">オプション</h3>
+                                @if(!empty($this->editorData['option_menus']))
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs text-gray-500">
+                                            (選択肢: {{ count($this->editorData['option_menus']) }}件)
+                                        </span>
+                                        <button
+                                            wire:click="addOptionItem"
+                                            class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gray-400 transition-colors"
+                                        >
+                                            + 追加
+                                        </button>
+                                    </div>
+                                @endif
+                            </div>
 
-                                @forelse($this->editorData['product_items'] ?? [] as $index => $item)
-                                    <div class="border border-gray-200 rounded-lg p-4 mb-3">
-                                        <div class="grid grid-cols-12 gap-3">
-                                            <div class="col-span-5">
-                                                <label class="block text-xs text-gray-500 mb-1">商品名</label>
-                                                <input type="text"
-                                                       wire:model="editorData.product_items.{{ $index }}.name"
-                                                       class="block w-full text-sm border-gray-300 rounded-md"
-                                                       placeholder="商品名を入力">
-                                            </div>
-                                            <div class="col-span-3">
-                                                <label class="block text-xs text-gray-500 mb-1">単価</label>
-                                                <input type="number"
-                                                       wire:model="editorData.product_items.{{ $index }}.price"
-                                                       wire:change="updateCalculation"
-                                                       class="block w-full text-sm border-gray-300 rounded-md"
-                                                       min="0">
-                                            </div>
-                                            <div class="col-span-2">
-                                                <label class="block text-xs text-gray-500 mb-1">数量</label>
-                                                <input type="number"
-                                                       wire:model="editorData.product_items.{{ $index }}.quantity"
-                                                       wire:change="updateCalculation"
-                                                       class="block w-full text-sm border-gray-300 rounded-md"
-                                                       min="1">
-                                            </div>
-                                            <div class="col-span-2 flex items-end">
-                                                <button wire:click="removeProductItem({{ $index }})"
-                                                        class="text-red-600 hover:text-red-800 text-sm">
-                                                    削除
-                                                </button>
-                                            </div>
+                            @if(empty($this->editorData['option_menus']))
+                                <div class="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                                    <p class="text-sm text-gray-600">
+                                        オプション/アップセル用メニューが登録されていません。
+                                    </p>
+                                </div>
+                            @endif
+
+                            @forelse($this->editorData['option_items'] ?? [] as $index => $item)
+                                <div class="border border-gray-200 rounded-lg p-4 mb-3 bg-blue-50">
+                                    <div class="grid grid-cols-12 gap-3">
+                                        <div class="col-span-5">
+                                            <label class="block text-xs text-gray-500 mb-1">オプション選択</label>
+                                            <select
+                                                wire:model="editorData.option_items.{{ $index }}.option_id"
+                                                wire:change="selectOptionMenu({{ $index }}, $event.target.value)"
+                                                class="block w-full text-sm border-gray-300 rounded-md"
+                                                @if(empty($this->editorData['option_menus'])) disabled @endif>
+                                                <option value="">-- オプションを選択 --</option>
+                                                @foreach($this->editorData['option_menus'] ?? [] as $optionMenu)
+                                                    <option value="{{ $optionMenu['type'] }}:{{ $optionMenu['id'] }}"
+                                                            @if(isset($item['option_type']) && isset($item['option_id']) && $item['option_type'] == $optionMenu['type'] && $item['option_id'] == $optionMenu['id']) selected @endif>
+                                                        {{ $optionMenu['name'] }} (¥{{ number_format($optionMenu['price']) }})
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-span-3">
+                                            <label class="block text-xs text-gray-500 mb-1">単価</label>
+                                            <input type="number"
+                                                   wire:model="editorData.option_items.{{ $index }}.price"
+                                                   wire:change="updateCalculation"
+                                                   class="block w-full text-sm border-gray-300 rounded-md bg-gray-100"
+                                                   min="0"
+                                                   readonly>
+                                        </div>
+                                        <div class="col-span-2">
+                                            <label class="block text-xs text-gray-500 mb-1">数量</label>
+                                            <input type="number"
+                                                   wire:model="editorData.option_items.{{ $index }}.quantity"
+                                                   wire:change="updateCalculation"
+                                                   class="block w-full text-sm border-gray-300 rounded-md"
+                                                   min="1">
+                                        </div>
+                                        <div class="col-span-2 flex items-end">
+                                            <button wire:click="removeOptionItem({{ $index }})"
+                                                    class="text-red-600 hover:text-red-800 text-sm">
+                                                削除
+                                            </button>
                                         </div>
                                     </div>
-                                @empty
-                                    <p class="text-sm text-gray-500 italic">物販はありません</p>
-                                @endforelse
+                                </div>
+                            @empty
+                                <p class="text-sm text-gray-500 italic">オプションはありません</p>
+                            @endforelse
+                        </div>
+
+                        <!-- 物販明細 -->
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="text-sm font-medium text-gray-900">物販（メニュー外商品）</h3>
+                                <button
+                                    wire:click="addProductItem"
+                                    class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gray-400 transition-colors"
+                                >
+                                    + 追加
+                                </button>
                             </div>
-                        @endif
+
+                            @forelse($this->editorData['product_items'] ?? [] as $index => $item)
+                                <div class="border border-gray-200 rounded-lg p-4 mb-3 bg-green-50">
+                                    <div class="grid grid-cols-12 gap-3">
+                                        <div class="col-span-5">
+                                            <label class="block text-xs text-gray-500 mb-1">商品名</label>
+                                            <input type="text"
+                                                   wire:model="editorData.product_items.{{ $index }}.name"
+                                                   class="block w-full text-sm border-gray-300 rounded-md"
+                                                   placeholder="例：サプリメント、グッズ">
+                                        </div>
+                                        <div class="col-span-3">
+                                            <label class="block text-xs text-gray-500 mb-1">単価</label>
+                                            <input type="number"
+                                                   wire:model="editorData.product_items.{{ $index }}.price"
+                                                   wire:change="updateCalculation"
+                                                   class="block w-full text-sm border-gray-300 rounded-md"
+                                                   min="0">
+                                        </div>
+                                        <div class="col-span-2">
+                                            <label class="block text-xs text-gray-500 mb-1">数量</label>
+                                            <input type="number"
+                                                   wire:model="editorData.product_items.{{ $index }}.quantity"
+                                                   wire:change="updateCalculation"
+                                                   class="block w-full text-sm border-gray-300 rounded-md"
+                                                   min="1">
+                                        </div>
+                                        <div class="col-span-2 flex items-end">
+                                            <button wire:click="removeProductItem({{ $index }})"
+                                                    class="text-red-600 hover:text-red-800 text-sm">
+                                                削除
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            @empty
+                                <p class="text-sm text-gray-500 italic">物販はありません</p>
+                            @endforelse
+                        </div>
 
                         <!-- 支払方法 -->
                         <div>
                             <label class="block text-sm font-medium text-gray-900 mb-2">支払方法</label>
                             <select wire:model="editorData.payment_method"
-                                    class="block w-full text-sm border-gray-300 rounded-md"
-                                    @if($this->editorData['payment_source'] !== 'spot') disabled @endif>
+                                    class="block w-full text-sm border-gray-300 rounded-md">
                                 @foreach($this->editorData['payment_methods_list'] ?? ['現金', 'その他'] as $method)
                                     <option value="{{ $method }}">{{ $method }}</option>
                                 @endforeach
                             </select>
-                            @if($this->editorData['payment_source'] !== 'spot')
-                                <p class="mt-1 text-xs text-gray-500">※ サブスク/回数券は支払方法固定です</p>
-                            @endif
+                            <p class="mt-1 text-xs text-gray-500">
+                                @if($this->editorData['payment_source'] === 'subscription')
+                                    ※ サブスクの場合、通常は決済方法（スクエア等）を選択
+                                @elseif($this->editorData['payment_source'] === 'ticket')
+                                    ※ 回数券の場合、オプション/物販があれば決済方法を選択
+                                @else
+                                    ※ 合計金額に応じた支払方法を選択してください
+                                @endif
+                            </p>
                         </div>
 
                         <!-- 合計 -->
@@ -437,19 +555,22 @@
                         <div class="flex justify-end space-x-3">
                             <button
                                 wire:click="closeEditor"
-                                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gray-400 transition-colors"
+                                style="display: inline-block !important; visibility: visible !important; opacity: 1 !important; background-color: white !important; color: #374151 !important; padding: 0.5rem 1rem !important; border: 1px solid #d1d5db !important; border-radius: 0.375rem !important; font-size: 0.875rem !important; font-weight: 500 !important;"
+                                onmouseover="this.style.backgroundColor='#f9fafb'"
+                                onmouseout="this.style.backgroundColor='white'"
                             >
                                 キャンセル
                             </button>
                             <button
                                 wire:click="saveSaleWithItems"
-                                class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 transition-colors shadow-sm"
+                                style="display: inline-block !important; visibility: visible !important; opacity: 1 !important; background-color: #4f46e5 !important; color: white !important; padding: 0.5rem 1rem !important; border: 1px solid transparent !important; border-radius: 0.375rem !important; font-size: 0.875rem !important; font-weight: 500 !important; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important;"
+                                onmouseover="this.style.backgroundColor='#4338ca'"
+                                onmouseout="this.style.backgroundColor='#4f46e5'"
                             >
                                 決定
                             </button>
                         </div>
                     </div>
-                </div>
             </div>
         </div>
     @endif

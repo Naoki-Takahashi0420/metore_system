@@ -1,5 +1,23 @@
 <x-filament-panels::page>
     <div class="space-y-4">
+        <!-- タブ -->
+        <div class="border-b border-gray-200">
+            <nav class="-mb-px flex space-x-8">
+                <button
+                    wire:click="setTab('file')"
+                    class="@if($tab === 'file') border-primary-600 text-primary-600 @else border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 @endif whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition"
+                >
+                    ファイルログ
+                </button>
+                <button
+                    wire:click="setTab('database')"
+                    class="@if($tab === 'database') border-primary-600 text-primary-600 @else border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 @endif whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition"
+                >
+                    通知履歴（DB）
+                </button>
+            </nav>
+        </div>
+
         <!-- ツールバー -->
         <div class="flex justify-between items-center">
             <!-- フィルター -->
@@ -85,7 +103,8 @@
             </div>
         @endif
 
-        <!-- ログ表示 -->
+        <!-- ファイルログ表示 -->
+        @if($tab === 'file')
         <div class="space-y-2">
             @if(count($logs) === 0)
                 <div class="bg-white p-8 rounded-lg border text-center text-gray-500 text-sm">
@@ -209,6 +228,151 @@
             <div class="text-center text-xs text-gray-500 mt-4 pb-4">
                 最新{{ count($logs) }}件を表示中
             </div>
+        @endif
+        @endif
+
+        <!-- 通知履歴（DB）表示 -->
+        @if($tab === 'database')
+        <div class="space-y-2">
+            @if(count($notificationLogs) === 0)
+                <div class="bg-white p-8 rounded-lg border text-center text-gray-500 text-sm">
+                    通知履歴がありません
+                </div>
+            @else
+                @foreach($notificationLogs as $log)
+                    @php
+                        $channelColors = match($log['channel'] ?? 'other') {
+                            'line' => 'border-l-4 border-l-blue-500',
+                            'sms' => 'border-l-4 border-l-orange-500',
+                            'email' => 'border-l-4 border-l-green-500',
+                            default => 'border-l-4 border-l-gray-300'
+                        };
+
+                        $statusBadge = match($log['status'] ?? 'pending') {
+                            'sent' => 'bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20',
+                            'failed' => 'bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20',
+                            'pending' => 'bg-yellow-50 text-yellow-700 ring-1 ring-inset ring-yellow-600/20',
+                            default => 'bg-gray-50 text-gray-700 ring-1 ring-inset ring-gray-600/20'
+                        };
+
+                        $statusLabel = match($log['status'] ?? 'pending') {
+                            'sent' => '成功',
+                            'failed' => '失敗',
+                            'pending' => '送信中',
+                            default => '不明'
+                        };
+
+                        $channelLabel = match($log['channel'] ?? 'other') {
+                            'line' => 'LINE',
+                            'sms' => 'SMS',
+                            'email' => 'メール',
+                            default => 'その他'
+                        };
+
+                        $typeLabel = match($log['notification_type'] ?? 'other') {
+                            'reservation_confirmation' => '予約確認',
+                            'reservation_change' => '予約変更',
+                            'reservation_cancellation' => '予約キャンセル',
+                            'reservation_reminder' => '予約リマインダー',
+                            'follow_up' => 'フォローアップ',
+                            default => $log['notification_type'] ?? '不明'
+                        };
+
+                        $customerName = $log['customer']
+                            ? ($log['customer']['last_name'] . ' ' . $log['customer']['first_name'])
+                            : '不明';
+                        $storeName = $log['store']['name'] ?? '不明';
+                        $recipient = $log['recipient'] ?? '-';
+                        $createdAt = date('Y/m/d H:i', strtotime($log['created_at']));
+                    @endphp
+
+                    <div class="bg-white border rounded-lg {{ $channelColors }} overflow-hidden">
+                        <div class="p-4">
+                            <!-- ヘッダー -->
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-3">
+                                    <span class="px-2 py-0.5 text-xs font-medium rounded {{ $statusBadge }}">
+                                        {{ $statusLabel }}
+                                    </span>
+                                    <span class="px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-700">
+                                        {{ $channelLabel }}
+                                    </span>
+                                    <span class="text-xs text-gray-500">
+                                        {{ $createdAt }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- 通知情報 -->
+                            <div class="space-y-1.5 text-sm">
+                                <div class="flex">
+                                    <span class="w-32 text-gray-500">通知種別:</span>
+                                    <span class="text-gray-900 font-medium">{{ $typeLabel }}</span>
+                                </div>
+
+                                <div class="flex">
+                                    <span class="w-32 text-gray-500">顧客:</span>
+                                    <span class="text-gray-900">{{ $customerName }}</span>
+                                </div>
+
+                                <div class="flex">
+                                    <span class="w-32 text-gray-500">店舗:</span>
+                                    <span class="text-gray-900">{{ $storeName }}</span>
+                                </div>
+
+                                <div class="flex">
+                                    <span class="w-32 text-gray-500">送信先:</span>
+                                    <span class="text-gray-900 font-mono text-xs">{{ $recipient }}</span>
+                                </div>
+
+                                @if($log['reservation'])
+                                    <div class="flex">
+                                        <span class="w-32 text-gray-500">予約番号:</span>
+                                        <span class="text-gray-900">{{ $log['reservation']['reservation_number'] ?? '-' }}</span>
+                                    </div>
+                                @endif
+
+                                @if($log['status'] === 'failed' && ($log['error_code'] || $log['error_message']))
+                                    <div class="flex">
+                                        <span class="w-32 text-gray-500">エラー:</span>
+                                        <span class="text-red-600">
+                                            @if($log['error_code'])
+                                                [{{ $log['error_code'] }}]
+                                            @endif
+                                            {{ $log['error_message'] ?? '' }}
+                                        </span>
+                                    </div>
+                                @endif
+
+                                @if($log['message_id'])
+                                    <div class="flex">
+                                        <span class="w-32 text-gray-500">メッセージID:</span>
+                                        <span class="text-gray-600 font-mono text-xs">{{ $log['message_id'] }}</span>
+                                    </div>
+                                @endif
+                            </div>
+
+                            <!-- メタデータ -->
+                            @if($log['metadata'])
+                                <details class="mt-3">
+                                    <summary class="cursor-pointer text-xs text-gray-500 hover:text-gray-700 select-none">
+                                        詳細情報
+                                    </summary>
+                                    <pre class="mt-2 p-3 bg-gray-50 text-gray-800 text-xs rounded border overflow-x-auto">{{ json_encode($log['metadata'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</pre>
+                                </details>
+                            @endif
+                        </div>
+                    </div>
+                @endforeach
+            @endif
+        </div>
+
+        <!-- ページング情報 -->
+        @if(count($notificationLogs) > 0)
+            <div class="text-center text-xs text-gray-500 mt-4 pb-4">
+                最新{{ count($notificationLogs) }}件を表示中
+            </div>
+        @endif
         @endif
     </div>
 </x-filament-panels::page>

@@ -200,4 +200,12 @@ class User extends Authenticatable implements FilamentUser
 
         return $this->manageableStores()->where('stores.id', $storeId)->exists();
     }
+
+    /**
+     * スタッフとして担当した売上
+     */
+    public function salesAsStaff()
+    {
+        return $this->hasMany(\App\Models\Sale::class, 'staff_id');
+    }
 }
