@@ -57,7 +57,7 @@
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div class="text-center">
                     <div class="text-3xl font-bold text-primary-600">
-                        ¥{{ number_format($this->salesData['total_sales'] ?? 0) }}
+                        ¥{{ number_format((int)($this->salesData['total_sales'] ?? 0)) }}
                     </div>
                     <div class="text-sm text-gray-600 mt-1">総売上</div>
                 </div>
@@ -78,7 +78,7 @@
                 
                 <div class="text-center">
                     <div class="text-3xl font-bold text-purple-600">
-                        ¥{{ number_format(($this->salesData['total_sales'] ?? 0) / max(($this->salesData['customer_count'] ?? 1), 1)) }}
+                        ¥{{ number_format((int)(($this->salesData['total_sales'] ?? 0) / max(($this->salesData['customer_count'] ?? 1), 1))) }}
                     </div>
                     <div class="text-sm text-gray-600 mt-1">客単価</div>
                 </div>
@@ -94,7 +94,7 @@
                             {{ $this->salesData['subscription_count'] ?? 0 }}件
                             @if(($this->salesData['subscription_with_products_count'] ?? 0) > 0)
                                 <span class="text-xs text-gray-500 ml-1">
-                                    (うち物販: {{ $this->salesData['subscription_with_products_count'] }}件、¥{{ number_format($this->salesData['subscription_with_products_amount']) }})
+                                    (うち物販: {{ $this->salesData['subscription_with_products_count'] }}件、¥{{ number_format((int)($this->salesData['subscription_with_products_amount'] ?? 0)) }})
                                 </span>
                             @endif
                         </span>
@@ -105,7 +105,7 @@
                             {{ $this->salesData['ticket_count'] ?? 0 }}件
                             @if(($this->salesData['ticket_with_products_count'] ?? 0) > 0)
                                 <span class="text-xs text-gray-500 ml-1">
-                                    (うち物販: {{ $this->salesData['ticket_with_products_count'] }}件、¥{{ number_format($this->salesData['ticket_with_products_amount']) }})
+                                    (うち物販: {{ $this->salesData['ticket_with_products_count'] }}件、¥{{ number_format((int)($this->salesData['ticket_with_products_amount'] ?? 0)) }})
                                 </span>
                             @endif
                         </span>
@@ -125,7 +125,7 @@
                         @foreach($this->salesData['sales_by_payment_method'] as $method)
                             <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
                                 <span class="text-sm text-gray-600">{{ $method['name'] }}</span>
-                                <span class="font-semibold">¥{{ number_format($method['amount']) }} ({{ $method['count'] }}件)</span>
+                                <span class="font-semibold">¥{{ number_format((int)($method['amount'] ?? 0)) }} ({{ $method['count'] }}件)</span>
                             </div>
                         @endforeach
                     </div>
@@ -211,7 +211,7 @@
                                                 <!-- 計上済み：取消ボタンのみ -->
                                                 <button
                                                     wire:click="cancelSale({{ $res['id'] }})"
-                                                    wire:confirm="本当にこの売上を取り消しますか？\n\n顧客名: {{ $res['customer_name'] }}\nメニュー: {{ $res['menu_name'] }}\n金額: ¥{{ number_format($res['amount']) }}"
+                                                    wire:confirm="本当にこの売上を取り消しますか？\n\n顧客名: {{ $res['customer_name'] }}\nメニュー: {{ $res['menu_name'] }}\n金額: ¥{{ number_format((int)($res['amount'] ?? 0)) }}"
                                                     style="display: inline-block !important; visibility: visible !important; opacity: 1 !important; background-color: #fef3c7 !important; color: #92400e !important; padding: 6px 12px !important; border-radius: 6px !important; font-size: 12px !important; font-weight: 500 !important; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important; border: 1px solid #fbbf24 !important;"
                                                     onmouseover="this.style.backgroundColor='#fde68a'"
                                                     onmouseout="this.style.backgroundColor='#fef3c7'"
@@ -269,7 +269,7 @@
                         <div class="flex justify-between items-center p-2 hover:bg-gray-50 rounded">
                             <span class="text-sm">{{ $staffSales['name'] }}</span>
                             <div class="text-right">
-                                <span class="font-semibold">¥{{ number_format($staffSales['amount']) }}</span>
+                                <span class="font-semibold">¥{{ number_format((int)($staffSales['amount'] ?? 0)) }}</span>
                                 <span class="text-xs text-gray-500 ml-2">({{ $staffSales['count'] }}件)</span>
                             </div>
                         </div>
@@ -290,7 +290,7 @@
                                 <span class="text-sm">{{ $menu->item_name }}</span>
                             </div>
                             <div class="text-right">
-                                <span class="font-semibold">¥{{ number_format($menu->total) }}</span>
+                                <span class="font-semibold">¥{{ number_format((int)($menu->total ?? 0)) }}</span>
                                 <span class="text-xs text-gray-500 ml-2">({{ $menu->count }}個)</span>
                             </div>
                         </div>
@@ -442,7 +442,7 @@
                                         <div class="col-span-5">
                                             <label class="block text-xs text-gray-500 mb-1">オプション選択</label>
                                             <select
-                                                wire:model="editorData.option_items.{{ $index }}.option_id"
+                                                wire:model.live="editorData.option_items.{{ $index }}.option_id"
                                                 wire:change="selectOptionMenu({{ $index }}, $event.target.value)"
                                                 class="block w-full text-sm border-gray-300 rounded-md"
                                                 @if(empty($this->editorData['option_menus'])) disabled @endif>
@@ -450,7 +450,7 @@
                                                 @foreach($this->editorData['option_menus'] ?? [] as $optionMenu)
                                                     <option value="{{ $optionMenu['type'] }}:{{ $optionMenu['id'] }}"
                                                             @if(isset($item['option_type']) && isset($item['option_id']) && $item['option_type'] == $optionMenu['type'] && $item['option_id'] == $optionMenu['id']) selected @endif>
-                                                        {{ $optionMenu['name'] }} (¥{{ number_format($optionMenu['price']) }})
+                                                        {{ $optionMenu['name'] }} (¥{{ number_format((int)($optionMenu['price'] ?? 0)) }})
                                                     </option>
                                                 @endforeach
                                             </select>
