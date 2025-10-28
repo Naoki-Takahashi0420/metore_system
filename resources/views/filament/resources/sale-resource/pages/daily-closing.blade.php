@@ -442,7 +442,6 @@
                                         <div class="col-span-5">
                                             <label class="block text-xs text-gray-500 mb-1">オプション選択</label>
                                             <select
-                                                wire:model.live="editorData.option_items.{{ $index }}.option_id"
                                                 wire:change="selectOptionMenu({{ $index }}, $event.target.value)"
                                                 class="block w-full text-sm border-gray-300 rounded-md"
                                                 @if(empty($this->editorData['option_menus'])) disabled @endif>
