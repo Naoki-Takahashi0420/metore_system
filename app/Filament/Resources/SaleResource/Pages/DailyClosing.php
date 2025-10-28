@@ -215,12 +215,30 @@ class DailyClosing extends Page implements HasForms
         $defaultPaymentMethod = $storePaymentMethods[0] ?? '現金';
 
         $this->unposted = $reservations->map(function ($reservation) use ($defaultPaymentMethod, $storePaymentMethods) {
-            // 自動判定: customer_ticket_id > customer_subscription_id > spot
+            // 自動判定: customer_ticket_id > customer_subscription_id > アクティブなサブスク契約 > spot
             $source = 'spot';
             if ($reservation->customer_ticket_id) {
                 $source = 'ticket';
             } elseif ($reservation->customer_subscription_id) {
                 $source = 'subscription';
+            } else {
+                // customer_subscription_idがNULLでも、予約日時点でアクティブなサブスク契約があれば判定
+                $hasActiveSubscription = \App\Models\CustomerSubscription::where('customer_id', $reservation->customer_id)
+                    ->where('store_id', $reservation->store_id)
+                    ->where('status', 'active')
+                    ->where(function($q) use ($reservation) {
+                        $q->whereNull('start_date')
+                          ->orWhere('start_date', '<=', $reservation->reservation_date);
+                    })
+                    ->where(function($q) use ($reservation) {
+                        $q->whereNull('end_date')
+                          ->orWhere('end_date', '>=', $reservation->reservation_date);
+                    })
+                    ->exists();
+
+                if ($hasActiveSubscription) {
+                    $source = 'subscription';
+                }
             }
 
             // カルテから支払方法を取得（全sourceで優先）
