@@ -1,6 +1,6 @@
 <x-filament-panels::page>
     {{-- ローディングオーバーレイ --}}
-    <div wire:loading class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div id="customLoading" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.5); z-index: 9999; align-items: center; justify-content: center;">
         <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl">
             <div class="flex items-center gap-3">
                 <svg class="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -148,129 +148,160 @@
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         @endonce
 
-        <div class="mb-6" wire:key="chart-{{ $storeId }}-{{ $dateFrom }}-{{ $dateTo }}">
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <x-heroicon-o-chart-bar-square class="w-5 h-5 text-indigo-600" />
-                    売上推移（日別）
-                </h3>
-                <div class="relative" style="height: 300px;">
-                    <canvas id="salesChart-{{ $storeId }}-{{ $dateFrom }}-{{ $dateTo }}"></canvas>
+        <div class="mb-6 flex justify-center">
+            <div class="w-full max-w-4xl">
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <x-heroicon-o-chart-bar-square class="w-5 h-5 text-indigo-600" />
+                        売上推移（日別）
+                    </h3>
+                    <div class="relative" style="height: 300px;">
+                        <canvas id="salesChart"></canvas>
+                    </div>
                 </div>
             </div>
+        </div>
 
-            <script>
-                (function() {
-                    const chartId = 'salesChart-{{ $storeId }}-{{ $dateFrom }}-{{ $dateTo }}';
-                    const chartLabels = {!! json_encode($this->stats['chart_labels'] ?? []) !!};
-                    const chartData = {!! json_encode($this->stats['chart_data'] ?? []) !!};
+        @script
+        <script>
+            let salesChartInstance = null;
+            const loadingEl = document.getElementById('customLoading');
 
-                    console.log('🔍 Chart script executing for:', chartId);
-                    console.log('📊 Chart labels:', chartLabels);
-                    console.log('💰 Chart data:', chartData);
-                    console.log('✅ Chart.js available:', typeof Chart !== 'undefined');
+            function showLoading() {
+                if (loadingEl) {
+                    loadingEl.style.display = 'flex';
+                }
+            }
 
-                    function initChart() {
-                        console.log('🚀 initChart called for:', chartId);
+            function hideLoading() {
+                if (loadingEl) {
+                    loadingEl.style.display = 'none';
+                }
+            }
 
-                        const canvas = document.getElementById(chartId);
-                        console.log('🎨 Canvas found:', !!canvas);
+            function initSalesChart(labels, data) {
+                console.log('🔍 initSalesChart called');
+                console.log('📊 Labels:', labels);
+                console.log('💰 Data:', data);
 
-                        if (!canvas) {
-                            console.error('❌ Canvas not found:', chartId);
-                            return;
-                        }
+                const canvas = document.getElementById('salesChart');
+                if (!canvas) {
+                    console.error('❌ Canvas not found');
+                    hideLoading();
+                    return;
+                }
 
-                        // Destroy existing chart if any
-                        if (canvas.chart) {
-                            console.log('🗑️ Destroying existing chart');
-                            canvas.chart.destroy();
-                        }
+                // Destroy existing chart
+                if (salesChartInstance) {
+                    console.log('🗑️ Destroying existing chart');
+                    salesChartInstance.destroy();
+                }
 
-                        console.log('🎯 Creating new chart...');
-                        try {
-                            canvas.chart = new Chart(canvas, {
-                                type: 'line',
-                                data: {
-                                    labels: chartLabels,
-                                    datasets: [{
-                                        label: '売上金額',
-                                        data: chartData,
-                                        borderColor: 'rgb(59, 130, 246)',
-                                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                                        tension: 0.3,
-                                        fill: true,
-                                        pointRadius: 4,
-                                        pointHoverRadius: 6,
-                                        pointBackgroundColor: 'rgb(59, 130, 246)',
-                                        pointBorderColor: '#fff',
-                                        pointBorderWidth: 2
-                                    }]
+                console.log('🎯 Creating new chart...');
+                try {
+                    salesChartInstance = new Chart(canvas, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: '売上金額',
+                                data: data,
+                                borderColor: 'rgb(59, 130, 246)',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                tension: 0.3,
+                                fill: true,
+                                pointRadius: 4,
+                                pointHoverRadius: 6,
+                                pointBackgroundColor: 'rgb(59, 130, 246)',
+                                pointBorderColor: '#fff',
+                                pointBorderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: {
+                                mode: 'index',
+                                intersect: false
+                            },
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'top'
                                 },
-                                options: {
-                                    responsive: true,
-                                    maintainAspectRatio: false,
-                                    interaction: {
-                                        mode: 'index',
-                                        intersect: false
-                                    },
-                                    plugins: {
-                                        legend: {
-                                            display: true,
-                                            position: 'top'
-                                        },
-                                        tooltip: {
-                                            callbacks: {
-                                                label: function(context) {
-                                                    return '売上: ¥' + context.parsed.y.toLocaleString('ja-JP');
-                                                }
-                                            }
-                                        }
-                                    },
-                                    scales: {
-                                        y: {
-                                            beginAtZero: true,
-                                            ticks: {
-                                                callback: function(value) {
-                                                    return '¥' + value.toLocaleString('ja-JP');
-                                                }
-                                            }
-                                        },
-                                        x: {
-                                            grid: {
-                                                display: false
-                                            }
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return '売上: ¥' + context.parsed.y.toLocaleString('ja-JP');
                                         }
                                     }
                                 }
-                            });
-                            console.log('✅ Chart created successfully!');
-                        } catch (error) {
-                            console.error('❌ Error creating chart:', error);
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        callback: function(value) {
+                                            return '¥' + value.toLocaleString('ja-JP');
+                                        }
+                                    }
+                                },
+                                x: {
+                                    grid: {
+                                        display: false
+                                    }
+                                }
+                            }
                         }
-                    }
+                    });
+                    console.log('✅ Chart created successfully!');
+                    hideLoading();
+                } catch (error) {
+                    console.error('❌ Error creating chart:', error);
+                    hideLoading();
+                }
+            }
 
-                    function waitForChartJS() {
-                        if (typeof Chart !== 'undefined') {
-                            console.log('✅ Chart.js loaded, initializing...');
-                            initChart();
-                        } else {
-                            console.log('⏳ Waiting for Chart.js...');
-                            setTimeout(waitForChartJS, 100);
-                        }
-                    }
+            // 初回読み込み
+            const initialLabels = {!! json_encode($this->stats['chart_labels'] ?? []) !!};
+            const initialData = {!! json_encode($this->stats['chart_data'] ?? []) !!};
 
-                    // Start initialization
-                    if (document.readyState === 'loading') {
-                        console.log('⏳ Document still loading, waiting for DOMContentLoaded...');
-                        document.addEventListener('DOMContentLoaded', waitForChartJS);
-                    } else {
-                        console.log('✅ Document ready, starting initialization...');
-                        waitForChartJS();
-                    }
-                })();
-            </script>
-        </div>
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', () => {
+                    initSalesChart(initialLabels, initialData);
+                });
+            } else {
+                initSalesChart(initialLabels, initialData);
+            }
+
+            // Livewireイベントで更新
+            Livewire.on('chart-update', (event) => {
+                console.log('🔄 Chart update event received:', event);
+                showLoading();
+                // 少し遅延させてスムーズに
+                setTimeout(() => {
+                    initSalesChart(event.labels, event.data);
+                }, 100);
+            });
+
+            // Livewireのリクエスト開始/終了を監視
+            document.addEventListener('livewire:initialized', () => {
+                Livewire.hook('commit', ({ component, commit, respond, succeed, fail }) => {
+                    // リクエスト開始
+                    showLoading();
+
+                    // レスポンス処理
+                    succeed(({ snapshot, effect }) => {
+                        hideLoading();
+                    });
+
+                    fail(() => {
+                        hideLoading();
+                    });
+                });
+            });
+        </script>
+        @endscript
 
         {{-- スタッフ別売上：3パターン --}}
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">

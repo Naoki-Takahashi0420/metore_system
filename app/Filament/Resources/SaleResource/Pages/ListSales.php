@@ -20,7 +20,6 @@ class ListSales extends ListRecords
 
     protected static string $view = 'filament.resources.sale-resource.pages.list-sales';
 
-    #[Url(as: 'store')]
     public ?int $storeId = null;
 
     #[Url(as: 'from')]
@@ -84,7 +83,7 @@ class ListSales extends ListRecords
         $this->dateFrom = Carbon::today()->toDateString();
         $this->dateTo = Carbon::today()->toDateString();
         $this->loadStats();
-        $this->dispatch('stats-reloaded');
+        $this->dispatchChartUpdate();
     }
 
     public function setThisMonth(): void
@@ -92,7 +91,7 @@ class ListSales extends ListRecords
         $this->dateFrom = Carbon::now()->startOfMonth()->toDateString();
         $this->dateTo = Carbon::now()->toDateString();
         $this->loadStats();
-        $this->dispatch('stats-reloaded');
+        $this->dispatchChartUpdate();
     }
 
     public function setLastMonth(): void
@@ -100,7 +99,7 @@ class ListSales extends ListRecords
         $this->dateFrom = Carbon::now()->subMonth()->startOfMonth()->toDateString();
         $this->dateTo = Carbon::now()->subMonth()->endOfMonth()->toDateString();
         $this->loadStats();
-        $this->dispatch('stats-reloaded');
+        $this->dispatchChartUpdate();
     }
 
     public function setLast30Days(): void
@@ -108,26 +107,34 @@ class ListSales extends ListRecords
         $this->dateFrom = Carbon::now()->subDays(29)->toDateString();
         $this->dateTo = Carbon::now()->toDateString();
         $this->loadStats();
-        $this->dispatch('stats-reloaded');
+        $this->dispatchChartUpdate();
     }
 
     // フィルタ変更時
     public function updatedStoreId(): void
     {
         $this->loadStats();
-        $this->dispatch('stats-reloaded');
+        $this->dispatchChartUpdate();
     }
 
     public function updatedDateFrom(): void
     {
         $this->loadStats();
-        $this->dispatch('stats-reloaded');
+        $this->dispatchChartUpdate();
     }
 
     public function updatedDateTo(): void
     {
         $this->loadStats();
-        $this->dispatch('stats-reloaded');
+        $this->dispatchChartUpdate();
+    }
+
+    private function dispatchChartUpdate(): void
+    {
+        $this->dispatch('chart-update',
+            labels: $this->stats['chart_labels'] ?? [],
+            data: $this->stats['chart_data'] ?? []
+        );
     }
 
     public function loadStats(): void

@@ -186,7 +186,7 @@
                                                 <!-- 計上済み：取消ボタンのみ -->
                                                 <button
                                                     wire:click="cancelSale({{ $res['id'] }})"
-                                                    wire:confirm="本当にこの売上を取り消しますか？\n\n顧客名: {{ $res['customer_name'] }}\nメニュー: {{ $res['menu_name'] }}\n金額: ¥{{ number_format($res['amount']) }}\n\nこの操作は監査ログに記録されます。"
+                                                    wire:confirm="本当にこの売上を取り消しますか？\n\n顧客名: {{ $res['customer_name'] }}\nメニュー: {{ $res['menu_name'] }}\n金額: ¥{{ number_format($res['amount']) }}"
                                                     style="display: inline-block !important; visibility: visible !important; opacity: 1 !important; background-color: #fef3c7 !important; color: #92400e !important; padding: 6px 12px !important; border-radius: 6px !important; font-size: 12px !important; font-weight: 500 !important; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important; border: 1px solid #fbbf24 !important;"
                                                     onmouseover="this.style.backgroundColor='#fde68a'"
                                                     onmouseout="this.style.backgroundColor='#fef3c7'"
