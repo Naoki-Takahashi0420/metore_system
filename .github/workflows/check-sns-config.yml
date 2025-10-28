@@ -1,0 +1,52 @@
+name: Check SNS Config
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check AWS SNS Configuration
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'CHECKCONFIG'
+        set -e
+        APP_DIR="/var/www/html"
+
+        echo "=== Checking AWS SNS Configuration ==="
+        cd $APP_DIR
+
+        # Check if .env exists
+        if [ -f .env ]; then
+          echo "✅ .env file exists"
+
+          # Check SNS settings (without showing values)
+          echo ""
+          echo "SNS_KEY設定: $(grep -q 'SNS_KEY=' .env && echo '✅ 存在' || echo '❌ 未設定')"
+          echo "SNS_SECRET設定: $(grep -q 'SNS_SECRET=' .env && echo '✅ 存在' || echo '❌ 未設定')"
+          echo "SNS_REGION設定: $(grep -q 'SNS_REGION=' .env && echo '✅ 存在' || echo '❌ 未設定')"
+          echo "SNS_ENABLED設定: $(grep -q 'SNS_ENABLED=' .env && echo "$(grep 'SNS_ENABLED=' .env)" || echo 'デフォルト: true')"
+
+          echo ""
+          echo "=== Laravel Config Cache ==="
+          sudo -u www-data php artisan config:show services.sns 2>&1 || echo "Config表示エラー"
+
+        else
+          echo "❌ .env file not found"
+        fi
+
+        echo ""
+        echo "=== Recent Laravel Logs (SMS related) ==="
+        sudo tail -100 /var/www/html/storage/logs/laravel.log | grep -i "sms\|otp\|sns" | tail -20 || echo "No SMS logs found"
+
+        CHECKCONFIG
+
+        rm -f deploy_key.pem
