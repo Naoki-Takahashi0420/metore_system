@@ -9,6 +9,9 @@
                         wire:model.live="selectedStoreId"
                         class="block w-64 text-sm border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500"
                     >
+                        @if(auth()->user()->hasRole('super_admin'))
+                            <option value="">全店舗</option>
+                        @endif
                         @foreach($this->getAccessibleStores() as $store)
                             <option value="{{ $store->id }}">{{ $store->name }}</option>
                         @endforeach

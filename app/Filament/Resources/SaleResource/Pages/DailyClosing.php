@@ -43,6 +43,8 @@ class DailyClosing extends Page implements HasForms
     {
         $this->closingDate = today()->format('Y-m-d');
 
+        $user = auth()->user();
+
         // 店舗の初期値を設定
         $accessibleStores = $this->getAccessibleStores();
         if ($accessibleStores->isEmpty()) {
@@ -50,9 +52,14 @@ class DailyClosing extends Page implements HasForms
             abort(403, 'アクセス可能な店舗がありません');
         }
 
-        // デフォルトは自分の所属店舗、なければ最初の管理可能店舗
-        $this->selectedStoreId = auth()->user()->store_id
-            ?? $accessibleStores->first()->id;
+        // デフォルト店舗の選択
+        if ($user->hasRole('super_admin')) {
+            // super_adminは全店舗表示（null）
+            $this->selectedStoreId = null;
+        } else {
+            // 一般ユーザーは自分の所属店舗、なければ最初の管理可能店舗
+            $this->selectedStoreId = $user->store_id ?? $accessibleStores->first()->id;
+        }
 
         $this->loadSalesData();
         $this->loadUnpostedReservations();

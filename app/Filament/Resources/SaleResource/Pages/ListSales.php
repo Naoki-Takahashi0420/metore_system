@@ -33,9 +33,27 @@ class ListSales extends ListRecords
 
     public function mount(): void
     {
+        $user = auth()->user();
+
+        // 店舗リスト取得（権限に応じてフィルタリング）
+        if ($user->hasRole('super_admin')) {
+            // super_adminは全店舗を選択可能
+            $this->stores = Store::pluck('name', 'id')->toArray();
+        } else {
+            // owner/manager/staffは管理可能店舗のみ
+            $manageableStoreIds = $user->manageableStores()->pluck('stores.id')->toArray();
+            $this->stores = Store::whereIn('id', $manageableStoreIds)->pluck('name', 'id')->toArray();
+        }
+
         // 初期値設定
         if (!$this->storeId) {
-            $this->storeId = auth()->user()->store_id;
+            if ($user->hasRole('super_admin')) {
+                // super_adminは全店舗表示（null）
+                $this->storeId = null;
+            } else {
+                // 一般ユーザーは所属店舗、または管理店舗の最初の店舗
+                $this->storeId = $user->store_id ?? $user->manageableStores()->first()?->id;
+            }
         }
         if (!$this->dateFrom) {
             $this->dateFrom = Carbon::now()->startOfMonth()->toDateString();
@@ -43,9 +61,6 @@ class ListSales extends ListRecords
         if (!$this->dateTo) {
             $this->dateTo = Carbon::now()->toDateString();
         }
-
-        // 店舗リスト取得
-        $this->stores = Store::pluck('name', 'id')->toArray();
 
         parent::mount();
         $this->loadStats();

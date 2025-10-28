@@ -19,6 +19,9 @@
             <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">店舗</label>
                 <select wire:model.live="storeId" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                    @if(auth()->user()->hasRole('super_admin'))
+                        <option value="">全店舗</option>
+                    @endif
                     @foreach($this->stores as $id => $name)
                         <option value="{{ $id }}">{{ $name }}</option>
                     @endforeach
