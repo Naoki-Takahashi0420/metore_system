@@ -86,7 +86,21 @@ class SmsService
             return false;
         }
     }
-    
+
+    /**
+     * OTP送信
+     *
+     * @param string $phone 電話番号
+     * @param string $otp OTPコード
+     * @return bool 送信成功の場合true
+     */
+    public function sendOtp(string $phone, string $otp): bool
+    {
+        $message = "【Xsyumeno】認証コード: {$otp}\n\nこのコードは5分間有効です。";
+
+        return $this->sendSms($phone, $message);
+    }
+
     /**
      * 予約リマインダーSMS送信
      */
