@@ -325,10 +325,13 @@ class SalePostingService
         // タイプに応じて追加フィールドを設定
         if ($type === 'option') {
             $itemData['menu_option_id'] = $data['menu_option_id'] ?? null;
-            $itemData['name'] = $data['name'] ?? 'オプション';
+            $itemData['item_name'] = $data['name'] ?? 'オプション';
         } elseif ($type === 'product') {
-            $itemData['name'] = $data['name'] ?? '物販';
+            $itemData['item_name'] = $data['name'] ?? '物販';
             $itemData['tax_rate'] = $data['tax_rate'] ?? 0.1;
+        } else {
+            // メニュー/コースなどの場合
+            $itemData['item_name'] = $data['name'] ?? 'メニュー';
         }
 
         return SaleItem::create($itemData);
