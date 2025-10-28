@@ -93,6 +93,107 @@
             </div>
         </div>
 
+        <!-- 本日の未計上予約 -->
+        @if(count($this->unposted) > 0)
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold text-gray-900">本日の未計上予約</h2>
+                    <x-filament::button
+                        wire:click="postAll"
+                        color="success"
+                        size="sm"
+                    >
+                        一括計上
+                    </x-filament::button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">時間</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">顧客</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">メニュー</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">種別</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">支払方法</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">金額</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @foreach($this->unposted as $res)
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-3 py-3 text-sm text-gray-900">{{ $res['time'] }}</td>
+                                    <td class="px-3 py-3 text-sm text-gray-900">{{ $res['customer_name'] }}</td>
+                                    <td class="px-3 py-3 text-sm text-gray-900">{{ $res['menu_name'] }}</td>
+                                    <td class="px-3 py-3">
+                                        @if($res['source'] === 'subscription')
+                                            <span class="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">サブスク</span>
+                                        @elseif($res['source'] === 'ticket')
+                                            <span class="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded">回数券</span>
+                                        @else
+                                            <span class="px-2 py-0.5 text-xs bg-gray-100 text-gray-700 rounded">スポット</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-3 py-3">
+                                        @if($res['source'] === 'spot')
+                                            <select
+                                                wire:model="rowState.{{ $res['id'] }}.payment_method"
+                                                class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                            >
+                                                <option value="cash">現金</option>
+                                                <option value="credit_card">クレジットカード</option>
+                                                <option value="debit_card">デビットカード</option>
+                                                <option value="paypay">PayPay</option>
+                                                <option value="line_pay">LINE Pay</option>
+                                                <option value="other">その他</option>
+                                            </select>
+                                        @else
+                                            <span class="text-xs text-gray-500">その他</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-3 py-3">
+                                        @if($res['source'] === 'spot')
+                                            <input
+                                                type="number"
+                                                wire:model="rowState.{{ $res['id'] }}.amount"
+                                                class="block w-24 text-sm border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                                min="0"
+                                            />
+                                        @else
+                                            <span class="text-xs text-gray-500">¥0</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-3 py-3">
+                                        <x-filament::button
+                                            wire:click="postSale({{ $res['id'] }})"
+                                            color="primary"
+                                            size="xs"
+                                        >
+                                            計上
+                                        </x-filament::button>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-3 text-sm text-gray-500">
+                    <p class="flex items-center">
+                        <span class="inline-block w-3 h-3 bg-blue-100 rounded mr-2"></span>
+                        <span class="font-semibold text-blue-700 mr-1">青（サブスク）</span>・
+                        <span class="inline-block w-3 h-3 bg-green-100 rounded mx-2"></span>
+                        <span class="font-semibold text-green-700 mr-1">緑（回数券）</span>
+                        は0円で計上されます。
+                        <span class="inline-block w-3 h-3 bg-gray-100 rounded mx-2"></span>
+                        <span class="font-semibold text-gray-700 mr-1">灰（スポット）</span>
+                        は支払方法と金額を入力してください。
+                    </p>
+                </div>
+            </div>
+        @endif
+
         <!-- スタッフ別売上 -->
         @if(isset($this->salesData['sales_by_staff']) && count($this->salesData['sales_by_staff']) > 0)
             <div class="bg-white rounded-lg shadow p-6">

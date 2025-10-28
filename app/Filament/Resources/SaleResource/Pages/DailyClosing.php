@@ -5,6 +5,8 @@ namespace App\Filament\Resources\SaleResource\Pages;
 use App\Filament\Resources\SaleResource;
 use App\Models\Sale;
 use App\Models\DailyClosing as DailyClosingModel;
+use App\Models\Reservation;
+use App\Models\CustomerTicket;
 use Filament\Resources\Pages\Page;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
@@ -26,13 +28,16 @@ class DailyClosing extends Page implements HasForms
     public $openingCash = 50000; // デフォルト釣銭準備金
     public $actualCash;
     public $notes;
-    
+
     public $salesData = [];
+    public $unposted = []; // 未計上予約のDTO配列
+    public $rowState = []; // 各行のpayment_methodやoverride_source/amountのUI状態
     
     public function mount(): void
     {
         $this->closingDate = today()->format('Y-m-d');
         $this->loadSalesData();
+        $this->loadUnpostedReservations();
     }
     
     public function loadSalesData(): void
@@ -75,7 +80,191 @@ class DailyClosing extends Page implements HasForms
             
         $this->salesData['top_menus'] = $menuSales;
     }
-    
+
+    /**
+     * 未計上予約を読み込む
+     */
+    public function loadUnpostedReservations(): void
+    {
+        $reservations = Reservation::whereDate('reservation_date', $this->closingDate)
+            ->where('store_id', auth()->user()->store_id ?? 1)
+            ->where('status', 'completed')
+            ->whereDoesntHave('sale')
+            ->with(['customer', 'menu'])
+            ->orderBy('start_time')
+            ->get();
+
+        $this->unposted = $reservations->map(function ($reservation) {
+            // 自動判定: customer_ticket_id > customer_subscription_id > spot
+            $source = 'spot';
+            if ($reservation->customer_ticket_id) {
+                $source = 'ticket';
+            } elseif ($reservation->customer_subscription_id) {
+                $source = 'subscription';
+            }
+
+            $paymentMethod = ($source === 'spot') ? 'cash' : 'other';
+            $amount = ($source === 'spot') ? ($reservation->total_amount ?? 0) : 0;
+
+            // 行の初期状態を設定
+            $this->rowState[$reservation->id] = [
+                'source' => $source,
+                'payment_method' => $paymentMethod,
+                'amount' => $amount,
+            ];
+
+            return [
+                'id' => $reservation->id,
+                'time' => $reservation->start_time,
+                'customer_name' => $reservation->customer?->name ?? '不明',
+                'menu_name' => $reservation->menu?->name ?? '不明',
+                'source' => $source,
+                'amount' => $amount,
+            ];
+        })->toArray();
+    }
+
+    /**
+     * 個別の予約を計上
+     */
+    public function postSale(int $reservationId): void
+    {
+        try {
+            // 二重計上チェック
+            if (Sale::where('reservation_id', $reservationId)->exists()) {
+                Notification::make()
+                    ->title('エラー')
+                    ->body('この予約は既に計上済みです')
+                    ->warning()
+                    ->send();
+                return;
+            }
+
+            $reservation = Reservation::findOrFail($reservationId);
+            $state = $this->rowState[$reservationId] ?? null;
+
+            if (!$state) {
+                throw new \Exception('予約の状態が見つかりません');
+            }
+
+            $source = $state['source'];
+            $method = $state['payment_method'];
+            $amount = $state['amount'];
+
+            // サブスク/回数券は強制的に0円
+            if (in_array($source, ['subscription', 'ticket'])) {
+                $amount = 0;
+            }
+
+            // スポットの場合は金額を更新
+            if ($source === 'spot' && $amount != $reservation->total_amount) {
+                $reservation->update(['total_amount' => $amount]);
+            }
+
+            DB::beginTransaction();
+
+            // payment_sourceに応じて計上
+            $sale = $reservation->completeAndCreateSale($method, $source);
+
+            DB::commit();
+
+            Notification::make()
+                ->title('計上完了')
+                ->body("予約番号 {$reservation->reservation_number} を計上しました")
+                ->success()
+                ->send();
+
+            // データを再読み込み
+            $this->loadSalesData();
+            $this->loadUnpostedReservations();
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Notification::make()
+                ->title('エラー')
+                ->body('計上処理中にエラーが発生しました: ' . $e->getMessage())
+                ->danger()
+                ->send();
+        }
+    }
+
+    /**
+     * 全ての未計上予約を一括計上
+     */
+    public function postAll(): void
+    {
+        $successCount = 0;
+        $errorCount = 0;
+
+        foreach ($this->unposted as $res) {
+            try {
+                $this->postSale($res['id']);
+                $successCount++;
+            } catch (\Exception $e) {
+                $errorCount++;
+                \Log::error('一括計上エラー', [
+                    'reservation_id' => $res['id'],
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        Notification::make()
+            ->title('一括計上完了')
+            ->body("成功: {$successCount}件、エラー: {$errorCount}件")
+            ->success()
+            ->send();
+
+        // データを再読み込み
+        $this->loadSalesData();
+        $this->loadUnpostedReservations();
+    }
+
+    /**
+     * 売上を取り消す
+     */
+    public function voidSale(int $saleId): void
+    {
+        try {
+            DB::beginTransaction();
+
+            $sale = Sale::with(['customerTicket'])->findOrFail($saleId);
+
+            // 回数券の場合は返却
+            if ($sale->customer_ticket_id) {
+                $ticket = CustomerTicket::find($sale->customer_ticket_id);
+                if ($ticket) {
+                    $ticket->refund($sale->reservation_id, 1);
+                }
+            }
+
+            // 売上を削除
+            $sale->delete();
+
+            DB::commit();
+
+            Notification::make()
+                ->title('取消完了')
+                ->body("売上番号 {$sale->sale_number} を取り消しました")
+                ->success()
+                ->send();
+
+            // データを再読み込み
+            $this->loadSalesData();
+            $this->loadUnpostedReservations();
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Notification::make()
+                ->title('エラー')
+                ->body('取消処理中にエラーが発生しました: ' . $e->getMessage())
+                ->danger()
+                ->send();
+        }
+    }
+
     public function getFormSchema(): array
     {
         return [

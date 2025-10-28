@@ -758,7 +758,7 @@ class Reservation extends Model
                 'payment_status' => 'paid',
             ]);
 
-            // 売上データを準備
+            // 基本の売上データ
             $saleData = [
                 'sale_number' => Sale::generateSaleNumber(),
                 'reservation_id' => $this->id,
@@ -767,11 +767,7 @@ class Reservation extends Model
                 'staff_id' => $this->staff_id ?? auth()->id(),
                 'sale_date' => $this->reservation_date,
                 'sale_time' => now()->format('H:i'),
-                'subtotal' => $this->total_amount ?? 0,
-                'tax_amount' => round(($this->total_amount ?? 0) * 0.1, 0),
                 'discount_amount' => 0,
-                'total_amount' => ($this->total_amount ?? 0) + round(($this->total_amount ?? 0) * 0.1, 0),
-                'payment_method' => $paymentMethod,
                 'payment_source' => $paymentSource,
                 'status' => 'completed',
                 'notes' => "予約番号: {$this->reservation_number}",
@@ -780,51 +776,65 @@ class Reservation extends Model
             // 支払いソースに応じた処理
             switch ($paymentSource) {
                 case 'subscription':
-                    // サブスク利用回数を消費
+                    // サブスク: 0円計上（Subscriptionは動的集計なのでdecrement不要）
+                    $saleData['subtotal'] = 0;
+                    $saleData['tax_amount'] = 0;
+                    $saleData['total_amount'] = 0;
+                    $saleData['payment_method'] = 'other';
+
                     if ($this->customer_subscription_id) {
-                        $subscription = CustomerSubscription::find($this->customer_subscription_id);
-                        if ($subscription && $subscription->remaining_count > 0) {
-                            $subscription->decrement('remaining_count');
-                            $saleData['customer_subscription_id'] = $subscription->id;
-                            $saleData['notes'] .= " | サブスク利用 (残り: {$subscription->remaining_count}回)";
-                        }
+                        $saleData['customer_subscription_id'] = $this->customer_subscription_id;
+                        $saleData['notes'] .= " | サブスク利用";
                     }
                     break;
 
                 case 'ticket':
-                    // 回数券残数を消費
+                    // 回数券: 0円計上、履歴ベースで消費
+                    $saleData['subtotal'] = 0;
+                    $saleData['tax_amount'] = 0;
+                    $saleData['total_amount'] = 0;
+                    $saleData['payment_method'] = 'other';
+
                     if ($this->customer_ticket_id) {
                         $ticket = CustomerTicket::find($this->customer_ticket_id);
-                        if ($ticket && $ticket->remaining_count > 0) {
-                            $ticket->decrement('remaining_count');
-                            $saleData['customer_ticket_id'] = $ticket->id;
-                            $saleData['notes'] .= " | 回数券利用 (残り: {$ticket->remaining_count}回)";
+                        if ($ticket) {
+                            // 履歴ベースで消費（use()メソッドを使用）
+                            $used = $ticket->use($this->id, 1);
+                            if ($used) {
+                                $saleData['customer_ticket_id'] = $ticket->id;
+                                $remaining = $ticket->fresh()->remaining_count;
+                                $saleData['notes'] .= " | 回数券利用 (残り: {$remaining}回)";
+                            }
                         }
                     }
                     break;
 
                 case 'spot':
                 default:
-                    // スポット支払いは特別な処理なし
+                    // スポット: 予約total_amountを税込として扱う（二重課税しない）
+                    $saleData['subtotal'] = $this->total_amount ?? 0;
+                    $saleData['tax_amount'] = 0;
+                    $saleData['total_amount'] = $this->total_amount ?? 0;
+                    $saleData['payment_method'] = $paymentMethod;
                     break;
             }
 
             // 売上レコードを作成
             $sale = Sale::create($saleData);
 
-            // メニュー明細を作成
-            if ($this->menu) {
+            // メニュー明細を作成（スポットのみ）
+            if ($paymentSource === 'spot' && $this->menu) {
                 $sale->items()->create([
                     'menu_id' => $this->menu_id,
                     'item_type' => 'service',
                     'item_name' => $this->menu->name,
                     'item_description' => $this->menu->description,
-                    'unit_price' => $this->menu->price,
+                    'unit_price' => $this->total_amount ?? 0,
                     'quantity' => 1,
                     'discount_amount' => 0,
-                    'tax_rate' => 10,
-                    'tax_amount' => round($this->menu->price * 0.1, 0),
-                    'amount' => $this->menu->price,
+                    'tax_rate' => 0,
+                    'tax_amount' => 0,
+                    'amount' => $this->total_amount ?? 0,
                 ]);
             }
 
