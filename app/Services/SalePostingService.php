@@ -315,11 +315,22 @@ class SalePostingService
      */
     protected function createSaleItem(Sale $sale, string $type, array $data): SaleItem
     {
+        $quantity = $data['quantity'] ?? 1;
+        $unitPrice = $data['price'] ?? 0;
+        $taxRate = $data['tax_rate'] ?? 0.1;
+
+        // 小計と税額を計算
+        $amount = $unitPrice * $quantity;
+        $taxAmount = floor($amount * $taxRate);
+
         $itemData = [
             'sale_id' => $sale->id,
             'type' => $type,
-            'quantity' => $data['quantity'] ?? 1,
-            'unit_price' => $data['price'] ?? 0,
+            'quantity' => $quantity,
+            'unit_price' => $unitPrice,
+            'amount' => $amount,
+            'tax_rate' => $taxRate,
+            'tax_amount' => $taxAmount,
         ];
 
         // タイプに応じて追加フィールドを設定
@@ -328,7 +339,6 @@ class SalePostingService
             $itemData['item_name'] = $data['name'] ?? 'オプション';
         } elseif ($type === 'product') {
             $itemData['item_name'] = $data['name'] ?? '物販';
-            $itemData['tax_rate'] = $data['tax_rate'] ?? 0.1;
         } else {
             // メニュー/コースなどの場合
             $itemData['item_name'] = $data['name'] ?? 'メニュー';
