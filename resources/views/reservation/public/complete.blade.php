@@ -62,7 +62,7 @@
                     @endif
 
                     @php
-                        // optionMenusを安全に取得
+                        // reservationOptionsを安全に取得
                         $optionMenus = collect([]);
                         $optionPrice = 0;
                         try {
@@ -81,8 +81,8 @@
                         <div class="text-sm text-gray-600 mb-1">追加オプション:</div>
                         @foreach($optionMenus as $option)
                         <div class="flex justify-between text-sm mb-1">
-                            <span class="text-gray-600">• {{ $option->name }}</span>
-                            <span>+¥{{ number_format($option->pivot->price ?? 0) }}</span>
+                            <span class="text-gray-600">• {{ $option->option_name }}</span>
+                            <span>+¥{{ number_format($option->option_price ?? 0) }}</span>
                         </div>
                         @endforeach
                     </div>

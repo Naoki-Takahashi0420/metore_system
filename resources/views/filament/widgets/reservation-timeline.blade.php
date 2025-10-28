@@ -1740,9 +1740,17 @@
 
                     <!-- 契約状況 -->
                     @php
-                        $activeSubscription = \App\Models\CustomerSubscription::where('customer_id', $selectedReservation->customer_id)
-                            ->where('status', 'active')
-                            ->first();
+                        // 予約に紐づくサブスクID優先 → 同店舗のアクティブ契約
+                        $activeSubscription = null;
+                        if ($selectedReservation->customer_subscription_id) {
+                            $activeSubscription = \App\Models\CustomerSubscription::find($selectedReservation->customer_subscription_id);
+                        }
+                        if (!$activeSubscription) {
+                            $activeSubscription = \App\Models\CustomerSubscription::where('customer_id', $selectedReservation->customer_id)
+                                ->where('store_id', $selectedReservation->store_id)
+                                ->where('status', 'active')
+                                ->first();
+                        }
                         $activeTicket = \App\Models\CustomerTicket::where('customer_id', $selectedReservation->customer_id)
                             ->where('status', 'active')
                             ->first();
@@ -1760,24 +1768,33 @@
                                         </div>
                                         <p class="text-base text-gray-700 mb-3">{{ $activeSubscription->plan_name ?? '月額プラン' }}</p>
                                         <div class="space-y-1">
-                                            <div class="flex items-center justify-between text-sm">
-                                                <span class="text-gray-500">利用状況</span>
-                                                <span class="font-semibold text-gray-900">{{ $activeSubscription->current_month_visits ?? 0 }}/{{ $activeSubscription->monthly_limit ?? 0 }}回</span>
-                                            </div>
                                             @php
-                                                $limit = $activeSubscription->monthly_limit ?? 1;
-                                                $used = $activeSubscription->current_month_visits ?? 0;
-                                                $percentage = ($limit > 0) ? min(($used / $limit) * 100, 100) : 0;
+                                                // 予約日をアンカーとして、その日が属するサイクルで計算
+                                                $anchor = \Carbon\Carbon::parse($selectedReservation->reservation_date);
+                                                $limit = $activeSubscription->monthly_limit ?? null;
+                                                $used = $activeSubscription ? $activeSubscription->getVisitsCountForPeriod($anchor) : 0;
+                                                $remaining = is_null($limit) ? null : max(0, $limit - $used);
+                                                // プログレスバーは「残り」を表現（残りが多いほどバーが満タン）
+                                                $percentage = ($limit && $limit > 0) ? min(($remaining / $limit) * 100, 100) : 0;
                                             @endphp
+                                            <div class="flex items-center justify-between text-sm">
+                                                <span class="text-gray-500">残り回数</span>
+                                                <span class="font-semibold text-gray-900">
+                                                    {{ is_null($limit) ? '無制限' : ($remaining . '/' . $limit . '回') }}
+                                                </span>
+                                            </div>
                                             <div class="w-full bg-gray-200 rounded-full h-1.5">
                                                 <div class="bg-blue-600 h-1.5 rounded-full" style="width: {{ $percentage }}%"></div>
                                             </div>
                                             <p class="text-xs text-gray-500 mt-2">
                                                 次回更新:
-                                                @if($activeSubscription->reset_day)
-                                                    毎月{{ $activeSubscription->reset_day }}日
-                                                @elseif($activeSubscription->next_billing_date)
-                                                    {{ \Carbon\Carbon::parse($activeSubscription->next_billing_date)->format('Y年n月j日') }}
+                                                @php
+                                                    // 予約日が属するサイクルの終了日+1日 = 次回更新日
+                                                    $periodEnd = $activeSubscription->getPeriodEndFor($anchor);
+                                                    $nextReset = $periodEnd ? $periodEnd->copy()->addDay()->startOfDay() : null;
+                                                @endphp
+                                                @if($nextReset)
+                                                    {{ $nextReset->format('Y年n月j日') }}
                                                 @else
                                                     -
                                                 @endif
@@ -1851,13 +1868,13 @@
 
                                 filterMenus() {
                                     if (!this.menuSearch || this.menuSearch.trim() === '') {
-                                        this.filteredMenus = this.menus.slice(0, 10);
+                                        this.filteredMenus = this.menus;
                                     } else {
                                         const searchLower = this.menuSearch.toLowerCase();
                                         this.filteredMenus = this.menus.filter(menu =>
                                             menu.name.toLowerCase().includes(searchLower) ||
                                             (menu.category && menu.category.toLowerCase().includes(searchLower))
-                                        ).slice(0, 10);
+                                        );
                                     }
                                 },
 
@@ -1877,7 +1894,33 @@
 
                                         if (result.success) {
                                             this.menus = result.data;
-                                            this.filteredMenus = result.data.slice(0, 10);
+
+                                            // 契約情報を取得してフラグ付け
+                                            try {
+                                                const contracts = await $wire.call(
+                                                    'getCustomerContractsForStore',
+                                                    {{ $selectedReservation->customer_id }},
+                                                    {{ $selectedReservation->store_id }}
+                                                );
+                                                if (contracts.success) {
+                                                    const subSet = new Set(contracts.data.sub_menu_ids || []);
+                                                    const ticketSet = new Set(contracts.data.ticket_menu_ids || []);
+                                                    this.menus = this.menus.map(m => ({
+                                                        ...m,
+                                                        isContractSubscription: subSet.has(m.id),
+                                                        isContractTicket: ticketSet.has(m.id),
+                                                    }));
+                                                    // 契約メニューを上にソート
+                                                    this.menus.sort((a,b) => {
+                                                        const aw = (a.isContractSubscription?2:0) + (a.isContractTicket?1:0);
+                                                        const bw = (b.isContractSubscription?2:0) + (b.isContractTicket?1:0);
+                                                        return bw - aw || a.name.localeCompare(b.name);
+                                                    });
+                                                }
+                                            } catch(e) { console.warn('契約取得失敗', e); }
+
+                                            // 初期表示（全件、スクロールで表示）
+                                            this.filteredMenus = this.menus;
                                             console.log('✅ メニュー読み込み完了:', this.menus.length, '件');
                                         } else {
                                             console.error('❌ 失敗:', result);
@@ -1945,9 +1988,33 @@
                                         console.log('Response:', result);
 
                                         if (result.success) {
-                                            alert('メニューを変更しました\n\n' +
-                                                  `合計時間: ${result.details.total_duration}\n` +
-                                                  `新しい終了時刻: ${result.details.new_end_time}`);
+                                            let message = 'メニューを変更しました\n\n';
+                                            message += `合計時間: ${result.details.total_duration}\n`;
+                                            message += `新しい終了時刻: ${result.details.new_end_time}\n`;
+
+                                            // サブスクリプション情報を表示
+                                            if (result.details.is_subscription) {
+                                                message += `\n【サブスクリプション】\n`;
+                                                if (result.details.subscription_bound) {
+                                                    message += `✓ サブスク紐付け: あり\n`;
+                                                    message += `✓ 支払い方法: ${result.details.payment_method}\n`;
+                                                    message += `✓ 合計金額: ¥${result.details.total_amount.toLocaleString()}\n`;
+                                                } else {
+                                                    message += `⚠️ サブスク紐付け: なし\n`;
+                                                    message += `⚠️ 支払い方法: ${result.details.payment_method}\n`;
+                                                    message += `⚠️ 合計金額: ¥${result.details.total_amount.toLocaleString()}\n`;
+                                                }
+                                            } else {
+                                                message += `\n支払い方法: ${result.details.payment_method}\n`;
+                                                message += `合計金額: ¥${result.details.total_amount.toLocaleString()}\n`;
+                                            }
+
+                                            // 警告がある場合は表示
+                                            if (result.details.warning) {
+                                                message += `\n⚠️ 警告:\n${result.details.warning}`;
+                                            }
+
+                                            alert(message);
                                             window.location.reload();
                                         } else {
                                             let errorMsg = result.message;
@@ -2022,7 +2089,15 @@
                                             </div>
                                             <div x-show="!selectedMenu" class="text-sm text-gray-400 italic">メニューを検索して選択してください</div>
                                             <div x-show="selectedMenu">
-                                                <div class="font-medium text-sm text-blue-700" x-text="selectedMenu?.name"></div>
+                                                <div class="flex items-center gap-2">
+                                                    <div class="font-medium text-sm text-blue-700" x-text="selectedMenu?.name"></div>
+                                                    <template x-if="selectedMenu?.isContractSubscription">
+                                                        <span class="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">サブスク</span>
+                                                    </template>
+                                                    <template x-if="selectedMenu?.isContractTicket">
+                                                        <span class="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-700 rounded">回数券</span>
+                                                    </template>
+                                                </div>
                                                 <div class="text-xs text-blue-600 mt-0.5">
                                                     <span x-text="selectedMenu ? `¥${Math.floor(selectedMenu.price).toLocaleString()}` : ''"></span>
                                                     <span class="mx-1">•</span>
@@ -2069,10 +2144,23 @@
                                                 <button
                                                     type="button"
                                                     @click="selectMenu(menu)"
-                                                    class="w-full px-3 py-2 text-left hover:bg-blue-50 border-b border-gray-100 last:border-0"
+                                                    :class="[
+                                                        'w-full px-3 py-2 text-left border rounded-md mb-1 transition-colors',
+                                                        menu.isContractSubscription ? 'border-blue-500 ring-1 ring-blue-300 bg-blue-50/40' :
+                                                        (menu.isContractTicket ? 'border-green-500 ring-1 ring-green-300 bg-green-50/40' :
+                                                         'border-gray-200 hover:border-blue-400 hover:bg-blue-50')
+                                                    ]"
                                                 >
-                                                    <div class="font-medium text-sm text-gray-900" x-text="menu.name"></div>
-                                                    <div class="text-xs text-gray-500 mt-1">
+                                                    <div class="flex items-center gap-2">
+                                                        <div class="font-medium text-sm text-gray-900" x-text="menu.name"></div>
+                                                        <template x-if="menu.isContractSubscription">
+                                                            <span class="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">サブスク</span>
+                                                        </template>
+                                                        <template x-if="menu.isContractTicket">
+                                                            <span class="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-700 rounded">回数券</span>
+                                                        </template>
+                                                    </div>
+                                                    <div class="text-xs text-gray-600 mt-1">
                                                         <span x-text="`¥${Math.floor(menu.price).toLocaleString()}`"></span>
                                                         <span class="mx-1">•</span>
                                                         <span x-text="`${menu.duration_minutes}分`"></span>
@@ -2160,7 +2248,7 @@
                                 <div class="flex flex-wrap gap-2">
                                     @foreach($selectedReservation->getOptionMenusSafely() as $option)
                                         <span class="inline-block px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded text-sm">
-                                            {{ $option->name ?? '' }} <span class="text-blue-600 font-semibold">+¥{{ number_format($option->pivot->price ?? 0) }}</span>
+                                            {{ $option->option_name ?? '' }} <span class="text-blue-600 font-semibold">+¥{{ number_format($option->option_price ?? 0) }}</span>
                                         </span>
                                     @endforeach
                                 </div>

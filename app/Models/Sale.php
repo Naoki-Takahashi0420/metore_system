@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Models\PointCard;
+use App\Models\CustomerSubscription;
+use App\Models\CustomerTicket;
 
 class Sale extends Model
 {
@@ -25,6 +27,9 @@ class Sale extends Model
         'discount_amount',
         'total_amount',
         'payment_method',
+        'payment_source',
+        'customer_subscription_id',
+        'customer_ticket_id',
         'receipt_number',
         'status',
         'notes',
@@ -123,6 +128,36 @@ class Sale extends Model
     public function items(): HasMany
     {
         return $this->hasMany(SaleItem::class);
+    }
+
+    /**
+     * リレーション：サブスク
+     */
+    public function customerSubscription(): BelongsTo
+    {
+        return $this->belongsTo(CustomerSubscription::class, 'customer_subscription_id');
+    }
+
+    /**
+     * リレーション：回数券
+     */
+    public function customerTicket(): BelongsTo
+    {
+        return $this->belongsTo(CustomerTicket::class, 'customer_ticket_id');
+    }
+
+    /**
+     * 支払いソースのラベル
+     */
+    public function getPaymentSourceLabelAttribute(): string
+    {
+        return match($this->payment_source) {
+            'spot' => 'スポット',
+            'subscription' => 'サブスク',
+            'ticket' => '回数券',
+            'other' => 'その他',
+            default => '不明',
+        };
     }
 
     /**

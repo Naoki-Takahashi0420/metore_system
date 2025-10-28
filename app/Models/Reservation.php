@@ -273,20 +273,20 @@ class Reservation extends Model
     public function getOptionMenusSafely()
     {
         try {
-            // テーブルの存在確認
-            if (!\Schema::hasTable('reservation_menu_options')) {
-                \Log::warning('reservation_menu_options table does not exist');
+            // reservation_optionsテーブルから取得（新しい統一された方式）
+            if (!\Schema::hasTable('reservation_options')) {
+                \Log::warning('reservation_options table does not exist');
                 return collect([]);
             }
 
             // リレーションが読み込まれていない場合は読み込む
-            if (!$this->relationLoaded('optionMenus')) {
-                $this->load('optionMenus');
+            if (!$this->relationLoaded('reservationOptions')) {
+                $this->load('reservationOptions.menuOption');
             }
 
-            return $this->optionMenus ?? collect([]);
+            return $this->reservationOptions ?? collect([]);
         } catch (\Exception $e) {
-            \Log::error('Error loading optionMenus safely', [
+            \Log::error('Error loading reservationOptions safely', [
                 'reservation_id' => $this->id,
                 'error' => $e->getMessage()
             ]);
@@ -301,8 +301,9 @@ class Reservation extends Model
     {
         try {
             $options = $this->getOptionMenusSafely();
+            // reservationOptionsからoption_priceを合計
             return $options->sum(function ($option) {
-                return $option->pivot->price ?? 0;
+                return $option->option_price ?? 0;
             });
         } catch (\Exception $e) {
             \Log::error('Error calculating options total price', [
@@ -736,5 +737,137 @@ class Reservation extends Model
         }
 
         return true; // 営業時間設定がない場合はOK
+    }
+
+    /**
+     * 予約を完了し売上を計上
+     *
+     * @param string $paymentMethod 支払い方法（店舗設定のpayment_methodsから選択）
+     * @param string $paymentSource 支払いソース ('spot', 'subscription', 'ticket', 'other')
+     * @return Sale 作成された売上レコード
+     * @throws \Exception
+     */
+    public function completeAndCreateSale(string $paymentMethod, string $paymentSource = 'spot'): Sale
+    {
+        \DB::beginTransaction();
+
+        try {
+            // 予約ステータスを完了に更新
+            $this->update([
+                'status' => 'completed',
+                'payment_status' => 'paid',
+            ]);
+
+            // 売上データを準備
+            $saleData = [
+                'sale_number' => Sale::generateSaleNumber(),
+                'reservation_id' => $this->id,
+                'customer_id' => $this->customer_id,
+                'store_id' => $this->store_id,
+                'staff_id' => $this->staff_id ?? auth()->id(),
+                'sale_date' => $this->reservation_date,
+                'sale_time' => now()->format('H:i'),
+                'subtotal' => $this->total_amount ?? 0,
+                'tax_amount' => round(($this->total_amount ?? 0) * 0.1, 0),
+                'discount_amount' => 0,
+                'total_amount' => ($this->total_amount ?? 0) + round(($this->total_amount ?? 0) * 0.1, 0),
+                'payment_method' => $paymentMethod,
+                'payment_source' => $paymentSource,
+                'status' => 'completed',
+                'notes' => "予約番号: {$this->reservation_number}",
+            ];
+
+            // 支払いソースに応じた処理
+            switch ($paymentSource) {
+                case 'subscription':
+                    // サブスク利用回数を消費
+                    if ($this->customer_subscription_id) {
+                        $subscription = CustomerSubscription::find($this->customer_subscription_id);
+                        if ($subscription && $subscription->remaining_count > 0) {
+                            $subscription->decrement('remaining_count');
+                            $saleData['customer_subscription_id'] = $subscription->id;
+                            $saleData['notes'] .= " | サブスク利用 (残り: {$subscription->remaining_count}回)";
+                        }
+                    }
+                    break;
+
+                case 'ticket':
+                    // 回数券残数を消費
+                    if ($this->customer_ticket_id) {
+                        $ticket = CustomerTicket::find($this->customer_ticket_id);
+                        if ($ticket && $ticket->remaining_count > 0) {
+                            $ticket->decrement('remaining_count');
+                            $saleData['customer_ticket_id'] = $ticket->id;
+                            $saleData['notes'] .= " | 回数券利用 (残り: {$ticket->remaining_count}回)";
+                        }
+                    }
+                    break;
+
+                case 'spot':
+                default:
+                    // スポット支払いは特別な処理なし
+                    break;
+            }
+
+            // 売上レコードを作成
+            $sale = Sale::create($saleData);
+
+            // メニュー明細を作成
+            if ($this->menu) {
+                $sale->items()->create([
+                    'menu_id' => $this->menu_id,
+                    'item_type' => 'service',
+                    'item_name' => $this->menu->name,
+                    'item_description' => $this->menu->description,
+                    'unit_price' => $this->menu->price,
+                    'quantity' => 1,
+                    'discount_amount' => 0,
+                    'tax_rate' => 10,
+                    'tax_amount' => round($this->menu->price * 0.1, 0),
+                    'amount' => $this->menu->price,
+                ]);
+            }
+
+            // ポイント付与（スポット支払いの場合のみ）
+            if ($paymentSource === 'spot') {
+                $sale->grantPoints();
+            }
+
+            \DB::commit();
+
+            \Log::info('売上計上完了', [
+                'reservation_number' => $this->reservation_number,
+                'sale_number' => $sale->sale_number,
+                'payment_source' => $paymentSource,
+                'total_amount' => $sale->total_amount,
+            ]);
+
+            return $sale;
+
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            \Log::error('売上計上エラー', [
+                'reservation_id' => $this->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * 既に売上計上済みかチェック
+     */
+    public function hasSale(): bool
+    {
+        return Sale::where('reservation_id', $this->id)->exists();
+    }
+
+    /**
+     * 売上レコードを取得
+     */
+    public function sale()
+    {
+        return $this->hasOne(Sale::class);
     }
 }

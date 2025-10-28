@@ -756,9 +756,9 @@ class ReservationTimelineWidget extends Widget
 
         try {
             $this->selectedReservation = Reservation::with(['customer', 'menu', 'staff'])->find($reservationId);
-            // optionMenusを安全に読み込み
+            // reservationOptionsを安全に読み込み
             if ($this->selectedReservation) {
-                $this->selectedReservation->load('optionMenus');
+                $this->selectedReservation->load('reservationOptions.menuOption');
             }
         } catch (\Exception $e) {
             \Log::error('Error loading reservation detail in timeline', [
@@ -3331,8 +3331,14 @@ class ReservationTimelineWidget extends Widget
     public function getMenusForStore($storeId)
     {
         $menus = \App\Models\Menu::where('store_id', $storeId)
-            ->where('is_available', true)
+            // サブスク系は is_available に関わらず含める
+            ->where(function ($q) {
+                $q->where('is_available', true)
+                  ->orWhere('is_subscription', true)
+                  ->orWhere('is_subscription_only', true);
+            })
             ->with('menuCategory')
+            ->orderByDesc('is_subscription')   // サブスクを上に（任意）
             ->orderBy('category_id')
             ->orderBy('name')
             ->get()
@@ -3343,6 +3349,9 @@ class ReservationTimelineWidget extends Widget
                     'price' => $menu->price ?? 0,
                     'duration_minutes' => $menu->duration_minutes ?? 0,
                     'category' => $menu->menuCategory->name ?? null,
+                    // 任意: バッジ表示やデバッグ用
+                    'is_subscription' => (bool) $menu->is_subscription,
+                    'is_subscription_only' => (bool) $menu->is_subscription_only,
                 ];
             });
 
@@ -3371,6 +3380,56 @@ class ReservationTimelineWidget extends Widget
     }
 
     /**
+     * 顧客の契約メニューID（サブスク・回数券）を取得
+     */
+    public function getCustomerContractsForStore($customerId, $storeId)
+    {
+        try {
+            // サブスク（アクティブ・店舗一致）
+            $subs = \App\Models\CustomerSubscription::where('customer_id', $customerId)
+                ->where('store_id', $storeId)
+                ->where('status', 'active')
+                ->get();
+
+            // メニューIDは subscription.menu_id 優先、無い場合は plan.menu_id を使用
+            $subMenuIds = collect();
+            foreach ($subs as $sub) {
+                if ($sub->menu_id) {
+                    $subMenuIds->push($sub->menu_id);
+                } elseif ($sub->plan_id) {
+                    $plan = \App\Models\SubscriptionPlan::find($sub->plan_id);
+                    if ($plan && $plan->menu_id) {
+                        $subMenuIds->push($plan->menu_id);
+                    }
+                }
+            }
+            $subMenuIds = $subMenuIds->filter()->unique()->values();
+
+            // 回数券（アクティブ・残回数>0・店舗一致）
+            $tickets = \App\Models\CustomerTicket::where('customer_id', $customerId)
+                ->where('store_id', $storeId)
+                ->where('status', 'active')
+                ->where('remaining_count', '>', 0)
+                ->with('ticketPlan')
+                ->get();
+            $ticketMenuIds = $tickets->map(function ($t) {
+                return optional($t->ticketPlan)->menu_id;
+            })->filter()->unique()->values();
+
+            return [
+                'success' => true,
+                'data' => [
+                    'sub_menu_ids' => $subMenuIds,
+                    'ticket_menu_ids' => $ticketMenuIds,
+                ],
+            ];
+        } catch (\Exception $e) {
+            \Log::error('[getCustomerContractsForStore] error', ['e' => $e->getMessage()]);
+            return ['success' => false, 'message' => '契約情報の取得に失敗しました'];
+        }
+    }
+
+    /**
      * メニュー変更用：予約のメニューを変更
      */
     public function changeReservationMenu($reservationId, $menuId, $optionIds = [])
@@ -3391,6 +3450,20 @@ class ReservationTimelineWidget extends Widget
                 'success' => false,
                 'message' => 'メニューが見つかりません'
             ];
+        }
+
+        // サブスクリプション判定
+        $isSubscription = (bool)$newMenu->is_subscription;
+
+        // 顧客とサブスクリプション情報を取得
+        $customer = $reservation->customer;
+        $storeId = $reservation->store_id;
+        $activeSubscription = $customer ? $customer->getSubscriptionForStore($storeId) : null;
+
+        // サブスクリプションメニューなのにアクティブサブスクがない場合の警告フラグ
+        $subscriptionWarning = null;
+        if ($isSubscription && !$activeSubscription) {
+            $subscriptionWarning = '選択されたメニューはサブスクリプションメニューですが、この顧客にアクティブなサブスクリプションがありません';
         }
 
         // 合計時間を計算
@@ -3521,37 +3594,64 @@ class ReservationTimelineWidget extends Widget
         // トランザクション開始
         DB::beginTransaction();
         try {
-            // メニューを更新
-            $reservation->menu_id = $menuId;
-            $reservation->end_time = $newEndTime->format('H:i:s');
-            $reservation->save();
-
             // 既存のオプションを削除
             $reservation->reservationOptions()->delete();
 
-            // 新しいオプションを追加
+            // 新しいオプションを追加とオプション料金の合計計算
+            $totalOptionPrice = 0;
             if (!empty($optionIds)) {
                 foreach ($optionIds as $optionId) {
                     $option = \App\Models\MenuOption::find($optionId);
                     if ($option) {
+                        // サブスクリプション予約の場合はオプション料金を0円にする
+                        $optionPrice = ($isSubscription && $activeSubscription) ? 0 : ($option->price ?? 0);
+                        $totalOptionPrice += $optionPrice;
+
                         \App\Models\ReservationOption::create([
                             'reservation_id' => $reservation->id,
                             'menu_option_id' => $optionId,
                             'option_name' => $option->name,
-                            'option_price' => $option->price ?? 0,
+                            'option_price' => $optionPrice,
                         ]);
                     }
                 }
             }
 
+            // 合計金額の計算
+            // サブスクリプション予約の場合は0円、非サブスクの場合はメニュー料金 + オプション料金
+            $totalAmount = ($isSubscription && $activeSubscription) ? 0 : (($newMenu->price ?? 0) + $totalOptionPrice);
+
+            // 支払い方法の決定
+            // サブスクリプション予約の場合は'subscription'、それ以外は既存値を維持（未設定なら'cash'）
+            $paymentMethod = ($isSubscription && $activeSubscription) ? 'subscription' : ($reservation->payment_method ?? 'cash');
+
+            // 予約情報を更新
+            $reservation->menu_id = $menuId;
+            $reservation->end_time = $newEndTime->format('H:i:s');
+            $reservation->customer_subscription_id = ($isSubscription && $activeSubscription) ? $activeSubscription->id : null;
+            $reservation->payment_method = $paymentMethod;
+            $reservation->total_amount = $totalAmount;
+            $reservation->save();
+
             DB::commit();
+
+            // レスポンスメッセージの構築
+            $message = 'メニューを変更しました';
+            if ($subscriptionWarning) {
+                $message .= '（警告: ' . $subscriptionWarning . '）';
+            }
 
             return [
                 'success' => true,
-                'message' => 'メニューを変更しました',
+                'message' => $message,
                 'details' => [
                     'new_end_time' => $newEndTime->format('H:i'),
-                    'total_duration' => $totalMinutes . '分'
+                    'total_duration' => $totalMinutes . '分',
+                    'is_subscription' => $isSubscription,
+                    'subscription_bound' => $activeSubscription ? true : false,
+                    'payment_method' => $paymentMethod,
+                    'total_amount' => $totalAmount,
+                    'warning' => $subscriptionWarning
                 ]
             ];
 

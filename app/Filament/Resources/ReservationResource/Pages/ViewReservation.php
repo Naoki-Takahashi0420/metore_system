@@ -152,7 +152,7 @@ class ViewReservation extends ViewRecord
     {
         // Eager load all necessary relationships
         $this->record = static::getResource()::getEloquentQuery()
-            ->with(['customer', 'menu', 'store', 'staff', 'optionMenus'])
+            ->with(['customer', 'menu', 'store', 'staff', 'reservationOptions.menuOption'])
             ->findOrFail($record);
 
         // Authorization check

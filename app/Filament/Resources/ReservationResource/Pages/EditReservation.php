@@ -144,7 +144,7 @@ class EditReservation extends EditRecord
     {
         try {
             // Eager load relationships to prevent N+1 queries and ensure all data is available
-            $this->record->load(['customer', 'menu', 'store', 'staff', 'optionMenus']);
+            $this->record->load(['customer', 'menu', 'store', 'staff', 'reservationOptions.menuOption']);
         } catch (\Exception $e) {
             \Log::error('予約編集ページでリレーション読み込みエラー: ' . $e->getMessage());
             // エラーが発生してもページを表示できるよう、基本リレーションのみ読み込み

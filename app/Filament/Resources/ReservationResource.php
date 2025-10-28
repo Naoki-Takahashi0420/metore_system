@@ -259,17 +259,18 @@ class ReservationResource extends Resource
                         Forms\Components\Placeholder::make('option_menus_info')
                             ->label('選択されたオプション')
                             ->content(function ($record) {
-                                if (!$record || !$record->optionMenus->count()) {
+                                if (!$record || !$record->reservationOptions->count()) {
                                     return 'なし';
                                 }
 
-                                return $record->optionMenus->map(function ($option) {
+                                return $record->reservationOptions->map(function ($resOption) {
                                     try {
-                                        $price = $option->pivot->price ?? 0;
-                                        $duration = $option->pivot->duration ?? 0;
-                                        return $option->name . ' (+¥' . number_format($price) . ', +' . $duration . '分)';
+                                        $price = $resOption->option_price ?? 0;
+                                        // MenuOptionから時間情報を取得
+                                        $duration = $resOption->menuOption->duration_minutes ?? 0;
+                                        return $resOption->option_name . ' (+¥' . number_format($price) . ', +' . $duration . '分)';
                                     } catch (\Exception $e) {
-                                        return $option->name . ' (価格・時間情報なし)';
+                                        return $resOption->option_name . ' (価格・時間情報なし)';
                                     }
                                 })->join("\n");
                             })
@@ -790,16 +791,16 @@ class ReservationResource extends Resource
                 Tables\Columns\TextColumn::make('option_menus')
                     ->label('オプション')
                     ->formatStateUsing(function ($record) {
-                        $options = $record->optionMenus;
+                        $options = $record->reservationOptions;
                         if ($options->isEmpty()) {
                             return 'なし';
                         }
-                        return $options->map(function ($option) {
+                        return $options->map(function ($resOption) {
                             try {
-                                $price = $option->pivot->price ?? 0;
-                                return $option->name . ' (+¥' . number_format($price) . ')';
+                                $price = $resOption->option_price ?? 0;
+                                return $resOption->option_name . ' (+¥' . number_format($price) . ')';
                             } catch (\Exception $e) {
-                                return $option->name . ' (価格情報なし)';
+                                return $resOption->option_name . ' (価格情報なし)';
                             }
                         })->join(', ');
                     })
@@ -892,18 +893,23 @@ class ReservationResource extends Resource
                         $record->update(['status' => 'completed']);
 
                         // サブスクリプション利用回数を更新
-                        $customer = $record->customer;
-                        if ($customer) {
-                            $subscription = $customer->activeSubscription;
-                            if ($subscription) {
-                                $subscription->recordVisit();
-                                
-                                Notification::make()
-                                    ->success()
-                                    ->title('サブスク利用回数を更新しました')
-                                    ->body("残り回数: {$subscription->remaining_visits}回")
-                                    ->send();
-                            }
+                        // 予約に紐づいたcustomer_subscription_idを優先的に使用
+                        $subscription = null;
+                        if ($record->customer_subscription_id) {
+                            $subscription = \App\Models\CustomerSubscription::find($record->customer_subscription_id);
+                        } elseif ($record->customer) {
+                            // 紐付けがない場合は従来どおり顧客のアクティブサブスクを使用
+                            $subscription = $record->customer->activeSubscription;
+                        }
+
+                        if ($subscription) {
+                            $subscription->recordVisit();
+
+                            Notification::make()
+                                ->success()
+                                ->title('サブスク利用回数を更新しました')
+                                ->body("残り回数: {$subscription->remaining_visits}回")
+                                ->send();
                         }
                         
                         // カルテが既に存在するかチェック

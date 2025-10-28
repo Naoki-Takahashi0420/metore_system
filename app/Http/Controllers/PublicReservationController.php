@@ -2172,17 +2172,28 @@ class PublicReservationController extends Controller
                         ->orderBy('start_time', 'desc')
                         ->first();
                 } else {
-                // サブスク会員の場合、月の利用回数をチェック
-                $activeSubscription = $existingCustomerByPhone->activeSubscription()->first();
-                if ($activeSubscription && $activeSubscription->monthly_limit) {
-                    $currentMonthReservations = Reservation::where('customer_id', $existingCustomerByPhone->id)
-                        ->whereNotIn('status', ['cancelled', 'canceled', 'no_show'])
-                        ->whereMonth('reservation_date', now()->month)
-                        ->whereYear('reservation_date', now()->year)
-                        ->count();
-                    
-                    if ($currentMonthReservations >= $activeSubscription->monthly_limit) {
-                        return back()->with('error', "今月のサブスクリプション利用回数（{$activeSubscription->monthly_limit}回）に達しています。");
+                // サブスク会員の場合、契約サイクル（応当日基準）で利用回数をチェック
+                $storeIdForCheck = $request->input('store_id') ?? session('selected_store_id') ?? ($existingCustomerByPhone->store_id ?? null);
+
+                // 予約に紐づけるべき店舗の契約を優先して取得
+                $sub = $storeIdForCheck
+                    ? $existingCustomerByPhone->getSubscriptionForStore($storeIdForCheck)
+                    : $existingCustomerByPhone->activeSubscription()->first();
+
+                if ($sub && $sub->monthly_limit) {
+                    $periodStart = $sub->getCurrentPeriodStart();
+                    $periodEnd   = $sub->getCurrentPeriodEnd();
+
+                    if ($periodStart && $periodEnd) {
+                        $currentPeriodReservations = Reservation::where('customer_id', $existingCustomerByPhone->id)
+                            ->where('customer_subscription_id', $sub->id) // ← サブスクIDで厳密に紐付け
+                            ->whereNotIn('status', ['cancelled', 'canceled', 'no_show'])
+                            ->whereBetween('reservation_date', [$periodStart, $periodEnd])
+                            ->count();
+
+                        if ($currentPeriodReservations >= $sub->monthly_limit) {
+                            return back()->with('error', "今期のサブスクリプション利用回数（{$sub->monthly_limit}回）に達しています。");
+                        }
                     }
                 }
             }

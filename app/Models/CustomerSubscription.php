@@ -300,6 +300,59 @@ class CustomerSubscription extends Model
     }
 
     /**
+     * 予約日（anchor）が属するサイクルの開始日を取得
+     */
+    public function getPeriodStartFor(Carbon $anchor): ?Carbon
+    {
+        if (!$this->service_start_date) {
+            return null;
+        }
+
+        $startDate = Carbon::parse($this->service_start_date);
+        $startDay = $startDate->day;
+
+        // アンカー日の月で応当日を作成
+        $periodStart = Carbon::create($anchor->year, $anchor->month, min($startDay, $anchor->daysInMonth));
+
+        // アンカー日がまだ応当日前なら、先月の応当日が周期開始
+        if ($anchor->lt($periodStart)) {
+            $periodStart->subMonth();
+            if ($periodStart->day != $startDay) {
+                $periodStart->day = min($startDay, $periodStart->daysInMonth);
+            }
+        }
+
+        return $periodStart->startOfDay();
+    }
+
+    /**
+     * 予約日（anchor）が属するサイクルの終了日を取得
+     */
+    public function getPeriodEndFor(Carbon $anchor): ?Carbon
+    {
+        $periodStart = $this->getPeriodStartFor($anchor);
+        return $periodStart ? $periodStart->copy()->addMonth()->subDay()->endOfDay() : null;
+    }
+
+    /**
+     * 予約日（anchor）が属するサイクル内の使用回数を取得
+     */
+    public function getVisitsCountForPeriod(Carbon $anchor): int
+    {
+        $start = $this->getPeriodStartFor($anchor);
+        $end = $this->getPeriodEndFor($anchor);
+
+        if (!$start || !$end) {
+            return 0;
+        }
+
+        return \App\Models\Reservation::where('customer_subscription_id', $this->id)
+            ->whereNotIn('status', ['cancelled', 'canceled', 'no_show'])
+            ->whereBetween('reservation_date', [$start, $end])
+            ->count();
+    }
+
+    /**
      * current_month_visitsアクセサ（動的計算）
      * データベースの値ではなく、常に予約データから計算
      */
