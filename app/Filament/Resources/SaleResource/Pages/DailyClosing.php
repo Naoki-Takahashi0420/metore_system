@@ -17,12 +17,22 @@ use Illuminate\Support\Facades\DB;
 class DailyClosing extends Page implements HasForms
 {
     use InteractsWithForms;
-    
+
     protected static string $resource = SaleResource::class;
 
     protected static string $view = 'filament.resources.sale-resource.pages.daily-closing';
-    
+
     protected static ?string $title = '日次精算';
+
+    protected static ?string $navigationLabel = '日次売上管理';
+
+    protected static ?string $navigationIcon = 'heroicon-o-calculator';
+
+    protected static bool $shouldRegisterNavigation = true;
+
+    protected static ?string $navigationGroup = '売上・会計';
+
+    protected static ?int $navigationSort = 2;
     
     public $closingDate;
     public $openingCash = 50000; // デフォルト釣銭準備金
@@ -134,7 +144,7 @@ class DailyClosing extends Page implements HasForms
      */
     public function openEditor(int $reservationId): void
     {
-        $reservation = Reservation::with(['customer', 'menu'])->findOrFail($reservationId);
+        $reservation = Reservation::with(['customer', 'menu', 'medicalRecords', 'store'])->findOrFail($reservationId);
 
         // 自動判定: payment_source
         $source = 'spot';
@@ -144,7 +154,22 @@ class DailyClosing extends Page implements HasForms
             $source = 'subscription';
         }
 
-        $paymentMethod = ($source === 'spot') ? 'cash' : 'other';
+        // カルテから支払い方法を取得（優先）
+        $paymentMethod = null;
+        $latestMedicalRecord = $reservation->medicalRecords()->latest()->first();
+        if ($latestMedicalRecord && $latestMedicalRecord->payment_method) {
+            $paymentMethod = $latestMedicalRecord->payment_method;
+        }
+
+        // カルテにない場合は、デフォルト値
+        if (!$paymentMethod) {
+            $paymentMethod = ($source === 'spot') ? '現金' : 'その他';
+        }
+
+        // 店舗の支払い方法設定を取得
+        $storePaymentMethods = $reservation->store && $reservation->store->payment_methods
+            ? collect($reservation->store->payment_methods)->pluck('name')->toArray()
+            : ['現金', 'クレジットカード', 'その他'];
 
         // エディタデータ初期化
         $this->editorData = [
@@ -162,6 +187,7 @@ class DailyClosing extends Page implements HasForms
             ],
             'product_items' => [], // 空の物販配列
             'payment_method' => $paymentMethod,
+            'payment_methods_list' => $storePaymentMethods, // 店舗の支払い方法リスト
             'payment_source' => $source,
             'subtotal' => $source === 'spot' ? ($reservation->total_amount ?? 0) : 0,
             'total' => $source === 'spot' ? ($reservation->total_amount ?? 0) : 0,

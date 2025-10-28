@@ -98,13 +98,12 @@
             <div class="bg-white rounded-lg shadow p-6">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-lg font-semibold text-gray-900">本日の未計上予約</h2>
-                    <x-filament::button
+                    <button
                         wire:click="postAll"
-                        color="success"
-                        size="sm"
+                        class="px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 transition-colors shadow-sm"
                     >
                         一括計上
-                    </x-filament::button>
+                    </button>
                 </div>
 
                 <div class="overflow-x-auto">
@@ -159,19 +158,19 @@
                                                 wire:model="rowState.{{ $res['id'] }}.amount"
                                                 class="block w-24 text-sm border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500"
                                                 min="0"
+                                                step="1"
                                             />
                                         @else
                                             <span class="text-xs text-gray-500">¥0</span>
                                         @endif
                                     </td>
                                     <td class="px-3 py-3">
-                                        <x-filament::button
+                                        <button
                                             wire:click="openEditor({{ $res['id'] }})"
-                                            color="primary"
-                                            size="xs"
+                                            class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gray-400 transition-colors"
                                         >
                                             編集
-                                        </x-filament::button>
+                                        </button>
                                     </td>
                                 </tr>
                             @endforeach
@@ -248,30 +247,25 @@
 
     <!-- 編集ドロワー -->
     @if($this->editorOpen)
-        <div class="fixed inset-0 z-50 overflow-hidden" x-data="{ show: @entangle('editorOpen') }">
-            <!-- オーバーレイ -->
-            <div class="absolute inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-                 wire:click="closeEditor"
-                 x-show="show"
-                 x-transition:enter="ease-in-out duration-300"
-                 x-transition:enter-start="opacity-0"
-                 x-transition:enter-end="opacity-100"
-                 x-transition:leave="ease-in-out duration-300"
-                 x-transition:leave-start="opacity-100"
-                 x-transition:leave-end="opacity-0">
-            </div>
+        <!-- オーバーレイ（ぼかし効果付き） -->
+        <div class="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-md z-40"
+             wire:click="closeEditor">
+        </div>
 
-            <!-- ドロワーパネル -->
-            <div class="fixed inset-y-0 right-0 max-w-2xl w-full flex"
-                 x-show="show"
-                 x-transition:enter="transform transition ease-in-out duration-300"
-                 x-transition:enter-start="translate-x-full"
-                 x-transition:enter-end="translate-x-0"
-                 x-transition:leave="transform transition ease-in-out duration-300"
-                 x-transition:leave-start="translate-x-0"
-                 x-transition:leave-end="translate-x-full">
+        <!-- ドロワーパネル -->
+        <div class="fixed inset-y-0 right-0 w-full max-w-2xl bg-white shadow-2xl overflow-y-auto z-50"
+             style="animation: slideIn 0.3s ease-out;">
 
-                <div class="w-full bg-white shadow-xl overflow-y-auto">
+            <style>
+                @keyframes slideIn {
+                    from {
+                        transform: translateX(100%);
+                    }
+                    to {
+                        transform: translateX(0);
+                    }
+                }
+            </style>
                     <!-- ヘッダー -->
                     <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 z-10">
                         <div class="flex items-center justify-between">
@@ -356,13 +350,12 @@
                             <div>
                                 <div class="flex items-center justify-between mb-3">
                                     <h3 class="text-sm font-medium text-gray-900">物販明細</h3>
-                                    <x-filament::button
+                                    <button
                                         wire:click="addProductItem"
-                                        color="gray"
-                                        size="xs"
+                                        class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gray-400 transition-colors"
                                     >
                                         + 追加
-                                    </x-filament::button>
+                                    </button>
                                 </div>
 
                                 @forelse($this->editorData['product_items'] ?? [] as $index => $item)
@@ -411,13 +404,13 @@
                             <select wire:model="editorData.payment_method"
                                     class="block w-full text-sm border-gray-300 rounded-md"
                                     @if($this->editorData['payment_source'] !== 'spot') disabled @endif>
-                                <option value="cash">現金</option>
-                                <option value="credit_card">クレジットカード</option>
-                                <option value="debit_card">デビットカード</option>
-                                <option value="paypay">PayPay</option>
-                                <option value="line_pay">LINE Pay</option>
-                                <option value="other">その他</option>
+                                @foreach($this->editorData['payment_methods_list'] ?? ['現金', 'その他'] as $method)
+                                    <option value="{{ $method }}">{{ $method }}</option>
+                                @endforeach
                             </select>
+                            @if($this->editorData['payment_source'] !== 'spot')
+                                <p class="mt-1 text-xs text-gray-500">※ サブスク/回数券は支払方法固定です</p>
+                            @endif
                         </div>
 
                         <!-- 合計 -->
@@ -425,7 +418,7 @@
                             <div class="space-y-2">
                                 <div class="flex justify-between text-sm">
                                     <span class="text-gray-600">小計</span>
-                                    <span class="font-medium">¥{{ number_format($this->editorData['subtotal'] ?? 0) }}</span>
+                                    <span class="font-medium">¥{{ number_format((int)($this->editorData['subtotal'] ?? 0)) }}</span>
                                 </div>
                                 <div class="flex justify-between text-sm">
                                     <span class="text-gray-600">税額</span>
@@ -433,7 +426,7 @@
                                 </div>
                                 <div class="flex justify-between text-base font-semibold border-t pt-2">
                                     <span>合計</span>
-                                    <span class="text-primary-600">¥{{ number_format($this->editorData['total'] ?? 0) }}</span>
+                                    <span class="text-primary-600">¥{{ number_format((int)($this->editorData['total'] ?? 0)) }}</span>
                                 </div>
                             </div>
                         </div>
@@ -442,18 +435,18 @@
                     <!-- フッター（固定） -->
                     <div class="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4">
                         <div class="flex justify-end space-x-3">
-                            <x-filament::button
+                            <button
                                 wire:click="closeEditor"
-                                color="gray"
+                                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gray-400 transition-colors"
                             >
                                 キャンセル
-                            </x-filament::button>
-                            <x-filament::button
+                            </button>
+                            <button
                                 wire:click="saveSaleWithItems"
-                                color="primary"
+                                class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 transition-colors shadow-sm"
                             >
                                 決定
-                            </x-filament::button>
+                            </button>
                         </div>
                     </div>
                 </div>

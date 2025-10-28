@@ -483,7 +483,7 @@ class SimpleShiftManagement extends Page implements HasForms
     public function updateShift(): void
     {
         if (!$this->editingShift) return;
-        
+
         // 権限チェック
         if (!Auth::user()->canEditShift($this->editingShift)) {
             Notification::make()
@@ -493,23 +493,58 @@ class SimpleShiftManagement extends Page implements HasForms
                 ->send();
             return;
         }
-        
+
         // 最初の休憩時間をメインフィールドに、追加分はJSONで保存
         $firstBreak = !empty($this->editingBreaks) ? $this->editingBreaks[0] : null;
         $additionalBreaks = count($this->editingBreaks) > 1 ? array_slice($this->editingBreaks, 1) : [];
-        
+
         $this->editingShift->update([
+            'user_id' => $this->editingShift->user_id,
+            'start_time' => $this->editingShift->start_time,
+            'end_time' => $this->editingShift->end_time,
             'break_start' => $firstBreak ? $firstBreak['start'] : null,
             'break_end' => $firstBreak ? $firstBreak['end'] : null,
             'additional_breaks' => !empty($additionalBreaks) ? json_encode($additionalBreaks) : null,
         ]);
-        
+
         Notification::make()
             ->title('更新完了')
-            ->body('休憩時間を更新しました')
+            ->body('シフトを更新しました')
             ->success()
             ->send();
-        
+
+        $this->showEditModal = false;
+        $this->editingShiftId = null;
+        $this->editingShift = null;
+        $this->editingBreaks = [];
+        $this->loadCalendarData();
+    }
+
+    public function confirmDeleteShift(): void
+    {
+        if (!$this->editingShift) return;
+
+        // 権限チェック
+        if (!Auth::user()->canDeleteShift($this->editingShift)) {
+            Notification::make()
+                ->title('権限エラー')
+                ->body('このシフトを削除する権限がありません')
+                ->danger()
+                ->send();
+            return;
+        }
+
+        $userName = $this->editingShift->user ? $this->editingShift->user->name : '不明';
+        $shiftDate = Carbon::parse($this->editingShift->shift_date)->format('Y年n月j日');
+
+        $this->editingShift->delete();
+
+        Notification::make()
+            ->title('削除完了')
+            ->body("{$userName}の{$shiftDate}のシフトを削除しました")
+            ->success()
+            ->send();
+
         $this->showEditModal = false;
         $this->editingShiftId = null;
         $this->editingShift = null;
