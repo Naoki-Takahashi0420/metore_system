@@ -101,6 +101,26 @@ class DailyClosing extends Page implements HasForms
         $this->loadSalesData();
         $this->loadUnpostedReservations();
     }
+
+    /**
+     * 前の日に移動
+     */
+    public function previousDay(): void
+    {
+        $this->closingDate = \Carbon\Carbon::parse($this->closingDate)->subDay()->toDateString();
+        $this->loadSalesData();
+        $this->loadUnpostedReservations();
+    }
+
+    /**
+     * 次の日に移動
+     */
+    public function nextDay(): void
+    {
+        $this->closingDate = \Carbon\Carbon::parse($this->closingDate)->addDay()->toDateString();
+        $this->loadSalesData();
+        $this->loadUnpostedReservations();
+    }
     
     public function loadSalesData(): void
     {
