@@ -490,21 +490,61 @@ class DailyClosing extends Page implements HasForms
                 : 'その他';
         }
 
-        // 予約のreservationOptionsからオプションを自動読込
+        // オプション/物販の読み込み：計上済みか未計上かで異なる
         $autoLoadedOptions = [];
-        $reservationOptions = $reservation->getOptionMenusSafely();
+        $autoLoadedProducts = [];
 
-        foreach ($reservationOptions as $reservationOption) {
-            // MenuOption経由の場合
-            if ($reservationOption->menuOption) {
-                $menuOption = $reservationOption->menuOption;
-                $autoLoadedOptions[] = [
-                    'option_id' => $menuOption->id,
-                    'option_type' => 'menu_option',
-                    'name' => $menuOption->name ?? '',
-                    'price' => $reservationOption->price ?? $menuOption->price ?? 0,
-                    'quantity' => $reservationOption->quantity ?? 1,
-                ];
+        // 計上済みの場合：売上のsale_itemsから読み込む
+        $existingSale = \App\Models\Sale::where('reservation_id', $reservation->id)
+            ->orderByDesc('id')
+            ->first();
+
+        if ($existingSale) {
+            // 計上済み：sale_itemsから読み込み
+            \Log::info('📦 計上済み売上のアイテムを読み込み', [
+                'reservation_id' => $reservation->id,
+                'sale_id' => $existingSale->id,
+            ]);
+
+            $saleItems = $existingSale->items;
+            foreach ($saleItems as $item) {
+                if ($item->type === 'option') {
+                    $autoLoadedOptions[] = [
+                        'option_id' => $item->menu_option_id,
+                        'option_type' => $item->menu_option_id ? 'menu_option' : null,
+                        'name' => $item->item_name,
+                        'price' => $item->unit_price ?? 0,
+                        'quantity' => $item->quantity ?? 1,
+                    ];
+                } elseif ($item->type === 'product') {
+                    $autoLoadedProducts[] = [
+                        'name' => $item->item_name,
+                        'price' => $item->unit_price ?? 0,
+                        'quantity' => $item->quantity ?? 1,
+                    ];
+                }
+            }
+
+            \Log::info('✅ 読み込んだアイテム数', [
+                'options' => count($autoLoadedOptions),
+                'products' => count($autoLoadedProducts),
+            ]);
+        } else {
+            // 未計上：予約のreservationOptionsから読み込み
+            $reservationOptions = $reservation->getOptionMenusSafely();
+
+            foreach ($reservationOptions as $reservationOption) {
+                // MenuOption経由の場合
+                if ($reservationOption->menuOption) {
+                    $menuOption = $reservationOption->menuOption;
+                    $autoLoadedOptions[] = [
+                        'option_id' => $menuOption->id,
+                        'option_type' => 'menu_option',
+                        'name' => $menuOption->name ?? '',
+                        'price' => $reservationOption->price ?? $menuOption->price ?? 0,
+                        'quantity' => $reservationOption->quantity ?? 1,
+                    ];
+                }
             }
         }
 
@@ -525,9 +565,9 @@ class DailyClosing extends Page implements HasForms
                 'price' => $source === 'spot' ? ($reservation->total_amount ?? 0) : 0,
                 'quantity' => 1,
             ],
-            'option_items' => $autoLoadedOptions, // 予約から自動読込されたオプション
+            'option_items' => $autoLoadedOptions, // 売上/予約から自動読込されたオプション
             'option_menus' => $optionMenus, // 選択可能なオプションメニュー
-            'product_items' => [], // 空の物販配列
+            'product_items' => $autoLoadedProducts, // 売上から自動読込された物販
             'payment_method' => $paymentMethod,
             'payment_methods_list' => $storePaymentMethods, // 店舗の支払い方法リスト
             'payment_source' => $source,
@@ -536,8 +576,8 @@ class DailyClosing extends Page implements HasForms
             'total' => $initialSubtotal + $initialTaxAmount,
         ];
 
-        // オプションがある場合は合計を再計算（税込み）
-        if (!empty($autoLoadedOptions)) {
+        // オプション/物販がある場合は合計を再計算（税込み）
+        if (!empty($autoLoadedOptions) || !empty($autoLoadedProducts)) {
             $this->updateCalculation();
         }
 

@@ -348,7 +348,19 @@ class TodayReservationsWidget extends BaseWidget
                         return $hasMedicalRecord ? 'info' : 'success';
                     })
                     ->url(function ($record) {
-                        $medicalRecord = $record->medicalRecords->first();
+                        // 今日のカルテを優先、なければ最新のカルテを取得
+                        $today = today()->format('Y-m-d');
+                        $medicalRecord = $record->medicalRecords
+                            ->where('record_date', $today)
+                            ->first();
+
+                        // 今日のカルテがない場合は最新のカルテを取得
+                        if (!$medicalRecord) {
+                            $medicalRecord = $record->medicalRecords
+                                ->sortByDesc('record_date')
+                                ->first();
+                        }
+
                         if ($medicalRecord) {
                             return "/admin/medical-records/{$medicalRecord->id}/edit";
                         }
