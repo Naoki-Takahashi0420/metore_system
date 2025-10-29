@@ -2373,6 +2373,75 @@
                         @endif
                     </div>
 
+                    <!-- 顧客管理情報 -->
+                    @if($previousMedicalRecord)
+                        <div class="mt-4">
+                            <div class="flex items-center mb-3 pb-2 border-b border-gray-200">
+                                <h4 class="text-sm font-bold text-gray-900">顧客特性・メモ</h4>
+                            </div>
+
+                            <div class="space-y-3">
+                                <!-- 目の病気 -->
+                                @if($previousMedicalRecord->eye_diseases)
+                                    <div class="bg-gray-50 rounded-lg p-3">
+                                        <p class="text-xs text-gray-600 mb-1">目の病気</p>
+                                        <p class="text-sm text-gray-900">{{ $previousMedicalRecord->eye_diseases }}</p>
+                                    </div>
+                                @endif
+
+                                <!-- スマホ・PC使用頻度 -->
+                                @if($previousMedicalRecord->device_usage)
+                                    <div class="bg-gray-50 rounded-lg p-3">
+                                        <p class="text-xs text-gray-600 mb-1">スマホ・PC使用頻度</p>
+                                        <p class="text-sm text-gray-900">{{ $previousMedicalRecord->device_usage }}</p>
+                                    </div>
+                                @endif
+
+                                <!-- 来店経路 -->
+                                @if($previousMedicalRecord->reservation_source)
+                                    <div class="bg-gray-50 rounded-lg p-3">
+                                        <p class="text-xs text-gray-600 mb-1">来店経路</p>
+                                        <p class="text-sm text-gray-900">{{ $previousMedicalRecord->reservation_source }}</p>
+                                    </div>
+                                @endif
+
+                                <!-- 職場・住所 -->
+                                @if($previousMedicalRecord->workplace_address)
+                                    <div class="bg-gray-50 rounded-lg p-3">
+                                        <p class="text-xs text-gray-600 mb-1">職場・住所</p>
+                                        <p class="text-sm text-gray-900">{{ $previousMedicalRecord->workplace_address }}</p>
+                                    </div>
+                                @endif
+
+                                <!-- その他の特性（トグル系） -->
+                                @if($previousMedicalRecord->genetic_possibility || $previousMedicalRecord->has_astigmatism)
+                                    <div class="bg-gray-50 rounded-lg p-3">
+                                        <p class="text-xs text-gray-600 mb-2">その他の特性</p>
+                                        <div class="flex flex-wrap gap-2">
+                                            @if($previousMedicalRecord->genetic_possibility)
+                                                <span class="inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                                                    遺伝の可能性あり
+                                                </span>
+                                            @endif
+                                            @if($previousMedicalRecord->has_astigmatism)
+                                                <span class="inline-block px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium">
+                                                    乱視
+                                                </span>
+                                            @endif
+                                        </div>
+                                    </div>
+                                @endif
+
+                                <!-- データがない場合 -->
+                                @if(!$previousMedicalRecord->eye_diseases && !$previousMedicalRecord->device_usage && !$previousMedicalRecord->reservation_source && !$previousMedicalRecord->workplace_address && !$previousMedicalRecord->genetic_possibility && !$previousMedicalRecord->has_astigmatism)
+                                    <div class="text-center py-3 text-gray-500 text-sm bg-gray-50 rounded-lg">
+                                        顧客特性の記録がありません
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
+
                     <!-- 次回予約 -->
                     @php
                         $nextReservation = \App\Models\Reservation::where('customer_id', $selectedReservation->customer_id)

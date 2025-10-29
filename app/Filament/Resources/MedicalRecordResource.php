@@ -78,11 +78,22 @@ class MedicalRecordResource extends Resource
                                                 $store = \App\Models\Store::find($value);
                                                 return $store ? $store->name : $value;
                                             })
-                                            ->default(function () {
-                                                $user = auth()->user();
-                                                // スーパーアドミン以外はデフォルトで所属店舗を選択
-                                                if ($user && !$user->hasRole('super_admin') && $user->store_id) {
-                                                    return $user->store_id;
+                                            ->default(function ($operation) {
+                                                if ($operation === 'create') {
+                                                    // 1. 予約から店舗を取得（優先）
+                                                    $reservationId = request()->query('reservation_id');
+                                                    if ($reservationId) {
+                                                        $reservation = \App\Models\Reservation::find($reservationId);
+                                                        if ($reservation && $reservation->store_id) {
+                                                            return $reservation->store_id;
+                                                        }
+                                                    }
+
+                                                    // 2. ユーザーの所属店舗（スーパーアドミン以外）
+                                                    $user = auth()->user();
+                                                    if ($user && !$user->hasRole('super_admin') && $user->store_id) {
+                                                        return $user->store_id;
+                                                    }
                                                 }
                                                 return null;
                                             })
@@ -94,6 +105,12 @@ class MedicalRecordResource extends Resource
 
                                         Forms\Components\Select::make('customer_id')
                                             ->label('顧客')
+                                            ->default(function ($operation) {
+                                                if ($operation === 'create') {
+                                                    return request()->query('customer_id');
+                                                }
+                                                return null;
+                                            })
                                             ->searchable()
                                             ->getSearchResultsUsing(function (string $search) {
                                                 $user = auth()->user();
@@ -175,6 +192,12 @@ class MedicalRecordResource extends Resource
                                         Forms\Components\Select::make('reservation_id')
                                             ->label('予約（任意）')
                                             ->helperText('予約に紐づかないカルテ（引き継ぎメモなど）の場合は、ここに何も入力しないでください')
+                                            ->default(function ($operation) {
+                                                if ($operation === 'create') {
+                                                    return request()->query('reservation_id');
+                                                }
+                                                return null;
+                                            })
                                             ->options(function ($get) {
                                                 if (!$get('customer_id')) {
                                                     return [];
@@ -209,6 +232,18 @@ class MedicalRecordResource extends Resource
                                         
                                         Forms\Components\Select::make('handled_by')
                                             ->label('対応者')
+                                            ->default(function ($operation) {
+                                                if ($operation === 'create') {
+                                                    $reservationId = request()->query('reservation_id');
+                                                    if ($reservationId) {
+                                                        $reservation = Reservation::with(['staff'])->find($reservationId);
+                                                        if ($reservation && $reservation->staff) {
+                                                            return $reservation->staff->name;
+                                                        }
+                                                    }
+                                                }
+                                                return null;
+                                            })
                                             ->options(function ($get) {
                                                 $user = Auth::user();
 
@@ -254,7 +289,18 @@ class MedicalRecordResource extends Resource
                                         Forms\Components\DatePicker::make('treatment_date')
                                             ->label('施術日（任意）')
                                             ->helperText('未入力の場合は記録日が使用されます')
-                                            ->default(now())
+                                            ->default(function ($operation) {
+                                                if ($operation === 'create') {
+                                                    $reservationId = request()->query('reservation_id');
+                                                    if ($reservationId) {
+                                                        $reservation = Reservation::find($reservationId);
+                                                        if ($reservation && $reservation->reservation_date) {
+                                                            return $reservation->reservation_date->format('Y-m-d');
+                                                        }
+                                                    }
+                                                }
+                                                return now();
+                                            })
                                             ->nullable()
                                             ->live(debounce: 500)
                                             ->afterStateUpdated(function ($state, $set, $get) {
@@ -321,6 +367,23 @@ class MedicalRecordResource extends Resource
                                     ->schema([
                                         Forms\Components\Select::make('payment_method')
                                             ->label('支払い方法')
+                                            ->default(function ($operation) {
+                                                if ($operation === 'create') {
+                                                    $customerId = request()->query('customer_id');
+                                                    if ($customerId) {
+                                                        // データが入っている最新のカルテを取得
+                                                        $latestRecord = \App\Models\MedicalRecord::where('customer_id', $customerId)
+                                                            ->whereNotNull('payment_method')
+                                                            ->orderBy('treatment_date', 'desc')
+                                                            ->orderBy('created_at', 'desc')
+                                                            ->first();
+                                                        if ($latestRecord) {
+                                                            return $latestRecord->payment_method;
+                                                        }
+                                                    }
+                                                }
+                                                return null;
+                                            })
                                             ->options(function ($get) {
                                                 $store = null;
 
@@ -400,6 +463,22 @@ class MedicalRecordResource extends Resource
                                         
                                         Forms\Components\Select::make('reservation_source')
                                             ->label('来店経路')
+                                            ->default(function ($operation) {
+                                                if ($operation === 'create') {
+                                                    $customerId = request()->query('customer_id');
+                                                    if ($customerId) {
+                                                        $latestRecord = \App\Models\MedicalRecord::where('customer_id', $customerId)
+                                                            ->whereNotNull('reservation_source')
+                                                            ->orderBy('treatment_date', 'desc')
+                                                            ->orderBy('created_at', 'desc')
+                                                            ->first();
+                                                        if ($latestRecord) {
+                                                            return $latestRecord->reservation_source;
+                                                        }
+                                                    }
+                                                }
+                                                return null;
+                                            })
                                             ->options(function ($get) {
                                                 $store = null;
 
@@ -462,32 +541,130 @@ class MedicalRecordResource extends Resource
                                         
                                         Forms\Components\Textarea::make('visit_purpose')
                                             ->label('来店目的')
-                                            ->rows(2),
-                                        
+                                            ->rows(2)
+                                            ->default(function ($operation) {
+                                                if ($operation === 'create') {
+                                                    $customerId = request()->query('customer_id');
+                                                    if ($customerId) {
+                                                        $latestRecord = \App\Models\MedicalRecord::where('customer_id', $customerId)
+                                                            ->whereNotNull('visit_purpose')
+                                                            ->orderBy('treatment_date', 'desc')
+                                                            ->orderBy('created_at', 'desc')
+                                                            ->first();
+                                                        if ($latestRecord) {
+                                                            return $latestRecord->visit_purpose;
+                                                        }
+                                                    }
+                                                }
+                                                return null;
+                                            }),
+
                                         Forms\Components\Textarea::make('workplace_address')
                                             ->label('職場・住所')
-                                            ->rows(2),
+                                            ->rows(2)
+                                            ->default(function ($operation) {
+                                                if ($operation === 'create') {
+                                                    $customerId = request()->query('customer_id');
+                                                    if ($customerId) {
+                                                        $latestRecord = \App\Models\MedicalRecord::where('customer_id', $customerId)
+                                                            ->whereNotNull('workplace_address')
+                                                            ->orderBy('treatment_date', 'desc')
+                                                            ->orderBy('created_at', 'desc')
+                                                            ->first();
+                                                        if ($latestRecord) {
+                                                            return $latestRecord->workplace_address;
+                                                        }
+                                                    }
+                                                }
+                                                return null;
+                                            }),
                                     ]),
-                                
+
                                 Forms\Components\Grid::make(3)
                                     ->schema([
                                         Forms\Components\Toggle::make('genetic_possibility')
-                                            ->label('遺伝の可能性'),
-                                        
+                                            ->label('遺伝の可能性')
+                                            ->default(function ($operation) {
+                                                if ($operation === 'create') {
+                                                    $customerId = request()->query('customer_id');
+                                                    if ($customerId) {
+                                                        $latestRecord = \App\Models\MedicalRecord::where('customer_id', $customerId)
+                                                            ->where('genetic_possibility', true)
+                                                            ->orderBy('treatment_date', 'desc')
+                                                            ->orderBy('created_at', 'desc')
+                                                            ->first();
+                                                        if ($latestRecord) {
+                                                            return true;
+                                                        }
+                                                    }
+                                                }
+                                                return false;
+                                            }),
+
                                         Forms\Components\Toggle::make('has_astigmatism')
-                                            ->label('乱視'),
-                                        
+                                            ->label('乱視')
+                                            ->default(function ($operation) {
+                                                if ($operation === 'create') {
+                                                    $customerId = request()->query('customer_id');
+                                                    if ($customerId) {
+                                                        $latestRecord = \App\Models\MedicalRecord::where('customer_id', $customerId)
+                                                            ->where('has_astigmatism', true)
+                                                            ->orderBy('treatment_date', 'desc')
+                                                            ->orderBy('created_at', 'desc')
+                                                            ->first();
+                                                        if ($latestRecord) {
+                                                            return true;
+                                                        }
+                                                    }
+                                                }
+                                                return false;
+                                            }),
+
                                         Forms\Components\Textarea::make('eye_diseases')
                                             ->label('目の病気')
                                             ->placeholder('レーシック、白内障など')
                                             ->rows(2)
-                                            ->columnSpan(3),
+                                            ->columnSpan(3)
+                                            ->default(function ($operation) {
+                                                if ($operation === 'create') {
+                                                    $customerId = request()->query('customer_id');
+                                                    if ($customerId) {
+                                                        $latestRecord = \App\Models\MedicalRecord::where('customer_id', $customerId)
+                                                            ->whereNotNull('eye_diseases')
+                                                            ->where('eye_diseases', '!=', '')
+                                                            ->orderBy('treatment_date', 'desc')
+                                                            ->orderBy('created_at', 'desc')
+                                                            ->first();
+                                                        if ($latestRecord) {
+                                                            return $latestRecord->eye_diseases;
+                                                        }
+                                                    }
+                                                }
+                                                return null;
+                                            }),
                                     ]),
-                                
+
                                 Forms\Components\Textarea::make('device_usage')
                                     ->label('スマホ・PC使用頻度')
                                     ->placeholder('1日何時間程度、仕事で使用など')
-                                    ->rows(2),
+                                    ->rows(2)
+                                    ->default(function ($operation) {
+                                        if ($operation === 'create') {
+                                            $customerId = request()->query('customer_id');
+                                            if ($customerId) {
+                                                $latestRecord = \App\Models\MedicalRecord::where('customer_id', $customerId)
+                                                    ->whereNotNull('device_usage')
+                                                    ->where('device_usage', '!=', '')
+                                                    ->orderBy('treatment_date', 'desc')
+                                                    ->orderBy('created_at', 'desc')
+                                                    ->first();
+                                                if ($latestRecord) {
+                                                    return $latestRecord->device_usage;
+                                                }
+                                            }
+                                        }
+                                        return null;
+                                    }),
                             ]),
                         
                         // 視力記録タブ（顧客に見せる）
