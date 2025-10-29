@@ -162,7 +162,8 @@
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             @foreach($this->unposted as $res)
-                                <tr class="hover:bg-gray-50 {{ $res['is_posted'] ? 'bg-green-50' : '' }}">
+                                <tr wire:key="reservation-row-{{ $res['id'] }}-{{ $res['is_posted'] ? 'posted' : 'unposted' }}-{{ $res['amount'] }}"
+                                    class="hover:bg-gray-50 {{ $res['is_posted'] ? 'bg-green-50' : '' }}">
                                     <td class="px-3 py-3 text-sm text-gray-900">
                                         {{ $res['time'] }}
                                         @if($res['is_posted'])

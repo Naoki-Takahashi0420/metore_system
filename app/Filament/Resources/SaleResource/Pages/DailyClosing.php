@@ -328,7 +328,11 @@ class DailyClosing extends Page implements HasForms
                 ->body('売上を計上しました')
                 ->send();
 
-            // リストを再読み込み
+            // 配列を完全にリセットしてから再読み込み
+            $this->unposted = [];
+            $this->salesData = [];
+            $this->rowState = [];
+
             $this->loadUnpostedReservations();
             $this->loadSalesData();
 
@@ -372,7 +376,11 @@ class DailyClosing extends Page implements HasForms
                 ->body('売上を取り消しました。未計上に戻しました。')
                 ->send();
 
-            // リストを再読み込み
+            // 配列を完全にリセットしてから再読み込み
+            $this->unposted = [];
+            $this->salesData = [];
+            $this->rowState = [];
+
             $this->loadUnpostedReservations();
             $this->loadSalesData();
 
@@ -719,6 +727,12 @@ class DailyClosing extends Page implements HasForms
 
             // ドロワーを閉じてデータ再読み込み
             $this->closeEditor();
+
+            // 配列を完全にリセットしてから再読み込み
+            $this->unposted = [];
+            $this->salesData = [];
+            $this->rowState = [];
+
             $this->loadSalesData();
             $this->loadUnpostedReservations();
 
@@ -878,7 +892,11 @@ class DailyClosing extends Page implements HasForms
                 ->success()
                 ->send();
 
-            // データを再読み込み
+            // 配列を完全にリセットしてから再読み込み
+            $this->unposted = [];
+            $this->salesData = [];
+            $this->rowState = [];
+
             $this->loadSalesData();
             $this->loadUnpostedReservations();
 
@@ -923,7 +941,11 @@ class DailyClosing extends Page implements HasForms
             ->success()
             ->send();
 
-        // データを再読み込み
+        // 配列を完全にリセットしてから再読み込み
+        $this->unposted = [];
+        $this->salesData = [];
+        $this->rowState = [];
+
         $this->loadSalesData();
         $this->loadUnpostedReservations();
 
@@ -960,7 +982,11 @@ class DailyClosing extends Page implements HasForms
                 ->success()
                 ->send();
 
-            // データを再読み込み
+            // 配列を完全にリセットしてから再読み込み
+            $this->unposted = [];
+            $this->salesData = [];
+            $this->rowState = [];
+
             $this->loadSalesData();
             $this->loadUnpostedReservations();
 
