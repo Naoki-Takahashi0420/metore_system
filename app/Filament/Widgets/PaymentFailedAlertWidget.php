@@ -45,6 +45,7 @@ class PaymentFailedAlertWidget extends Widget
         $query = CustomerSubscription::query()
             ->with(['customer', 'store'])
             ->where('payment_failed', true)
+            ->where('status', 'active')
             ->orderBy('payment_failed_at', 'desc');
 
         if ($this->selectedStoreId) {
