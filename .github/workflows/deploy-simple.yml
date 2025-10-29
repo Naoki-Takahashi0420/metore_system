@@ -151,10 +151,17 @@ jobs:
         fi
         sudo chown www-data:www-data database/database.sqlite
         sudo chmod 664 database/database.sqlite
-        
+
         # Composer
         sudo COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader
-        
+
+        # 権限設定（キャッシュ操作の前に実行）
+        sudo chown -R www-data:www-data $APP_DIR
+        sudo chmod -R 755 $APP_DIR
+        [ -d "$APP_DIR/storage" ] && sudo chmod -R 775 $APP_DIR/storage
+        [ -d "$APP_DIR/bootstrap/cache" ] && sudo chmod -R 775 $APP_DIR/bootstrap/cache
+        [ -d "$APP_DIR/database" ] && sudo chmod -R 775 $APP_DIR/database
+
         # Laravel設定（.envファイルは既存のものを使用）
         # sudo php artisan key:generate はコメントアウト（既存のキーを使用）
         sudo php artisan storage:link
