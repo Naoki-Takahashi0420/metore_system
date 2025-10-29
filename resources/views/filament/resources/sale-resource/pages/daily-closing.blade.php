@@ -182,12 +182,14 @@
                                     </td>
                                     <td class="px-3 py-3">
                                         <select
-                                            wire:model="rowState.{{ $res['id'] }}.payment_method"
+                                            wire:change="updateRowState({{ $res['id'] }}, 'payment_method', $event.target.value)"
                                             class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500"
                                             {{ $res['is_posted'] ? 'disabled' : '' }}
                                         >
                                             @foreach($res['payment_methods'] ?? ['現金'] as $method)
-                                                <option value="{{ $method }}">{{ $method }}</option>
+                                                <option value="{{ $method }}" {{ ($this->rowState[$res['id']]['payment_method'] ?? '') === $method ? 'selected' : '' }}>
+                                                    {{ $method }}
+                                                </option>
                                             @endforeach
                                         </select>
                                     </td>
@@ -195,7 +197,8 @@
                                         @if($res['source'] === 'spot')
                                             <input
                                                 type="number"
-                                                wire:model="rowState.{{ $res['id'] }}.amount"
+                                                value="{{ $this->rowState[$res['id']]['amount'] ?? $res['amount'] }}"
+                                                wire:change="updateRowState({{ $res['id'] }}, 'amount', $event.target.value)"
                                                 class="block w-24 text-sm border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500"
                                                 min="0"
                                                 step="1"

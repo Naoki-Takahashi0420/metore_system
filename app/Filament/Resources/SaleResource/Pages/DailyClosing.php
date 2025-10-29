@@ -270,6 +270,25 @@ class DailyClosing extends Page implements HasForms
     }
 
     /**
+     * 行の状態を更新（支払方法や金額の変更）
+     */
+    public function updateRowState($reservationId, $field, $value)
+    {
+        if (!isset($this->rowState[$reservationId])) {
+            $this->rowState[$reservationId] = [];
+        }
+
+        $this->rowState[$reservationId][$field] = $value;
+
+        \Log::info('Row state updated', [
+            'reservation_id' => $reservationId,
+            'field' => $field,
+            'value' => $value,
+            'current_state' => $this->rowState[$reservationId],
+        ]);
+    }
+
+    /**
      * テーブルから直接計上
      */
     public function postSingleSale(int $reservationId): void
