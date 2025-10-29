@@ -234,11 +234,22 @@ class DailyClosing extends Page implements HasForms
                 }
             }
 
+            // 売上を強制的に再取得（Eager Loadのキャッシュを回避）
+            $freshSale = Sale::where('reservation_id', $reservation->id)->first();
+
             // 計上済みの場合は売上レコードから金額と支払方法を取得、未計上はカルテ/デフォルトから取得
-            if ($reservation->sale) {
+            if ($freshSale) {
                 // 計上済み：売上レコードの金額と支払方法を使用
-                $amount = (int)($reservation->sale->total_amount ?? 0);
-                $paymentMethod = $reservation->sale->payment_method ?? $defaultPaymentMethod;
+                $amount = (int)($freshSale->total_amount ?? 0);
+                $paymentMethod = $freshSale->payment_method ?? $defaultPaymentMethod;
+
+                \Log::debug('📊 計上済み予約データ', [
+                    'reservation_id' => $reservation->id,
+                    'customer' => $reservation->customer?->full_name,
+                    'sale_id' => $freshSale->id,
+                    'amount' => $amount,
+                    'payment_method' => $paymentMethod,
+                ]);
             } else {
                 // 未計上：予約の金額を使用
                 $amount = ($source === 'spot') ? (int)($reservation->total_amount ?? 0) : 0;
@@ -271,8 +282,8 @@ class DailyClosing extends Page implements HasForms
                 'source' => $source,
                 'amount' => $amount,
                 'payment_methods' => $storePaymentMethods, // 店舗の支払方法リスト
-                'is_posted' => $reservation->sale ? true : false, // 計上済みかどうか
-                'sale_id' => $reservation->sale?->id, // 売上ID
+                'is_posted' => $freshSale ? true : false, // 計上済みかどうか
+                'sale_id' => $freshSale?->id, // 売上ID
             ];
         })->toArray();
     }
@@ -825,19 +836,31 @@ class DailyClosing extends Page implements HasForms
             ]);
         }
 
+        $totalAmount = $subtotal + $taxAmount;
+
         // 売上レコードを更新
         $sale->update([
             'payment_method' => $paymentMethod,
             'subtotal' => $subtotal,
             'tax_amount' => $taxAmount,
-            'total_amount' => $subtotal + $taxAmount,
+            'total_amount' => $totalAmount,
         ]);
 
-        \Log::info('売上更新完了', [
+        // 更新後のデータを確認
+        $sale->refresh();
+
+        \Log::info('🔄 売上更新完了', [
             'sale_id' => $sale->id,
             'reservation_id' => $reservation->id,
             'payment_method' => $paymentMethod,
-            'total_amount' => $subtotal + $taxAmount,
+            'menu_price' => $reservation->total_amount ?? 0,
+            'options_count' => count($options),
+            'products_count' => count($products),
+            'subtotal' => $subtotal,
+            'tax_amount' => $taxAmount,
+            'total_amount' => $totalAmount,
+            'db_total_after_update' => $sale->total_amount,
+            'db_payment_method_after_update' => $sale->payment_method,
             'user_id' => auth()->id(),
         ]);
     }
