@@ -7,7 +7,7 @@ use App\Models\Sale;
 use App\Models\DailyClosing as DailyClosingModel;
 use App\Models\Reservation;
 use App\Models\CustomerTicket;
-use Filament\Resources\Pages\Page;
+use Filament\Pages\Page;  // Filament\Resources\Pages\Page ではなく Filament\Pages\Page を使用
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms;
@@ -18,11 +18,28 @@ class DailyClosing extends Page implements HasForms
 {
     use InteractsWithForms;
 
-    protected static string $resource = SaleResource::class;
-
     protected static string $view = 'filament.resources.sale-resource.pages.daily-closing';
 
     protected static ?string $title = '日次精算';
+
+    // ルート設定
+    protected static string $routePath = 'sales/daily-closing';
+
+    // サイドバーナビゲーション設定
+    protected static bool $shouldRegisterNavigation = true;
+    protected static ?string $navigationIcon = 'heroicon-o-calculator';
+    protected static ?string $navigationLabel = '日次精算';
+    protected static ?string $navigationGroup = '売上・会計';
+    protected static ?int $navigationSort = 2;
+
+    /**
+     * ナビゲーション表示の権限チェック
+     */
+    public static function canAccess(): bool
+    {
+        $user = auth()->user();
+        return $user && !$user->hasRole('staff');
+    }
 
     public $closingDate;
     public $selectedStoreId; // 選択された店舗ID
@@ -725,14 +742,10 @@ class DailyClosing extends Page implements HasForms
             $productTotal += ($item['price'] ?? 0) * ($item['quantity'] ?? 1);
         }
 
-        $subtotal = $serviceTotal + $optionTotal + $productTotal;
+        // 内税計算：入力価格を税込として扱う
+        $total = $serviceTotal + $optionTotal + $productTotal;
 
-        // 10%の消費税を計算（切り捨て）
-        $taxAmount = floor($subtotal * 0.1);
-
-        $this->editorData['subtotal'] = $subtotal;
-        $this->editorData['tax_amount'] = $taxAmount;
-        $this->editorData['total'] = $subtotal + $taxAmount;
+        $this->editorData['total'] = $total;
     }
 
     /**

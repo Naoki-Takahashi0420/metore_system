@@ -53,6 +53,7 @@ class AdminPanelProvider extends PanelProvider
                 \App\Filament\Pages\ShiftManagement::class,
                 \App\Filament\Pages\ImportCustomers::class,
                 \App\Filament\Pages\SystemLogs::class,
+                \App\Filament\Resources\SaleResource\Pages\DailyClosing::class,
             ])
             ->widgets([
                 \App\Filament\Widgets\ReservationTimelineWidget::class,
@@ -63,13 +64,8 @@ class AdminPanelProvider extends PanelProvider
                 \App\Filament\Widgets\ShiftManagementLinkWidget::class,
                 \App\Filament\Widgets\SubscriptionStatsWidget::class,
             ])
-            ->navigationItems([
-                \Filament\Navigation\NavigationItem::make('日次売上管理')
-                    ->url('/admin/sales/daily-closing')
-                    ->icon('heroicon-o-calculator')
-                    ->group('売上・会計')
-                    ->sort(2),
-            ])
+            // DailyClosingページが自動的にナビゲーションに追加されるため、
+            // navigationItems での手動登録は不要
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

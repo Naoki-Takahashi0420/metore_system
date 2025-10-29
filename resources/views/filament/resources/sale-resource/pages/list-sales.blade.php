@@ -14,7 +14,7 @@
 
     {{-- フィルタセクション --}}
     <div class="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             {{-- 店舗セレクト --}}
             <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">店舗</label>
@@ -45,26 +45,26 @@
                 </label>
                 <input type="date" wire:model.live="dateTo" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
             </div>
+        </div>
 
-            {{-- クイックボタン --}}
-            <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">クイック選択</label>
-                <div class="flex gap-2">
-                    <button wire:click="setToday" style="background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%); color: #ffffff !important;" class="px-4 py-2.5 text-sm font-bold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 flex items-center gap-2 border-2 border-blue-900">
-                        <x-heroicon-o-calendar-days class="w-5 h-5" style="color: #ffffff !important;" />
-                        <span style="color: #ffffff !important; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">今日</span>
-                    </button>
-                    <button wire:click="setThisMonth" style="background: linear-gradient(135deg, #15803d 0%, #14532d 100%); color: #ffffff !important;" class="px-4 py-2.5 text-sm font-bold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 flex items-center gap-2 border-2 border-green-900">
-                        <x-heroicon-o-chart-bar class="w-5 h-5" style="color: #ffffff !important;" />
-                        <span style="color: #ffffff !important; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">今月</span>
-                    </button>
-                    <button wire:click="setLastMonth" style="background: #7c3aed; color: #ffffff !important;" class="px-4 py-2 text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-1 border-2 border-purple-800 hover:bg-purple-700">
-                        <span style="color: #ffffff !important;">先月</span>
-                    </button>
-                    <button wire:click="setLast30Days" style="background: #ea580c; color: #ffffff !important;" class="px-4 py-2 text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-1 border-2 border-orange-800 hover:bg-orange-700">
-                        <span style="color: #ffffff !important;">30日</span>
-                    </button>
-                </div>
+        {{-- クイックボタン --}}
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">クイック選択</label>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem;">
+                <button wire:click="setToday" style="background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%); color: #ffffff !important;" class="px-4 py-2.5 text-sm font-bold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 flex items-center gap-2 border-2 border-blue-900">
+                    <x-heroicon-o-calendar-days class="w-5 h-5" style="color: #ffffff !important;" />
+                    <span style="color: #ffffff !important; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">今日</span>
+                </button>
+                <button wire:click="setThisMonth" style="background: linear-gradient(135deg, #15803d 0%, #14532d 100%); color: #ffffff !important;" class="px-4 py-2.5 text-sm font-bold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 flex items-center gap-2 border-2 border-green-900">
+                    <x-heroicon-o-chart-bar class="w-5 h-5" style="color: #ffffff !important;" />
+                    <span style="color: #ffffff !important; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">今月</span>
+                </button>
+                <button wire:click="setLastMonth" style="background: #7c3aed; color: #ffffff !important;" class="px-4 py-2 text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-1 border-2 border-purple-800 hover:bg-purple-700">
+                    <span style="color: #ffffff !important;">先月</span>
+                </button>
+                <button wire:click="setLast30Days" style="background: #ea580c; color: #ffffff !important;" class="px-4 py-2 text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-1 border-2 border-orange-800 hover:bg-orange-700">
+                    <span style="color: #ffffff !important;">30日</span>
+                </button>
             </div>
         </div>
 

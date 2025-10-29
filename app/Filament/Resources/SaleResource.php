@@ -160,11 +160,11 @@ class SaleResource extends Resource
                                     if ($reservation) {
                                         $set('customer_id', $reservation->customer_id);
                                         if ($reservation->menu) {
+                                            // 内税計算：メニュー価格を税込として扱う
                                             $price = $reservation->menu->price;
                                             $set('subtotal', $price);
-                                            $tax = round($price * 0.1, 0);
-                                            $set('tax_amount', $tax);
-                                            $set('total_amount', $price + $tax);
+                                            $set('tax_amount', 0);
+                                            $set('total_amount', $price);
                                         }
                                     }
                                 }
@@ -238,8 +238,10 @@ class SaleResource extends Resource
                                         Forms\Components\TextInput::make('tax_rate')
                                             ->label('税率(%)')
                                             ->numeric()
-                                            ->default(10)
-                                            ->suffix('%'),
+                                            ->default(0)
+                                            ->suffix('%')
+                                            ->disabled()
+                                            ->helperText('内税のため使用しません'),
                                         Forms\Components\TextInput::make('amount')
                                             ->label('金額')
                                             ->numeric()
@@ -257,23 +259,25 @@ class SaleResource extends Resource
                         Forms\Components\Grid::make(3)
                             ->schema([
                                 Forms\Components\TextInput::make('subtotal')
-                                    ->label('小計')
+                                    ->label('小計（税込）')
                                     ->numeric()
                                     ->default(0)
                                     ->prefix('¥')
                                     ->required()
                                     ->reactive()
                                     ->afterStateUpdated(function (Get $get, Set $set, $state) {
-                                        $tax = round($state * 0.1, 0);
-                                        $set('tax_amount', $tax);
-                                        $set('total_amount', $state + $tax - $get('discount_amount'));
+                                        // 内税計算：入力価格を税込として扱う
+                                        $set('tax_amount', 0);
+                                        $set('total_amount', $state - $get('discount_amount'));
                                     }),
                                 Forms\Components\TextInput::make('tax_amount')
                                     ->label('消費税')
                                     ->numeric()
                                     ->default(0)
                                     ->prefix('¥')
-                                    ->required(),
+                                    ->required()
+                                    ->disabled()
+                                    ->helperText('内税のため常に0円です'),
                                 Forms\Components\TextInput::make('discount_amount')
                                     ->label('割引額')
                                     ->numeric()
@@ -281,7 +285,8 @@ class SaleResource extends Resource
                                     ->prefix('¥')
                                     ->reactive()
                                     ->afterStateUpdated(function (Get $get, Set $set) {
-                                        $set('total_amount', $get('subtotal') + $get('tax_amount') - $get('discount_amount'));
+                                        // 内税計算：合計 = 小計（税込） - 割引額
+                                        $set('total_amount', $get('subtotal') - $get('discount_amount'));
                                     }),
                             ]),
                         
@@ -458,7 +463,7 @@ class SaleResource extends Resource
             'index' => Pages\ListSales::route('/'),
             'create' => Pages\CreateSale::route('/create'),
             'edit' => Pages\EditSale::route('/{record}/edit'),
-            'daily-closing' => Pages\DailyClosing::route('/daily-closing'),
+            // 'daily-closing' は独立したページとして登録されるため、ここからは削除
         ];
     }
     

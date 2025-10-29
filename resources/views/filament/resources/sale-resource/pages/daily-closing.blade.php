@@ -206,7 +206,9 @@
                                                 {{ $res['is_posted'] ? 'disabled' : '' }}
                                             />
                                         @else
-                                            <span class="text-xs text-gray-500">¥0</span>
+                                            <span class="text-sm {{ $res['amount'] > 0 ? 'text-gray-900 font-medium' : 'text-gray-500' }}">
+                                                ¥{{ number_format((int)($res['amount'] ?? 0)) }}
+                                            </span>
                                         @endif
                                     </td>
                                     <td class="px-3 py-3">
@@ -403,7 +405,7 @@
                                         <label class="block text-xs text-gray-500 mb-1">単価</label>
                                         <input type="number"
                                                wire:model="editorData.service_item.price"
-                                               wire:change="updateCalculation"
+                                               wire:input="updateCalculation"
                                                class="block w-full text-sm border-gray-300 rounded-md"
                                                min="0"
                                                @if($this->editorData['payment_source'] !== 'spot') disabled @endif>
@@ -412,7 +414,7 @@
                                         <label class="block text-xs text-gray-500 mb-1">数量</label>
                                         <input type="number"
                                                wire:model="editorData.service_item.quantity"
-                                               wire:change="updateCalculation"
+                                               wire:input="updateCalculation"
                                                class="block w-full text-sm border-gray-300 rounded-md"
                                                min="1"
                                                disabled>
@@ -470,7 +472,7 @@
                                             <label class="block text-xs text-gray-500 mb-1">単価</label>
                                             <input type="number"
                                                    wire:model="editorData.option_items.{{ $index }}.price"
-                                                   wire:change="updateCalculation"
+                                                   wire:input="updateCalculation"
                                                    class="block w-full text-sm border-gray-300 rounded-md bg-gray-100"
                                                    min="0"
                                                    readonly>
@@ -479,7 +481,7 @@
                                             <label class="block text-xs text-gray-500 mb-1">数量</label>
                                             <input type="number"
                                                    wire:model="editorData.option_items.{{ $index }}.quantity"
-                                                   wire:change="updateCalculation"
+                                                   wire:input="updateCalculation"
                                                    class="block w-full text-sm border-gray-300 rounded-md"
                                                    min="1">
                                         </div>
@@ -522,7 +524,7 @@
                                             <label class="block text-xs text-gray-500 mb-1">単価</label>
                                             <input type="number"
                                                    wire:model="editorData.product_items.{{ $index }}.price"
-                                                   wire:change="updateCalculation"
+                                                   wire:input="updateCalculation"
                                                    class="block w-full text-sm border-gray-300 rounded-md"
                                                    min="0">
                                         </div>
@@ -530,7 +532,7 @@
                                             <label class="block text-xs text-gray-500 mb-1">数量</label>
                                             <input type="number"
                                                    wire:model="editorData.product_items.{{ $index }}.quantity"
-                                                   wire:change="updateCalculation"
+                                                   wire:input="updateCalculation"
                                                    class="block w-full text-sm border-gray-300 rounded-md"
                                                    min="1">
                                         </div>
@@ -570,16 +572,8 @@
                         <!-- 合計 -->
                         <div class="bg-gray-50 rounded-lg p-4">
                             <div class="space-y-2">
-                                <div class="flex justify-between text-sm">
-                                    <span class="text-gray-600">小計（税抜）</span>
-                                    <span class="font-medium">¥{{ number_format((int)($this->editorData['subtotal'] ?? 0)) }}</span>
-                                </div>
-                                <div class="flex justify-between text-sm">
-                                    <span class="text-gray-600">消費税（10%）</span>
-                                    <span class="font-medium">¥{{ number_format((int)($this->editorData['tax_amount'] ?? 0)) }}</span>
-                                </div>
-                                <div class="flex justify-between text-base font-semibold border-t pt-2">
-                                    <span>合計（税込）</span>
+                                <div class="flex justify-between text-base font-semibold">
+                                    <span>小計（税込）</span>
                                     <span class="text-primary-600">¥{{ number_format((int)($this->editorData['total'] ?? 0)) }}</span>
                                 </div>
                             </div>
