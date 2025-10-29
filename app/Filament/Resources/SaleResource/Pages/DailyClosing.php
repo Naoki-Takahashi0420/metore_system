@@ -603,6 +603,9 @@ class DailyClosing extends Page implements HasForms
         $initialSubtotal = $source === 'spot' ? ($reservation->total_amount ?? 0) : 0;
         $initialTaxAmount = floor($initialSubtotal * 0.1);
 
+        // 計上済み売上がある場合は割引額を取得
+        $initialDiscountAmount = $existingSale ? (int)($existingSale->discount_amount ?? 0) : 0;
+
         $this->editorData = [
             'reservation' => [
                 'id' => $reservation->id,
@@ -624,6 +627,7 @@ class DailyClosing extends Page implements HasForms
             'payment_source' => $source,
             'subtotal' => $initialSubtotal,
             'tax_amount' => $initialTaxAmount,
+            'discount_amount' => $initialDiscountAmount, // 割引額
             'total' => $initialSubtotal + $initialTaxAmount,
         ];
 
@@ -742,8 +746,19 @@ class DailyClosing extends Page implements HasForms
             $productTotal += ($item['price'] ?? 0) * ($item['quantity'] ?? 1);
         }
 
-        // 内税計算：入力価格を税込として扱う
-        $total = $serviceTotal + $optionTotal + $productTotal;
+        // 小計（税込）
+        $subtotal = $serviceTotal + $optionTotal + $productTotal;
+
+        // 割引額
+        $discountAmount = (int)($this->editorData['discount_amount'] ?? 0);
+
+        // 合計 = 小計 - 割引
+        $total = $subtotal - $discountAmount;
+
+        // マイナスにならないように
+        if ($total < 0) {
+            $total = 0;
+        }
 
         $this->editorData['total'] = $total;
     }
@@ -825,14 +840,17 @@ class DailyClosing extends Page implements HasForms
 
             \Log::info('✅ 変換後の物販数', ['count' => count($products)]);
 
+            // 割引額を取得
+            $discountAmount = (int)($this->editorData['discount_amount'] ?? 0);
+
             if ($existingSale) {
                 // 既に計上済み：売上を更新
-                $this->updateExistingSale($existingSale, $reservation, $method, $options, $products);
+                $this->updateExistingSale($existingSale, $reservation, $method, $options, $products, $discountAmount);
                 $message = "予約番号 {$reservation->reservation_number} の売上を更新しました";
             } else {
                 // 未計上：新規作成
                 $salePostingService = new \App\Services\SalePostingService();
-                $sale = $salePostingService->post($reservation, $method, $options, $products);
+                $sale = $salePostingService->post($reservation, $method, $options, $products, $discountAmount);
 
                 // ポイント付与（スポットまたは合計>0の場合）
                 if ($sale->payment_source === 'spot' || $totalAmount > 0) {
@@ -889,7 +907,8 @@ class DailyClosing extends Page implements HasForms
         Reservation $reservation,
         string $paymentMethod,
         array $options,
-        array $products
+        array $products,
+        int $discountAmount = 0
     ): void {
         // 既存の明細を削除
         $sale->items()->delete();
@@ -956,13 +975,21 @@ class DailyClosing extends Page implements HasForms
             ]);
         }
 
-        $totalAmount = $subtotal + $taxAmount;
+        // 内税計算のため税額は0
+        $taxAmount = 0;
+
+        // 合計 = 小計 - 割引
+        $totalAmount = $subtotal - $discountAmount;
+        if ($totalAmount < 0) {
+            $totalAmount = 0;
+        }
 
         // 売上レコードを更新
         $sale->update([
             'payment_method' => $paymentMethod,
             'subtotal' => $subtotal,
             'tax_amount' => $taxAmount,
+            'discount_amount' => $discountAmount,
             'total_amount' => $totalAmount,
         ]);
 

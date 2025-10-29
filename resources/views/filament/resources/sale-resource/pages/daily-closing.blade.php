@@ -577,9 +577,46 @@
 
                         <!-- 合計 -->
                         <div class="bg-gray-50 rounded-lg p-4">
-                            <div class="space-y-2">
-                                <div class="flex justify-between text-base font-semibold">
-                                    <span>小計（税込）</span>
+                            <div class="space-y-3">
+                                @php
+                                    // 小計を計算（割引前）
+                                    $serviceTotal = ($this->editorData['service_item']['price'] ?? 0) * ($this->editorData['service_item']['quantity'] ?? 1);
+                                    $optionTotal = 0;
+                                    foreach ($this->editorData['option_items'] ?? [] as $item) {
+                                        $optionTotal += ($item['price'] ?? 0) * ($item['quantity'] ?? 1);
+                                    }
+                                    $productTotal = 0;
+                                    foreach ($this->editorData['product_items'] ?? [] as $item) {
+                                        $productTotal += ($item['price'] ?? 0) * ($item['quantity'] ?? 1);
+                                    }
+                                    $subtotalBeforeDiscount = $serviceTotal + $optionTotal + $productTotal;
+                                @endphp
+
+                                <!-- 小計（税込） -->
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-600">小計（税込）</span>
+                                    <span class="text-gray-900">¥{{ number_format((int)$subtotalBeforeDiscount) }}</span>
+                                </div>
+
+                                <!-- 割引 -->
+                                <div class="flex justify-between items-center">
+                                    <label class="text-sm text-gray-600">割引</label>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-sm text-gray-500">-</span>
+                                        <input type="number"
+                                               wire:model="editorData.discount_amount"
+                                               wire:input="updateCalculation"
+                                               class="w-32 text-sm border-gray-300 rounded-md"
+                                               min="0"
+                                               step="1"
+                                               placeholder="0">
+                                        <span class="text-sm text-gray-500">円</span>
+                                    </div>
+                                </div>
+
+                                <!-- 合計（区切り線の後） -->
+                                <div class="border-t border-gray-300 pt-2 flex justify-between text-base font-semibold">
+                                    <span>合計</span>
                                     <span class="text-primary-600">¥{{ number_format((int)($this->editorData['total'] ?? 0)) }}</span>
                                 </div>
                             </div>

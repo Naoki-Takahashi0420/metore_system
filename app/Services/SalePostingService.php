@@ -33,7 +33,8 @@ class SalePostingService
         Reservation $reservation,
         ?string $paymentMethod = null,
         array $options = [],
-        array $products = []
+        array $products = [],
+        int $discountAmount = 0
     ): Sale {
         DB::beginTransaction();
 
@@ -50,7 +51,7 @@ class SalePostingService
             $paymentSource = $this->determinePaymentSource($reservation);
 
             // 金額計算
-            $amounts = $this->calculateAmounts($reservation, $paymentSource, $options, $products);
+            $amounts = $this->calculateAmounts($reservation, $paymentSource, $options, $products, $discountAmount);
 
             // バリデーション: 金額>0の場合は支払方法必須
             if ($amounts['total_amount'] > 0 && empty($paymentMethod)) {
@@ -72,7 +73,7 @@ class SalePostingService
                 'sale_time' => now()->format('H:i'),
                 'subtotal' => $amounts['subtotal'],
                 'tax_amount' => $amounts['tax_amount'],
-                'discount_amount' => 0,
+                'discount_amount' => $discountAmount,
                 'total_amount' => $amounts['total_amount'],
                 'status' => 'completed',
                 'completed_at' => now(),
@@ -271,37 +272,37 @@ class SalePostingService
         Reservation $reservation,
         string $paymentSource,
         array $options,
-        array $products
+        array $products,
+        int $discountAmount = 0
     ): array {
         $subtotal = 0;
-        $taxAmount = 0;
 
         // スポット予約の場合のみ基本料金を加算
         if ($paymentSource === PaymentSource::SPOT->value) {
             $menuPrice = $reservation->menu?->price ?? 0;
             $subtotal += $menuPrice;
-            // 簡易計算: 10%の消費税
-            $taxAmount += floor($menuPrice * 0.1);
         }
 
         // オプション料金を加算
         foreach ($options as $option) {
             $optionTotal = ($option['price'] ?? 0) * ($option['quantity'] ?? 1);
             $subtotal += $optionTotal;
-            $taxAmount += floor($optionTotal * 0.1);
         }
 
         // 物販料金を加算
         foreach ($products as $product) {
             $productTotal = ($product['price'] ?? 0) * ($product['quantity'] ?? 1);
             $subtotal += $productTotal;
-
-            // 物販は税率を指定できる
-            $taxRate = $product['tax_rate'] ?? 0.1;
-            $taxAmount += floor($productTotal * $taxRate);
         }
 
-        $totalAmount = $subtotal + $taxAmount;
+        // 内税計算のため税額は0
+        $taxAmount = 0;
+
+        // 合計 = 小計 - 割引
+        $totalAmount = $subtotal - $discountAmount;
+        if ($totalAmount < 0) {
+            $totalAmount = 0;
+        }
 
         return [
             'subtotal' => $subtotal,
