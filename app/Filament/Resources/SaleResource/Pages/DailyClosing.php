@@ -508,7 +508,11 @@ class DailyClosing extends Page implements HasForms
 
             $saleItems = $existingSale->items;
             foreach ($saleItems as $item) {
-                if ($item->type === 'option') {
+                // typeとitem_typeの両方をチェック
+                $itemType = $item->type ?? $item->item_type;
+
+                if ($itemType === 'option' || $item->menu_option_id) {
+                    // オプション
                     $autoLoadedOptions[] = [
                         'option_id' => $item->menu_option_id,
                         'option_type' => $item->menu_option_id ? 'menu_option' : null,
@@ -516,13 +520,23 @@ class DailyClosing extends Page implements HasForms
                         'price' => $item->unit_price ?? 0,
                         'quantity' => $item->quantity ?? 1,
                     ];
-                } elseif ($item->type === 'product') {
+                } elseif ($itemType === 'product') {
+                    // 物販
+                    $autoLoadedProducts[] = [
+                        'name' => $item->item_name,
+                        'price' => $item->unit_price ?? 0,
+                        'quantity' => $item->quantity ?? 1,
+                    ];
+                } elseif ($itemType === 'service' && !$item->menu_id) {
+                    // serviceタイプだがmenu_idがない = 手動追加された物販/オプション
+                    // 名前で判定（暫定）：将来的にはitem_typeを正しく設定すべき
                     $autoLoadedProducts[] = [
                         'name' => $item->item_name,
                         'price' => $item->unit_price ?? 0,
                         'quantity' => $item->quantity ?? 1,
                     ];
                 }
+                // それ以外（menu_idがあるservice）はメインサービスなので無視
             }
 
             \Log::info('✅ 読み込んだアイテム数', [
