@@ -51,22 +51,20 @@ class CustomerAuthController extends Controller
             ], 429);
         }
 
-        // メールアドレスは再送信時のみ取得して送信
+        // メールアドレスを取得してフォールバック送信（初回・再送信両方）
         $email = null;
         $isResend = $request->boolean('is_resend', false);
 
-        if ($isResend) {
-            // 既存顧客のメールアドレスを取得（再送信時のメール送信用）
-            $normalizedPhone = PhoneHelper::normalize($request->phone);
-            $customer = Customer::where('phone', $normalizedPhone)
-                ->orWhere('phone', $request->phone)
-                ->whereNotNull('email')
-                ->first();
+        // 既存顧客のメールアドレスを取得（SMS届かない場合のメールフォールバック用）
+        $normalizedPhone = PhoneHelper::normalize($request->phone);
+        $customer = Customer::where('phone', $normalizedPhone)
+            ->orWhere('phone', $request->phone)
+            ->whereNotNull('email')
+            ->first();
 
-            $email = $customer && $customer->email ? $customer->email : null;
-        }
+        $email = $customer && $customer->email ? $customer->email : null;
 
-        // OTP送信（再送信時のみメールアドレスを渡す）
+        // OTP送信（メールアドレスがあればSMS + Email、なければSMSのみ）
         $result = $this->otpService->sendOtp($request->phone, $email);
 
         if (!$result['success']) {
