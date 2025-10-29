@@ -235,7 +235,10 @@ class DailyClosing extends Page implements HasForms
             }
 
             // 売上を強制的に再取得（Eager Loadのキャッシュを回避）
-            $freshSale = Sale::where('reservation_id', $reservation->id)->first();
+            // 最新の売上を取得（同一予約に複数売上がある場合に備えて降順ソート）
+            $freshSale = Sale::where('reservation_id', $reservation->id)
+                ->orderByDesc('id')
+                ->first();
 
             // 計上済みの場合は売上レコードから金額と支払方法を取得、未計上はカルテ/デフォルトから取得
             if ($freshSale) {

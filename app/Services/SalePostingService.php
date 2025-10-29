@@ -65,7 +65,7 @@ class SalePostingService
                 'customer_id' => $reservation->customer_id,
                 'staff_id' => $reservation->staff_id ?? auth()->id(),
                 'customer_ticket_id' => $paymentSource === PaymentSource::TICKET->value ? $reservation->customer_ticket_id : null,
-                'customer_subscription_id' => $paymentSource === PaymentSource::SUBSCRIPTION->value ? $reservation->subscription_id : null,
+                'customer_subscription_id' => $paymentSource === PaymentSource::SUBSCRIPTION->value ? $reservation->customer_subscription_id : null,
                 'payment_method' => $paymentMethod,
                 'payment_source' => $paymentSource,
                 'sale_date' => $reservation->reservation_date ?? now()->toDateString(),
@@ -80,7 +80,7 @@ class SalePostingService
             ];
 
             // 支払ソースに応じた追加情報
-            if ($paymentSource === PaymentSource::SUBSCRIPTION->value && $reservation->subscription_id) {
+            if ($paymentSource === PaymentSource::SUBSCRIPTION->value && $reservation->customer_subscription_id) {
                 $saleData['notes'] .= " | サブスク利用";
             } elseif ($paymentSource === PaymentSource::TICKET->value && $reservation->customer_ticket_id) {
                 $ticket = CustomerTicket::find($reservation->customer_ticket_id);
@@ -246,8 +246,8 @@ class SalePostingService
      */
     protected function determinePaymentSource(Reservation $reservation): string
     {
-        // サブスクリプション判定
-        if ($reservation->subscription_id) {
+        // サブスクリプション判定（正しいフィールド名: customer_subscription_id）
+        if ($reservation->customer_subscription_id) {
             return PaymentSource::SUBSCRIPTION->value;
         }
 
