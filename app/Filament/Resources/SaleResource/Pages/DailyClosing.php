@@ -509,6 +509,9 @@ class DailyClosing extends Page implements HasForms
         }
 
         // エディタデータ初期化
+        $initialSubtotal = $source === 'spot' ? ($reservation->total_amount ?? 0) : 0;
+        $initialTaxAmount = floor($initialSubtotal * 0.1);
+
         $this->editorData = [
             'reservation' => [
                 'id' => $reservation->id,
@@ -528,11 +531,12 @@ class DailyClosing extends Page implements HasForms
             'payment_method' => $paymentMethod,
             'payment_methods_list' => $storePaymentMethods, // 店舗の支払い方法リスト
             'payment_source' => $source,
-            'subtotal' => $source === 'spot' ? ($reservation->total_amount ?? 0) : 0,
-            'total' => $source === 'spot' ? ($reservation->total_amount ?? 0) : 0,
+            'subtotal' => $initialSubtotal,
+            'tax_amount' => $initialTaxAmount,
+            'total' => $initialSubtotal + $initialTaxAmount,
         ];
 
-        // オプションがある場合は合計を再計算
+        // オプションがある場合は合計を再計算（税込み）
         if (!empty($autoLoadedOptions)) {
             $this->updateCalculation();
         }
@@ -631,7 +635,7 @@ class DailyClosing extends Page implements HasForms
     }
 
     /**
-     * 合計を再計算
+     * 合計を再計算（税込み）
      */
     public function updateCalculation(): void
     {
@@ -647,8 +651,14 @@ class DailyClosing extends Page implements HasForms
             $productTotal += ($item['price'] ?? 0) * ($item['quantity'] ?? 1);
         }
 
-        $this->editorData['subtotal'] = $serviceTotal + $optionTotal + $productTotal;
-        $this->editorData['total'] = $this->editorData['subtotal'];
+        $subtotal = $serviceTotal + $optionTotal + $productTotal;
+
+        // 10%の消費税を計算（切り捨て）
+        $taxAmount = floor($subtotal * 0.1);
+
+        $this->editorData['subtotal'] = $subtotal;
+        $this->editorData['tax_amount'] = $taxAmount;
+        $this->editorData['total'] = $subtotal + $taxAmount;
     }
 
     /**

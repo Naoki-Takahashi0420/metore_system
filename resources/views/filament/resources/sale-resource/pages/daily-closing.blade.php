@@ -563,15 +563,15 @@
                         <div class="bg-gray-50 rounded-lg p-4">
                             <div class="space-y-2">
                                 <div class="flex justify-between text-sm">
-                                    <span class="text-gray-600">小計</span>
+                                    <span class="text-gray-600">小計（税抜）</span>
                                     <span class="font-medium">¥{{ number_format((int)($this->editorData['subtotal'] ?? 0)) }}</span>
                                 </div>
                                 <div class="flex justify-between text-sm">
-                                    <span class="text-gray-600">税額</span>
-                                    <span class="font-medium">¥0</span>
+                                    <span class="text-gray-600">消費税（10%）</span>
+                                    <span class="font-medium">¥{{ number_format((int)($this->editorData['tax_amount'] ?? 0)) }}</span>
                                 </div>
                                 <div class="flex justify-between text-base font-semibold border-t pt-2">
-                                    <span>合計</span>
+                                    <span>合計（税込）</span>
                                     <span class="text-primary-600">¥{{ number_format((int)($this->editorData['total'] ?? 0)) }}</span>
                                 </div>
                             </div>
