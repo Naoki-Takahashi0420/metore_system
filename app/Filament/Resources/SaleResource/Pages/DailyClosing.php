@@ -481,7 +481,7 @@ class DailyClosing extends Page implements HasForms
                         'id' => $option->id,
                         'type' => 'menu_option',
                         'name' => $option->name,
-                        'price' => $option->price,
+                        'price' => (int)$option->price,
                         'duration_minutes' => $option->duration_minutes,
                     ];
                 });
@@ -506,7 +506,7 @@ class DailyClosing extends Page implements HasForms
                         'id' => $menu->id,
                         'type' => 'menu',
                         'name' => $menu->name,
-                        'price' => $menu->price,
+                        'price' => (int)$menu->price,
                         'duration_minutes' => $menu->duration_minutes ?? 0,
                     ];
                 })
@@ -554,23 +554,23 @@ class DailyClosing extends Page implements HasForms
                         'option_id' => $item->menu_option_id,
                         'option_type' => $item->menu_option_id ? 'menu_option' : null,
                         'name' => $item->item_name,
-                        'price' => $item->unit_price ?? 0,
-                        'quantity' => $item->quantity ?? 1,
+                        'price' => (int)($item->unit_price ?? 0),
+                        'quantity' => (int)($item->quantity ?? 1),
                     ];
                 } elseif ($itemType === 'product') {
                     // 物販
                     $autoLoadedProducts[] = [
                         'name' => $item->item_name,
-                        'price' => $item->unit_price ?? 0,
-                        'quantity' => $item->quantity ?? 1,
+                        'price' => (int)($item->unit_price ?? 0),
+                        'quantity' => (int)($item->quantity ?? 1),
                     ];
                 } elseif ($itemType === 'service' && !$item->menu_id) {
                     // serviceタイプだがmenu_idがない = 手動追加された物販/オプション
                     // 名前で判定（暫定）：将来的にはitem_typeを正しく設定すべき
                     $autoLoadedProducts[] = [
                         'name' => $item->item_name,
-                        'price' => $item->unit_price ?? 0,
-                        'quantity' => $item->quantity ?? 1,
+                        'price' => (int)($item->unit_price ?? 0),
+                        'quantity' => (int)($item->quantity ?? 1),
                     ];
                 }
                 // それ以外（menu_idがあるservice）はメインサービスなので無視
@@ -592,8 +592,8 @@ class DailyClosing extends Page implements HasForms
                         'option_id' => $menuOption->id,
                         'option_type' => 'menu_option',
                         'name' => $menuOption->name ?? '',
-                        'price' => $reservationOption->price ?? $menuOption->price ?? 0,
-                        'quantity' => $reservationOption->quantity ?? 1,
+                        'price' => (int)($reservationOption->price ?? $menuOption->price ?? 0),
+                        'quantity' => (int)($reservationOption->quantity ?? 1),
                     ];
                 }
             }
@@ -613,7 +613,7 @@ class DailyClosing extends Page implements HasForms
             ],
             'service_item' => [
                 'name' => $reservation->menu?->name ?? 'サービス',
-                'price' => $source === 'spot' ? ($reservation->total_amount ?? 0) : 0,
+                'price' => (int)($source === 'spot' ? ($reservation->total_amount ?? 0) : 0),
                 'quantity' => 1,
             ],
             'option_items' => $autoLoadedOptions, // 売上/予約から自動読込されたオプション
@@ -678,7 +678,7 @@ class DailyClosing extends Page implements HasForms
                 $this->editorData['option_items'][$index]['option_id'] = $option->id;
                 $this->editorData['option_items'][$index]['option_type'] = 'menu_option';
                 $this->editorData['option_items'][$index]['name'] = $option->name;
-                $this->editorData['option_items'][$index]['price'] = $option->price;
+                $this->editorData['option_items'][$index]['price'] = (int)$option->price;
                 $this->updateCalculation();
             }
         } elseif ($type === 'menu') {
@@ -687,7 +687,7 @@ class DailyClosing extends Page implements HasForms
                 $this->editorData['option_items'][$index]['option_id'] = $menu->id;
                 $this->editorData['option_items'][$index]['option_type'] = 'menu';
                 $this->editorData['option_items'][$index]['name'] = $menu->name;
-                $this->editorData['option_items'][$index]['price'] = $menu->price;
+                $this->editorData['option_items'][$index]['price'] = (int)$menu->price;
                 $this->updateCalculation();
             }
         }
