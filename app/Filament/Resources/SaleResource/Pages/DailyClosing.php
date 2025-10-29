@@ -234,25 +234,26 @@ class DailyClosing extends Page implements HasForms
                 }
             }
 
-            // カルテから支払方法を取得（全sourceで優先）
-            $paymentMethod = null;
-            $latestMedicalRecord = $reservation->medicalRecords->sortByDesc('created_at')->first();
-            if ($latestMedicalRecord && $latestMedicalRecord->payment_method) {
-                $paymentMethod = $latestMedicalRecord->payment_method;
-            }
-
-            // カルテにない場合は、店舗のデフォルト支払方法
-            if (!$paymentMethod) {
-                $paymentMethod = $defaultPaymentMethod;
-            }
-
-            // 計上済みの場合は売上レコードから金額を取得、未計上は予約から取得
+            // 計上済みの場合は売上レコードから金額と支払方法を取得、未計上はカルテ/デフォルトから取得
             if ($reservation->sale) {
-                // 計上済み：売上レコードの金額を使用
+                // 計上済み：売上レコードの金額と支払方法を使用
                 $amount = (int)($reservation->sale->total_amount ?? 0);
+                $paymentMethod = $reservation->sale->payment_method ?? $defaultPaymentMethod;
             } else {
                 // 未計上：予約の金額を使用
                 $amount = ($source === 'spot') ? (int)($reservation->total_amount ?? 0) : 0;
+
+                // カルテから支払方法を取得（優先）
+                $paymentMethod = null;
+                $latestMedicalRecord = $reservation->medicalRecords->sortByDesc('created_at')->first();
+                if ($latestMedicalRecord && $latestMedicalRecord->payment_method) {
+                    $paymentMethod = $latestMedicalRecord->payment_method;
+                }
+
+                // カルテにない場合は、店舗のデフォルト支払方法
+                if (!$paymentMethod) {
+                    $paymentMethod = $defaultPaymentMethod;
+                }
             }
 
             // 行の初期状態を設定
@@ -654,6 +655,15 @@ class DailyClosing extends Page implements HasForms
             }
 
             DB::beginTransaction();
+
+            // スポット予約の場合、モーダルで変更された単価を予約に反映
+            $paymentSource = $this->editorData['payment_source'];
+            if ($paymentSource === 'spot') {
+                $newServicePrice = $this->editorData['service_item']['price'] ?? 0;
+                if ($newServicePrice != $reservation->total_amount) {
+                    $reservation->update(['total_amount' => $newServicePrice]);
+                }
+            }
 
             // オプションデータの変換
             $options = [];
