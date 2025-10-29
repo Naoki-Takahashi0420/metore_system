@@ -199,6 +199,11 @@ class DailyClosing extends Page implements HasForms
      */
     public function loadUnpostedReservations(): void
     {
+        \Log::info('🔄 loadUnpostedReservations() 実行開始', [
+            'closing_date' => $this->closingDate,
+            'selected_store_id' => $this->selectedStoreId,
+        ]);
+
         // 今日の完了済み予約を全て取得（売上の有無に関わらず）
         $reservations = Reservation::whereDate('reservation_date', $this->closingDate)
             ->when($this->selectedStoreId, fn($q) => $q->where('store_id', $this->selectedStoreId))
@@ -246,11 +251,12 @@ class DailyClosing extends Page implements HasForms
                 $amount = (int)($freshSale->total_amount ?? 0);
                 $paymentMethod = $freshSale->payment_method ?? $defaultPaymentMethod;
 
-                \Log::debug('📊 計上済み予約データ', [
+                \Log::info('📊 計上済み予約データ', [
                     'reservation_id' => $reservation->id,
                     'customer' => $reservation->customer?->full_name,
                     'sale_id' => $freshSale->id,
-                    'amount' => $amount,
+                    'total_amount_from_sale' => $freshSale->total_amount,
+                    'amount_int' => $amount,
                     'payment_method' => $paymentMethod,
                 ]);
             } else {
@@ -277,7 +283,7 @@ class DailyClosing extends Page implements HasForms
                 'amount' => $amount,
             ];
 
-            return [
+            $result = [
                 'id' => $reservation->id,
                 'time' => $reservation->start_time,
                 'customer_name' => $reservation->customer?->full_name ?? '不明',
@@ -288,6 +294,20 @@ class DailyClosing extends Page implements HasForms
                 'is_posted' => $freshSale ? true : false, // 計上済みかどうか
                 'sale_id' => $freshSale?->id, // 売上ID
             ];
+
+            // 榊原 洋のデータをログ出力
+            if ($reservation->id === 905 || str_contains($result['customer_name'], '榊原')) {
+                \Log::info('👤 榊原 洋のデータ', [
+                    'reservation_id' => $reservation->id,
+                    'customer' => $result['customer_name'],
+                    'is_posted' => $result['is_posted'],
+                    'sale_id' => $result['sale_id'],
+                    'amount' => $result['amount'],
+                    'source' => $result['source'],
+                ]);
+            }
+
+            return $result;
         })->toArray();
     }
 
