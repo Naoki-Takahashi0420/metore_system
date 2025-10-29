@@ -150,7 +150,15 @@ class ReservationTimelineWidget extends Widget
         $this->dispatch('store-changed', storeId: $this->selectedStore, date: $this->selectedDate);
         $this->dispatch('date-changed', date: $this->selectedDate);
     }
-    
+
+    public function goToToday(): void
+    {
+        $this->selectedDate = Carbon::now()->format('Y-m-d');
+        $this->loadTimelineData();
+        $this->dispatch('store-changed', storeId: $this->selectedStore, date: $this->selectedDate);
+        $this->dispatch('date-changed', date: $this->selectedDate);
+    }
+
     #[On('calendar-date-clicked')]
     public function updateFromCalendar($date): void
     {

@@ -720,19 +720,34 @@
                 @endif
             </div>
             
-            <div class="flex items-center gap-4">
-                <div class="flex items-center gap-2">
-                    <button wire:click="changeDate('prev')" class="px-3 py-1 border rounded hover:bg-gray-100">
-                        ◀
-                    </button>
-                    <div class="font-bold px-4">
+            <div class="flex items-center gap-2">
+                <button wire:click="changeDate('prev')" class="px-3 py-1 border rounded hover:bg-gray-100 transition-colors">
+                    ◀
+                </button>
+
+                <div class="relative" x-data="{ showPicker: false }">
+                    <div class="font-bold px-4 py-1 bg-gray-50 rounded cursor-pointer hover:bg-blue-50 hover:shadow-md transition-all select-none border-b-2 border-transparent hover:border-blue-500"
+                         @click="$refs.datePicker.showPicker ? $refs.datePicker.showPicker() : $refs.datePicker.click()"
+                         title="クリックして日付を選択">
                         {{ \Carbon\Carbon::parse($selectedDate)->format('Y年n月j日') }}
-                        ({{ ['日', '月', '火', '水', '木', '金', '土'][\Carbon\Carbon::parse($selectedDate)->dayOfWeek] }})
+                        <span class="text-sm text-gray-600">({{ ['日', '月', '火', '水', '木', '金', '土'][\Carbon\Carbon::parse($selectedDate)->dayOfWeek] }})</span>
                     </div>
-                    <button wire:click="changeDate('next')" class="px-3 py-1 border rounded hover:bg-gray-100">
-                        ▶
-                    </button>
+                    <input
+                        type="date"
+                        x-ref="datePicker"
+                        value="{{ $selectedDate }}"
+                        @change="$wire.set('selectedDate', $event.target.value)"
+                        class="absolute opacity-0 pointer-events-none w-1 h-1"
+                        style="left: 0; top: 0;">
                 </div>
+
+                <button wire:click="changeDate('next')" class="px-3 py-1 border rounded hover:bg-gray-100 transition-colors">
+                    ▶
+                </button>
+
+                <button wire:click="goToToday" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors text-sm font-medium">
+                    今日
+                </button>
             </div>
         </div>
 
