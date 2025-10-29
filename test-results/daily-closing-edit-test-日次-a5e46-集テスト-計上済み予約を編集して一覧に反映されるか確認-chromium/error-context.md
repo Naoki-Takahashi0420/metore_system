@@ -1,0 +1,437 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - navigation [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e9]:
+            - generic [ref=e10]: グローバル検索
+            - generic [ref=e11]:
+              - img [ref=e13]
+              - searchbox "グローバル検索" [ref=e16]
+          - button "ユーザーメニュー" [ref=e19] [cursor=pointer]:
+            - img "高橋直希のアバター" [ref=e20] [cursor=pointer]
+      - main [ref=e21]:
+        - generic [ref=e22]:
+          - generic [ref=e23]:
+            - generic [ref=e24]:
+              - generic [ref=e25]:
+                - navigation [ref=e26]:
+                  - list [ref=e27]:
+                    - listitem [ref=e28]:
+                      - link "売上" [ref=e29] [cursor=pointer]:
+                        - /url: http://localhost:8000/admin/sales
+                    - listitem [ref=e30]:
+                      - img [ref=e31]
+                      - generic [ref=e33]: 日次精算
+                - heading "日次精算" [level=1] [ref=e34]
+              - link "戻る" [ref=e37] [cursor=pointer]:
+                - /url: http://localhost:8000/admin/sales
+                - generic [ref=e38] [cursor=pointer]: 戻る
+            - generic [ref=e41]:
+              - generic [ref=e43]:
+                - generic [ref=e44]:
+                  - generic [ref=e45]: 店舗：
+                  - combobox [ref=e46]:
+                    - option "全店舗" [selected]
+                    - option "目のトレーニング銀座本店"
+                    - option "目のトレーニング小山店"
+                    - option "目のトレーニング新宿店"
+                    - option "目のトレーニングAKIBA末広町店"
+                    - option "目のトレーニング名古屋駅前店"
+                    - option "目のトレーニング吉祥寺店"
+                    - option "目のトレーニング浜松町店"
+                    - option "目のトレーニング藤沢店"
+                    - option "目のトレーニング新百合ヶ丘店"
+                    - option "目のトレーニング大阪谷町店"
+                    - option "目のトレーニング宮崎"
+                    - option "目のトレーニング相模大野店"
+                - generic [ref=e47]:
+                  - generic [ref=e48]: 日付：
+                  - generic [ref=e49]:
+                    - button "前の日" [ref=e50] [cursor=pointer]:
+                      - img [ref=e51] [cursor=pointer]
+                      - generic [ref=e53] [cursor=pointer]: 前の日
+                    - textbox [ref=e54]: 2025-10-29
+                    - button "次の日" [ref=e55] [cursor=pointer]:
+                      - generic [ref=e56] [cursor=pointer]: 次の日
+                      - img [ref=e57] [cursor=pointer]
+              - generic [ref=e59]:
+                - heading "売上サマリー" [level=2] [ref=e60]
+                - generic [ref=e61]:
+                  - generic [ref=e62]:
+                    - generic [ref=e63]: ¥27,500
+                    - generic [ref=e64]: 総売上
+                  - generic [ref=e65]:
+                    - generic [ref=e66]: 4件
+                    - generic [ref=e67]: 取引件数
+                  - generic [ref=e68]:
+                    - generic [ref=e69]: 4名
+                    - generic [ref=e70]: 来店客数
+                  - generic [ref=e71]:
+                    - generic [ref=e72]: ¥6,875
+                    - generic [ref=e73]: 客単価
+                - generic [ref=e74]:
+                  - heading "利用内訳" [level=3] [ref=e75]
+                  - generic [ref=e76]:
+                    - generic [ref=e77]:
+                      - generic [ref=e78]: サブスク利用
+                      - generic [ref=e79]: 3件
+                    - generic [ref=e80]:
+                      - generic [ref=e81]: 回数券利用
+                      - generic [ref=e82]: 0件
+                    - generic [ref=e83]:
+                      - generic [ref=e84]: スポット
+                      - generic [ref=e85]: 1件
+                - generic [ref=e86]:
+                  - heading "支払方法別売上" [level=3] [ref=e87]
+                  - generic [ref=e88]:
+                    - generic [ref=e89]:
+                      - generic [ref=e90]: ロボットペイメント
+                      - generic [ref=e91]: ¥27,500 (2件)
+                    - generic [ref=e92]:
+                      - generic [ref=e93]: ステラ
+                      - generic [ref=e94]: ¥0 (2件)
+              - generic [ref=e95]:
+                - generic [ref=e96]:
+                  - heading "本日の未計上予約" [level=2] [ref=e97]
+                  - button "一括計上" [ref=e98] [cursor=pointer]
+                - table [ref=e100]:
+                  - rowgroup [ref=e101]:
+                    - row "時間 顧客 メニュー 種別 支払方法 金額 操作" [ref=e102]:
+                      - cell "時間" [ref=e103]
+                      - cell "顧客" [ref=e104]
+                      - cell "メニュー" [ref=e105]
+                      - cell "種別" [ref=e106]
+                      - cell "支払方法" [ref=e107]
+                      - cell "金額" [ref=e108]
+                      - cell "操作" [ref=e109]
+                  - rowgroup [ref=e110]:
+                    - row "13:30 計上済み 榊原 洋 眼精疲労ケア1年80分コース オプション付 サブスク ステラ ¥0 編集 取消" [ref=e111]:
+                      - cell "13:30 計上済み" [ref=e112]:
+                        - text: 13:30
+                        - generic [ref=e113]: 計上済み
+                      - cell "榊原 洋" [ref=e114]
+                      - cell "眼精疲労ケア1年80分コース オプション付" [ref=e115]
+                      - cell "サブスク" [ref=e116]:
+                        - generic [ref=e117]: サブスク
+                      - cell "ステラ" [ref=e118]:
+                        - combobox [disabled] [ref=e119]:
+                          - option "現金"
+                          - option "ステラ" [selected]
+                          - option "ロボットペイメント"
+                          - option "スクエア"
+                      - cell "¥0" [ref=e120]:
+                        - generic [ref=e121]: ¥0
+                      - cell "編集 取消" [ref=e122]:
+                        - generic [ref=e123]:
+                          - button "編集" [ref=e124] [cursor=pointer]
+                          - button "取消" [ref=e125] [cursor=pointer]
+                    - row "18:15 計上済み 西山 恭子 眼精疲労ケア50分コース スポット ロボットペイメント 27500 編集 取消" [ref=e126]:
+                      - cell "18:15 計上済み" [ref=e127]:
+                        - text: 18:15
+                        - generic [ref=e128]: 計上済み
+                      - cell "西山 恭子" [ref=e129]
+                      - cell "眼精疲労ケア50分コース" [ref=e130]
+                      - cell "スポット" [ref=e131]:
+                        - generic [ref=e132]: スポット
+                      - cell "ロボットペイメント" [ref=e133]:
+                        - combobox [disabled] [ref=e134]:
+                          - option "現金"
+                          - option "ステラ"
+                          - option "ロボットペイメント" [selected]
+                          - option "スクエア"
+                      - cell "27500" [ref=e135]:
+                        - spinbutton [disabled] [ref=e136]: "27500"
+                      - cell "編集 取消" [ref=e137]:
+                        - generic [ref=e138]:
+                          - button "編集" [ref=e139] [cursor=pointer]
+                          - button "取消" [ref=e140] [cursor=pointer]
+                    - row "18:30 計上済み 髙地 由香 眼精疲労ケア1年50分コース オプション付 サブスク ステラ ¥0 編集 取消" [ref=e141]:
+                      - cell "18:30 計上済み" [ref=e142]:
+                        - text: 18:30
+                        - generic [ref=e143]: 計上済み
+                      - cell "髙地 由香" [ref=e144]
+                      - cell "眼精疲労ケア1年50分コース オプション付" [ref=e145]
+                      - cell "サブスク" [ref=e146]:
+                        - generic [ref=e147]: サブスク
+                      - cell "ステラ" [ref=e148]:
+                        - combobox [disabled] [ref=e149]:
+                          - option "現金"
+                          - option "ステラ" [selected]
+                          - option "ロボットペイメント"
+                          - option "スクエア"
+                      - cell "¥0" [ref=e150]:
+                        - generic [ref=e151]: ¥0
+                      - cell "編集 取消" [ref=e152]:
+                        - generic [ref=e153]:
+                          - button "編集" [ref=e154] [cursor=pointer]
+                          - button "取消" [ref=e155] [cursor=pointer]
+                    - row "19:15 計上済み 吉田 英樹 眼精疲労ケア1年50分コース サブスク ロボットペイメント ¥0 編集 取消" [ref=e156]:
+                      - cell "19:15 計上済み" [ref=e157]:
+                        - text: 19:15
+                        - generic [ref=e158]: 計上済み
+                      - cell "吉田 英樹" [ref=e159]
+                      - cell "眼精疲労ケア1年50分コース" [ref=e160]
+                      - cell "サブスク" [ref=e161]:
+                        - generic [ref=e162]: サブスク
+                      - cell "ロボットペイメント" [ref=e163]:
+                        - combobox [disabled] [ref=e164]:
+                          - option "現金"
+                          - option "ステラ"
+                          - option "ロボットペイメント" [selected]
+                          - option "スクエア"
+                      - cell "¥0" [ref=e165]:
+                        - generic [ref=e166]: ¥0
+                      - cell "編集 取消" [ref=e167]:
+                        - generic [ref=e168]:
+                          - button "編集" [ref=e169] [cursor=pointer]
+                          - button "取消" [ref=e170] [cursor=pointer]
+                - paragraph [ref=e172]:
+                  - generic [ref=e174]: 青（サブスク）
+                  - text: ・
+                  - generic [ref=e176]: 緑（回数券）
+                  - text: は0円で計上されます。
+                  - generic [ref=e178]: 灰（スポット）
+                  - text: は支払方法と金額を入力してください。
+              - generic [ref=e179]:
+                - heading "スタッフ別売上" [level=3] [ref=e180]
+                - generic [ref=e182]:
+                  - generic [ref=e183]: 高橋直希
+                  - generic [ref=e184]:
+                    - generic [ref=e185]: ¥27,500
+                    - generic [ref=e186]: (4件)
+              - generic [ref=e187]:
+                - heading "売れ筋メニュー TOP10" [level=3] [ref=e188]
+                - generic [ref=e189]:
+                  - generic [ref=e190]:
+                    - generic [ref=e191]:
+                      - generic [ref=e192]: "1."
+                      - generic [ref=e193]: 眼精疲労ケア50分コース
+                    - generic [ref=e194]:
+                      - generic [ref=e195]: ¥11,000
+                      - generic [ref=e196]: (1個)
+                  - generic [ref=e197]:
+                    - generic [ref=e198]:
+                      - generic [ref=e199]: "2."
+                      - generic [ref=e200]: aaaa
+                    - generic [ref=e201]:
+                      - generic [ref=e202]: ¥10,000
+                      - generic [ref=e203]: (1個)
+                  - generic [ref=e204]:
+                    - generic [ref=e205]:
+                      - generic [ref=e206]: "3."
+                      - generic [ref=e207]: 水素吸引
+                    - generic [ref=e208]:
+                      - generic [ref=e209]: ¥2,000
+                      - generic [ref=e210]: (1個)
+                  - generic [ref=e211]:
+                    - generic [ref=e212]:
+                      - generic [ref=e213]: "4."
+                      - generic [ref=e214]: 水素ゴーグル
+                    - generic [ref=e215]:
+                      - generic [ref=e216]: ¥2,000
+                      - generic [ref=e217]: (1個)
+          - generic:
+            - dialog
+          - generic:
+            - dialog
+          - generic:
+            - dialog
+      - generic [ref=e218]: v1a32f8bf
+    - complementary [ref=e219]:
+      - generic [ref=e221]:
+        - link "目のトレーニング 管理画面ロゴ" [ref=e223] [cursor=pointer]:
+          - /url: http://localhost:8000/admin
+          - img "目のトレーニング 管理画面ロゴ" [ref=e224] [cursor=pointer]
+        - button "サイドバーを折り畳む" [ref=e225] [cursor=pointer]:
+          - generic [ref=e226] [cursor=pointer]: サイドバーを折り畳む
+          - img [ref=e227] [cursor=pointer]
+      - navigation [ref=e229]:
+        - list [ref=e230]:
+          - listitem [ref=e231]:
+            - list [ref=e232]:
+              - listitem [ref=e233]:
+                - link "ダッシュボード" [ref=e234] [cursor=pointer]:
+                  - /url: http://localhost:8000/admin
+                  - img [ref=e235] [cursor=pointer]
+                  - generic [ref=e237] [cursor=pointer]: ダッシュボード
+              - listitem [ref=e238]:
+                - link "お知らせ管理" [ref=e239] [cursor=pointer]:
+                  - /url: http://localhost:8000/admin/announcements
+                  - img [ref=e240] [cursor=pointer]
+                  - generic [ref=e242] [cursor=pointer]: お知らせ管理
+              - listitem [ref=e243]:
+                - link "店舗管理" [ref=e244] [cursor=pointer]:
+                  - /url: http://localhost:8000/admin/stores
+                  - img [ref=e245] [cursor=pointer]
+                  - generic [ref=e247] [cursor=pointer]: 店舗管理
+              - listitem [ref=e248]:
+                - link "予約ブロック設定" [ref=e249] [cursor=pointer]:
+                  - /url: http://localhost:8000/admin/blocked-time-periods
+                  - img [ref=e250] [cursor=pointer]
+                  - generic [ref=e252] [cursor=pointer]: 予約ブロック設定
+              - listitem [ref=e253]:
+                - link "ユーザー管理" [ref=e254] [cursor=pointer]:
+                  - /url: http://localhost:8000/admin/users
+                  - img [ref=e255] [cursor=pointer]
+                  - generic [ref=e257] [cursor=pointer]: ユーザー管理
+              - listitem [ref=e258]:
+                - link "カルテ管理" [ref=e259] [cursor=pointer]:
+                  - /url: http://localhost:8000/admin/medical-records
+                  - img [ref=e260] [cursor=pointer]
+                  - generic [ref=e262] [cursor=pointer]: カルテ管理
+              - listitem [ref=e263]:
+                - link "顧客管理" [ref=e264] [cursor=pointer]:
+                  - /url: http://localhost:8000/admin/customers
+                  - img [ref=e265] [cursor=pointer]
+                  - generic [ref=e267] [cursor=pointer]: 顧客管理
+              - listitem [ref=e268]:
+                - link "サブスク契約管理" [ref=e269] [cursor=pointer]:
+                  - /url: http://localhost:8000/admin/subscriptions
+                  - img [ref=e270] [cursor=pointer]
+                  - generic [ref=e272] [cursor=pointer]: サブスク契約管理
+              - listitem [ref=e273]:
+                - link "顧客回数券管理" [ref=e274] [cursor=pointer]:
+                  - /url: http://localhost:8000/admin/customer-tickets
+                  - img [ref=e275] [cursor=pointer]
+                  - generic [ref=e277] [cursor=pointer]: 顧客回数券管理
+              - listitem [ref=e278]:
+                - link "ログ" [ref=e279] [cursor=pointer]:
+                  - /url: http://localhost:8000/admin/system-logs
+                  - img [ref=e280] [cursor=pointer]
+                  - generic [ref=e282] [cursor=pointer]: ログ
+          - listitem [ref=e283]:
+            - generic [ref=e284] [cursor=pointer]:
+              - generic [ref=e285] [cursor=pointer]: メニュー管理
+              - button "メニュー管理" [expanded] [ref=e286] [cursor=pointer]:
+                - generic [ref=e287] [cursor=pointer]: メニュー管理
+                - img [ref=e288] [cursor=pointer]
+            - list [ref=e290]:
+              - listitem [ref=e291]:
+                - link "メニュー統合管理" [ref=e292] [cursor=pointer]:
+                  - /url: http://localhost:8000/admin/menu-manager
+                  - img [ref=e293] [cursor=pointer]
+                  - generic [ref=e295] [cursor=pointer]: メニュー統合管理
+              - listitem [ref=e296]:
+                - link "メニューカテゴリー" [ref=e297] [cursor=pointer]:
+                  - /url: http://localhost:8000/admin/menu-categories
+                  - img [ref=e298] [cursor=pointer]
+                  - generic [ref=e300] [cursor=pointer]: メニューカテゴリー
+              - listitem [ref=e301]:
+                - link "メニュー管理" [ref=e302] [cursor=pointer]:
+                  - /url: http://localhost:8000/admin/menus
+                  - img [ref=e303] [cursor=pointer]
+                  - generic [ref=e305] [cursor=pointer]: メニュー管理
+              - listitem [ref=e306]:
+                - link "回数券設定" [ref=e307] [cursor=pointer]:
+                  - /url: http://localhost:8000/admin/ticket-plans
+                  - img [ref=e308] [cursor=pointer]
+                  - generic [ref=e310] [cursor=pointer]: 回数券設定
+          - listitem [ref=e311]:
+            - generic [ref=e312] [cursor=pointer]:
+              - generic [ref=e313] [cursor=pointer]: 分析・レポート
+              - button "分析・レポート" [expanded] [ref=e314] [cursor=pointer]:
+                - generic [ref=e315] [cursor=pointer]: 分析・レポート
+                - img [ref=e316] [cursor=pointer]
+            - list [ref=e318]:
+              - listitem [ref=e319]:
+                - link "マーケティング分析" [ref=e320] [cursor=pointer]:
+                  - /url: http://localhost:8000/admin/marketing-dashboard
+                  - img [ref=e321] [cursor=pointer]
+                  - generic [ref=e323] [cursor=pointer]: マーケティング分析
+          - listitem [ref=e324]:
+            - generic [ref=e325] [cursor=pointer]:
+              - generic [ref=e326] [cursor=pointer]: 売上・会計
+              - button "売上・会計" [expanded] [ref=e327] [cursor=pointer]:
+                - generic [ref=e328] [cursor=pointer]: 売上・会計
+                - img [ref=e329] [cursor=pointer]
+            - list [ref=e331]:
+              - listitem [ref=e332]:
+                - link "売上管理 4" [ref=e333] [cursor=pointer]:
+                  - /url: http://localhost:8000/admin/sales
+                  - img [ref=e334] [cursor=pointer]
+                  - generic [ref=e336] [cursor=pointer]: 売上管理
+                  - generic [ref=e340] [cursor=pointer]: "4"
+              - listitem [ref=e341]:
+                - link "日次売上管理" [ref=e342] [cursor=pointer]:
+                  - /url: /admin/sales/daily-closing
+                  - img [ref=e343] [cursor=pointer]
+                  - generic [ref=e345] [cursor=pointer]: 日次売上管理
+          - listitem [ref=e346]:
+            - generic [ref=e347] [cursor=pointer]:
+              - generic [ref=e348] [cursor=pointer]: スタッフ管理
+              - button "スタッフ管理" [expanded] [ref=e349] [cursor=pointer]:
+                - generic [ref=e350] [cursor=pointer]: スタッフ管理
+                - img [ref=e351] [cursor=pointer]
+            - list [ref=e353]:
+              - listitem [ref=e354]:
+                - link "シフト管理" [ref=e355] [cursor=pointer]:
+                  - /url: http://localhost:8000/admin/simple-shift-management
+                  - img [ref=e356] [cursor=pointer]
+                  - generic [ref=e358] [cursor=pointer]: シフト管理
+              - listitem [ref=e359]:
+                - link "シフト設定" [ref=e360] [cursor=pointer]:
+                  - /url: http://localhost:8000/admin/shift-settings
+                  - img [ref=e361] [cursor=pointer]
+                  - generic [ref=e364] [cursor=pointer]: シフト設定
+              - listitem [ref=e365]:
+                - link "勤怠レポート" [ref=e366] [cursor=pointer]:
+                  - /url: http://localhost:8000/admin/attendance-report
+                  - img [ref=e367] [cursor=pointer]
+                  - generic [ref=e369] [cursor=pointer]: 勤怠レポート
+          - listitem [ref=e370]:
+            - generic [ref=e371] [cursor=pointer]:
+              - generic [ref=e372] [cursor=pointer]: 予約管理
+              - button "予約管理" [expanded] [ref=e373] [cursor=pointer]:
+                - generic [ref=e374] [cursor=pointer]: 予約管理
+                - img [ref=e375] [cursor=pointer]
+            - list [ref=e377]:
+              - listitem [ref=e378]:
+                - link "予約管理" [ref=e379] [cursor=pointer]:
+                  - /url: http://localhost:8000/admin/reservations
+                  - img [ref=e380] [cursor=pointer]
+                  - generic [ref=e382] [cursor=pointer]: 予約管理
+          - listitem [ref=e383]:
+            - generic [ref=e384] [cursor=pointer]:
+              - generic [ref=e385] [cursor=pointer]: 設定
+              - button "設定" [expanded] [ref=e386] [cursor=pointer]:
+                - generic [ref=e387] [cursor=pointer]: 設定
+                - img [ref=e388] [cursor=pointer]
+            - list [ref=e390]:
+              - listitem [ref=e391]:
+                - link "Claude設定" [ref=e392] [cursor=pointer]:
+                  - /url: http://localhost:8000/admin/claude-settings
+                  - img [ref=e393] [cursor=pointer]
+                  - generic [ref=e395] [cursor=pointer]: Claude設定
+              - listitem [ref=e396]:
+                - link "ヘルプ質問履歴" [ref=e397] [cursor=pointer]:
+                  - /url: http://localhost:8000/admin/help-chat-logs
+                  - img [ref=e398] [cursor=pointer]
+                  - generic [ref=e400] [cursor=pointer]: ヘルプ質問履歴
+          - listitem [ref=e401]:
+            - generic [ref=e402] [cursor=pointer]:
+              - generic [ref=e403] [cursor=pointer]: 顧客管理
+              - button "顧客管理" [expanded] [ref=e404] [cursor=pointer]:
+                - generic [ref=e405] [cursor=pointer]: 顧客管理
+                - img [ref=e406] [cursor=pointer]
+            - list [ref=e408]:
+              - listitem [ref=e409]:
+                - link "顧客インポート" [ref=e410] [cursor=pointer]:
+                  - /url: http://localhost:8000/admin/import-customers
+                  - img [ref=e411] [cursor=pointer]
+                  - generic [ref=e413] [cursor=pointer]: 顧客インポート
+  - generic:
+    - status:
+      - generic [ref=e415]:
+        - img [ref=e416]
+        - generic [ref=e418]:
+          - heading "保存完了" [level=3] [ref=e419]
+          - generic [ref=e420]: 予約番号 R202510191655 の売上を更新しました
+        - button [ref=e421] [cursor=pointer]:
+          - img [ref=e422] [cursor=pointer]
+  - button "AIヘルプチャット" [ref=e425] [cursor=pointer]:
+    - img [ref=e426] [cursor=pointer]
+```

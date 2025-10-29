@@ -212,7 +212,15 @@
                                     <td class="px-3 py-3">
                                         <div class="flex gap-2">
                                             @if($res['is_posted'])
-                                                <!-- 計上済み：取消ボタンのみ -->
+                                                <!-- 計上済み：編集ボタンと取消ボタン -->
+                                                <button
+                                                    wire:click="openEditor({{ $res['id'] }})"
+                                                    style="background-color: #f9fafb; color: #374151; padding: 6px 12px; border: 2px solid #d1d5db; border-radius: 6px; font-size: 12px; font-weight: 500; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); margin-right: 4px;"
+                                                    onmouseover="this.style.backgroundColor='#f3f4f6'"
+                                                    onmouseout="this.style.backgroundColor='#f9fafb'"
+                                                >
+                                                    編集
+                                                </button>
                                                 <button
                                                     wire:click="cancelSale({{ $res['id'] }})"
                                                     wire:confirm="本当にこの売上を取り消しますか？\n\n顧客名: {{ $res['customer_name'] }}\nメニュー: {{ $res['menu_name'] }}\n金額: ¥{{ number_format((int)($res['amount'] ?? 0)) }}"

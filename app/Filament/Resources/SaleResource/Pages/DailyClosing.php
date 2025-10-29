@@ -694,29 +694,49 @@ class DailyClosing extends Page implements HasForms
 
             // オプションデータの変換
             $options = [];
-            foreach ($this->editorData['option_items'] ?? [] as $item) {
-                if (!empty($item['name']) && !empty($item['option_id'])) {
+            foreach ($this->editorData['option_items'] ?? [] as $index => $item) {
+                \Log::info('📝 オプション変換チェック', [
+                    'index' => $index,
+                    'name' => $item['name'] ?? 'なし',
+                    'option_id' => $item['option_id'] ?? 'なし',
+                    'price' => $item['price'] ?? 0,
+                    'quantity' => $item['quantity'] ?? 0,
+                ]);
+
+                // option_idの有無に関わらず、nameがあれば保存
+                if (!empty($item['name'])) {
                     $options[] = [
                         'menu_option_id' => $item['option_type'] === 'menu_option' ? $item['option_id'] : null,
                         'name' => $item['name'],
-                        'price' => $item['price'],
-                        'quantity' => $item['quantity'],
+                        'price' => $item['price'] ?? 0,
+                        'quantity' => $item['quantity'] ?? 1,
                     ];
                 }
             }
 
+            \Log::info('✅ 変換後のオプション数', ['count' => count($options)]);
+
             // 物販データの変換
             $products = [];
-            foreach ($this->editorData['product_items'] ?? [] as $item) {
+            foreach ($this->editorData['product_items'] ?? [] as $index => $item) {
+                \Log::info('📦 物販変換チェック', [
+                    'index' => $index,
+                    'name' => $item['name'] ?? 'なし',
+                    'price' => $item['price'] ?? 0,
+                    'quantity' => $item['quantity'] ?? 0,
+                ]);
+
                 if (!empty($item['name'])) {
                     $products[] = [
                         'name' => $item['name'],
-                        'price' => $item['price'],
-                        'quantity' => $item['quantity'],
+                        'price' => $item['price'] ?? 0,
+                        'quantity' => $item['quantity'] ?? 1,
                         'tax_rate' => 0.1,
                     ];
                 }
             }
+
+            \Log::info('✅ 変換後の物販数', ['count' => count($products)]);
 
             if ($existingSale) {
                 // 既に計上済み：売上を更新

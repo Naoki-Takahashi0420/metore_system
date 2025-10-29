@@ -68,83 +68,244 @@
   },
   "suites": [
     {
-      "title": "check-reservation-909-type.spec.js",
-      "file": "check-reservation-909-type.spec.js",
+      "title": "daily-closing-edit-test.spec.js",
+      "file": "daily-closing-edit-test.spec.js",
       "column": 0,
       "line": 0,
-      "specs": [
+      "specs": [],
+      "suites": [
         {
-          "title": "予約909がサブスクとして表示されるか確認",
-          "ok": true,
-          "tags": [],
-          "tests": [
+          "title": "日次精算 - モーダル編集テスト",
+          "file": "daily-closing-edit-test.spec.js",
+          "line": 3,
+          "column": 6,
+          "specs": [
             {
-              "timeout": 60000,
-              "annotations": [],
-              "expectedStatus": "passed",
-              "projectId": "chromium",
-              "projectName": "chromium",
-              "results": [
+              "title": "計上済み予約を編集して一覧に反映されるか確認",
+              "ok": false,
+              "tags": [],
+              "tests": [
                 {
-                  "workerIndex": 0,
-                  "parallelIndex": 0,
-                  "status": "passed",
-                  "duration": 7785,
-                  "errors": [],
-                  "stdout": [
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
                     {
-                      "text": "\n📊 === 予約909の種別確認 ===\n"
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 14252,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m failed\n\nLocator:  locator('tr:has-text(\"計上済み\")').first()\nExpected: visible\nReceived: <element(s) not found>\nTimeout:  10000ms\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('tr:has-text(\"計上済み\")').first()\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m failed\n\nLocator:  locator('tr:has-text(\"計上済み\")').first()\nExpected: visible\nReceived: <element(s) not found>\nTimeout:  10000ms\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('tr:has-text(\"計上済み\")').first()\u001b[22m\n\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/daily-closing-edit-test.spec.js:27:29",
+                        "location": {
+                          "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/daily-closing-edit-test.spec.js",
+                          "column": 29,
+                          "line": 27
+                        },
+                        "snippet": "  25 |     // 1. 計上済みの予約を探す\n  26 |     const postedRow = page.locator('tr:has-text(\"計上済み\")').first();\n> 27 |     await expect(postedRow).toBeVisible({ timeout: 10000 });\n     |                             ^\n  28 |\n  29 |     // 計上済み予約の情報を取得\n  30 |     const customerName = await postedRow.locator('td').nth(1).innerText();"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/daily-closing-edit-test.spec.js",
+                            "column": 29,
+                            "line": 27
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m failed\n\nLocator:  locator('tr:has-text(\"計上済み\")').first()\nExpected: visible\nReceived: <element(s) not found>\nTimeout:  10000ms\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('tr:has-text(\"計上済み\")').first()\u001b[22m\n\n\n  25 |     // 1. 計上済みの予約を探す\n  26 |     const postedRow = page.locator('tr:has-text(\"計上済み\")').first();\n> 27 |     await expect(postedRow).toBeVisible({ timeout: 10000 });\n     |                             ^\n  28 |\n  29 |     // 計上済み予約の情報を取得\n  30 |     const customerName = await postedRow.locator('td').nth(1).innerText();\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/daily-closing-edit-test.spec.js:27:29"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "=== テスト開始 ===\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-29T08:12:53.810Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/daily-closing-edit-test-日次-a5e46-集テスト-計上済み予約を編集して一覧に反映されるか確認-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/daily-closing-edit-test-日次-a5e46-集テスト-計上済み予約を編集して一覧に反映されるか確認-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/daily-closing-edit-test-日次-a5e46-集テスト-計上済み予約を編集して一覧に反映されるか確認-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/daily-closing-edit-test.spec.js",
+                        "column": 29,
+                        "line": 27
+                      }
                     },
                     {
-                      "text": "  表示されている予約数: 4件\n"
-                    },
-                    {
-                      "text": "\n  時間: 19:15\n"
-                    },
-                    {
-                      "text": "  顧客: 吉田 英樹\n"
-                    },
-                    {
-                      "text": "  メニュー: 眼精疲労ケア1年50分コース\n"
-                    },
-                    {
-                      "text": "  種別: サブスク\n"
-                    },
-                    {
-                      "text": "  バッジクラス: px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded\n"
-                    },
-                    {
-                      "text": "  ✅ 正しくサブスクとして表示されています\n"
-                    },
-                    {
-                      "text": "\n\n"
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 13381,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m failed\n\nLocator:  locator('tr:has-text(\"計上済み\")').first()\nExpected: visible\nReceived: <element(s) not found>\nTimeout:  10000ms\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('tr:has-text(\"計上済み\")').first()\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m failed\n\nLocator:  locator('tr:has-text(\"計上済み\")').first()\nExpected: visible\nReceived: <element(s) not found>\nTimeout:  10000ms\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('tr:has-text(\"計上済み\")').first()\u001b[22m\n\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/daily-closing-edit-test.spec.js:27:29",
+                        "location": {
+                          "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/daily-closing-edit-test.spec.js",
+                          "column": 29,
+                          "line": 27
+                        },
+                        "snippet": "  25 |     // 1. 計上済みの予約を探す\n  26 |     const postedRow = page.locator('tr:has-text(\"計上済み\")').first();\n> 27 |     await expect(postedRow).toBeVisible({ timeout: 10000 });\n     |                             ^\n  28 |\n  29 |     // 計上済み予約の情報を取得\n  30 |     const customerName = await postedRow.locator('td').nth(1).innerText();"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/daily-closing-edit-test.spec.js",
+                            "column": 29,
+                            "line": 27
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m failed\n\nLocator:  locator('tr:has-text(\"計上済み\")').first()\nExpected: visible\nReceived: <element(s) not found>\nTimeout:  10000ms\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('tr:has-text(\"計上済み\")').first()\u001b[22m\n\n\n  25 |     // 1. 計上済みの予約を探す\n  26 |     const postedRow = page.locator('tr:has-text(\"計上済み\")').first();\n> 27 |     await expect(postedRow).toBeVisible({ timeout: 10000 });\n     |                             ^\n  28 |\n  29 |     // 計上済み予約の情報を取得\n  30 |     const customerName = await postedRow.locator('td').nth(1).innerText();\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/daily-closing-edit-test.spec.js:27:29"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "=== テスト開始 ===\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 1,
+                      "startTime": "2025-10-29T08:13:09.245Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/daily-closing-edit-test-日次-a5e46-集テスト-計上済み予約を編集して一覧に反映されるか確認-chromium-retry1/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/daily-closing-edit-test-日次-a5e46-集テスト-計上済み予約を編集して一覧に反映されるか確認-chromium-retry1/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/daily-closing-edit-test-日次-a5e46-集テスト-計上済み予約を編集して一覧に反映されるか確認-chromium-retry1/error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/daily-closing-edit-test-日次-a5e46-集テスト-計上済み予約を編集して一覧に反映されるか確認-chromium-retry1/trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/daily-closing-edit-test.spec.js",
+                        "column": 29,
+                        "line": 27
+                      }
                     }
                   ],
-                  "stderr": [],
-                  "retry": 0,
-                  "startTime": "2025-10-28T16:57:34.762Z",
-                  "annotations": [],
-                  "attachments": []
+                  "status": "unexpected"
                 }
               ],
-              "status": "expected"
+              "id": "ffca0d461f5c1dbf9e3a-b1aa3c965ba14a5b7aab",
+              "file": "daily-closing-edit-test.spec.js",
+              "line": 22,
+              "column": 3
+            },
+            {
+              "title": "未計上→計上ボタンを押して数字が変わるか確認",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5050,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "=== 未計上の計上テスト開始 ===\n"
+                        },
+                        {
+                          "text": "📊 計上前:\n"
+                        },
+                        {
+                          "text": "  顧客: 榊原 洋\n"
+                        },
+                        {
+                          "text": "  金額: ¥0\n"
+                        },
+                        {
+                          "text": "✅ 計上ボタンをクリック\n"
+                        },
+                        {
+                          "text": "✅ 計上完了通知が表示されました\n"
+                        },
+                        {
+                          "text": "📊 計上後:\n"
+                        },
+                        {
+                          "text": "  顧客: 榊原 洋\n"
+                        },
+                        {
+                          "text": "  金額: ¥0\n"
+                        },
+                        {
+                          "text": "  計上済みフラグ: あり\n"
+                        },
+                        {
+                          "text": "\n=== 検証結果 ===\n"
+                        },
+                        {
+                          "text": "✅ 計上済みフラグが表示されています\n"
+                        },
+                        {
+                          "text": "✅ 計上前後で金額は同じです\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-10-29T08:13:23.444Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "ffca0d461f5c1dbf9e3a-72c58310917e8ca46220",
+              "file": "daily-closing-edit-test.spec.js",
+              "line": 125,
+              "column": 3
             }
-          ],
-          "id": "5f67ed770cf2868a98f9-ee4dbf8d0a5dec735de9",
-          "file": "check-reservation-909-type.spec.js",
-          "line": 3,
-          "column": 1
+          ]
         }
       ]
     }
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-10-28T16:57:34.238Z",
-    "duration": 9509.628,
+    "startTime": "2025-10-29T08:12:53.333Z",
+    "duration": 35596.784999999996,
     "expected": 1,
     "skipped": 0,
-    "unexpected": 0,
+    "unexpected": 1,
     "flaky": 0
   }
 }
