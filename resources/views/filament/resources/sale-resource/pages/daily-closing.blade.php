@@ -408,6 +408,7 @@
                                                wire:input="updateCalculation"
                                                class="block w-full text-sm border-gray-300 rounded-md"
                                                min="0"
+                                               step="1"
                                                @if($this->editorData['payment_source'] !== 'spot') disabled @endif>
                                     </div>
                                     <div class="col-span-3">
@@ -417,6 +418,7 @@
                                                wire:input="updateCalculation"
                                                class="block w-full text-sm border-gray-300 rounded-md"
                                                min="1"
+                                               step="1"
                                                disabled>
                                     </div>
                                 </div>
@@ -475,6 +477,7 @@
                                                    wire:input="updateCalculation"
                                                    class="block w-full text-sm border-gray-300 rounded-md bg-gray-100"
                                                    min="0"
+                                                   step="1"
                                                    readonly>
                                         </div>
                                         <div class="col-span-2">
@@ -483,7 +486,8 @@
                                                    wire:model="editorData.option_items.{{ $index }}.quantity"
                                                    wire:input="updateCalculation"
                                                    class="block w-full text-sm border-gray-300 rounded-md"
-                                                   min="1">
+                                                   min="1"
+                                                   step="1">
                                         </div>
                                         <div class="col-span-2 flex items-end">
                                             <button wire:click="removeOptionItem({{ $index }})"
@@ -526,7 +530,8 @@
                                                    wire:model="editorData.product_items.{{ $index }}.price"
                                                    wire:input="updateCalculation"
                                                    class="block w-full text-sm border-gray-300 rounded-md"
-                                                   min="0">
+                                                   min="0"
+                                                   step="1">
                                         </div>
                                         <div class="col-span-2">
                                             <label class="block text-xs text-gray-500 mb-1">数量</label>
@@ -534,7 +539,8 @@
                                                    wire:model="editorData.product_items.{{ $index }}.quantity"
                                                    wire:input="updateCalculation"
                                                    class="block w-full text-sm border-gray-300 rounded-md"
-                                                   min="1">
+                                                   min="1"
+                                                   step="1">
                                         </div>
                                         <div class="col-span-2 flex items-end">
                                             <button wire:click="removeProductItem({{ $index }})"
