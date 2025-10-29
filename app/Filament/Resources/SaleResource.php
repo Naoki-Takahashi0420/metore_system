@@ -434,6 +434,24 @@ class SaleResource extends Resource
         ];
     }
 
+    /**
+     * 売上の手動作成を無効化
+     * 売上は予約から自動計上されるため、手動作成は不要
+     */
+    public static function canCreate(): bool
+    {
+        return false;
+    }
+
+    /**
+     * 売上の削除を無効化
+     * 売上の取り消しはvoid処理で行うため、直接削除は不可
+     */
+    public static function canDelete($record): bool
+    {
+        return false;
+    }
+
     public static function getPages(): array
     {
         return [
