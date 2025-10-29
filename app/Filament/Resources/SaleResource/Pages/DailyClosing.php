@@ -631,20 +631,12 @@ class DailyClosing extends Page implements HasForms
 
     /**
      * 売上を保存（明細付き）
+     *
+     * 計上済みの場合は売上を更新、未計上の場合は新規作成
      */
     public function saveSaleWithItems(): void
     {
         try {
-            // 二重計上チェック
-            if (Sale::where('reservation_id', $this->editingReservationId)->exists()) {
-                Notification::make()
-                    ->title('エラー')
-                    ->body('この予約は既に計上済みです')
-                    ->warning()
-                    ->send();
-                return;
-            }
-
             $reservation = Reservation::findOrFail($this->editingReservationId);
             $method = $this->editorData['payment_method'];
             $totalAmount = $this->editorData['total'];
@@ -653,6 +645,9 @@ class DailyClosing extends Page implements HasForms
             if ($totalAmount > 0 && empty($method)) {
                 throw new \Exception('オプション/物販がある場合は、支払方法を選択してください');
             }
+
+            // 既に計上済みかチェック
+            $existingSale = Sale::where('reservation_id', $this->editingReservationId)->first();
 
             DB::beginTransaction();
 
@@ -691,13 +686,21 @@ class DailyClosing extends Page implements HasForms
                 }
             }
 
-            // SalePostingServiceを使用して売上計上
-            $salePostingService = new \App\Services\SalePostingService();
-            $sale = $salePostingService->post($reservation, $method, $options, $products);
+            if ($existingSale) {
+                // 既に計上済み：売上を更新
+                $this->updateExistingSale($existingSale, $reservation, $method, $options, $products);
+                $message = "予約番号 {$reservation->reservation_number} の売上を更新しました";
+            } else {
+                // 未計上：新規作成
+                $salePostingService = new \App\Services\SalePostingService();
+                $sale = $salePostingService->post($reservation, $method, $options, $products);
 
-            // ポイント付与（スポットまたは合計>0の場合）
-            if ($sale->payment_source === 'spot' || $totalAmount > 0) {
-                $sale->grantPoints();
+                // ポイント付与（スポットまたは合計>0の場合）
+                if ($sale->payment_source === 'spot' || $totalAmount > 0) {
+                    $sale->grantPoints();
+                }
+
+                $message = "予約番号 {$reservation->reservation_number} を計上しました";
             }
 
             // 予約ステータス更新
@@ -709,8 +712,8 @@ class DailyClosing extends Page implements HasForms
             DB::commit();
 
             Notification::make()
-                ->title('売上計上完了')
-                ->body("予約番号 {$reservation->reservation_number} を計上しました")
+                ->title('保存完了')
+                ->body($message)
                 ->success()
                 ->send();
 
@@ -727,10 +730,102 @@ class DailyClosing extends Page implements HasForms
 
             Notification::make()
                 ->title('エラー')
-                ->body('計上処理中にエラーが発生しました: ' . $e->getMessage())
+                ->body('保存処理中にエラーが発生しました: ' . $e->getMessage())
                 ->danger()
                 ->send();
         }
+    }
+
+    /**
+     * 既存の売上レコードを更新
+     */
+    protected function updateExistingSale(
+        Sale $sale,
+        Reservation $reservation,
+        string $paymentMethod,
+        array $options,
+        array $products
+    ): void {
+        // 既存の明細を削除
+        $sale->items()->delete();
+
+        // 金額を再計算
+        $subtotal = 0;
+        $taxAmount = 0;
+
+        // スポットの場合はメニュー料金を加算
+        if ($sale->payment_source === 'spot') {
+            $menuPrice = $reservation->total_amount ?? 0;
+            $subtotal += $menuPrice;
+            $taxAmount += floor($menuPrice * 0.1);
+
+            // メニュー明細を作成
+            if ($reservation->menu) {
+                $sale->items()->create([
+                    'menu_id' => $reservation->menu_id,
+                    'item_type' => 'service',
+                    'item_name' => $reservation->menu->name,
+                    'item_description' => $reservation->menu->description,
+                    'unit_price' => $menuPrice,
+                    'quantity' => 1,
+                    'discount_amount' => 0,
+                    'tax_rate' => 0.1,
+                    'tax_amount' => floor($menuPrice * 0.1),
+                    'amount' => $menuPrice,
+                ]);
+            }
+        }
+
+        // オプション明細を作成
+        foreach ($options as $option) {
+            $optionAmount = ($option['price'] ?? 0) * ($option['quantity'] ?? 1);
+            $subtotal += $optionAmount;
+            $taxAmount += floor($optionAmount * 0.1);
+
+            $sale->items()->create([
+                'menu_option_id' => $option['menu_option_id'] ?? null,
+                'item_type' => 'option',
+                'item_name' => $option['name'],
+                'unit_price' => $option['price'],
+                'quantity' => $option['quantity'],
+                'amount' => $optionAmount,
+                'tax_rate' => 0.1,
+                'tax_amount' => floor($optionAmount * 0.1),
+            ]);
+        }
+
+        // 物販明細を作成
+        foreach ($products as $product) {
+            $productAmount = ($product['price'] ?? 0) * ($product['quantity'] ?? 1);
+            $subtotal += $productAmount;
+            $taxAmount += floor($productAmount * ($product['tax_rate'] ?? 0.1));
+
+            $sale->items()->create([
+                'item_type' => 'product',
+                'item_name' => $product['name'],
+                'unit_price' => $product['price'],
+                'quantity' => $product['quantity'],
+                'amount' => $productAmount,
+                'tax_rate' => $product['tax_rate'] ?? 0.1,
+                'tax_amount' => floor($productAmount * ($product['tax_rate'] ?? 0.1)),
+            ]);
+        }
+
+        // 売上レコードを更新
+        $sale->update([
+            'payment_method' => $paymentMethod,
+            'subtotal' => $subtotal,
+            'tax_amount' => $taxAmount,
+            'total_amount' => $subtotal + $taxAmount,
+        ]);
+
+        \Log::info('売上更新完了', [
+            'sale_id' => $sale->id,
+            'reservation_id' => $reservation->id,
+            'payment_method' => $paymentMethod,
+            'total_amount' => $subtotal + $taxAmount,
+            'user_id' => auth()->id(),
+        ]);
     }
 
     /**
