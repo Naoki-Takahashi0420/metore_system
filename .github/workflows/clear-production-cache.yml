@@ -1,0 +1,59 @@
+name: Clear Production Cache
+
+on:
+  workflow_dispatch:
+
+jobs:
+  clear-cache:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Clear Cache on Production
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'CLEARCACHE'
+        set -e
+        APP_DIR="/var/www/html"
+
+        echo "=== Clearing All Cache on Production ==="
+        echo "Time: $(date)"
+        echo ""
+
+        cd $APP_DIR
+
+        echo "1. Config cache..."
+        sudo -u www-data php artisan config:clear
+
+        echo "2. Route cache..."
+        sudo -u www-data php artisan route:clear
+
+        echo "3. View cache..."
+        sudo -u www-data php artisan view:clear
+
+        echo "4. Event cache..."
+        sudo -u www-data php artisan event:clear
+
+        echo "5. Cache facade..."
+        sudo -u www-data php artisan cache:clear
+
+        echo "6. Compiled classes..."
+        sudo -u www-data php artisan clear-compiled
+
+        echo "7. Filament cache..."
+        sudo -u www-data php artisan filament:clear-cached-components 2>/dev/null || echo "Filament cache command not available"
+
+        echo "8. Optimize (recreate cache)..."
+        sudo -u www-data php artisan optimize
+
+        echo ""
+        echo "=== ✅ All cache cleared and optimized ==="
+        echo "Time: $(date)"
+        CLEARCACHE
+
+        rm -f deploy_key.pem
