@@ -246,7 +246,14 @@ class DailyClosing extends Page implements HasForms
                 $paymentMethod = $defaultPaymentMethod;
             }
 
-            $amount = ($source === 'spot') ? (int)($reservation->total_amount ?? 0) : 0;
+            // 計上済みの場合は売上レコードから金額を取得、未計上は予約から取得
+            if ($reservation->sale) {
+                // 計上済み：売上レコードの金額を使用
+                $amount = (int)($reservation->sale->total_amount ?? 0);
+            } else {
+                // 未計上：予約の金額を使用
+                $amount = ($source === 'spot') ? (int)($reservation->total_amount ?? 0) : 0;
+            }
 
             // 行の初期状態を設定
             $this->rowState[$reservation->id] = [
@@ -324,6 +331,9 @@ class DailyClosing extends Page implements HasForms
             $this->loadUnpostedReservations();
             $this->loadSalesData();
 
+            // Livewireコンポーネントを明示的にリフレッシュ
+            $this->dispatch('$refresh');
+
         } catch (\Exception $e) {
             Notification::make()
                 ->danger()
@@ -364,6 +374,9 @@ class DailyClosing extends Page implements HasForms
             // リストを再読み込み
             $this->loadUnpostedReservations();
             $this->loadSalesData();
+
+            // Livewireコンポーネントを明示的にリフレッシュ
+            $this->dispatch('$refresh');
 
         } catch (\Exception $e) {
             Notification::make()
@@ -696,6 +709,9 @@ class DailyClosing extends Page implements HasForms
             $this->loadSalesData();
             $this->loadUnpostedReservations();
 
+            // Livewireコンポーネントを明示的にリフレッシュ
+            $this->dispatch('$refresh');
+
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -761,6 +777,9 @@ class DailyClosing extends Page implements HasForms
             $this->loadSalesData();
             $this->loadUnpostedReservations();
 
+            // Livewireコンポーネントを明示的にリフレッシュ
+            $this->dispatch('$refresh');
+
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -802,6 +821,9 @@ class DailyClosing extends Page implements HasForms
         // データを再読み込み
         $this->loadSalesData();
         $this->loadUnpostedReservations();
+
+        // Livewireコンポーネントを明示的にリフレッシュ
+        $this->dispatch('$refresh');
     }
 
     /**
@@ -836,6 +858,9 @@ class DailyClosing extends Page implements HasForms
             // データを再読み込み
             $this->loadSalesData();
             $this->loadUnpostedReservations();
+
+            // Livewireコンポーネントを明示的にリフレッシュ
+            $this->dispatch('$refresh');
 
         } catch (\Exception $e) {
             DB::rollBack();
