@@ -2385,7 +2385,7 @@
                                 @if($previousMedicalRecord->eye_diseases)
                                     <div class="bg-gray-50 rounded-lg p-3">
                                         <p class="text-xs text-gray-600 mb-1">目の病気</p>
-                                        <p class="text-sm text-gray-900">{{ $previousMedicalRecord->eye_diseases }}</p>
+                                        <p class="text-sm text-gray-900 whitespace-pre-line">{{ $previousMedicalRecord->eye_diseases }}</p>
                                     </div>
                                 @endif
 
@@ -2393,7 +2393,7 @@
                                 @if($previousMedicalRecord->device_usage)
                                     <div class="bg-gray-50 rounded-lg p-3">
                                         <p class="text-xs text-gray-600 mb-1">スマホ・PC使用頻度</p>
-                                        <p class="text-sm text-gray-900">{{ $previousMedicalRecord->device_usage }}</p>
+                                        <p class="text-sm text-gray-900 whitespace-pre-line">{{ $previousMedicalRecord->device_usage }}</p>
                                     </div>
                                 @endif
 
@@ -2401,7 +2401,7 @@
                                 @if($previousMedicalRecord->reservation_source)
                                     <div class="bg-gray-50 rounded-lg p-3">
                                         <p class="text-xs text-gray-600 mb-1">来店経路</p>
-                                        <p class="text-sm text-gray-900">{{ $previousMedicalRecord->reservation_source }}</p>
+                                        <p class="text-sm text-gray-900 whitespace-pre-line">{{ $previousMedicalRecord->reservation_source }}</p>
                                     </div>
                                 @endif
 
@@ -2409,7 +2409,7 @@
                                 @if($previousMedicalRecord->workplace_address)
                                     <div class="bg-gray-50 rounded-lg p-3">
                                         <p class="text-xs text-gray-600 mb-1">職場・住所</p>
-                                        <p class="text-sm text-gray-900">{{ $previousMedicalRecord->workplace_address }}</p>
+                                        <p class="text-sm text-gray-900 whitespace-pre-line">{{ $previousMedicalRecord->workplace_address }}</p>
                                     </div>
                                 @endif
 

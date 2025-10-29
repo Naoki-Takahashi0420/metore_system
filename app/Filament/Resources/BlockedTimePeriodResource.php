@@ -144,7 +144,9 @@ class BlockedTimePeriodResource extends Resource
                     ->label('作成者')
                     ->sortable()
                     ->searchable()
-                    ->default('不明'),
+                    ->getStateUsing(function ($record) {
+                        return $record->creator?->name ?? '不明';
+                    }),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('作成日時')
