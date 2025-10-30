@@ -148,8 +148,8 @@ class EmailService
         }
 
         $appName = config('app.name');
-        
-        $subject = "【{$appName}】認証コードのお知らせ";
+
+        $subject = "[{$otp}]認証コードのお知らせ｜{$appName}";
         
         $body = <<<HTML
 <!DOCTYPE html>
