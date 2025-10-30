@@ -64,12 +64,14 @@ class PublicReservationController extends Controller
         }
 
         // デバッグ: コンテキストの内容を確認
-        \Log::info('[/stores] 受信したコンテキスト', [
+        \Log::info('🔍 [/stores] 受信したコンテキスト', [
             'context' => $context,
             'has_store_id' => isset($context['store_id']),
             'store_id' => $context['store_id'] ?? null,
             'is_subscription' => $context['is_subscription'] ?? false,
-            'has_menu_id' => isset($context['menu_id'])
+            'has_menu_id' => isset($context['menu_id']),
+            'type' => $context['type'] ?? null,
+            'customer_id' => $context['customer_id'] ?? null
         ]);
 
         // サブスク予約の場合、店舗とメニューが両方指定されていれば直接カレンダーへ
@@ -87,11 +89,17 @@ class PublicReservationController extends Controller
 
         // 通常の予約で店舗IDが含まれている場合はカテゴリ選択へリダイレクト
         if ($context && isset($context['store_id'])) {
-            \Log::info('[/stores] 店舗選択をスキップしてカテゴリ選択へリダイレクト', [
-                'store_id' => $context['store_id']
+            \Log::info('✅ [/stores] 店舗選択をスキップしてカテゴリ選択へリダイレクト', [
+                'store_id' => $context['store_id'],
+                'customer_id' => $context['customer_id'] ?? null
             ]);
             $encryptedContext = $contextService->encryptContext($context);
             return redirect()->route('reservation.select-category', ['ctx' => $encryptedContext]);
+        } else {
+            \Log::info('⚠️ [/stores] 店舗IDなし - 店舗選択画面を表示', [
+                'has_context' => !!$context,
+                'context_keys' => $context ? array_keys($context) : []
+            ]);
         }
 
         // 新規予約の場合、デフォルトコンテキストを作成
@@ -2790,11 +2798,19 @@ class PublicReservationController extends Controller
         }
 
         $existingReservations = $query->get();
-            
-        \Log::info('既存予約確認', [
+
+        \Log::info('🔍 既存予約確認（5日ルール）', [
             'customer_id' => $customerId,
+            'filter_store_id' => $storeId,
             'existing_reservations_count' => $existingReservations->count(),
-            'reservations' => $existingReservations->pluck('reservation_date', 'id')->toArray()
+            'reservations' => $existingReservations->map(function($r) {
+                return [
+                    'id' => $r->id,
+                    'date' => $r->reservation_date,
+                    'store_id' => $r->store_id,
+                    'store_name' => $r->store->name ?? 'N/A'
+                ];
+            })->toArray()
         ]);
             
         $targetDateTime = Carbon::parse($targetDate);
@@ -2805,19 +2821,30 @@ class PublicReservationController extends Controller
         });
 
         if ($sameDayReservations->count() > 0) {
-            \Log::warning('同じ日に既に予約あり', [
+            $conflictReservation = $sameDayReservations->first();
+            \Log::warning('⚠️ 同じ日に既に予約あり', [
                 'customer_id' => $customerId,
                 'target_date' => $targetDateTime->format('Y-m-d'),
-                'existing_reservations' => $sameDayReservations->pluck('id')->toArray()
+                'target_store_id' => $storeId,
+                'existing_reservations' => $sameDayReservations->map(function($r) {
+                    return [
+                        'id' => $r->id,
+                        'store_id' => $r->store_id,
+                        'store_name' => $r->store->name ?? 'N/A',
+                        'date' => $r->reservation_date
+                    ];
+                })->toArray()
             ]);
 
             // 次回予約可能日を計算（選択した日付からmin_interval_days+1日後）
             $nextAvailableDate = $targetDateTime->copy()->addDays($minIntervalDays + 1);
 
+            $storeName = $conflictReservation->store->name ?? '店舗';
             throw \Illuminate\Validation\ValidationException::withMessages([
                 'date' => sprintf(
-                    '%sには既に予約があります。次回予約可能日: %s以降',
+                    '%sには既に%sで予約があります。次回予約可能日: %s以降',
                     $targetDateTime->format('Y年m月d日'),
+                    $storeName,
                     $nextAvailableDate->format('Y年m月d日')
                 )
             ]);
@@ -2838,10 +2865,14 @@ class PublicReservationController extends Controller
 
             // 1-N日以内をチェック
             if ($daysDiff > 0 && $daysDiff <= $minIntervalDays) {
-                \Log::warning('予約間隔制限違反', [
+                \Log::warning('⚠️ 予約間隔制限違反', [
                     'customer_id' => $customerId,
+                    'conflicting_reservation_id' => $reservation->id,
+                    'conflicting_store_id' => $reservation->store_id,
+                    'conflicting_store_name' => $reservation->store->name ?? 'N/A',
                     'conflicting_reservation_date' => $reservationDate->format('Y-m-d'),
                     'target_date' => $targetDateTime->format('Y-m-d'),
+                    'target_store_id' => $storeId,
                     'days_diff' => $daysDiff,
                     'min_interval_days' => $minIntervalDays
                 ]);
@@ -2849,9 +2880,11 @@ class PublicReservationController extends Controller
                 // 次回予約可能日を計算（前回の予約からmin_interval_days+1日後）
                 $nextAvailableDate = $reservationDate->copy()->addDays($minIntervalDays + 1);
 
+                $storeName = $reservation->store->name ?? '店舗';
                 throw \Illuminate\Validation\ValidationException::withMessages([
                     'date' => sprintf(
-                        '前回の予約（%s）から%d日以内のため予約できません。次回予約可能日: %s以降',
+                        '%sでの前回の予約（%s）から%d日以内のため予約できません。次回予約可能日: %s以降',
+                        $storeName,
                         $reservationDate->format('Y年m月d日'),
                         $minIntervalDays,
                         $nextAvailableDate->format('Y年m月d日')

@@ -169,7 +169,14 @@
                     <p class="text-lg font-semibold text-gray-800">{{ $selectedStore->name }}</p>
                     <p class="text-sm text-gray-600">{{ $selectedStore->address ?? '' }}</p>
                 </div>
-                <a href="{{ url('/stores') }}" class="text-blue-500 hover:text-blue-700 text-sm underline">
+                @php
+                    // 店舗変更時：コンテキストから store_id を削除して /stores に遷移
+                    $changeStoreContext = $context ?? [];
+                    unset($changeStoreContext['store_id']); // 店舗IDのみ削除
+                    $contextService = app('App\Services\ReservationContextService');
+                    $changeStoreEncryptedContext = $contextService->encryptContext($changeStoreContext);
+                @endphp
+                <a href="{{ url('/stores?ctx=' . urlencode($changeStoreEncryptedContext)) }}" class="text-blue-500 hover:text-blue-700 text-sm underline">
                     店舗を変更
                 </a>
             </div>
@@ -381,8 +388,22 @@
                     </div>
                 </div>
             </div>
+            <script>
+                function closeErrorModal() {
+                    const modal = document.getElementById('errorModal');
+                    if (modal) {
+                        modal.classList.add('hidden');
+                    }
+                }
+
+                function closeErrorModalOnBackdrop(event) {
+                    if (event.target.id === 'errorModal') {
+                        closeErrorModal();
+                    }
+                }
+            </script>
         @endif
-        
+
         <!-- 選択されていません表示 -->
         <div id="noSelection" class="text-center py-8 text-gray-500">
             選択されていません。

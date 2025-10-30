@@ -243,13 +243,50 @@ class CustomerController extends Controller
         $storeId = $request->input('store_id');
         $source = $request->input('source', 'mypage'); // デフォルトはmypage
 
-        // 店舗IDの自動取得を削除: 複数店舗で予約可能にするため、顧客に明示的に選択させる
+        \Log::info('🔍 [createMedicalRecordContext] 開始', [
+            'customer_id' => $customer->id,
+            'customer_name' => $customer->last_name . ' ' . $customer->first_name,
+            'request_store_id' => $storeId,
+            'source' => $source
+        ]);
 
-        // ログ出力: 受信した店舗ID
+        // 店舗IDが指定されていない場合、直近の予約店舗を自動選択
+        if (!$storeId) {
+            \Log::info('🔍 店舗ID未指定 - 直近の予約を検索中...');
+
+            $latestReservation = $customer->reservations()
+                ->whereNotIn('status', ['cancelled', 'canceled'])
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            \Log::info('🔍 予約検索結果', [
+                'found' => !!$latestReservation,
+                'reservation_id' => $latestReservation?->id,
+                'store_id' => $latestReservation?->store_id,
+                'status' => $latestReservation?->status,
+                'created_at' => $latestReservation?->created_at
+            ]);
+
+            if ($latestReservation && $latestReservation->store_id) {
+                $storeId = $latestReservation->store_id;
+                \Log::info('✅ 直近の予約店舗を自動選択', [
+                    'customer_id' => $customer->id,
+                    'store_id' => $storeId,
+                    'reservation_id' => $latestReservation->id
+                ]);
+            } else {
+                \Log::info('⚠️ 直近の予約が見つからない、または店舗IDなし');
+            }
+        } else {
+            \Log::info('✅ 店舗IDがリクエストで指定されている', ['store_id' => $storeId]);
+        }
+
+        // ログ出力: 受信した/取得した店舗ID
         \Log::info('[createMedicalRecordContext] 受信したパラメータ', [
             'customer_id' => $customer->id,
             'store_id' => $storeId,
-            'source' => $source
+            'source' => $source,
+            'auto_selected' => !$request->input('store_id') && $storeId
         ]);
 
         // 店舗IDが取得できた場合は、店舗選択済みのコンテキストを生成
