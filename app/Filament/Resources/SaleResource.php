@@ -375,8 +375,18 @@ class SaleResource extends Resource
                         'danger' => 'キャンセル',
                         'warning' => '返金済み',
                     ]),
-                Tables\Columns\TextColumn::make('staff.name')
+                Tables\Columns\TextColumn::make('担当')
                     ->label('担当')
+                    ->getStateUsing(function ($record) {
+                        // handled_by（テキスト）を優先、なければ staff.name を表示
+                        return $record->handled_by ?? $record->staff?->name ?? '未設定';
+                    })
+                    ->searchable(query: function ($query, $search) {
+                        return $query->where('handled_by', 'like', "%{$search}%")
+                            ->orWhereHas('staff', function ($q) use ($search) {
+                                $q->where('name', 'like', "%{$search}%");
+                            });
+                    })
                     ->toggleable(),
             ])
             ->defaultSort('sale_date', 'desc')

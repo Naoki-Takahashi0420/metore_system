@@ -230,8 +230,16 @@ class MedicalRecordResource extends Resource
                                                 }
                                             }),
                                         
+                                        Forms\Components\Toggle::make('use_text_input_for_handler')
+                                            ->label('スタッフ名を直接入力する')
+                                            ->default(false)
+                                            ->reactive()
+                                            ->dehydrated(false) // DBに保存しない（UI制御用のみ）
+                                            ->helperText('リストにないスタッフの名前を入力する場合にONにしてください')
+                                            ->columnSpanFull(),
+
                                         Forms\Components\Select::make('handled_by')
-                                            ->label('対応者')
+                                            ->label('対応者（スタッフ選択）')
                                             ->default(function ($operation) {
                                                 if ($operation === 'create') {
                                                     $reservationId = request()->query('reservation_id');
@@ -284,7 +292,24 @@ class MedicalRecordResource extends Resource
                                             ->default(Auth::user()->name)
                                             ->searchable()
                                             ->reactive()
-                                            ->placeholder('対応者を選択（任意）'),
+                                            ->placeholder('対応者を選択（任意）')
+                                            ->visible(fn ($get) => !$get('use_text_input_for_handler')),
+
+                                        Forms\Components\TextInput::make('handled_by')
+                                            ->label('対応者（直接入力）')
+                                            ->placeholder('例: 新宿店の田中')
+                                            ->helperText('過去に入力したスタッフ名が候補として表示されます')
+                                            ->maxLength(255)
+                                            ->datalist(function () {
+                                                // 過去に入力された対応者名を候補として表示
+                                                return \App\Models\MedicalRecord::whereNotNull('handled_by')
+                                                    ->where('handled_by', '!=', '')
+                                                    ->distinct()
+                                                    ->orderBy('handled_by')
+                                                    ->pluck('handled_by')
+                                                    ->toArray();
+                                            })
+                                            ->visible(fn ($get) => $get('use_text_input_for_handler')),
                                         
                                         Forms\Components\DatePicker::make('treatment_date')
                                             ->label('施術日（任意）')

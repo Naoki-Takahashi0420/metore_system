@@ -225,9 +225,17 @@ class TodayReservationsWidget extends BaseWidget
                     ->label('メニュー')
                     ->limit(20),
                     
-                Tables\Columns\TextColumn::make('staff.name')
+                Tables\Columns\TextColumn::make('担当')
                     ->label('担当')
-                    ->placeholder('未定'),
+                    ->getStateUsing(function ($record) {
+                        // 最新のカルテから対応者（テキスト入力）を取得
+                        $latestMedicalRecord = $record->medicalRecords->sortByDesc('record_date')->first();
+                        if ($latestMedicalRecord && $latestMedicalRecord->handled_by) {
+                            return $latestMedicalRecord->handled_by;
+                        }
+                        // カルテがない場合はスタッフ名
+                        return $record->staff?->name ?? '未定';
+                    }),
                     
                 Tables\Columns\BadgeColumn::make('status')
                     ->label('ステータス')

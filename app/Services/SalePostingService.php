@@ -60,9 +60,13 @@ class SalePostingService
 
             // 売上レコード作成
             // スタッフID: カルテの対応者 → 予約のスタッフ → ログインユーザー
-            $staffId = $reservation->medicalRecords()->latest()->first()?->staff_id
+            $latestMedicalRecord = $reservation->medicalRecords()->latest()->first();
+            $staffId = $latestMedicalRecord?->staff_id
                 ?? $reservation->staff_id
                 ?? auth()->id();
+
+            // 対応者名（テキスト）: カルテの handled_by を優先
+            $handledBy = $latestMedicalRecord?->handled_by;
 
             $saleData = [
                 'sale_number' => Sale::generateSaleNumber(),
@@ -70,6 +74,7 @@ class SalePostingService
                 'reservation_id' => $reservation->id,
                 'customer_id' => $reservation->customer_id,
                 'staff_id' => $staffId,
+                'handled_by' => $handledBy,
                 'customer_ticket_id' => $paymentSource === PaymentSource::TICKET->value ? $reservation->customer_ticket_id : null,
                 'customer_subscription_id' => $paymentSource === PaymentSource::SUBSCRIPTION->value ? $reservation->customer_subscription_id : null,
                 'payment_method' => $paymentMethod,
