@@ -155,7 +155,9 @@ class CustomerSubscriptionResource extends Resource
                                 'inactive' => '無効',
                                 'cancelled' => 'キャンセル済み',
                             ])
-                            ->helperText('解約処理時のみ変更可能'),
+                            ->default('active')
+                            ->required()
+                            ->helperText('通常は「有効」を選択'),
                     ])
                     ->columns(2),
                 
