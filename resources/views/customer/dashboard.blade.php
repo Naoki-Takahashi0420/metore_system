@@ -414,30 +414,6 @@
 let allReservations = [];
 let currentFilter = 'all';
 
-function goToReservation() {
-    // ローカルストレージから顧客情報を取得
-    const customerData = localStorage.getItem('customer_data');
-
-    if (customerData) {
-        try {
-            const customer = JSON.parse(customerData);
-            const customerId = customer.id;
-
-            // 顧客IDがある場合は、URLパラメータ付きで遷移
-            if (customerId) {
-                window.location.href = `/reservation/store?customer_id=${customerId}`;
-            } else {
-                window.location.href = '/reservation/store';
-            }
-        } catch (e) {
-            console.error('Error parsing customer data:', e);
-            window.location.href = '/reservation/store';
-        }
-    } else {
-        window.location.href = '/reservation/store';
-    }
-}
-
 document.addEventListener('DOMContentLoaded', async function() {
     const token = localStorage.getItem('customer_token');
     const customerData = localStorage.getItem('customer_data');
