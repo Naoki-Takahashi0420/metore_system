@@ -532,6 +532,59 @@ class CustomerSubscriptionResource extends Resource
                     }),
                     
                 Tables\Actions\EditAction::make(),
+
+                Tables\Actions\DeleteAction::make()
+                    ->label('削除')
+                    ->requiresConfirmation()
+                    ->modalHeading('サブスク契約を削除')
+                    ->modalDescription(function ($record) {
+                        // 紐づく売上をチェック
+                        $salesCount = \App\Models\Sale::where('customer_subscription_id', $record->id)->count();
+
+                        if ($salesCount > 0) {
+                            return "⚠️ この契約は既に{$salesCount}件の売上が紐づいているため削除できません。\n\n" .
+                                   "既に使用開始しているサブスクは削除できません。";
+                        }
+
+                        return "この契約を完全に削除してもよろしいですか？\n\n" .
+                               "※ まだ使用していない（売上が紐づいていない）契約のみ削除できます。\n" .
+                               "※ この操作は取り消せません。";
+                    })
+                    ->modalSubmitActionLabel('削除する')
+                    ->before(function ($record) {
+                        // 削除前に売上の存在をチェック
+                        $salesCount = \App\Models\Sale::where('customer_subscription_id', $record->id)->count();
+
+                        if ($salesCount > 0) {
+                            \Filament\Notifications\Notification::make()
+                                ->title('削除できません')
+                                ->body("この契約は既に{$salesCount}件の売上が紐づいているため削除できません。")
+                                ->danger()
+                                ->send();
+
+                            // 削除を中止
+                            throw new \Exception("この契約は既に使用されているため削除できません。");
+                        }
+
+                        // 紐づく予約もチェック
+                        $reservationsCount = \App\Models\Reservation::where('customer_subscription_id', $record->id)->count();
+
+                        if ($reservationsCount > 0) {
+                            \Filament\Notifications\Notification::make()
+                                ->title('削除できません')
+                                ->body("この契約には{$reservationsCount}件の予約が紐づいています。先に予約を削除してください。")
+                                ->danger()
+                                ->send();
+
+                            throw new \Exception("この契約には予約が紐づいているため削除できません。");
+                        }
+                    })
+                    ->successNotificationTitle('サブスク契約を削除しました')
+                    ->visible(function ($record) {
+                        // 売上が紐づいていない場合のみ削除ボタンを表示
+                        $salesCount = \App\Models\Sale::where('customer_subscription_id', $record->id)->count();
+                        return $salesCount === 0;
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
