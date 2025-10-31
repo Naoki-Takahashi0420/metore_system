@@ -734,7 +734,7 @@ class DailyClosing extends Page implements HasForms
      */
     public function updateCalculation(): void
     {
-        $serviceTotal = $this->editorData['service_item']['price'] * $this->editorData['service_item']['quantity'];
+        $serviceTotal = ($this->editorData['service_item']['price'] ?? 0) * ($this->editorData['service_item']['quantity'] ?? 1);
 
         $optionTotal = 0;
         foreach ($this->editorData['option_items'] ?? [] as $item) {
