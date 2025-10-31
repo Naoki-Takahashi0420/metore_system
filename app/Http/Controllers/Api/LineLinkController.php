@@ -86,7 +86,7 @@ class LineLinkController extends Controller
                 ], 400);
             }
 
-            // IDトークンを検証
+            // IDトークンを検証（.envのChannel IDを使用）
             try {
                 $lineUserData = $this->tokenVerificationService->verifyIdToken($validatedData['id_token']);
             } catch (Exception $e) {
@@ -403,9 +403,12 @@ class LineLinkController extends Controller
                 ], 400);
             }
 
-            // IDトークンを検証
+            // IDトークンを検証（店舗のChannel IDを使用）
             try {
-                $lineUserData = $this->tokenVerificationService->verifyIdToken($validatedData['id_token']);
+                $lineUserData = $this->tokenVerificationService->verifyIdToken(
+                    $validatedData['id_token'],
+                    $store->line_channel_id
+                );
             } catch (Exception $e) {
                 // JWKs検証失敗時はAPI検証を試行（店舗のChannel IDを使用）
                 try {

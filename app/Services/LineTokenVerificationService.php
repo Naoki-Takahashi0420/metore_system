@@ -21,13 +21,16 @@ class LineTokenVerificationService
 
     /**
      * LINEのIDトークンを検証
+     *
+     * @param string $idToken IDトークン
+     * @param string|null $channelId 検証に使用するChannel ID（nullの場合は.envの値を使用）
      */
-    public function verifyIdToken(string $idToken): array
+    public function verifyIdToken(string $idToken, ?string $channelId = null): array
     {
         try {
             // JWTヘッダーをデコード
             $header = $this->getTokenHeader($idToken);
-            
+
             // キーIDを取得
             $keyId = $header['kid'] ?? null;
             if (!$keyId) {
@@ -41,9 +44,9 @@ class LineTokenVerificationService
             // トークンを検証してペイロードを取得
             // findPublicKey now returns a Key object directly
             $payload = JWT::decode($idToken, $publicKey);
-            
-            // ペイロードを検証
-            $this->validateTokenPayload($payload);
+
+            // ペイロードを検証（Channel IDを渡す）
+            $this->validateTokenPayload($payload, $channelId);
 
             return [
                 'user_id' => $payload->sub,
@@ -55,7 +58,8 @@ class LineTokenVerificationService
         } catch (Exception $e) {
             Log::error('LINE ID token verification failed', [
                 'error' => $e->getMessage(),
-                'token' => substr($idToken, 0, 50) . '...'
+                'token' => substr($idToken, 0, 50) . '...',
+                'channel_id' => $channelId ?? 'not provided'
             ]);
             throw new Exception('Invalid ID token: ' . $e->getMessage());
         }
@@ -155,11 +159,14 @@ class LineTokenVerificationService
 
     /**
      * トークンペイロードを検証
+     *
+     * @param object $payload JWTペイロード
+     * @param string|null $channelId 検証に使用するChannel ID（nullの場合は.envの値を使用）
      */
-    private function validateTokenPayload(object $payload): void
+    private function validateTokenPayload(object $payload, ?string $channelId = null): void
     {
         $now = time();
-        
+
         // 有効期限チェック
         if (!isset($payload->exp) || $payload->exp < $now) {
             throw new Exception('Token has expired');
@@ -175,8 +182,8 @@ class LineTokenVerificationService
             throw new Exception('Invalid issuer');
         }
 
-        // オーディエンスチェック
-        $expectedChannelId = config('services.line.channel_id');
+        // オーディエンスチェック（店舗ごとのChannel IDを優先）
+        $expectedChannelId = $channelId ?? config('services.line.channel_id');
         if (!isset($payload->aud)) {
             throw new Exception('Audience not found in token');
         }

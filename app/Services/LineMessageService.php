@@ -34,13 +34,25 @@ class LineMessageService
     {
         $customer = $reservation->customer;
         $lineUserId = $customer->line_user_id ?? null;
-        
+
         if (!$lineUserId) {
             return false;
         }
-        
+
+        // 店舗のLINE設定を取得してトークンを設定
+        $store = $reservation->store;
+        if ($store && $store->line_enabled && $store->line_channel_access_token) {
+            $this->setChannelToken($store->line_channel_access_token);
+        } else {
+            Log::warning('Store LINE settings not configured for confirmation', [
+                'reservation_id' => $reservation->id,
+                'store_id' => $store?->id
+            ]);
+            return false;
+        }
+
         $message = $this->buildConfirmationMessage($reservation);
-        
+
         return $this->sendMessage($lineUserId, $message);
     }
     
@@ -51,13 +63,25 @@ class LineMessageService
     {
         $customer = $reservation->customer;
         $lineUserId = $customer->line_user_id ?? null;
-        
+
         if (!$lineUserId) {
             return false;
         }
-        
+
+        // 店舗のLINE設定を取得してトークンを設定
+        $store = $reservation->store;
+        if ($store && $store->line_enabled && $store->line_channel_access_token) {
+            $this->setChannelToken($store->line_channel_access_token);
+        } else {
+            Log::warning('Store LINE settings not configured for reminder', [
+                'reservation_id' => $reservation->id,
+                'store_id' => $store?->id
+            ]);
+            return false;
+        }
+
         $message = $this->buildReminderMessage($reservation, $timing);
-        
+
         return $this->sendMessage($lineUserId, $message);
     }
     
@@ -66,27 +90,44 @@ class LineMessageService
      */
     public function sendPromotion(string $message, array $customerIds = [])
     {
-        // 対象顧客を取得
-        $query = Customer::whereNotNull('line_user_id');
-        
+        // 対象顧客を取得（店舗情報も含む）
+        $query = Customer::with('store')->whereNotNull('line_user_id');
+
         if (!empty($customerIds)) {
             $query->whereIn('id', $customerIds);
         }
-        
+
         $customers = $query->get();
         $successCount = 0;
-        
+        $failCount = 0;
+
         foreach ($customers as $customer) {
+            // 顧客の店舗のLINE設定を取得してトークンを設定
+            $store = $customer->store;
+            if ($store && $store->line_enabled && $store->line_channel_access_token) {
+                $this->setChannelToken($store->line_channel_access_token);
+            } else {
+                Log::warning('Store LINE settings not configured for promotion', [
+                    'customer_id' => $customer->id,
+                    'store_id' => $store?->id
+                ]);
+                $failCount++;
+                continue;
+            }
+
             if ($this->sendMessage($customer->line_user_id, $message)) {
                 $successCount++;
+            } else {
+                $failCount++;
             }
             // レート制限対策で少し待機
             usleep(100000); // 0.1秒
         }
-        
+
         return [
             'total' => $customers->count(),
-            'success' => $successCount
+            'success' => $successCount,
+            'failed' => $failCount
         ];
     }
     
@@ -96,13 +137,25 @@ class LineMessageService
     public function sendFirstTimeFollowUp(Customer $customer, int $days)
     {
         $lineUserId = $customer->line_user_id ?? null;
-        
+
         if (!$lineUserId) {
             return false;
         }
-        
+
+        // 顧客の店舗のLINE設定を取得してトークンを設定
+        $store = $customer->store;
+        if ($store && $store->line_enabled && $store->line_channel_access_token) {
+            $this->setChannelToken($store->line_channel_access_token);
+        } else {
+            Log::warning('Store LINE settings not configured for follow-up', [
+                'customer_id' => $customer->id,
+                'store_id' => $store?->id
+            ]);
+            return false;
+        }
+
         $message = $this->buildFollowUpMessage($customer, $days);
-        
+
         return $this->sendMessage($lineUserId, $message);
     }
     
@@ -216,9 +269,19 @@ class LineMessageService
         if (!$lineUserId) {
             return false;
         }
-        
+
+        // 店舗のLINE設定を取得してトークンを設定
+        if ($store && $store->line_enabled && $store->line_channel_access_token) {
+            $this->setChannelToken($store->line_channel_access_token);
+        } else {
+            Log::warning('Store LINE settings not configured for linking button', [
+                'store_id' => $store?->id
+            ]);
+            return false;
+        }
+
         $message = $this->buildLinkingMessage($linkingUrl, $store);
-        
+
         return $this->sendMessage($lineUserId, $message);
     }
     
