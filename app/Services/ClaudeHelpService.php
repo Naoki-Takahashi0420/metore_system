@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 class ClaudeHelpService
 {
     private ?string $apiKey = null;
-    private string $model = 'claude-3-5-sonnet-20241022';
+    private string $model = 'claude-sonnet-4-5-20250929';
     private int $maxTokens = 1024;
 
     public function __construct()
