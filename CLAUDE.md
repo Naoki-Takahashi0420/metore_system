@@ -53,6 +53,29 @@
 - **症状**: 同じメールアドレスに同じ内容の通知が2通届く
 - **解決**: メールアドレスベースの重複除去 `$admins->unique('email')`
 
+#### 4. キュー実行時のモデルシリアライズエラー（2025-10-31解決）
+- **症状**: `No query results for model [App\Models\Reservation]` エラーが発生し、予約変更通知が送信されない
+- **影響**: 顧客・管理者への予約変更通知が一切送信されず、キューワーカーが無限リトライ
+- **根本原因**:
+  - `replicate()` で複製したReservationモデル（DBに保存されていない）をイベントに渡していた
+  - `ReservationChanged` イベントが `SerializesModels` トレイトを使用
+  - リスナーが `ShouldQueue` でキュー実行
+  - キューがモデルのIDだけを保存 → 実行時に `findOrFail()` で取得しようとするが存在しないのでエラー
+- **解決策**: イベントで変更前の予約情報を**配列**で渡すように変更
+  - `ReservationChanged` イベント: `$oldReservationData` (array) に変更
+  - `PublicReservationController`: 必要なデータだけを配列化して渡す
+  - 全リスナー・サービスを配列対応に修正
+- **修正ファイル**:
+  - `app/Events/ReservationChanged.php`
+  - `app/Http/Controllers/PublicReservationController.php`
+  - `app/Services/AdminNotificationService.php`
+  - `app/Listeners/AdminNotificationListener.php`
+  - `app/Listeners/SendCustomerReservationChangeNotification.php`
+- **教訓**:
+  - **Laravelのキューとモデルシリアライズの動作を理解する**
+  - DBに保存されていないモデルをキューに渡してはいけない
+  - キューで渡すデータは、配列・プリミティブ型・永続化されたモデルのみにする
+
 ---
 
 ## 📖 システム概要
@@ -128,7 +151,13 @@
 - OTP認証（SMS/メール）
 
 **拡張機能（2025-10追加）:**
-- ✅ **要注意顧客自動判定システム** - リスクレベル自動判定・アラート表示
+- ✅ **要注意顧客自動判定システム** - 以下の基準で自動判定
+  - キャンセル: 直近90日で2回以上（店舗都合を除く）
+  - ノーショー（無断キャンセル）: 直近180日で1回以上
+  - 予約変更: 直近60日で3回以上
+  - ※いずれか1つでも該当すると `is_blocked = true` になる
+  - ※クレーム機能や支払いトラブル機能は実装されていません
+  - ※リスクレベル（high/medium/low）の区別は実装されていません
 - ✅ **顧客画像管理** - 写真アップロード・ギャラリー表示
 - ✅ 顧客統合（マージ）機能
 - ✅ 顧客インポート機能
