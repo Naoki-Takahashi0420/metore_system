@@ -13,7 +13,9 @@ class StoreController extends Controller
      */
     public function index()
     {
+        // 有効な店舗のみ取得（is_active = true かつ status = 'active'）
         $stores = Store::where('is_active', true)
+            ->where('status', 'active')
             ->select(['id', 'name', 'name_kana', 'prefecture', 'city', 'address', 'phone', 'image_path', 'opening_hours', 'business_hours', 'holidays'])
             ->get();
 
@@ -38,7 +40,8 @@ class StoreController extends Controller
     {
         $store = Store::find($id);
 
-        if (!$store || !$store->is_active) {
+        // 有効な店舗（is_active = true かつ status = 'active'）のみ表示
+        if (!$store || !$store->is_active || $store->status !== 'active') {
             return response()->json([
                 'message' => '店舗が見つかりません'
             ], 404);

@@ -111,7 +111,10 @@ class PublicReservationController extends Controller
             ];
         }
 
-        $stores = Store::where('is_active', true)->get();
+        // 有効な店舗のみ取得（is_active = true かつ status = 'active'）
+        $stores = Store::where('is_active', true)
+            ->where('status', 'active')
+            ->get();
         $encryptedContext = $contextService->encryptContext($context);
 
         // レガシーサポート: 古いパラメータ形式も一時的にサポート
@@ -996,13 +999,16 @@ class PublicReservationController extends Controller
         
         $selectedStore = Store::find($selectedStoreId);
         
-        // 店舗が見つからない場合
-        if (!$selectedStore || !$selectedStore->is_active) {
+        // 店舗が見つからない場合、または無効な店舗の場合
+        if (!$selectedStore || !$selectedStore->is_active || $selectedStore->status !== 'active') {
             Session::forget('selected_store_id');
             return redirect('/stores')->with('error', '選択された店舗が見つかりません。');
         }
-        
-        $stores = Store::where('is_active', true)->get();
+
+        // 有効な店舗のみ取得（is_active = true かつ status = 'active'）
+        $stores = Store::where('is_active', true)
+            ->where('status', 'active')
+            ->get();
         
         // 選択された週を取得（デフォルトは今週）
         $weekOffset = (int) $request->get('week', 0);

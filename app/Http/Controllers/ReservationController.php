@@ -61,7 +61,10 @@ class ReservationController extends Controller
      */
     public function showStores()
     {
-        $stores = Store::where('is_active', true)->get();
+        // 有効な店舗のみ取得（is_active = true かつ status = 'active'）
+        $stores = Store::where('is_active', true)
+            ->where('status', 'active')
+            ->get();
         $context = Session::get('reservation_context');
         
         return view('reservation.stores', [
