@@ -75,6 +75,12 @@
   - **Laravelのキューとモデルシリアライズの動作を理解する**
   - DBに保存されていないモデルをキューに渡してはいけない
   - キューで渡すデータは、配列・プリミティブ型・永続化されたモデルのみにする
+- **⚠️ 未修正箇所（要対応）**:
+  - `app/Http/Controllers/Api/ReservationController.php` の3箇所で同じバグが残っている
+    - 674行目: `updateReservation()` メソッド
+    - 743行目: `updateReservationDetails()` メソッド
+    - 960行目: `changeMenu()` メソッド
+  - API経由の予約変更は現在ほぼ使われていないため、優先度を下げて対応予定
 
 ---
 

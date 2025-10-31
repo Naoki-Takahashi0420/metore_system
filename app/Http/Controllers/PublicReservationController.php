@@ -2022,11 +2022,28 @@ class PublicReservationController extends Controller
                 $startTime = Carbon::parse($validated['date'] . ' ' . $validated['time']);
                 $endTime = $startTime->copy()->addMinutes($menu->duration ?? 60);
 
-                // 変更前の予約情報を保持（関連データも含めて複製）
-                $oldReservation = $existingReservation->replicate();
-                $oldReservation->setRelation('customer', $existingReservation->customer);
-                $oldReservation->setRelation('store', $existingReservation->store);
-                $oldReservation->setRelation('menu', $existingReservation->menu);
+                // 変更前の予約情報を配列で保持（キューのシリアライズ問題を回避）
+                $oldReservationData = [
+                    'id' => $existingReservation->id,
+                    'reservation_number' => $existingReservation->reservation_number,
+                    'reservation_date' => $existingReservation->reservation_date,
+                    'start_time' => $existingReservation->start_time,
+                    'end_time' => $existingReservation->end_time,
+                    'customer' => [
+                        'id' => $existingReservation->customer->id,
+                        'name' => $existingReservation->customer->name,
+                        'email' => $existingReservation->customer->email,
+                        'phone' => $existingReservation->customer->phone,
+                    ],
+                    'store' => [
+                        'id' => $existingReservation->store->id,
+                        'name' => $existingReservation->store->name,
+                    ],
+                    'menu' => [
+                        'id' => $existingReservation->menu->id,
+                        'name' => $existingReservation->menu->name,
+                    ],
+                ];
 
                 $existingReservation->update([
                     'reservation_date' => $validated['date'],
@@ -2044,7 +2061,7 @@ class PublicReservationController extends Controller
 
                 // 日程変更通知を送信（顧客と管理者の両方に）
                 try {
-                    event(new \App\Events\ReservationChanged($oldReservation, $existingReservation));
+                    event(new \App\Events\ReservationChanged($oldReservationData, $existingReservation));
                     \Log::info('✅ イベント発火成功');
                 } catch (\Exception $e) {
                     \Log::error('❌ イベント発火エラー', [

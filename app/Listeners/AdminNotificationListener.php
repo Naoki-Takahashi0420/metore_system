@@ -45,7 +45,7 @@ class AdminNotificationListener implements ShouldQueue
     public function handleReservationChanged(ReservationChanged $event): void
     {
         $this->adminNotificationService->notifyReservationChanged(
-            $event->oldReservation,
+            $event->oldReservationData,
             $event->newReservation
         );
     }

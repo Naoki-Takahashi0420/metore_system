@@ -90,22 +90,25 @@ class AdminNotificationService
     
     /**
      * 予約変更時のアドミン通知
+     *
+     * @param array $oldReservationData 変更前の予約情報（配列）
+     * @param Reservation $newReservation 変更後の予約（モデル）
      */
-    public function notifyReservationChanged(Reservation $oldReservation, Reservation $newReservation): void
+    public function notifyReservationChanged(array $oldReservationData, Reservation $newReservation): void
     {
         $store = $newReservation->store;
         $customer = $newReservation->customer;
-        
+
         $admins = $this->getStoreAdmins($store);
-        
-        $message = $this->buildChangeMessage($oldReservation, $newReservation, $customer);
-        
+
+        $message = $this->buildChangeMessage($oldReservationData, $newReservation, $customer);
+
         foreach ($admins as $admin) {
             $this->sendNotification($admin, $message, 'change');
         }
-        
+
         Log::info('Admin notification sent for reservation change', [
-            'old_reservation_id' => $oldReservation->id,
+            'old_reservation_id' => $oldReservationData['id'] ?? null,
             'new_reservation_id' => $newReservation->id,
             'store_id' => $store->id
         ]);
@@ -323,14 +326,18 @@ HTML;
     
     /**
      * 変更メッセージ作成
+     *
+     * @param array $oldReservationData 変更前の予約情報（配列）
+     * @param Reservation $newReservation 変更後の予約（モデル）
+     * @param Customer $customer 顧客
      */
-    private function buildChangeMessage(Reservation $oldReservation, Reservation $newReservation, Customer $customer): string
+    private function buildChangeMessage(array $oldReservationData, Reservation $newReservation, Customer $customer): string
     {
-        $oldDateStr = Carbon::parse($oldReservation->reservation_date)->format('m月d日');
-        $oldTimeStr = Carbon::parse($oldReservation->start_time)->format('H:i');
+        $oldDateStr = Carbon::parse($oldReservationData['reservation_date'])->format('m月d日');
+        $oldTimeStr = Carbon::parse($oldReservationData['start_time'])->format('H:i');
         $newDateStr = Carbon::parse($newReservation->reservation_date)->format('m月d日');
         $newTimeStr = Carbon::parse($newReservation->start_time)->format('H:i');
-        
+
         return "【予約変更】\n" .
                "顧客: {$customer->last_name} {$customer->first_name}様\n" .
                "変更前: {$oldDateStr} {$oldTimeStr}\n" .

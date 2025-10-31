@@ -11,15 +11,18 @@ class ReservationChanged
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public $oldReservation;
-    public $newReservation;
+    public array $oldReservationData; // 配列で保存（シリアライズ問題を回避）
+    public Reservation $newReservation;
 
     /**
      * Create a new event instance.
+     *
+     * @param array $oldReservationData 変更前の予約情報（配列）
+     * @param Reservation $newReservation 変更後の予約（モデル）
      */
-    public function __construct(Reservation $oldReservation, Reservation $newReservation)
+    public function __construct(array $oldReservationData, Reservation $newReservation)
     {
-        $this->oldReservation = $oldReservation;
+        $this->oldReservationData = $oldReservationData;
         $this->newReservation = $newReservation;
     }
 }
