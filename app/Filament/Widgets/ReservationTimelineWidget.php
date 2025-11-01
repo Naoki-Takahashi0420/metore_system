@@ -522,23 +522,29 @@ class ReservationTimelineWidget extends Widget
                 $endTime = Carbon::parse($date->format('Y-m-d') . ' ' . $reservation->end_time);
                 $duration = $startTime->diffInMinutes($endTime);
 
-                // デバッグログ（予約ID 200のみ）
-                if ($reservation->id == 200) {
-                    \Log::info('Reservation 200 timeline calculation', [
-                        'reservation_id' => $reservation->id,
-                        'date' => $date->format('Y-m-d'),
-                        'start_time_raw' => $reservation->start_time,
-                        'end_time_raw' => $reservation->end_time,
-                        'startTime_parsed' => $startTime->format('Y-m-d H:i:s'),
-                        'endTime_parsed' => $endTime->format('Y-m-d H:i:s'),
-                        'duration_minutes' => $duration,
-                        'span' => $duration / $slotDuration
-                    ]);
-                }
+                // デバッグログ（全予約）
+                \Log::info('🕒 Reservation timeline calculation', [
+                    'reservation_id' => $reservation->id,
+                    'date' => $date->format('Y-m-d'),
+                    'start_time_raw' => $reservation->start_time,
+                    'end_time_raw' => $reservation->end_time,
+                    'startTime_parsed' => $startTime->format('Y-m-d H:i:s'),
+                    'endTime_parsed' => $endTime->format('Y-m-d H:i:s'),
+                    'duration_minutes' => $duration,
+                    'slotDuration' => $slotDuration,
+                    'calculated_span' => $duration / $slotDuration
+                ]);
             } else {
                 // end_timeがない場合はメニューの所要時間を使用
                 $duration = $reservation->menu->duration_minutes ?? 60;
                 $endTime = $startTime->copy()->addMinutes($duration);
+
+                \Log::info('🕒 Reservation timeline calculation (no end_time)', [
+                    'reservation_id' => $reservation->id,
+                    'duration_from_menu' => $duration,
+                    'slotDuration' => $slotDuration,
+                    'calculated_span' => $duration / $slotDuration
+                ]);
             }
 
             // 顧客の初回訪問かチェック（この予約より前の予約があるか）
@@ -555,6 +561,12 @@ class ReservationTimelineWidget extends Widget
             $slotsPerHour = 60 / $slotDuration; // 1時間あたりのスロット数
             $startSlot = ($startTime->hour - $startHour) * $slotsPerHour + ($startTime->minute / $slotDuration);
             $span = $duration / $slotDuration; // slotDurationを1単位とする
+
+            \Log::info('🎯 Final span value', [
+                'reservation_id' => $reservation->id,
+                'span' => $span,
+                'startSlot' => $startSlot
+            ]);
 
             // ブロック時間帯との競合をチェック
             $isConflicting = false;
@@ -584,6 +596,11 @@ class ReservationTimelineWidget extends Widget
                 'is_conflicting' => $isConflicting,
                 'is_new_customer' => $isNewCustomer
             ];
+
+            \Log::info('📦 Reservation data created', [
+                'reservation_id' => $reservation->id,
+                'reservationData' => $reservationData
+            ]);
 
             // シフトベースモードの場合
             if ($useStaffAssignment) {
