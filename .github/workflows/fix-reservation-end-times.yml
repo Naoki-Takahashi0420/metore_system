@@ -34,10 +34,11 @@ jobs:
           sudo -u www-data HOME=/tmp php artisan reservations:fix-end-times --dry-run
 EOF
         else
-          echo "=== 本番実行モード ==="
+          echo "=== 本番実行モード（確認なし）==="
           ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
           cd /var/www/html
-          echo "yes" | sudo -u www-data HOME=/tmp php artisan reservations:fix-end-times
+          # 確認ダイアログを自動承認
+          yes | sudo -u www-data HOME=/tmp php artisan reservations:fix-end-times
 EOF
         fi
 
