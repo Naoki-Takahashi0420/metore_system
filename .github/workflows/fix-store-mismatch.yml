@@ -1,0 +1,117 @@
+name: Fix Store ID Mismatch
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Fix Customer Store ID Mismatch
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=== 修正前の状態確認 ==="
+        sudo -u www-data HOME=/tmp php artisan tinker --execute="
+        \$customers = \App\Models\Customer::whereIn('id', [2591, 3204, 1894, 2359, 2592, 1917, 2140, 2388, 2449, 2834, 2880, 2998, 3167])->get();
+
+        foreach (\$customers as \$c) {
+            \$latestReservation = \$c->reservations()
+                ->whereIn('status', ['booked', 'completed'])
+                ->orderBy('reservation_date', 'desc')
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            \$newStoreId = \$latestReservation ? \$latestReservation->store_id : \$c->store_id;
+
+            echo \"顧客ID: {\$c->id} | 名前: {\$c->last_name} {\$c->first_name}\\n\";
+            echo \"  現在の店舗ID: {\$c->store_id}\\n\";
+            echo \"  最新予約の店舗ID: {\$newStoreId}\\n\";
+            if (\$latestReservation) {
+                echo \"  最新予約日: {\$latestReservation->reservation_date}\\n\";
+            }
+            echo \"  変更: \" . (\$c->store_id != \$newStoreId ? '必要' : '不要') . \"\\n\";
+            echo \"  ---\\n\";
+        }
+        "
+
+        echo ""
+        echo "=== データ修正実行 ==="
+        sudo -u www-data HOME=/tmp php artisan tinker --execute="
+        \$updatedCount = 0;
+        \$customers = \App\Models\Customer::whereIn('id', [2591, 3204, 1894, 2359, 2592, 1917, 2140, 2388, 2449, 2834, 2880, 2998, 3167])->get();
+
+        foreach (\$customers as \$c) {
+            \$latestReservation = \$c->reservations()
+                ->whereIn('status', ['booked', 'completed'])
+                ->orderBy('reservation_date', 'desc')
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if (\$latestReservation && \$c->store_id != \$latestReservation->store_id) {
+                \$oldStoreId = \$c->store_id;
+                \$c->store_id = \$latestReservation->store_id;
+                \$c->save();
+                \$updatedCount++;
+                echo \"✅ 更新: 顧客ID {\$c->id} ({\$c->last_name} {\$c->first_name}) - 店舗ID {\$oldStoreId} → {\$latestReservation->store_id}\\n\";
+            }
+        }
+
+        echo \"\\n合計更新件数: {\$updatedCount}件\\n\";
+        "
+
+        echo ""
+        echo "=== 修正後の確認（加島有紗様）==="
+        sudo -u www-data HOME=/tmp php artisan tinker --execute="
+        \$customer = \App\Models\Customer::find(2591);
+        if (\$customer) {
+            echo \"顧客ID: {\$customer->id}\\n\";
+            echo \"名前: {\$customer->last_name} {\$customer->first_name}\\n\";
+            echo \"店舗ID: {\$customer->store_id}\\n\";
+
+            \$reservations = \$customer->reservations()
+                ->whereIn('status', ['booked', 'completed'])
+                ->orderBy('created_at', 'desc')
+                ->limit(5)
+                ->get();
+
+            echo \"\\n予約一覧（最新5件）:\\n\";
+            foreach (\$reservations as \$r) {
+                \$match = \$r->store_id == \$customer->store_id ? '✅' : '❌';
+                echo \"  {\$match} 予約ID: {\$r->id} | 店舗ID: {\$r->store_id} | 日時: {\$r->reservation_date}\\n\";
+            }
+        }
+        "
+
+        echo ""
+        echo "=== 不整合チェック（修正後）==="
+        sudo -u www-data HOME=/tmp php artisan tinker --execute="
+        \$mismatches = \DB::select(\"
+            SELECT COUNT(*) as count
+            FROM customers c
+            INNER JOIN reservations r ON c.id = r.customer_id
+            WHERE c.store_id != r.store_id
+            AND r.status IN ('booked', 'completed')
+            AND c.id IN (2591, 3204, 1894, 2359, 2592, 1917, 2140, 2388, 2449, 2834, 2880, 2998, 3167)
+        \");
+
+        \$count = \$mismatches[0]->count ?? 0;
+
+        if (\$count == 0) {
+            echo \"✅ 修正完了: 対象顧客の不整合は0件です\\n\";
+        } else {
+            echo \"⚠️ 警告: まだ {\$count} 件の不整合が残っています\\n\";
+        }
+        "
+        EOF
+
+        rm deploy_key.pem
