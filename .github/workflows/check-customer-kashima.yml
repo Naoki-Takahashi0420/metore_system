@@ -21,7 +21,7 @@ jobs:
         cd /var/www/html
 
         echo "=== 加島有紗様の顧客情報 ==="
-        sudo -u www-data php artisan tinker --execute="
+        sudo -u www-data HOME=/tmp php artisan tinker --execute="
         \$customer = \App\Models\Customer::where('last_name', 'LIKE', '%加島%')
             ->orWhere('last_name', 'LIKE', '%かしま%')
             ->orWhere('last_name', 'LIKE', '%カシマ%')
@@ -47,7 +47,7 @@ jobs:
 
         echo ""
         echo "=== 加島有紗様の予約履歴（最新10件） ==="
-        sudo -u www-data php artisan tinker --execute="
+        sudo -u www-data HOME=/tmp php artisan tinker --execute="
         \$customers = \App\Models\Customer::where('last_name', 'LIKE', '%加島%')
             ->orWhere('last_name', 'LIKE', '%かしま%')
             ->orWhere('last_name', 'LIKE', '%カシマ%')
@@ -79,7 +79,7 @@ jobs:
 
         echo ""
         echo "=== 最近の全予約（最新20件）==="
-        sudo -u www-data php artisan tinker --execute="
+        sudo -u www-data HOME=/tmp php artisan tinker --execute="
         \$reservations = \App\Models\Reservation::orderBy('created_at', 'desc')
             ->limit(20)
             ->get();
