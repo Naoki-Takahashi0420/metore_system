@@ -1,6 +1,6 @@
 # CLAUDE.md - システムドキュメント
 
-> **最終更新**: 2025-10-31
+> **最終更新**: 2025-11-01
 > **システム名**: 目のトレーニング予約管理システム (METORE)
 
 ---
@@ -81,6 +81,37 @@
     - 743行目: `updateReservationDetails()` メソッド
     - 960行目: `changeMenu()` メソッド
   - API経由の予約変更は現在ほぼ使われていないため、優先度を下げて対応予定
+
+#### 5. 毎朝の500エラー（ログファイル権限問題）（2025-11-01解決）
+- **症状**: 毎朝、サイト全体で500エラーが発生（午前1時〜10時頃）
+- **影響**: 全ユーザーがアクセス不可（手動で権限修正するまで復旧せず）
+- **根本原因**:
+  - スケジューラーが **root のcrontab** で実行されていた（`.github/workflows/deploy-simple.yml` で設定）
+  - 日付が変わった後、最初のログ書き込みが root 権限のスケジューラーから実行
+  - → 当日の `laravel-YYYY-MM-DD.log` が `root:root 0644` で作成される
+  - → Webアクセス（www-data/php-fpm）がログに書き込めず `Permission denied`
+  - → 例外連鎖で500エラー
+- **裏付け**:
+  - ログ設定: `config/logging.php` で `LOG_CHANNEL=daily`（日毎ローテート）
+  - スケジューラー: `routes/console.php` で1:00/9:00/10:00などに実行
+  - crontab登録: `.github/workflows/deploy-simple.yml` 258行目で `sudo crontab` に登録
+- **応急処置**:
+  ```bash
+  sudo chown www-data:www-data storage/logs/laravel-$(date +%F).log
+  sudo chmod 664 storage/logs/laravel-$(date +%F).log
+  ```
+- **恒久対策**（2025-11-01実装）:
+  - **crontabをwww-dataユーザーで実行**するように変更
+  - `.github/workflows/deploy-simple.yml` を修正：
+    - root の crontab を削除
+    - `sudo crontab -u www-data` で www-data の crontab に登録
+    - → スケジューラーが www-data で実行され、ログファイルも www-data 所有で作成される
+- **修正ファイル**:
+  - `.github/workflows/deploy-simple.yml` (253-262行目)
+- **教訓**:
+  - **スケジューラーはWebサーバーと同じユーザー（www-data）で実行すべき**
+  - ログファイルの所有者とWebサーバーのユーザーが一致していないと Permission denied が発生
+  - 定期的に発生する問題は、スケジューラーや cron が関連している可能性が高い
 
 ---
 

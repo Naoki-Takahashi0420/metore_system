@@ -250,14 +250,16 @@ jobs:
         sudo chown www-data:www-data $APP_DIR/storage/logs/queue-worker.log
         sudo chmod 664 $APP_DIR/storage/logs/queue-worker.log
 
-        # Laravelスケジューラーのcron設定
+        # Laravelスケジューラーのcron設定（www-dataユーザーで実行）
         echo "=== Setting up Laravel Scheduler ==="
-        # 既存のLaravelスケジューラーcronを削除
+        # 既存のLaravelスケジューラーcronを削除（root側）
         (sudo crontab -l 2>/dev/null | grep -v "artisan schedule:run" || true) | sudo crontab -
-        # 新しいcronエントリを追加
-        (sudo crontab -l 2>/dev/null; echo "* * * * * cd /var/www/html && /usr/bin/php artisan schedule:run >> /dev/null 2>&1") | sudo crontab -
-        sudo crontab -l | grep "schedule:run"
-        echo "Scheduler cron configured"
+        # 既存のLaravelスケジューラーcronを削除（www-data側）
+        (sudo crontab -u www-data -l 2>/dev/null | grep -v "artisan schedule:run" || true) | sudo crontab -u www-data -
+        # 新しいcronエントリを追加（www-dataユーザーで実行）
+        (sudo crontab -u www-data -l 2>/dev/null; echo "* * * * * cd /var/www/html && /usr/bin/php artisan schedule:run >> /dev/null 2>&1") | sudo crontab -u www-data -
+        sudo crontab -u www-data -l | grep "schedule:run"
+        echo "✅ Scheduler cron configured for www-data user (fixes daily log permission issue)"
 
         # キューワーカーの起動（バックグラウンド）
         echo "=== Starting Queue Worker ==="
