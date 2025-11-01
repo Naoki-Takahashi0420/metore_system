@@ -1,0 +1,86 @@
+name: Check Store ID Mismatch
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check Customer-Reservation Store Mismatch
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=== 顧客store_idと予約store_idの不整合チェック ==="
+        sudo -u www-data HOME=/tmp php artisan tinker --execute="
+        // 顧客のstore_idと予約のstore_idが一致しないケースを検索
+        \$mismatches = \DB::select(\"
+            SELECT
+                c.id as customer_id,
+                c.last_name,
+                c.first_name,
+                c.store_id as customer_store_id,
+                r.store_id as reservation_store_id,
+                COUNT(*) as mismatch_count,
+                MAX(r.reservation_date) as latest_reservation_date
+            FROM customers c
+            INNER JOIN reservations r ON c.id = r.customer_id
+            WHERE c.store_id != r.store_id
+            AND r.status IN ('booked', 'completed')
+            GROUP BY c.id, c.last_name, c.first_name, c.store_id, r.store_id
+            ORDER BY mismatch_count DESC
+            LIMIT 50
+        \");
+
+        echo \"不整合件数: \" . count(\$mismatches) . \"\\n\\n\";
+
+        foreach (\$mismatches as \$m) {
+            echo \"顧客ID: {\$m->customer_id} | 名前: {\$m->last_name} {\$m->first_name}\\n\";
+            echo \"  顧客の店舗ID: {\$m->customer_store_id}\\n\";
+            echo \"  予約の店舗ID: {\$m->reservation_store_id}\\n\";
+            echo \"  不整合予約数: {\$m->mismatch_count}\\n\";
+            echo \"  最新予約日: {\$m->latest_reservation_date}\\n\";
+            echo \"  ---\\n\";
+        }
+        "
+
+        echo ""
+        echo "=== 店舗マスタ情報 ==="
+        sudo -u www-data HOME=/tmp php artisan tinker --execute="
+        \$stores = \App\Models\Store::all();
+        foreach (\$stores as \$s) {
+            echo \"店舗ID: {\$s->id} | 名前: {\$s->name} | コード: {\$s->code}\\n\";
+        }
+        "
+
+        echo ""
+        echo "=== 加島有紗様の詳細 ==="
+        sudo -u www-data HOME=/tmp php artisan tinker --execute="
+        \$customer = \App\Models\Customer::find(2591);
+        if (\$customer) {
+            echo \"顧客ID: {\$customer->id}\\n\";
+            echo \"名前: {\$customer->last_name} {\$customer->first_name}\\n\";
+            echo \"顧客の店舗ID: {\$customer->store_id}\\n\";
+            echo \"作成日: {\$customer->created_at}\\n\";
+            echo \"\\n予約一覧:\\n\";
+            \$reservations = \$customer->reservations()
+                ->whereIn('status', ['booked', 'completed'])
+                ->orderBy('created_at', 'desc')
+                ->get();
+            foreach (\$reservations as \$r) {
+                echo \"  予約ID: {\$r->id} | 店舗ID: {\$r->store_id} | 日時: {\$r->reservation_date} {\$r->start_time} | ステータス: {\$r->status}\\n\";
+            }
+        }
+        "
+        EOF
+
+        rm deploy_key.pem
