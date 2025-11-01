@@ -734,16 +734,16 @@ class DailyClosing extends Page implements HasForms
      */
     public function updateCalculation(): void
     {
-        $serviceTotal = ($this->editorData['service_item']['price'] ?? 0) * ($this->editorData['service_item']['quantity'] ?? 1);
+        $serviceTotal = floatval($this->editorData['service_item']['price'] ?? 0) * intval($this->editorData['service_item']['quantity'] ?? 1);
 
         $optionTotal = 0;
         foreach ($this->editorData['option_items'] ?? [] as $item) {
-            $optionTotal += ($item['price'] ?? 0) * ($item['quantity'] ?? 1);
+            $optionTotal += floatval($item['price'] ?? 0) * intval($item['quantity'] ?? 1);
         }
 
         $productTotal = 0;
         foreach ($this->editorData['product_items'] ?? [] as $item) {
-            $productTotal += ($item['price'] ?? 0) * ($item['quantity'] ?? 1);
+            $productTotal += floatval($item['price'] ?? 0) * intval($item['quantity'] ?? 1);
         }
 
         // 小計（税込）
@@ -942,7 +942,7 @@ class DailyClosing extends Page implements HasForms
 
         // オプション明細を作成
         foreach ($options as $option) {
-            $optionAmount = ($option['price'] ?? 0) * ($option['quantity'] ?? 1);
+            $optionAmount = floatval($option['price'] ?? 0) * intval($option['quantity'] ?? 1);
             $subtotal += $optionAmount;
             $taxAmount += floor($optionAmount * 0.1);
 
@@ -960,7 +960,7 @@ class DailyClosing extends Page implements HasForms
 
         // 物販明細を作成
         foreach ($products as $product) {
-            $productAmount = ($product['price'] ?? 0) * ($product['quantity'] ?? 1);
+            $productAmount = floatval($product['price'] ?? 0) * intval($product['quantity'] ?? 1);
             $subtotal += $productAmount;
             $taxAmount += floor($productAmount * ($product['tax_rate'] ?? 0.1));
 

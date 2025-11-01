@@ -295,13 +295,13 @@ class SalePostingService
 
         // オプション料金を加算
         foreach ($options as $option) {
-            $optionTotal = ($option['price'] ?? 0) * ($option['quantity'] ?? 1);
+            $optionTotal = floatval($option['price'] ?? 0) * intval($option['quantity'] ?? 1);
             $subtotal += $optionTotal;
         }
 
         // 物販料金を加算
         foreach ($products as $product) {
-            $productTotal = ($product['price'] ?? 0) * ($product['quantity'] ?? 1);
+            $productTotal = floatval($product['price'] ?? 0) * intval($product['quantity'] ?? 1);
             $subtotal += $productTotal;
         }
 
