@@ -1,0 +1,67 @@
+name: Check ACL Support
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check ACL and Filesystem Support
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        echo "=== Filesystem Type ==="
+        df -T /var/www/html | tail -1
+
+        echo ""
+        echo "=== ACL Support Check ==="
+        which setfacl && echo "✅ setfacl command available" || echo "❌ setfacl command not found"
+        which getfacl && echo "✅ getfacl command available" || echo "❌ getfacl command not found"
+
+        echo ""
+        echo "=== Test ACL on storage/logs ==="
+        if which setfacl > /dev/null 2>&1; then
+          # テストファイル作成
+          TEST_FILE="/tmp/acl-test-$(date +%s).txt"
+          echo "test" > $TEST_FILE
+
+          # ACL設定テスト
+          if sudo setfacl -m u:www-data:rwx $TEST_FILE 2>/dev/null; then
+            echo "✅ ACL test successful"
+            getfacl $TEST_FILE 2>/dev/null | grep -E "user:www-data" || echo "⚠️ ACL set but not visible"
+          else
+            echo "❌ ACL test failed - filesystem may not support ACL"
+          fi
+
+          # クリーンアップ
+          rm -f $TEST_FILE
+        else
+          echo "⚠️ ACL tools not installed"
+          echo "Install with: sudo apt-get install acl"
+        fi
+
+        echo ""
+        echo "=== Current storage/logs Permissions ==="
+        ls -ld /var/www/html/storage/logs/
+
+        echo ""
+        echo "=== setgid Test ==="
+        CURRENT_PERMS=$(stat -c '%a' /var/www/html/storage/logs/)
+        echo "Current permissions: $CURRENT_PERMS"
+        if [[ "$CURRENT_PERMS" =~ ^2 ]]; then
+          echo "✅ setgid (g+s) is already set"
+        else
+          echo "⚠️ setgid (g+s) is not set"
+          echo "To enable: sudo chmod g+s /var/www/html/storage/logs/"
+        fi
+        EOF
+
+        rm deploy_key.pem

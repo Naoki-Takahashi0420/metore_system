@@ -1,0 +1,44 @@
+name: Check Timezone Consistency
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check Timezone Configuration
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        echo "=== System Timezone ==="
+        timedatectl | grep "Time zone" || date +"%Z %z"
+
+        echo ""
+        echo "=== PHP CLI Timezone ==="
+        php -r "echo 'PHP Timezone: ' . date_default_timezone_get() . PHP_EOL;"
+        php -r "echo 'Current Time: ' . date('Y-m-d H:i:s') . PHP_EOL;"
+
+        echo ""
+        echo "=== PHP-FPM Timezone (from php.ini) ==="
+        php -i | grep "date.timezone" || echo "date.timezone not set in php.ini"
+
+        echo ""
+        echo "=== Laravel Timezone (from config) ==="
+        cd /var/www/html
+        php artisan tinker --execute="echo 'Laravel Timezone: ' . config('app.timezone') . PHP_EOL;"
+        php artisan tinker --execute="echo 'Current Laravel Time: ' . now()->format('Y-m-d H:i:s') . PHP_EOL;"
+
+        echo ""
+        echo "=== Cron Environment (www-data) ==="
+        sudo -u www-data bash -c 'echo "User: $(whoami)"; date "+%Z %z - %Y-%m-%d %H:%M:%S"'
+        EOF
+
+        rm deploy_key.pem

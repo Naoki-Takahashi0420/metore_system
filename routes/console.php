@@ -41,3 +41,8 @@ Schedule::command('tickets:notify-expiring --days=3')
 Schedule::command('tickets:update-expired')
     ->dailyAt('01:00') // 毎日午前1時に実行（深夜に実行）
     ->description('期限切れ回数券のステータス自動更新');
+
+// 日次ヘルスチェック（ログファイル権限・基本動作確認）
+Schedule::command('health:check')
+    ->dailyAt('00:05') // 毎日午前0時5分に実行（日付変更直後）
+    ->description('日次ヘルスチェック：ログ権限・DB・キュー確認');
