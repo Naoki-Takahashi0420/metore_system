@@ -1,0 +1,17 @@
+name: Fix Production End Times
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Run Fix Command
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+      run: |
+        echo "$EC2_KEY" > key.pem
+        chmod 600 key.pem
+        ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@54.64.54.226 'cd /var/www/html && yes | sudo -u www-data HOME=/tmp php artisan reservations:fix-end-times'
+        rm key.pem
