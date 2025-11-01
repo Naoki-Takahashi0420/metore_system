@@ -1,0 +1,93 @@
+name: Check Customer Kashima
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check Kashima Arisa Data
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=== 加島有紗様の顧客情報 ==="
+        php artisan tinker --execute="
+        \$customer = \App\Models\Customer::where('last_name', 'LIKE', '%加島%')
+            ->orWhere('last_name', 'LIKE', '%かしま%')
+            ->orWhere('last_name', 'LIKE', '%カシマ%')
+            ->orWhere('first_name', 'LIKE', '%有紗%')
+            ->orWhere('first_name', 'LIKE', '%ありさ%')
+            ->orWhere('first_name', 'LIKE', '%アリサ%')
+            ->get();
+
+        if (\$customer->count() > 0) {
+            foreach (\$customer as \$c) {
+                echo \"顧客ID: {\$c->id}\n\";
+                echo \"名前: {\$c->last_name} {\$c->first_name}\n\";
+                echo \"メール: {\$c->email}\n\";
+                echo \"電話: {\$c->phone}\n\";
+                echo \"店舗ID: {\$c->store_id}\n\";
+                echo \"作成日: {\$c->created_at}\n\";
+                echo \"---\n\";
+            }
+        } else {
+            echo \"該当する顧客が見つかりませんでした\n\";
+        }
+        "
+
+        echo ""
+        echo "=== 加島有紗様の予約履歴（最新10件） ==="
+        php artisan tinker --execute="
+        \$customers = \App\Models\Customer::where('last_name', 'LIKE', '%加島%')
+            ->orWhere('last_name', 'LIKE', '%かしま%')
+            ->orWhere('last_name', 'LIKE', '%カシマ%')
+            ->get();
+
+        if (\$customers->count() > 0) {
+            foreach (\$customers as \$customer) {
+                \$reservations = \$customer->reservations()
+                    ->orderBy('created_at', 'desc')
+                    ->limit(10)
+                    ->get();
+
+                if (\$reservations->count() > 0) {
+                    echo \"顧客ID: {\$customer->id} ({\$customer->last_name} {\$customer->first_name})\n\";
+                    foreach (\$reservations as \$r) {
+                        echo \"  予約ID: {\$r->id}\n\";
+                        echo \"  予約日: {\$r->reservation_date} {\$r->start_time}\n\";
+                        echo \"  ステータス: {\$r->status}\n\";
+                        echo \"  店舗ID: {\$r->store_id}\n\";
+                        echo \"  作成日時: {\$r->created_at}\n\";
+                        echo \"  ---\n\";
+                    }
+                } else {
+                    echo \"予約が見つかりませんでした\n\";
+                }
+            }
+        }
+        "
+
+        echo ""
+        echo "=== 最近の全予約（最新20件）==="
+        php artisan tinker --execute="
+        \$reservations = \App\Models\Reservation::orderBy('created_at', 'desc')
+            ->limit(20)
+            ->get();
+
+        foreach (\$reservations as \$r) {
+            echo \"予約ID: {\$r->id} | 顧客: {\$r->customer->last_name} {\$r->customer->first_name} | 日時: {\$r->reservation_date} {\$r->start_time} | ステータス: {\$r->status} | 作成: {\$r->created_at}\n\";
+        }
+        "
+        EOF
+
+        rm deploy_key.pem
