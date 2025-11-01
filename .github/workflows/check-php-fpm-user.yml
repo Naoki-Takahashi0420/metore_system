@@ -1,0 +1,59 @@
+name: Check PHP-FPM User
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check PHP-FPM User and File Ownership
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        echo "=== PHP-FPM Configuration ==="
+        sudo cat /etc/php/8.3/fpm/pool.d/www.conf 2>/dev/null | grep -E '^user|^group' || \
+        sudo cat /etc/php-fpm.d/www.conf 2>/dev/null | grep -E '^user|^group' || \
+        echo "PHP-FPM config not found"
+
+        echo ""
+        echo "=== PHP-FPM Running Process ==="
+        ps aux | grep php-fpm | grep -v grep | head -5
+
+        echo ""
+        echo "=== Application Directory Ownership ==="
+        ls -ld /var/www/html/
+
+        echo ""
+        echo "=== Storage Logs Ownership ==="
+        ls -lah /var/www/html/storage/logs/ | tail -10
+
+        echo ""
+        echo "=== Today's Log File ==="
+        ls -lah /var/www/html/storage/logs/laravel-$(date +%F).log 2>/dev/null || echo "Today's log file not created yet"
+
+        echo ""
+        echo "=== Crontab (root) ==="
+        sudo crontab -l 2>/dev/null | grep schedule || echo "No root crontab"
+
+        echo ""
+        echo "=== Crontab (www-data) ==="
+        sudo crontab -u www-data -l 2>/dev/null | grep schedule || echo "No www-data crontab"
+
+        echo ""
+        echo "=== Crontab (nginx) ==="
+        sudo crontab -u nginx -l 2>/dev/null | grep schedule || echo "No nginx crontab"
+
+        echo ""
+        echo "=== Queue Worker Process ==="
+        ps aux | grep "queue:work" | grep -v grep
+        EOF
+
+        rm deploy_key.pem
