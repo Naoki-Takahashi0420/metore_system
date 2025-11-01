@@ -8,9 +8,11 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <!-- 顧客セグメント -->
-            <div>
+            <div wire:ignore style="height: 300px;">
                 <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">顧客セグメント分布</h3>
-                <canvas id="customerSegmentChart" width="400" height="200"></canvas>
+                <div style="height: 200px;">
+                    <canvas id="customerSegmentChart"></canvas>
+                </div>
 
                 <div class="mt-4 space-y-2">
                     <div class="flex justify-between items-center">
@@ -43,9 +45,11 @@
             </div>
 
             <!-- 新規顧客推移 -->
-            <div>
+            <div wire:ignore style="height: 300px;">
                 <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">新規顧客獲得推移</h3>
-                <canvas id="newCustomerTrendChart" width="400" height="200"></canvas>
+                <div style="height: 200px;">
+                    <canvas id="newCustomerTrendChart"></canvas>
+                </div>
 
                 <div class="mt-4 grid grid-cols-2 gap-4">
                     <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
@@ -101,10 +105,50 @@
 
 @push('scripts')
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        console.log('🔵 customer-analysis-stats.blade.php スクリプト読み込み開始');
+
+        // Livewire更新に対応したチャート初期化
+        function initCustomerCharts() {
+            console.log('🔵 initCustomerCharts() 呼び出し');
+
+            // Chart.jsまたはグローバル設定が読み込まれていない場合は待機
+            if (typeof Chart === 'undefined' || !window.chartGlobalDefaultsSet) {
+                console.log('⏳ Chart.jsまたはグローバル設定未完了（customer）、100ms後に再試行');
+                setTimeout(initCustomerCharts, 100);
+                return;
+            }
+
+            console.log('🟢 Chart.jsグローバル設定確認（customer）:', {
+                animation: Chart.defaults.animation,
+                animations: Chart.defaults.animations,
+                transitions: Chart.defaults.transitions
+            });
+
+            const segmentCanvas = document.getElementById('customerSegmentChart');
+            const trendCanvas = document.getElementById('newCustomerTrendChart');
+
+            console.log('📊 キャンバス要素（customer）:', { segmentCanvas, trendCanvas });
+
+            // キャンバスが存在しない場合は何もしない
+            if (!segmentCanvas || !trendCanvas) {
+                console.log('❌ キャンバスが存在しない（customer）');
+                return;
+            }
+
+            // 既存のチャートインスタンスを破棄
+            if (window.segmentChartInstance) {
+                console.log('🗑️ 既存のsegmentChartInstanceを破棄');
+                window.segmentChartInstance.destroy();
+            }
+            if (window.trendChartInstance) {
+                console.log('🗑️ 既存のtrendChartInstanceを破棄');
+                window.trendChartInstance.destroy();
+            }
+
             // 顧客セグメントチャート
-            const segmentCtx = document.getElementById('customerSegmentChart').getContext('2d');
-            new Chart(segmentCtx, {
+            const segmentCtx = segmentCanvas.getContext('2d');
+            console.log('🎨 顧客セグメントチャート作成開始');
+            window.segmentChartInstance = new Chart(segmentCtx, {
                 type: 'doughnut',
                 data: {
                     labels: ['新規', 'アクティブ', '休眠', '離脱リスク'],
@@ -124,8 +168,11 @@
                     }]
                 },
                 options: {
+                    animation: false,
+                    animations: false,
+                    transitions: false,
                     responsive: true,
-                    maintainAspectRatio: false,
+                    maintainAspectRatio: true,
                     plugins: {
                         legend: {
                             position: 'bottom',
@@ -133,14 +180,16 @@
                     }
                 }
             });
+            console.log('✅ 顧客セグメントチャート作成完了:', window.segmentChartInstance);
 
             // 新規顧客推移チャート
-            const trendCtx = document.getElementById('newCustomerTrendChart').getContext('2d');
+            const trendCtx = trendCanvas.getContext('2d');
             const trendData = @json($customerData['new_customers_trend']);
             const dates = Object.keys(trendData);
             const values = Object.values(trendData);
 
-            new Chart(trendCtx, {
+            console.log('🎨 新規顧客推移チャート作成開始');
+            window.trendChartInstance = new Chart(trendCtx, {
                 type: 'line',
                 data: {
                     labels: dates.map(date => {
@@ -156,8 +205,11 @@
                     }]
                 },
                 options: {
+                    animation: false,
+                    animations: false,
+                    transitions: false,
                     responsive: true,
-                    maintainAspectRatio: false,
+                    maintainAspectRatio: true,
                     plugins: {
                         legend: {
                             display: false
@@ -173,6 +225,21 @@
                     }
                 }
             });
-        });
+            console.log('✅ 新規顧客推移チャート作成完了:', window.trendChartInstance);
+        }
+
+        // 初回実行
+        console.log('📍 初回実行の準備（customer）');
+        if (document.readyState === 'loading') {
+            console.log('⏳ DOMContentLoadedを待機中（customer）');
+            document.addEventListener('DOMContentLoaded', initCustomerCharts);
+        } else {
+            console.log('▶️ 即座に実行（customer）');
+            initCustomerCharts();
+        }
+
+        // Livewire更新時に再初期化
+        console.log('🔄 Livewireイベントリスナー登録（customer）');
+        document.addEventListener('livewire:navigated', initCustomerCharts);
     </script>
 @endpush

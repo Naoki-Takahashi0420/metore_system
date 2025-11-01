@@ -89,6 +89,7 @@
         @if(!$compareMode)
             <!-- 通常モード -->
             @livewire('marketing.monthly-kpi-stats', ['period' => $period, 'store_id' => $store_id, 'startDate' => $startDateA, 'endDate' => $endDateA])
+            @livewire('marketing.medical-record-conversion-stats', ['period' => $period, 'store_id' => $store_id, 'startDate' => $startDateA, 'endDate' => $endDateA])
             @livewire('marketing.staff-performance-stats', ['period' => $period, 'store_id' => $store_id, 'startDate' => $startDateA, 'endDate' => $endDateA])
             @livewire('marketing.customer-analysis-stats', ['period' => $period, 'store_id' => $store_id, 'startDate' => $startDateA, 'endDate' => $endDateA])
             @livewire('marketing.conversion-funnel-stats', ['period' => $period, 'store_id' => $store_id, 'startDate' => $startDateA, 'endDate' => $endDateA])
@@ -154,5 +155,37 @@
 
     @push('scripts')
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+        <script>
+            // Chart.js読み込み直後にグローバル設定を強制適用
+            console.log('🎯 Chart.js読み込み完了 - グローバル設定を適用');
+
+            if (typeof Chart !== 'undefined') {
+                // 完全にアニメーションを無効化
+                Chart.defaults.animation = false;
+                Chart.defaults.animations = false;
+                Chart.defaults.transitions = false;
+
+                // より深いレベルでアニメーションを無効化
+                Chart.defaults.elements = Chart.defaults.elements || {};
+                Chart.defaults.elements.line = Chart.defaults.elements.line || {};
+                Chart.defaults.elements.line.tension = 0; // 曲線アニメーション無効化
+
+                Chart.defaults.elements.point = Chart.defaults.elements.point || {};
+                Chart.defaults.elements.point.radius = 3; // ポイントアニメーション無効化
+
+                // レスポンシブ設定（maintainAspectRatioはデフォルトのtrueを維持）
+                Chart.defaults.responsive = true;
+
+                console.log('✅ Chart.defaults完全設定:', {
+                    animation: Chart.defaults.animation,
+                    animations: Chart.defaults.animations,
+                    transitions: Chart.defaults.transitions
+                });
+
+                window.chartGlobalDefaultsSet = true;
+            } else {
+                console.error('❌ Chart.js読み込み失敗！');
+            }
+        </script>
     @endpush
 </x-filament-panels::page>

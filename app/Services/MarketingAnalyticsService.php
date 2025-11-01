@@ -561,4 +561,160 @@ class MarketingAnalyticsService
                 return '';
         }
     }
+
+    /**
+     * カルテ→予約→契約の転換分析を取得
+     *
+     * @param string|null $period 期間
+     * @param int|null $storeId 店舗ID
+     * @param string|null $customStartDate カスタム開始日
+     * @param string|null $customEndDate カスタム終了日
+     * @return array 対応者別の転換データ
+     */
+    public function getMedicalRecordConversionAnalysis(
+        ?string $period = 'month',
+        ?int $storeId = null,
+        ?string $customStartDate = null,
+        ?string $customEndDate = null,
+        ?int $handlerId = null
+    ): array {
+        // 期間を決定
+        if ($period === 'custom' && $customStartDate && $customEndDate) {
+            $startDate = Carbon::parse($customStartDate)->startOfDay();
+            $endDate = Carbon::parse($customEndDate)->endOfDay();
+        } else {
+            [$startDate, $endDate] = $this->getPeriodDates($period);
+        }
+
+        // 新規顧客を取得（期間内に登録された顧客）
+        $newCustomersQuery = \App\Models\Customer::query()
+            ->with(['reservations', 'medicalRecords.staff', 'subscriptions', 'tickets'])
+            ->whereBetween('created_at', [$startDate, $endDate]);
+
+        if ($storeId) {
+            $newCustomersQuery->where('store_id', $storeId);
+        }
+
+        $newCustomers = $newCustomersQuery->get();
+
+        // 各顧客の初回予約とカルテを分析
+        $handlerData = [];
+
+        foreach ($newCustomers as $customer) {
+            // 初回予約を取得
+            $firstReservation = $customer->reservations()
+                ->orderBy('created_at', 'asc')
+                ->first();
+
+            if (!$firstReservation) {
+                continue;
+            }
+
+            // 初回予約後に作成されたカルテを取得
+            $medicalRecord = $customer->medicalRecords()
+                ->whereNotNull('staff_id')
+                ->where('created_at', '>=', $firstReservation->created_at)
+                ->when($handlerId, fn($q) => $q->where('staff_id', $handlerId))
+                ->orderBy('created_at', 'asc')
+                ->first();
+
+            if (!$medicalRecord || !$medicalRecord->staff) {
+                continue;
+            }
+
+            $staffId = $medicalRecord->staff_id;
+
+            if (!isset($handlerData[$staffId])) {
+                $handlerData[$staffId] = [
+                    'handler_id' => $staffId,
+                    'handler_name' => $medicalRecord->staff->name,
+                    'new_reservation_count' => 0,
+                    'medical_record_count' => 0,
+                    'next_reservation_count' => 0,
+                    'subscription_count' => 0,
+                    'ticket_count' => 0,
+                    'total_contract_count' => 0,
+                    'customers' => [],
+                ];
+            }
+
+            // カウント
+            $handlerData[$staffId]['new_reservation_count']++;
+            $handlerData[$staffId]['medical_record_count']++;
+
+            $customerData = [
+                'customer_id' => $customer->id,
+                'customer_name' => $customer->last_name . ' ' . $customer->first_name,
+                'reservation_date' => $firstReservation->created_at->format('Y-m-d'),
+                'medical_record_date' => $medicalRecord->created_at->format('Y-m-d'),
+                'has_next_reservation' => false,
+                'next_reservation_date' => null,
+                'contract_type' => null,
+                'contract_date' => null,
+            ];
+
+            // 次回予約を確認（カルテ作成後の次の予約）
+            $nextReservation = $customer->reservations()
+                ->where('created_at', '>', $medicalRecord->created_at)
+                ->orderBy('created_at', 'asc')
+                ->first();
+
+            if ($nextReservation) {
+                $handlerData[$staffId]['next_reservation_count']++;
+                $customerData['has_next_reservation'] = true;
+                $customerData['next_reservation_date'] = $nextReservation->reservation_date;
+            }
+
+            // カルテ作成後の最初の契約を確認
+            $subscription = $customer->subscriptions()
+                ->where('created_at', '>', $medicalRecord->created_at)
+                ->orderBy('created_at', 'asc')
+                ->first();
+
+            $ticket = $customer->tickets()
+                ->where('created_at', '>', $medicalRecord->created_at)
+                ->orderBy('created_at', 'asc')
+                ->first();
+
+            // 契約を判定
+            if ($subscription && (!$ticket || $subscription->created_at <= $ticket->created_at)) {
+                $handlerData[$staffId]['subscription_count']++;
+                $handlerData[$staffId]['total_contract_count']++;
+                $customerData['contract_type'] = 'サブスク';
+                $customerData['contract_date'] = $subscription->created_at->format('Y-m-d');
+            } elseif ($ticket) {
+                $handlerData[$staffId]['ticket_count']++;
+                $handlerData[$staffId]['total_contract_count']++;
+                $customerData['contract_type'] = '回数券';
+                $customerData['contract_date'] = $ticket->created_at->format('Y-m-d');
+            }
+
+            $handlerData[$staffId]['customers'][] = $customerData;
+        }
+
+        $results = array_values($handlerData);
+
+        // 転換率を計算
+        foreach ($results as &$data) {
+            $newReservations = $data['new_reservation_count'];
+            $medicalRecords = $data['medical_record_count'];
+
+            $data['medical_record_rate'] = $newReservations > 0
+                ? round(($medicalRecords / $newReservations) * 100, 1)
+                : 0;
+            $data['next_reservation_rate'] = $medicalRecords > 0
+                ? round(($data['next_reservation_count'] / $medicalRecords) * 100, 1)
+                : 0;
+            $data['contract_rate'] = $medicalRecords > 0
+                ? round(($data['total_contract_count'] / $medicalRecords) * 100, 1)
+                : 0;
+        }
+
+        // 契約転換率でソート（降順）
+        usort($results, function($a, $b) {
+            return $b['contract_rate'] <=> $a['contract_rate'];
+        });
+
+        return $results;
+    }
 }

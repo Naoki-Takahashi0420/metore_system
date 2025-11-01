@@ -108,6 +108,14 @@ class MedicalRecord extends Model
     }
 
     /**
+     * リレーション: カルテ対応者
+     */
+    public function handler()
+    {
+        return $this->belongsTo(User::class, 'handled_by');
+    }
+
+    /**
      * リレーション: 添付画像（このカルテのみ）
      */
     public function attachedImages()

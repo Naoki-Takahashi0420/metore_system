@@ -10,15 +10,19 @@
             <!-- KPIチャート -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 <!-- 売上比較チャート -->
-                <div>
+                <div wire:ignore style="height: 300px;">
                     <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">売上ランキング</h3>
-                    <canvas id="revenueChart" width="400" height="200"></canvas>
+                    <div style="height: 260px;">
+                        <canvas id="revenueChart"></canvas>
+                    </div>
                 </div>
 
                 <!-- パフォーマンス指標チャート -->
-                <div>
+                <div wire:ignore style="height: 300px;">
                     <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">主要パフォーマンス指標</h3>
-                    <canvas id="performanceRadarChart" width="400" height="200"></canvas>
+                    <div style="height: 260px;">
+                        <canvas id="performanceRadarChart"></canvas>
+                    </div>
                 </div>
             </div>
 
@@ -64,16 +68,19 @@
                                                 {{ $staff['name'] }}
                                             </div>
                                             @if($index === 0)
-                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-                                                    🏆 TOP
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                                                    </svg>
+                                                    1位
                                                 </span>
                                             @elseif($index === 1)
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                                                    🥈 2位
+                                                    2位
                                                 </span>
                                             @elseif($index === 2)
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
-                                                    🥉 3位
+                                                    3位
                                                 </span>
                                             @endif
                                         </div>
@@ -197,13 +204,51 @@
 
 @push('scripts')
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const staffData = @json($staffData);
+    console.log('🔵 staff-performance-stats.blade.php スクリプト読み込み開始');
 
-        if (staffData.length > 0) {
-            // 売上チャート
-            const revenueCtx = document.getElementById('revenueChart').getContext('2d');
-            new Chart(revenueCtx, {
+    // Livewire更新に対応したチャート初期化
+    function initStaffCharts() {
+        console.log('🔵 initStaffCharts() 呼び出し');
+
+        // Chart.jsまたはグローバル設定が読み込まれていない場合は待機
+        if (typeof Chart === 'undefined' || !window.chartGlobalDefaultsSet) {
+            console.log('⏳ Chart.jsまたはグローバル設定未完了、100ms後に再試行');
+            setTimeout(initStaffCharts, 100);
+            return;
+        }
+
+        console.log('🟢 Chart.jsグローバル設定確認:', {
+            animation: Chart.defaults.animation,
+            animations: Chart.defaults.animations,
+            transitions: Chart.defaults.transitions
+        });
+
+        const staffData = @json($staffData);
+        const revenueCanvas = document.getElementById('revenueChart');
+        const radarCanvas = document.getElementById('performanceRadarChart');
+
+        console.log('📊 キャンバス要素:', { revenueCanvas, radarCanvas, staffDataLength: staffData.length });
+
+        // キャンバスが存在しない場合は何もしない
+        if (!revenueCanvas || !radarCanvas || staffData.length === 0) {
+            console.log('❌ キャンバスまたはデータが存在しない');
+            return;
+        }
+
+        // 既存のチャートインスタンスを破棄
+        if (window.revenueChartInstance) {
+            console.log('🗑️ 既存のrevenueChartInstanceを破棄');
+            window.revenueChartInstance.destroy();
+        }
+        if (window.radarChartInstance) {
+            console.log('🗑️ 既存のradarChartInstanceを破棄');
+            window.radarChartInstance.destroy();
+        }
+
+        // 売上チャート
+        const revenueCtx = revenueCanvas.getContext('2d');
+        console.log('🎨 売上チャート作成開始');
+        window.revenueChartInstance = new Chart(revenueCtx, {
                 type: 'bar',
                 data: {
                     labels: staffData.map(staff => staff.name),
@@ -216,8 +261,11 @@
                     }]
                 },
                 options: {
+                    animation: false,
+                    animations: false,
+                    transitions: false,
                     responsive: true,
-                    maintainAspectRatio: false,
+                    maintainAspectRatio: true,
                     plugins: {
                         legend: {
                             display: false
@@ -235,11 +283,13 @@
                     }
                 }
             });
+        console.log('✅ 売上チャート作成完了:', window.revenueChartInstance);
 
-            // パフォーマンスレーダーチャート（上位3名のみ）
-            const topStaff = staffData.slice(0, 3);
-            const radarCtx = document.getElementById('performanceRadarChart').getContext('2d');
-            new Chart(radarCtx, {
+        // パフォーマンスレーダーチャート（上位3名のみ）
+        console.log('🎨 レーダーチャート作成開始');
+        const topStaff = staffData.slice(0, 3);
+        const radarCtx = radarCanvas.getContext('2d');
+        window.radarChartInstance = new Chart(radarCtx, {
                 type: 'radar',
                 data: {
                     labels: ['転換率', 'リピート獲得率', '継続率', '満足度', '新規獲得'],
@@ -277,8 +327,11 @@
                     }))
                 },
                 options: {
+                    animation: false,
+                    animations: false,
+                    transitions: false,
                     responsive: true,
-                    maintainAspectRatio: false,
+                    maintainAspectRatio: true,
                     elements: {
                         line: {
                             borderWidth: 3
@@ -300,7 +353,21 @@
                     }
                 }
             });
-        }
-    });
+        console.log('✅ レーダーチャート作成完了:', window.radarChartInstance);
+    }
+
+    // 初回実行
+    console.log('📍 初回実行の準備（staff）');
+    if (document.readyState === 'loading') {
+        console.log('⏳ DOMContentLoadedを待機中（staff）');
+        document.addEventListener('DOMContentLoaded', initStaffCharts);
+    } else {
+        console.log('▶️ 即座に実行（staff）');
+        initStaffCharts();
+    }
+
+    // Livewire更新時に再初期化
+    console.log('🔄 Livewireイベントリスナー登録（staff）');
+    document.addEventListener('livewire:navigated', initStaffCharts);
 </script>
 @endpush
