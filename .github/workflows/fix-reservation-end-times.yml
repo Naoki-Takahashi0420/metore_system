@@ -1,0 +1,44 @@
+name: Fix Reservation End Times
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run mode (true/false)'
+        required: true
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Fix Reservation End Times
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+        DRY_RUN: ${{ github.event.inputs.dry_run }}
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        if [ "$DRY_RUN" = "true" ]; then
+          echo "=== DRY RUN モード ==="
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+          cd /var/www/html
+          sudo -u www-data HOME=/tmp php artisan reservations:fix-end-times --dry-run
+EOF
+        else
+          echo "=== 本番実行モード ==="
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+          cd /var/www/html
+          echo "yes" | sudo -u www-data HOME=/tmp php artisan reservations:fix-end-times
+EOF
+        fi
+
+        rm deploy_key.pem
