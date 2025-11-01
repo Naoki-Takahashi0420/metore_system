@@ -1,94 +1,43 @@
 name: Export Production Database
+
 on:
   workflow_dispatch:
 
 jobs:
   export:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Export database from production
-        env:
-          EC2_KEY: ${{ secrets.EC2_KEY }}
-          EC2_HOST: 54.64.54.226
-          EC2_USER: ubuntu
-        run: |
-          echo "$EC2_KEY" > deploy_key.pem
-          chmod 600 deploy_key.pem
+    - name: Export SQLite Database from Production
+      env:
+        EC2_KEY: \${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "\$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
 
-          # 本番環境のデータベースをコピー（サービスを止めずに安全にコピー）
-          ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
-          echo "=== データベースのエクスポート開始 ==="
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem \${EC2_USER}@\${EC2_HOST} << 'EOF'
+        echo "=== データベースファイル情報 ==="
+        ls -lh /var/www/html/database/database.sqlite
+        echo ""
+        echo "=== ファイルサイズ ==="
+        du -h /var/www/html/database/database.sqlite
+        EOF
 
-          # SQLiteデータベースのパス
-          DB_PATH="/var/www/html/database/database.sqlite"
-          BACKUP_PATH="/tmp/database-export-$(date +%Y%m%d-%H%M%S).sqlite"
+        echo ""
+        echo "=== データベースをダウンロード中 ==="
+        scp -o StrictHostKeyChecking=no -i deploy_key.pem \${EC2_USER}@\${EC2_HOST}:/var/www/html/database/database.sqlite ./database-production.sqlite
 
-          # データベースが存在するか確認
-          if [ ! -f "$DB_PATH" ]; then
-            echo "❌ データベースが見つかりません: $DB_PATH"
-            exit 1
-          fi
+        echo ""
+        echo "✅ ダウンロード完了"
+        ls -lh database-production.sqlite
 
-          # データベースのサイズを確認
-          echo "データベースサイズ: $(du -h $DB_PATH | cut -f1)"
+        rm deploy_key.pem
 
-          # 本番環境を止めずに安全にコピー
-          # .dumpコマンドでSQLダンプを作成（より安全）
-          sudo sqlite3 $DB_PATH ".dump" > $BACKUP_PATH.sql
-
-          echo "✅ SQLダンプ作成完了: $BACKUP_PATH.sql"
-          echo "ダンプサイズ: $(du -h $BACKUP_PATH.sql | cut -f1)"
-
-          # 権限を変更してダウンロード可能にする
-          sudo chmod 644 $BACKUP_PATH.sql
-          EOF
-
-      - name: Download database to local
-        env:
-          EC2_KEY: ${{ secrets.EC2_KEY }}
-          EC2_HOST: 54.64.54.226
-          EC2_USER: ubuntu
-        run: |
-          echo "$EC2_KEY" > deploy_key.pem
-          chmod 600 deploy_key.pem
-
-          # エクスポートされたファイルをダウンロード
-          BACKUP_FILE=$(ssh -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST} "ls -t /tmp/database-export-*.sql 2>/dev/null | head -1")
-
-          if [ -z "$BACKUP_FILE" ]; then
-            echo "❌ エクスポートファイルが見つかりません"
-            exit 1
-          fi
-
-          echo "ダウンロード中: $BACKUP_FILE"
-          scp -o StrictHostKeyChecking=no -i deploy_key.pem ${EC2_USER}@${EC2_HOST}:$BACKUP_FILE ./database-export.sql
-
-          echo "✅ ダウンロード完了: database-export.sql"
-          ls -lh database-export.sql
-
-      - name: Upload as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: production-database
-          path: database-export.sql
-          retention-days: 7
-
-      - name: Summary
-        run: |
-          echo "## ✅ データベースエクスポート完了" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "エクスポートしたデータベースはArtifactからダウンロードできます。" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### ローカル環境へのインポート方法" >> $GITHUB_STEP_SUMMARY
-          echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "# 1. Artifactからdatabase-export.sqlをダウンロード" >> $GITHUB_STEP_SUMMARY
-          echo "# 2. ローカルのデータベースをバックアップ" >> $GITHUB_STEP_SUMMARY
-          echo "cp database/database.sqlite database/database.sqlite.backup" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "# 3. 新しいデータベースを作成してインポート" >> $GITHUB_STEP_SUMMARY
-          echo "rm -f database/database.sqlite" >> $GITHUB_STEP_SUMMARY
-          echo "sqlite3 database/database.sqlite < database-export.sql" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "# 4. 権限を設定" >> $GITHUB_STEP_SUMMARY
-          echo "chmod 664 database/database.sqlite" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+    - name: Upload Database as Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: production-database
+        path: database-production.sqlite
+        retention-days: 1
