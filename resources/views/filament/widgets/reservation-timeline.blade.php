@@ -1,6 +1,6 @@
 <x-filament-widgets::widget>
-    <div wire:poll.30s="loadTimelineData">
-        <!-- 30秒ごとに自動更新 -->
+    <div wire:poll.30s="checkForUpdates">
+        <!-- 30秒ごとに更新をチェック（画面は更新しない） -->
     </div>
     <!-- スロットクリックハンドラー（最初に定義） -->
     <script>
@@ -751,6 +751,32 @@
             </div>
         </div>
 
+        <!-- 更新通知バナー -->
+        @if($hasUpdates)
+            <div class="mb-4 bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg shadow-sm animate-pulse">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <div>
+                            <p class="text-sm font-medium text-blue-800">
+                                新しい予約があります
+                            </p>
+                            <p class="text-xs text-blue-600">
+                                更新ボタンをクリックして最新の状態を表示してください
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        wire:click="applyUpdates"
+                        class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm shadow-sm"
+                    >
+                        更新する
+                    </button>
+                </div>
+            </div>
+        @endif
 
         <!-- タイムライン -->
         <div class="overflow-x-auto" style="position: relative;">

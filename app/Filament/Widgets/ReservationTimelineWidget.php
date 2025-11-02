@@ -28,6 +28,10 @@ class ReservationTimelineWidget extends Widget
     public $categories = [];
     public $selectedReservation = null;
 
+    // 更新通知用のプロパティ
+    public $lastDataHash = null;
+    public $hasUpdates = false;
+
     // モーダル表示フラグ
     public $showMedicalHistoryModal = false;
     public $showReservationHistoryModal = false;
@@ -210,6 +214,93 @@ class ReservationTimelineWidget extends Widget
         return $query->whereRaw('1 = 0');
     }
     
+    /**
+     * 更新をチェック（30秒ごとに呼ばれる、画面は更新しない）
+     */
+    public function checkForUpdates(): void
+    {
+        logger('🔍 checkForUpdates() が呼ばれました - store: ' . ($this->selectedStore ?? 'null') . ', date: ' . ($this->selectedDate ?? 'null'));
+
+        if (!$this->selectedStore || !$this->selectedDate) {
+            logger('⚠️ checkForUpdates() 早期リターン - 店舗または日付が未設定');
+            return;
+        }
+
+        $store = Store::find($this->selectedStore);
+        if (!$store) {
+            return;
+        }
+
+        $date = Carbon::parse($this->selectedDate);
+
+        // 現在のデータのハッシュ値を計算
+        $reservations = $this->getBaseQuery()
+            ->where('store_id', $this->selectedStore)
+            ->whereDate('reservation_date', $date)
+            ->whereNotIn('status', ['cancelled', 'canceled'])
+            ->get();
+
+        $blockedPeriods = \App\Models\BlockedTimePeriod::where('store_id', $this->selectedStore)
+            ->whereDate('blocked_date', $date)
+            ->get();
+
+        $currentHash = md5(json_encode([
+            'reservations' => $reservations->pluck('id', 'updated_at')->toArray(),
+            'blocks' => $blockedPeriods->pluck('id', 'updated_at')->toArray(),
+        ]));
+
+        // 初回チェック時はハッシュを保存
+        if ($this->lastDataHash === null) {
+            $this->lastDataHash = $currentHash;
+            $this->hasUpdates = false;
+            logger('🔍 初回チェック - ハッシュを保存: ' . substr($currentHash, 0, 8));
+        }
+        // データが変更された場合は通知フラグを立てる
+        elseif ($this->lastDataHash !== $currentHash && !$this->hasUpdates) {
+            $this->hasUpdates = true;
+            logger('🔔 データ変更を検知しました！ 旧: ' . substr($this->lastDataHash, 0, 8) . ' → 新: ' . substr($currentHash, 0, 8));
+        }
+    }
+
+    /**
+     * 更新を適用（ユーザーが「更新」ボタンをクリックした時）
+     */
+    public function applyUpdates(): void
+    {
+        // フラグをリセット
+        $this->hasUpdates = false;
+
+        // データを再読み込み
+        $this->loadTimelineData();
+
+        // 最新のハッシュを保存
+        if ($this->selectedStore && $this->selectedDate) {
+            $date = Carbon::parse($this->selectedDate);
+
+            $reservations = $this->getBaseQuery()
+                ->where('store_id', $this->selectedStore)
+                ->whereDate('reservation_date', $date)
+                ->whereNotIn('status', ['cancelled', 'canceled'])
+                ->get();
+
+            $blockedPeriods = \App\Models\BlockedTimePeriod::where('store_id', $this->selectedStore)
+                ->whereDate('blocked_date', $date)
+                ->get();
+
+            $this->lastDataHash = md5(json_encode([
+                'reservations' => $reservations->pluck('id', 'updated_at')->toArray(),
+                'blocks' => $blockedPeriods->pluck('id', 'updated_at')->toArray(),
+            ]));
+
+            logger('✅ 更新適用 - 新しいハッシュを保存: ' . substr($this->lastDataHash, 0, 8));
+        }
+
+        Notification::make()
+            ->title('タイムラインを更新しました')
+            ->success()
+            ->send();
+    }
+
     public function loadTimelineData(): void
     {
         // 強制的にログに出力
