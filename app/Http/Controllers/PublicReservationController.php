@@ -1535,6 +1535,7 @@ class PublicReservationController extends Controller
                 }
 
                 // 3. メインラインのブロック数をカウント（営業時間ベース時のみ）
+                $blockedMainLinesCount = 0;
                 if (!$store->use_staff_assignment && !$selectedStaffId) {
                     $blockedMainLinesCount = $dayBlocks->filter(function ($block) use ($slotTime, $slotEnd, $dateStr) {
                         if ($block->line_type !== 'main') {
@@ -1544,19 +1545,9 @@ class PublicReservationController extends Controller
                         $blockStart = Carbon::parse($dateStr . ' ' . $block->start_time);
                         $blockEnd = Carbon::parse($dateStr . ' ' . $block->end_time);
 
-                        return (
-                            ($slotTime->gte($blockStart) && $slotTime->lt($blockEnd)) ||
-                            ($slotEnd->gt($blockStart) && $slotEnd->lte($blockEnd)) ||
-                            ($slotTime->lte($blockStart) && $slotEnd->gte($blockEnd))
-                        );
+                        // 正しい重複判定: slotStart < blockEnd AND slotEnd > blockStart
+                        return $slotTime->lt($blockEnd) && $slotEnd->gt($blockStart);
                     })->count();
-
-                    // 全てのメインラインがブロックされている場合は予約不可
-                    $mainLinesCount = $store->main_lines_count ?? 1;
-                    if ($blockedMainLinesCount >= $mainLinesCount) {
-                        $availability[$dateStr][$slot] = false;
-                        continue;
-                    }
                 }
                 
                 // 店舗の同時予約可能数を初期化
@@ -1641,24 +1632,19 @@ class PublicReservationController extends Controller
                         }
                     }
 
-                    // 時間をH:i形式に統一して比較
-                    $slotTimeStr = $slotTime->format('H:i');
-                    $slotEndStr = $slotEnd->format('H:i');
+                    // 日付と時間を結合してCarbonオブジェクトを作成
+                    $dateStr = Carbon::parse($reservation->reservation_date)->format('Y-m-d');
+                    $reservationStart = Carbon::parse($dateStr . ' ' . $reservation->start_time);
+                    $reservationEnd = Carbon::parse($dateStr . ' ' . $reservation->end_time);
 
-                    // DBの時間形式を正規化（H:i または H:i:s → H:i）
-                    $reservationStart = substr($reservation->start_time, 0, 5);  // "10:00:00" → "10:00"
-                    $reservationEnd = substr($reservation->end_time, 0, 5);      // "11:00:00" → "11:00"
-
-                    // 時間が重なっているかチェック
-                    return (
-                        ($slotTimeStr >= $reservationStart && $slotTimeStr < $reservationEnd) ||
-                        ($slotEndStr > $reservationStart && $slotEndStr <= $reservationEnd) ||
-                        ($slotTimeStr <= $reservationStart && $slotEndStr >= $reservationEnd)
-                    );
+                    // 正しい重複判定: slotStart < resEnd AND slotEnd > resStart
+                    // ピッタリ同じ時刻（17:00-18:00 と 18:00-19:00）は重複しない
+                    return $slotTime->lt($reservationEnd) && $slotEnd->gt($reservationStart);
                 })->count();
-                
+
                 // 最終的な予約可否を判定（$maxConcurrentは既に上で適切に設定済み）
-                $finalAvailability = $overlappingCount < $maxConcurrent;
+                // ブロック数 + 予約数 < 総席数 の場合のみ予約可能
+                $finalAvailability = ($overlappingCount + $blockedMainLinesCount) < $maxConcurrent;
 
                 // 既存顧客の5日間隔制限チェック（マイページ・回数券・サブスク全て適用）
                 if ($finalAvailability && !empty($existingReservationDates)) {
