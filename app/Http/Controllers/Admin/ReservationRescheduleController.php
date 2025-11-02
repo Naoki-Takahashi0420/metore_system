@@ -416,11 +416,9 @@ class ReservationRescheduleController extends Controller
                     $reservationStart = Carbon::parse($dateStr . ' ' . $reservation->start_time);
                     $reservationEnd = Carbon::parse($dateStr . ' ' . $reservation->end_time);
 
-                    return (
-                        ($slotTime->gte($reservationStart) && $slotTime->lt($reservationEnd)) ||
-                        ($slotEnd->gt($reservationStart) && $slotEnd->lte($reservationEnd)) ||
-                        ($slotTime->lte($reservationStart) && $slotEnd->gte($reservationEnd))
-                    );
+                    // 正しい重複判定: 新予約のstart < 既存予約のend AND 新予約のend > 既存予約のstart
+                    // ピッタリ同じ時刻（17:00-18:00 と 18:00-19:00）は重複しない
+                    return $slotTime->lt($reservationEnd) && $slotEnd->gt($reservationStart);
                 });
 
                 $hasConflict = $conflictingReservations->count() > 0;
@@ -521,19 +519,11 @@ class ReservationRescheduleController extends Controller
             $conflictQuery->where('staff_id', $staffId);
         }
 
+        // 正しい重複判定: 既存予約のstart_time < 新予約のend_time AND 既存予約のend_time > 新予約のstart_time
+        // ピッタリ同じ時刻（17:00-18:00 と 18:00-19:00）は重複しない
         $hasConflict = $conflictQuery->where(function($query) use ($startTime, $endTime) {
-            $query->where(function($q) use ($startTime) {
-                $q->where('start_time', '<=', $startTime)
+            $query->where('start_time', '<', $endTime)
                   ->where('end_time', '>', $startTime);
-            });
-            $query->orWhere(function($q) use ($endTime) {
-                $q->where('start_time', '<', $endTime)
-                  ->where('end_time', '>=', $endTime);
-            });
-            $query->orWhere(function($q) use ($startTime, $endTime) {
-                $q->where('start_time', '>=', $startTime)
-                  ->where('end_time', '<=', $endTime);
-            });
         })->exists();
 
         if ($hasConflict) {
