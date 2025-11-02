@@ -1299,7 +1299,11 @@ class PublicReservationController extends Controller
         // 既存顧客（マイページ・回数券・サブスク全て）に5日間制限を適用
         // ただし、変更モードの場合はスキップ
         // 店舗ごとに独立した5日間ルールを適用するため、store_idでもフィルタ
-        if ($customerId && !$changeMode && !$isChangeReservation) {
+        // 顧客がルール除外対象の場合もスキップ
+        $customer = $customerId ? Customer::find($customerId) : null;
+        $isIgnoreIntervalRule = $customer && $customer->ignore_interval_rule;
+
+        if ($customerId && !$changeMode && !$isChangeReservation && !$isIgnoreIntervalRule) {
             \Log::info('既存予約取得開始（5日間ルール適用）', [
                 'customer_id' => $customerId,
                 'store_id' => $storeId,
@@ -2777,6 +2781,16 @@ class PublicReservationController extends Controller
      */
     private function validateFiveDayInterval($customerId, $targetDate, $storeId = null, $excludeReservationId = null)
     {
+        // 顧客が予約間隔ルール除外対象かチェック
+        $customer = Customer::find($customerId);
+        if ($customer && $customer->ignore_interval_rule) {
+            \Log::info('予約間隔ルールをスキップ（顧客設定により除外）', [
+                'customer_id' => $customerId,
+                'ignore_interval_rule' => true
+            ]);
+            return; // ルールをスキップ
+        }
+
         // 店舗IDから最小予約間隔を取得
         $minIntervalDays = 5; // デフォルト
         if ($storeId) {

@@ -34,6 +34,7 @@ class Customer extends Model
         'notes',
         'characteristics', // 顧客特性（スタッフ用）
         'is_blocked',
+        'ignore_interval_rule',
         'risk_override',
         'risk_flag_source',
         'risk_flag_reason',
@@ -57,6 +58,7 @@ class Customer extends Model
         'preferences' => 'array',
         'medical_notes' => 'array',
         'is_blocked' => 'boolean',
+        'ignore_interval_rule' => 'boolean',
         'risk_override' => 'boolean',
         'risk_flag_reason' => 'array',
         'risk_flagged_at' => 'datetime',

@@ -248,6 +248,12 @@ class CustomerResource extends Resource
                             })
                             ->columnSpan(1),
 
+                        Forms\Components\Toggle::make('ignore_interval_rule')
+                            ->label('予約間隔ルールを無視')
+                            ->default(false)
+                            ->helperText('ONにすると5日間ルールを無視（親子で複数予約を取る場合など）')
+                            ->columnSpan(1),
+
                         Forms\Components\Placeholder::make('risk_status_info')
                             ->label('要注意判定の根拠')
                             ->content(function ($record) {
