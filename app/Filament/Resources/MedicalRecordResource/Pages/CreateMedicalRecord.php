@@ -90,7 +90,7 @@ class CreateMedicalRecord extends CreateRecord
 
     protected function getRedirectUrl(): string
     {
-        // カルテ作成後は一覧ページに戻る
-        return $this->getResource()::getUrl('index');
+        // カルテ作成後は編集ページに遷移（一覧ページはカルテ数が多くタイムアウトするため）
+        return $this->getResource()::getUrl('edit', ['record' => $this->record]);
     }
 }
