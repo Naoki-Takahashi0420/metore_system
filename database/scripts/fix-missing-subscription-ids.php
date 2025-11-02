@@ -4,7 +4,7 @@
  * 既存予約のcustomer_subscription_idを修正するスクリプト
  *
  * 問題: 予約作成時にcustomer_subscription_idが設定されていない
- * 影響: 約167件の予約が不正確なデータを持っている
+ * 影響: 約766件の予約が不正確なデータを持っている
  *
  * 実行方法: php database/scripts/fix-missing-subscription-ids.php
  */
@@ -15,16 +15,20 @@ $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
 
 use App\Models\Reservation;
-use App\Models\CustomerSubscription;
+use App\Services\ReservationSubscriptionBinder;
 use Illuminate\Support\Facades\DB;
 
 echo "=== customer_subscription_id 修正スクリプト ===" . PHP_EOL;
 echo "開始時刻: " . now()->format('Y-m-d H:i:s') . PHP_EOL . PHP_EOL;
 
-// customer_subscription_idがNULLかつcustomer_ticket_idもNULLの完了済み予約を取得
+// 共通サービスを使用
+$binder = app(ReservationSubscriptionBinder::class);
+
+// customer_subscription_idがNULLかつcustomer_ticket_idもNULLの予約を取得
+// 完了済みだけでなく、booked、confirmedも対象
 $reservations = Reservation::whereNull('customer_subscription_id')
     ->whereNull('customer_ticket_id')
-    ->where('status', 'completed')
+    ->whereIn('status', ['booked', 'confirmed', 'completed'])
     ->orderBy('reservation_date', 'desc')
     ->get();
 
@@ -34,24 +38,19 @@ $fixedCount = 0;
 $skippedCount = 0;
 
 foreach ($reservations as $reservation) {
-    // 予約日時点でアクティブなサブスク契約を検索
-    // ステータスが'active'であれば有効とみなす（終了日を過ぎていても運用されているケースがあるため）
-    $activeSubscription = CustomerSubscription::where('customer_id', $reservation->customer_id)
-        ->where('store_id', $reservation->store_id)
-        ->where('status', 'active')
-        ->first();
+    // 共通サービスを使用してサブスクIDを設定
+    $result = $binder->bindModel($reservation);
 
-    if ($activeSubscription) {
-        // customer_subscription_idを設定
-        $reservation->update(['customer_subscription_id' => $activeSubscription->id]);
+    if ($result) {
         $fixedCount++;
 
         echo sprintf(
-            "✅ 予約ID %d: customer_subscription_id = %d に設定（顧客ID: %d, 日付: %s）" . PHP_EOL,
+            "✅ 予約ID %d: customer_subscription_id = %d に設定（顧客ID: %d, 日付: %s, メニュー: %s）" . PHP_EOL,
             $reservation->id,
-            $activeSubscription->id,
+            $reservation->fresh()->customer_subscription_id,
             $reservation->customer_id,
-            $reservation->reservation_date
+            $reservation->reservation_date,
+            $reservation->menu->name ?? 'N/A'
         );
     } else {
         $skippedCount++;

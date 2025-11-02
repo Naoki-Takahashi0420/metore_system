@@ -2564,9 +2564,15 @@ class ReservationTimelineWidget extends Widget
                 $reservationData['customer_ticket_id'] = $this->newReservation['customer_ticket_id'];
             }
 
-            // サブスクリプションIDがある場合は設定
+            // サブスクリプションIDがある場合は設定（手動選択が優先）
             if (!empty($this->newReservation['customer_subscription_id'])) {
                 $reservationData['customer_subscription_id'] = $this->newReservation['customer_subscription_id'];
+            }
+
+            // 手動選択がない場合は自動判定サービスを使用
+            if (!isset($reservationData['customer_subscription_id'])) {
+                $binder = app(\App\Services\ReservationSubscriptionBinder::class);
+                $reservationData = $binder->bind($reservationData, 'create');
             }
 
             // スタッフシフトモードの場合

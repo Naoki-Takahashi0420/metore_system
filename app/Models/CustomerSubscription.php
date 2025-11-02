@@ -174,11 +174,42 @@ class CustomerSubscription extends Model
     }
 
     /**
-     * スコープ: アクティブなサブスクリプション
+     * スコープ: アクティブなサブスクリプション（ステータスのみ）
      */
     public function scopeActive($query)
     {
         return $query->where('status', 'active');
+    }
+
+    /**
+     * スコープ: 真にアクティブなサブスクリプション（厳密な条件）
+     * - status='active'
+     * - 休止中でない（is_paused=false）
+     * - 決済失敗していない（payment_failed=false）
+     * - サービス開始日を過ぎている
+     * - 終了日が未来または未設定
+     */
+    public function scopeActiveStrict($query)
+    {
+        return $query->where('status', 'active')
+            ->where('is_paused', false)
+            ->where('payment_failed', false)
+            ->where(function($q) {
+                $q->where(function($subQ) {
+                    // service_start_dateがあればそれを使用
+                    $subQ->whereNotNull('service_start_date')
+                        ->where('service_start_date', '<=', now());
+                })->orWhere(function($subQ) {
+                    // なければstart_dateを使用
+                    $subQ->whereNull('service_start_date')
+                        ->whereNotNull('start_date')
+                        ->where('start_date', '<=', now());
+                });
+            })
+            ->where(function($q) {
+                $q->whereNull('end_date')
+                  ->orWhere('end_date', '>=', now());
+            });
     }
 
     /**
@@ -198,8 +229,10 @@ class CustomerSubscription extends Model
     {
         // service_start_dateがあればそれを使用、なければstart_dateを使用
         $startDate = $this->service_start_date ?? $this->start_date;
-        
-        return $this->status === 'active' 
+
+        return $this->status === 'active'
+            && !$this->is_paused  // 休止中でないこと
+            && !$this->payment_failed  // 決済失敗していないこと
             && $startDate <= now()
             && ($this->end_date === null || $this->end_date >= now());
     }

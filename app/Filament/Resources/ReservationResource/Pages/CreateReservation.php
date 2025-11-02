@@ -31,17 +31,10 @@ class CreateReservation extends CreateRecord
             }
         }
 
-        // 顧客のアクティブなサブスク契約を自動設定
-        // ステータスが'active'であれば有効とみなす（終了日を過ぎていても運用されているケースがあるため）
+        // 顧客のアクティブなサブスク契約を自動設定（共通サービスを使用）
         if (isset($data['customer_id']) && isset($data['store_id']) && !isset($data['customer_subscription_id'])) {
-            $activeSubscription = \App\Models\CustomerSubscription::where('customer_id', $data['customer_id'])
-                ->where('store_id', $data['store_id'])
-                ->where('status', 'active')
-                ->first();
-
-            if ($activeSubscription) {
-                $data['customer_subscription_id'] = $activeSubscription->id;
-            }
+            $binder = app(\App\Services\ReservationSubscriptionBinder::class);
+            $data = $binder->bind($data, 'create');
         }
 
         return $data;

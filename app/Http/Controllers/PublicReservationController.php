@@ -2049,6 +2049,10 @@ class PublicReservationController extends Controller
                     'menu_id' => $validated['menu_id'],
                 ]);
 
+                // サブスクリプションIDの再評価（店舗やメニューが変更された場合に対応）
+                $binder = app(\App\Services\ReservationSubscriptionBinder::class);
+                $binder->bindModel($existingReservation->fresh());
+
                 \Log::info('✅ 予約を更新しました', [
                     'reservation_number' => $existingReservation->reservation_number,
                     'new_date' => $validated['date'],
@@ -2514,7 +2518,8 @@ class PublicReservationController extends Controller
                 \Log::warning('⚠️ 回数券コンテキストが見つかりません');
             }
 
-            // サブスクリプションIDがある場合は予約作成時に設定
+            // サブスクリプションIDの自動設定
+            // まず、コンテキストやセッションから明示的に渡されたIDを優先
             $subscriptionId = null;
             if ($context && isset($context['subscription_id'])) {
                 $subscriptionId = $context['subscription_id'];
@@ -2527,7 +2532,7 @@ class PublicReservationController extends Controller
                 $subscription = CustomerSubscription::find($subscriptionId);
                 if ($subscription && $subscription->customer_id == $customer->id) {
                     $reservationData['customer_subscription_id'] = $subscriptionId;
-                    \Log::info('サブスクリプションを予約に紐付け', [
+                    \Log::info('サブスクリプションを予約に紐付け（明示的）', [
                         'subscription_id' => $subscriptionId,
                         'customer_id' => $customer->id
                     ]);
@@ -2540,6 +2545,12 @@ class PublicReservationController extends Controller
                     // セッションから削除
                     Session::forget('subscription_id');
                 }
+            }
+
+            // 明示的なサブスクIDがない場合は、自動判定サービスを使用
+            if (!isset($reservationData['customer_subscription_id'])) {
+                $binder = app(\App\Services\ReservationSubscriptionBinder::class);
+                $reservationData = $binder->bind($reservationData, 'create');
             }
 
             \Log::info('🎫 [DEBUG] Reservation::create直前のデータ', [

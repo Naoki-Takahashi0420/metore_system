@@ -187,7 +187,14 @@ class CustomerSubscriptionResource extends Resource
                             ->numeric()
                             ->suffix('回')
                             ->disabled()
-                            ->helperText('システムが自動管理'),
+                            ->dehydrated(false) // 保存時は無視
+                            ->afterStateHydrated(function ($component, $state, $record) {
+                                // 編集時は予約データから動的に計算
+                                if ($record) {
+                                    $component->state($record->getCurrentPeriodVisitsCount());
+                                }
+                            })
+                            ->helperText('予約データから自動計算'),
                         
                         Forms\Components\TextInput::make('reset_day')
                             ->label('リセット日')
@@ -391,13 +398,15 @@ class CustomerSubscriptionResource extends Resource
                     ->label('月間制限')
                     ->formatStateUsing(fn ($state) => $state ? "{$state}回" : '無制限'),
                     
-                Tables\Columns\TextColumn::make('current_month_visits')
+                Tables\Columns\TextColumn::make('current_period_visits')
                     ->label('今月利用')
-                    ->formatStateUsing(fn ($record) => 
-                        $record->monthly_limit ? 
-                        "{$record->current_month_visits}/{$record->monthly_limit}" : 
-                        $record->current_month_visits
-                    ),
+                    ->formatStateUsing(function ($record) {
+                        // 予約データから動的に計算（正確な値）
+                        $actualVisits = $record->getCurrentPeriodVisitsCount();
+                        return $record->monthly_limit ?
+                            "{$actualVisits}/{$record->monthly_limit}" :
+                            $actualVisits;
+                    }),
                     
                 Tables\Columns\TextColumn::make('end_date')
                     ->label('契約終了日')

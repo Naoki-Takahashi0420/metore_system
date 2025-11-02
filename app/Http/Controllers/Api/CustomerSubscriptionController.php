@@ -41,10 +41,11 @@ class CustomerSubscriptionController extends Controller
         
         return response()->json([
             'data' => $subscriptions->map(function ($sub) {
-                // current_month_visitsは自動計算されるため、リセット処理不要
+                // 予約データから動的に計算（正確な値）
+                $actualVisits = $sub->getCurrentPeriodVisitsCount();
 
                 $remaining = $sub->monthly_limit ?
-                    max(0, $sub->monthly_limit - $sub->current_month_visits) :
+                    max(0, $sub->monthly_limit - $actualVisits) :
                     ($sub->remaining_sessions ?? 0);
                     
                 // プランがない場合のメニューID取得
@@ -67,7 +68,7 @@ class CustomerSubscriptionController extends Controller
                     ],
                     'remaining_sessions' => $remaining,
                     'monthly_limit' => $sub->monthly_limit,
-                    'current_month_visits' => $sub->current_month_visits,
+                    'current_month_visits' => $actualVisits,
                     // 期間情報を追加
                     'period_start' => $sub->getCurrentPeriodStart()?->format('Y-m-d'),
                     'period_end' => $sub->getCurrentPeriodEnd()?->format('Y-m-d'),
@@ -180,10 +181,11 @@ class CustomerSubscriptionController extends Controller
             
         return response()->json([
             'data' => $subscriptions->map(function ($sub) {
-                // current_month_visitsは自動計算されるため、リセット処理不要
+                // 予約データから動的に計算（正確な値）
+                $actualVisits = $sub->getCurrentPeriodVisitsCount();
 
                 $remaining = $sub->monthly_limit ?
-                    max(0, $sub->monthly_limit - $sub->current_month_visits) :
+                    max(0, $sub->monthly_limit - $actualVisits) :
                     ($sub->remaining_sessions ?? 0);
                     
                 // メニュー情報を取得
@@ -220,7 +222,7 @@ class CustomerSubscriptionController extends Controller
                     ] : null,
                     'remaining_sessions' => $remaining,
                     'monthly_limit' => $sub->monthly_limit,
-                    'current_month_visits' => $sub->current_month_visits,
+                    'current_month_visits' => $actualVisits,
                     // 期間情報を追加
                     'period_start' => $sub->getCurrentPeriodStart()?->format('Y-m-d'),
                     'period_end' => $sub->getCurrentPeriodEnd()?->format('Y-m-d'),
@@ -279,7 +281,10 @@ class CustomerSubscriptionController extends Controller
         if ($subscription->plan_id) {
             $plan = \App\Models\SubscriptionPlan::find($subscription->plan_id);
         }
-        
+
+        // 予約データから動的に計算（正確な値）
+        $actualVisits = $subscription->getCurrentPeriodVisitsCount();
+
         return response()->json([
             'subscription' => [
                 'id' => $subscription->id,
@@ -288,7 +293,7 @@ class CustomerSubscriptionController extends Controller
                 'plan_type' => $subscription->plan_type,
                 'monthly_limit' => $subscription->monthly_limit,
                 'monthly_price' => $subscription->monthly_price,
-                'current_month_visits' => $subscription->current_month_visits,
+                'current_month_visits' => $actualVisits,
                 'billing_start_date' => $subscription->billing_start_date?->format('Y-m-d'),
                 'service_start_date' => $subscription->service_start_date?->format('Y-m-d'),
                 'end_date' => $subscription->end_date?->format('Y-m-d'),
@@ -297,8 +302,8 @@ class CustomerSubscriptionController extends Controller
                     'id' => $subscription->store->id,
                     'name' => $subscription->store->name,
                 ] : null,
-                'remaining_visits' => $subscription->monthly_limit 
-                    ? max(0, $subscription->monthly_limit - $subscription->current_month_visits)
+                'remaining_visits' => $subscription->monthly_limit
+                    ? max(0, $subscription->monthly_limit - $actualVisits)
                     : null,
             ]
         ]);

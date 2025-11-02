@@ -357,7 +357,7 @@ class CustomerResource extends Resource
                                     $html .= '<p class="text-sm text-gray-600">店舗: ' . $storeName . '</p>';
                                     $html .= '<p class="text-sm text-gray-600">月額: ¥' . number_format($sub->monthly_price) . '</p>';
                                     $html .= '<p class="text-sm text-gray-600">利用制限: ' . ($sub->monthly_limit ? $sub->monthly_limit . '回/月' : '無制限') . '</p>';
-                                    $html .= '<p class="text-sm text-gray-600">今月利用: ' . $sub->current_month_visits . '回</p>';
+                                    $html .= '<p class="text-sm text-gray-600">今月利用: ' . $sub->getCurrentPeriodVisitsCount() . '回</p>';
                                     $html .= '</div>';
                                     
                                     // 右側：ステータスと日付

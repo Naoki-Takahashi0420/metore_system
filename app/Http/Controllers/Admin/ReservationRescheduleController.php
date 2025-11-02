@@ -179,6 +179,10 @@ class ReservationRescheduleController extends Controller
 
             $reservation->update($updateData);
 
+            // サブスクリプションIDの再評価（店舗やメニューは変更されていないが、未設定の場合は設定）
+            $binder = app(\App\Services\ReservationSubscriptionBinder::class);
+            $binder->bindModel($reservation->fresh());
+
             DB::commit();
 
             // 変更後の予約情報を含めた詳細なメッセージ
@@ -462,7 +466,7 @@ class ReservationRescheduleController extends Controller
             ->whereDate('blocked_date', $date);
 
         // 全体ブロック（line_typeがnull）をチェック
-        $hasGlobalBlock = $blockedPeriodsQuery->clone()
+        $hasGlobalBlock = (clone $blockedPeriodsQuery)
             ->whereNull('line_type')
             ->where(function($query) use ($startTime, $endTime) {
                 $query->where(function($q) use ($startTime) {
@@ -485,7 +489,7 @@ class ReservationRescheduleController extends Controller
 
         // スタッフ指定がある場合は、そのスタッフのライン専用ブロックをチェック
         if ($staffId) {
-            $hasStaffLineBlock = $blockedPeriodsQuery->clone()
+            $hasStaffLineBlock = (clone $blockedPeriodsQuery)
                 ->where('line_type', 'staff')
                 ->where('staff_id', $staffId)
                 ->where(function($query) use ($startTime, $endTime) {
