@@ -421,9 +421,11 @@ class ReservationRescheduleController extends Controller
                     return $slotTime->lt($reservationEnd) && $slotEnd->gt($reservationStart);
                 });
 
-                $hasConflict = $conflictingReservations->count() > 0;
+                // 席数を考慮した判定（営業時間モードの場合）
+                $maxSeats = $store->main_lines_count ?? 1;
+                $conflictCount = $conflictingReservations->count();
 
-                if ($hasConflict) {
+                if ($conflictCount >= $maxSeats) {
                     $availability[$dateStr][$slot] = false;
                     continue;
                 }
@@ -521,13 +523,23 @@ class ReservationRescheduleController extends Controller
 
         // 正しい重複判定: 既存予約のstart_time < 新予約のend_time AND 既存予約のend_time > 新予約のstart_time
         // ピッタリ同じ時刻（17:00-18:00 と 18:00-19:00）は重複しない
-        $hasConflict = $conflictQuery->where(function($query) use ($startTime, $endTime) {
+        $conflictCount = $conflictQuery->where(function($query) use ($startTime, $endTime) {
             $query->where('start_time', '<', $endTime)
                   ->where('end_time', '>', $startTime);
-        })->exists();
+        })->count();
 
-        if ($hasConflict) {
-            return ['available' => false, 'message' => '選択された時間帯は既に予約が入っています'];
+        // 席数を考慮した判定（営業時間モードの場合）
+        // スタッフ指定がない場合のみ席数をチェック
+        if (!$staffId) {
+            $maxSeats = $store->main_lines_count ?? 1;
+            if ($conflictCount >= $maxSeats) {
+                return ['available' => false, 'message' => '選択された時間帯は満席です'];
+            }
+        } else {
+            // スタッフ指定がある場合は、そのスタッフの予約が1件でもあればNG
+            if ($conflictCount > 0) {
+                return ['available' => false, 'message' => '選択された時間帯は既に予約が入っています'];
+            }
         }
 
         return ['available' => true, 'message' => '予約可能です'];
