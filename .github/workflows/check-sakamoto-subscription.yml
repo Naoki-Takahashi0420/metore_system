@@ -1,0 +1,65 @@
+name: Check Sakamoto Subscription
+on:
+  workflow_dispatch:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Sakamoto subscription data
+        uses: appleboy/ssh-action@master
+        with:
+          host: 54.64.54.226
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /var/www/html
+            sudo -u www-data php artisan tinker --execute="
+            echo '=== 坂本慶介様のサブスク情報 ===' . PHP_EOL;
+
+            \$customer = \App\Models\Customer::where('last_name', 'like', '%坂本%')
+              ->where('first_name', 'like', '%慶介%')
+              ->first();
+
+            if (!\$customer) {
+                echo '顧客が見つかりません' . PHP_EOL;
+                exit;
+            }
+
+            echo '顧客ID: ' . \$customer->id . PHP_EOL;
+            echo '名前: ' . \$customer->last_name . ' ' . \$customer->first_name . PHP_EOL;
+            echo '店舗: ' . (\$customer->store->name ?? '不明') . PHP_EOL;
+            echo PHP_EOL;
+
+            \$subscriptions = \$customer->customerSubscriptions;
+            echo 'サブスク契約数: ' . \$subscriptions->count() . PHP_EOL;
+            echo PHP_EOL;
+
+            foreach (\$subscriptions as \$sub) {
+                echo '--- 契約 ' . \$sub->id . ' ---' . PHP_EOL;
+                echo 'プラン名: ' . \$sub->plan_name . PHP_EOL;
+                echo 'ステータス: ' . \$sub->status . PHP_EOL;
+                echo '月間制限: ' . \$sub->monthly_limit . PHP_EOL;
+                echo '今月利用回数: ' . \$sub->current_month_visits . PHP_EOL;
+                echo '最終利用日: ' . (\$sub->last_visit_date ?? '未使用') . PHP_EOL;
+                echo 'リセット日: ' . \$sub->reset_day . PHP_EOL;
+                echo PHP_EOL;
+            }
+
+            echo '=== 直近30日の予約履歴 ===' . PHP_EOL;
+            \$recentReservations = \$customer->reservations()
+                ->where('reservation_date', '>=', now()->subDays(30))
+                ->orderBy('reservation_date', 'desc')
+                ->get();
+
+            echo '件数: ' . \$recentReservations->count() . PHP_EOL;
+            echo PHP_EOL;
+
+            foreach (\$recentReservations as \$res) {
+                echo '予約ID: ' . \$res->id . PHP_EOL;
+                echo '  日付: ' . \$res->reservation_date . ' ' . \$res->start_time . PHP_EOL;
+                echo '  ステータス: ' . \$res->status . PHP_EOL;
+                echo '  サブスクID: ' . (\$res->customer_subscription_id ?? '無し') . PHP_EOL;
+                echo '  メニュー: ' . (\$res->menu->name ?? '不明') . PHP_EOL;
+                echo PHP_EOL;
+            }
+            "
