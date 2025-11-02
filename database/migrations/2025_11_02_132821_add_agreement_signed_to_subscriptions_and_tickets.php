@@ -13,12 +13,12 @@ return new class extends Migration
     {
         // customer_subscriptions テーブルに agreement_signed カラムを追加
         Schema::table('customer_subscriptions', function (Blueprint $table) {
-            $table->boolean('agreement_signed')->default(true)->comment('同意書記入済み');
+            $table->boolean('agreement_signed')->default(false)->comment('同意書記入済み');
         });
 
         // customer_tickets テーブルに agreement_signed カラムを追加
         Schema::table('customer_tickets', function (Blueprint $table) {
-            $table->boolean('agreement_signed')->default(true)->comment('同意書記入済み');
+            $table->boolean('agreement_signed')->default(false)->comment('同意書記入済み');
         });
     }
 

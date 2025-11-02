@@ -34,6 +34,7 @@ class CustomerSubscription extends Model
         'reset_day',
         'status',
         'notes',
+        'agreement_signed',
         // 決済失敗管理
         'payment_failed',
         'payment_failed_at',
@@ -59,6 +60,7 @@ class CustomerSubscription extends Model
         'last_visit_date' => 'date',
         'current_month_visits' => 'integer',
         'reset_day' => 'integer',
+        'agreement_signed' => 'boolean',
         // 決済失敗管理
         'payment_failed' => 'boolean',
         'payment_failed_at' => 'datetime',

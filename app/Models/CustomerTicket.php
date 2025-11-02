@@ -31,6 +31,7 @@ class CustomerTicket extends Model
         'cancelled_at',
         'cancelled_by',
         'cancel_reason',
+        'agreement_signed',
     ];
 
     protected $casts = [
@@ -41,6 +42,7 @@ class CustomerTicket extends Model
         'expires_at' => 'datetime',
         'expiry_notified_at' => 'datetime',
         'cancelled_at' => 'datetime',
+        'agreement_signed' => 'boolean',
     ];
 
     protected $appends = ['remaining_count', 'is_expired', 'is_expiring_soon', 'days_until_expiry'];

@@ -161,12 +161,8 @@ class CustomerSubscriptionResource extends Resource
 
                         Forms\Components\Checkbox::make('agreement_signed')
                             ->label('同意書記入済み')
-                            ->default(true)
-                            ->accepted()
-                            ->validationMessages([
-                                'accepted' => '同意書の記入を確認してからチェックを入れてください',
-                            ])
-                            ->helperText('同意書の記入を受け取った場合はチェック（必須）'),
+                            ->default(false)
+                            ->helperText('同意書の記入を受け取った場合のみチェック（任意）'),
                     ])
                     ->columns(2),
                 
@@ -413,7 +409,15 @@ class CustomerSubscriptionResource extends Resource
                     ->label('決済方法')
                     ->formatStateUsing(fn ($record) => $record->payment_method_display)
                     ->toggleable(isToggledHiddenByDefault: true),
-                    
+
+                Tables\Columns\BadgeColumn::make('agreement_signed')
+                    ->label('同意書')
+                    ->formatStateUsing(fn ($state) => $state ? '取得済み' : '未取得')
+                    ->colors([
+                        'success' => fn ($state) => $state === true,
+                        'danger' => fn ($state) => $state === false,
+                    ]),
+
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
