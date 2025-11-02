@@ -43,7 +43,7 @@ class ReservationResource extends Resource
     
     protected static ?string $navigationGroup = '予約管理';
 
-    protected static function checkAvailability($date, $startTime, $endTime, $staffId = null): array
+    protected static function checkAvailability($date, $startTime, $endTime, $staffId = null, $excludeReservationId = null): array
     {
         $query = Reservation::where('reservation_date', $date)
             ->where('status', '!=', 'cancelled')
@@ -53,6 +53,11 @@ class ReservationResource extends Resource
                 $q->where('start_time', '<', $endTime)
                   ->where('end_time', '>', $startTime);
             });
+
+        // 編集時は現在のレコードを除外
+        if ($excludeReservationId) {
+            $query->where('id', '!=', $excludeReservationId);
+        }
 
         if ($staffId) {
             $query->where('staff_id', $staffId);
@@ -287,18 +292,24 @@ class ReservationResource extends Resource
                                 $menu = \App\Models\Menu::find($menuId);
                                 return $menu && $menu->requires_staff;
                             })
-                            ->afterStateUpdated(function ($state, $set, $get) {
+                            ->afterStateUpdated(function ($state, $set, $get, $livewire) {
                                 // スタッフの空き時間をチェック
                                 if ($state && $get('reservation_date') && $get('start_time') && $get('end_time')) {
-                                    $hasConflict = \App\Models\Reservation::where('staff_id', $state)
+                                    $query = \App\Models\Reservation::where('staff_id', $state)
                                         ->where('reservation_date', $get('reservation_date'))
                                         ->where('status', '!=', 'cancelled')
-                                        ->where(function ($query) use ($get) {
+                                        ->where(function ($q) use ($get) {
                                             // 正しい重複判定: 既存予約のstart_time < 新予約のend_time AND 既存予約のend_time > 新予約のstart_time
-                                            $query->where('start_time', '<', $get('end_time'))
-                                                  ->where('end_time', '>', $get('start_time'));
-                                        })
-                                        ->exists();
+                                            $q->where('start_time', '<', $get('end_time'))
+                                              ->where('end_time', '>', $get('start_time'));
+                                        });
+
+                                    // 編集時は現在のレコードを除外（自分自身を重複としてカウントしない）
+                                    if ($record = $livewire->getRecord()) {
+                                        $query->where('id', '!=', $record->id);
+                                    }
+
+                                    $hasConflict = $query->exists();
 
                                     if ($hasConflict) {
                                         Notification::make()
@@ -358,14 +369,18 @@ class ReservationResource extends Resource
                             ->label('予約日')
                             ->required()
                             ->reactive()
-                            ->afterStateUpdated(function ($state, $set, $get) {
+                            ->afterStateUpdated(function ($state, $set, $get, $livewire) {
                                 // 日付変更時に空き状況を確認
                                 if ($state && $get('start_time') && $get('end_time')) {
+                                    // 編集時は現在のレコードIDを取得
+                                    $excludeId = $livewire->getRecord()?->id;
+
                                     $availableSlots = static::checkAvailability(
                                         $state,
                                         $get('start_time'),
                                         $get('end_time'),
-                                        $get('staff_id')
+                                        $get('staff_id'),
+                                        $excludeId
                                     );
                                     
                                     if (!$availableSlots['is_available']) {
