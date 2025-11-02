@@ -158,6 +158,15 @@ class CustomerSubscriptionResource extends Resource
                             ->default('active')
                             ->required()
                             ->helperText('通常は「有効」を選択'),
+
+                        Forms\Components\Checkbox::make('agreement_signed')
+                            ->label('同意書記入済み')
+                            ->default(true)
+                            ->accepted()
+                            ->validationMessages([
+                                'accepted' => '同意書の記入を確認してからチェックを入れてください',
+                            ])
+                            ->helperText('同意書の記入を受け取った場合はチェック（必須）'),
                     ])
                     ->columns(2),
                 

@@ -120,6 +120,15 @@ class CustomerTicketResource extends Resource
                             ->default('active')
                             ->visible(fn ($operation) => $operation === 'edit')
                             ->helperText('システムが自動管理（手動変更も可能）'),
+
+                        Forms\Components\Checkbox::make('agreement_signed')
+                            ->label('同意書記入済み')
+                            ->default(true)
+                            ->accepted()
+                            ->validationMessages([
+                                'accepted' => '同意書の記入を確認してからチェックを入れてください',
+                            ])
+                            ->helperText('同意書の記入を受け取った場合はチェック（必須）'),
                     ])
                     ->columns(2),
 
