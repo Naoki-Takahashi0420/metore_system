@@ -48,12 +48,10 @@ class ReservationResource extends Resource
         $query = Reservation::where('reservation_date', $date)
             ->where('status', '!=', 'cancelled')
             ->where(function ($q) use ($startTime, $endTime) {
-                $q->whereBetween('start_time', [$startTime, $endTime])
-                  ->orWhereBetween('end_time', [$startTime, $endTime])
-                  ->orWhere(function ($q2) use ($startTime, $endTime) {
-                      $q2->where('start_time', '<=', $startTime)
-                         ->where('end_time', '>=', $endTime);
-                  });
+                // 正しい重複判定: 既存予約のstart_time < 新予約のend_time AND 既存予約のend_time > 新予約のstart_time
+                // ピッタリ同じ時刻（17:00-18:00 と 18:00-19:00）は重複しない
+                $q->where('start_time', '<', $endTime)
+                  ->where('end_time', '>', $startTime);
             });
 
         if ($staffId) {
@@ -291,16 +289,17 @@ class ReservationResource extends Resource
                             })
                             ->afterStateUpdated(function ($state, $set, $get) {
                                 // スタッフの空き時間をチェック
-                                if ($state && $get('reservation_date') && $get('start_time')) {
+                                if ($state && $get('reservation_date') && $get('start_time') && $get('end_time')) {
                                     $hasConflict = \App\Models\Reservation::where('staff_id', $state)
                                         ->where('reservation_date', $get('reservation_date'))
                                         ->where('status', '!=', 'cancelled')
                                         ->where(function ($query) use ($get) {
-                                            $query->whereBetween('start_time', [$get('start_time'), $get('end_time')])
-                                                  ->orWhereBetween('end_time', [$get('start_time'), $get('end_time')]);
+                                            // 正しい重複判定: 既存予約のstart_time < 新予約のend_time AND 既存予約のend_time > 新予約のstart_time
+                                            $query->where('start_time', '<', $get('end_time'))
+                                                  ->where('end_time', '>', $get('start_time'));
                                         })
                                         ->exists();
-                                    
+
                                     if ($hasConflict) {
                                         Notification::make()
                                             ->warning()
