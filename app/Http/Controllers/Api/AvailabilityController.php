@@ -133,21 +133,13 @@ class AvailabilityController extends Controller
                     $blockStart = Carbon::parse($date->format('Y-m-d') . ' ' . $blocked->start_time);
                     $blockEnd = Carbon::parse($date->format('Y-m-d') . ' ' . $blocked->end_time);
 
-                    if (
-                        ($slotStart->gte($blockStart) && $slotStart->lt($blockEnd)) ||
-                        ($slotEnd->gt($blockStart) && $slotEnd->lte($blockEnd)) ||
-                        ($slotStart->lte($blockStart) && $slotEnd->gte($blockEnd))
-                    ) {
+                    // 正しい重複判定: slotStart < blockEnd AND slotEnd > blockStart
+                    if ($slotStart->lt($blockEnd) && $slotEnd->gt($blockStart)) {
                         $blockedMainLinesCount++;
                     }
                 }
             }
 
-            // 全てのメインラインがブロックされている場合は予約不可
-            if ($blockedMainLinesCount >= $mainLinesCount) {
-                return false;
-            }
-            
             // 既存予約との重複チェック（店舗設定に応じた席数制御）
             $overlappingCount = 0;
             foreach ($existingReservations as $reservation) {
@@ -155,19 +147,18 @@ class AvailabilityController extends Controller
                 $resDate = Carbon::parse($reservation->reservation_date)->format('Y-m-d');
                 $resStart = Carbon::parse($resDate . ' ' . $reservation->start_time);
                 $resEnd = Carbon::parse($resDate . ' ' . $reservation->end_time);
-                
-                if (
-                    ($slotStart->gte($resStart) && $slotStart->lt($resEnd)) ||
-                    ($slotEnd->gt($resStart) && $slotEnd->lte($resEnd)) ||
-                    ($slotStart->lte($resStart) && $slotEnd->gte($resEnd))
-                ) {
+
+                // 正しい重複判定: slotStart < resEnd AND slotEnd > resStart
+                if ($slotStart->lt($resEnd) && $slotEnd->gt($resStart)) {
                     $overlappingCount++;
                 }
             }
-            
+
             // 店舗設定に応じてキャパシティを決定
             $storeCapacity = $this->getSlotCapacity($store, $slotStart, $date);
-            if ($overlappingCount >= $storeCapacity) {
+
+            // ブロック数 + 予約数 >= 総席数 の場合は予約不可
+            if ($blockedMainLinesCount + $overlappingCount >= $storeCapacity) {
                 return false;
             }
             
