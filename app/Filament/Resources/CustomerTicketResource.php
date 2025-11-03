@@ -176,7 +176,7 @@ class CustomerTicketResource extends Resource
                         Forms\Components\DatePicker::make('expires_at')
                             ->label('有効期限')
                             ->displayFormat('Y年m月d日')
-                            ->helperText('自動計算されます（無期限の場合は空欄）')
+                            ->helperText('自動計算されます')
                             ->disabled(),
 
                         Forms\Components\Placeholder::make('days_until_expiry')
