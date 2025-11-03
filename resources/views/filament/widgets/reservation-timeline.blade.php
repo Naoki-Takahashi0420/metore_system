@@ -780,7 +780,7 @@
 
         <!-- タイムライン -->
         <div class="overflow-x-auto" style="position: relative;">
-            <!-- 現在時刻インジケーター -->
+            <!-- 現在時刻インジケーター（wire:ignoreで保護） -->
             @php
                 $isToday = \Carbon\Carbon::parse($selectedDate)->isToday();
             @endphp
@@ -813,7 +813,8 @@
                      style="visibility: hidden; left: 0px; transition: opacity 0.5s ease-in-out;"
                      data-timeline-start="{{ $timelineStartHour }}"
                      data-timeline-end="{{ $timelineEndHour }}"
-                     data-slot-duration="{{ $slotDuration }}">
+                     data-slot-duration="{{ $slotDuration }}"
+                     wire:ignore>
                     <span class="current-time-text">{{ $now->format('H:i') }}</span>
                 </div>
             @endif
@@ -1088,57 +1089,16 @@
         <script>
             console.log('タイムラインインジケータースクリプト読み込み開始');
 
-            // 🚨 EMERGENCY: タイムライン範囲外の強制削除（完全版）
-            function emergencyRemoveIndicator() {
-                const now = new Date().toLocaleString("en-US", {timeZone: "Asia/Tokyo"});
-                const jstDate = new Date(now);
-                const currentHour = jstDate.getHours();
-
-                // data属性からタイムライン範囲を取得
-                const indicator = document.getElementById('current-time-indicator');
-                const timelineStartHour = indicator ? parseInt(indicator.dataset.timelineStart || '10') : 10;
-                const timelineEndHour = indicator ? parseInt(indicator.dataset.timelineEnd || '21') : 21;
-
-                console.log('🚨 EMERGENCY CHECK: JST時刻=' + currentHour + '時, タイムライン範囲=' + timelineStartHour + '-' + timelineEndHour + '時');
-
-                if (currentHour < timelineStartHour || currentHour >= timelineEndHour) {
-                    console.log('🚨 EMERGENCY: タイムライン範囲外で強制削除実行');
-                    // より包括的な削除
-                    const selectors = [
-                        '#current-time-indicator',
-                        '.current-time-indicator',
-                        '[class*="current-time"]',
-                        '[style*="background: #ef4444"]',
-                        '[style*="background:#ef4444"]',
-                        'div[style*="position: absolute"][style*="width: 2px"]'
-                    ];
-
-                    selectors.forEach(selector => {
-                        const elements = document.querySelectorAll(selector);
-                        elements.forEach(el => {
-                            console.log('🚨 要素削除:', selector, el);
-                            el.remove();
-                        });
-                    });
-                } else {
-                    console.log('✅ EMERGENCY CHECK: タイムライン範囲内のため削除しない');
-                }
-            }
-
-            // 即座に実行
-            emergencyRemoveIndicator();
-
-            // 定期実行
-            setInterval(emergencyRemoveIndicator, 5000);
+            // 可視性チェックはPHP側で実行済み（CSSクラス .outside-business-hours で制御）
+            console.log('⏰ インジケーター可視性はPHP側で制御されています');
 
             function createTimeIndicator() {
                 console.log('createTimeIndicator 実行開始');
 
-                // 既存のインジケーターがある場合は位置を更新するだけ
-                const existingIndicator = document.getElementById('current-time-indicator');
-                if (existingIndicator) {
-                    console.log('✅ 既存インジケーター発見 - 位置更新のみ実行');
-                    updateIndicatorPosition();
+                // PHP側で生成されたインジケーターを取得（必ず存在するはず）
+                const indicator = document.getElementById('current-time-indicator');
+                if (!indicator) {
+                    console.log('⚠️ PHP側で生成されたインジケーターが見つかりません');
                     return;
                 }
 
@@ -1148,123 +1108,27 @@
                 const currentHour = jstDate.getHours();
                 const currentMinute = jstDate.getMinutes();
 
-                // タイムライン開始時刻をdata属性から取得（デフォルト10:00）
-                const timelineStartHour = 10; // デフォルト値
-                const timelineEndHour = 21;
-                const slotDuration = 30;
+                // data属性から設定を取得
+                const timelineStartHour = parseInt(indicator.dataset.timelineStart);
+                const timelineEndHour = parseInt(indicator.dataset.timelineEnd);
 
                 console.log(`🕒 JST現在時刻: ${currentHour}:${String(currentMinute).padStart(2, '0')}`);
                 console.log(`📅 タイムライン範囲: ${timelineStartHour}:00 - ${timelineEndHour}:00`);
-                console.log(`⏱️  スロット間隔: ${slotDuration}分`);
 
-                // タイムライン範囲外の場合は何もしない
+                // タイムライン範囲外の場合はCSS制御に任せる
                 if (currentHour < timelineStartHour || currentHour >= timelineEndHour) {
-                    console.log('🚫 createTimeIndicator: タイムライン範囲外のため処理停止');
+                    console.log('🚫 createTimeIndicator: タイムライン範囲外（CSS制御）');
+                    indicator.classList.add('outside-business-hours');
                     return;
                 }
 
                 console.log('✅ タイムライン範囲内のためインジケーター表示処理を続行');
 
-                // 要素を探す
-                const table = document.querySelector('.timeline-table');
-                const container = document.querySelector('.overflow-x-auto');
+                // 範囲内の場合はクラスを削除
+                indicator.classList.remove('outside-business-hours');
 
-                if (!table || !container) {
-                    console.log('必要な要素が見つかりません', { table, container });
-                    return;
-                }
-
-                // インジケーター作成
-                const indicator = document.createElement('div');
-                indicator.id = 'current-time-indicator';
-                indicator.style.cssText = `
-                    position: absolute;
-                    left: 0px;
-                    top: 60px;
-                    width: 2px;
-                    height: calc(100% - 60px);
-                    background: #ef4444;
-                    z-index: 10;  /* サイドバーより下に配置 */
-                    pointer-events: none;
-                    box-shadow: 0 0 10px rgba(239, 68, 68, 0.8);
-                `;
-
-                container.style.position = 'relative';
-                container.appendChild(indicator);
-
-                // 位置計算と更新を遅延実行
-                setTimeout(() => {
-                    const firstRow = table.querySelector('tbody tr');
-                    if (!firstRow) {
-                        console.log('データ行が見つかりません');
-                        return;
-                    }
-
-                    const cells = firstRow.querySelectorAll('td');
-                    if (cells.length < 2) {
-                        console.log('十分なセルがありません');
-                        return;
-                    }
-
-                    const firstCellWidth = cells[0].offsetWidth;
-                    const cellWidth = cells[1].offsetWidth;
-
-                    console.log(`実測値: 席幅=${firstCellWidth}px, セル幅=${cellWidth}px`);
-
-                    if (firstCellWidth === 0 || cellWidth === 0) {
-                        console.log('⚠️ セル幅が0です。さらに遅延して再試行します...');
-                        // さらに遅延して再試行
-                        setTimeout(() => {
-                            const retryFirstCellWidth = cells[0].offsetWidth;
-                            const retryCellWidth = cells[1].offsetWidth;
-
-                            if (retryFirstCellWidth === 0 || retryCellWidth === 0) {
-                                console.error('❌ 再試行後もセル幅が0です。インジケーターを非表示にします。');
-                                indicator.style.display = 'none';
-                                return;
-                            }
-
-                            const minutesFromStart = (currentHour - timelineStartHour) * 60 + currentMinute;
-                            const cellIndex = Math.floor(minutesFromStart / slotDuration);
-                            const percentageIntoCell = (minutesFromStart % slotDuration) / slotDuration;
-                            const leftPosition = retryFirstCellWidth + (cellIndex * retryCellWidth) + (percentageIntoCell * retryCellWidth);
-
-                            indicator.style.left = leftPosition + 'px';
-                            console.log(`✅ 再試行成功: 左位置=${leftPosition.toFixed(1)}px (席幅=${retryFirstCellWidth}px, セル幅=${retryCellWidth}px)`);
-                        }, 1000);
-                        return;
-                    }
-
-                    // 時間計算（タイムライン開始時刻からの経過時間）
-                    const minutesFromStart = (currentHour - timelineStartHour) * 60 + currentMinute;
-                    const cellIndex = Math.floor(minutesFromStart / slotDuration);
-                    const percentageIntoCell = (minutesFromStart % slotDuration) / slotDuration;
-                    const leftPosition = firstCellWidth + (cellIndex * cellWidth) + (percentageIntoCell * cellWidth);
-
-                    console.log(`\n=== 🎯 位置計算結果 ===`);
-                    console.log(`現在時刻: ${currentHour}:${String(currentMinute).padStart(2, '0')}`);
-                    console.log(`開始時刻: ${timelineStartHour}:00`);
-                    console.log(`開始からの分数: ${minutesFromStart}分`);
-                    console.log(`スロット間隔: ${slotDuration}分`);
-                    console.log(`セルインデックス: ${cellIndex}`);
-                    console.log(`セル内割合: ${(percentageIntoCell * 100).toFixed(1)}%`);
-                    console.log(`席幅: ${firstCellWidth}px`);
-                    console.log(`セル幅: ${cellWidth}px`);
-                    console.log(`計算式: ${firstCellWidth} + (${cellIndex} × ${cellWidth}) + (${(percentageIntoCell * 100).toFixed(1)}% × ${cellWidth})`);
-                    console.log(`最終位置: ${leftPosition.toFixed(1)}px`);
-
-                    indicator.style.left = leftPosition + 'px';
-
-                    // 時刻テキストも更新
-                    const timeText = indicator.querySelector('.current-time-text');
-                    if (timeText) {
-                        timeText.textContent = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
-                    }
-
-                    console.log('インジケーター位置更新完了');
-                }, 200);
-
-                console.log('インジケーター作成完了');
+                // 位置更新を実行（visibilityもここで設定される）
+                updateIndicatorPosition();
             }
 
             // インジケーターの位置だけを更新する関数
@@ -1324,6 +1188,9 @@
                 // 位置を適用
                 indicator.style.left = leftPosition + 'px';
 
+                // ⭐ 重要: PHPで visibility: hidden に設定されているため、ここで visible にする
+                indicator.style.visibility = 'visible';
+
                 console.log(`✅ インジケーター位置更新: ${leftPosition.toFixed(1)}px (${currentHour}:${String(currentMinute).padStart(2, '0')})`);
                 console.log(`   計算式: ${firstCellWidth} + (${cellIndex} × ${cellWidth}) + (${(percentageIntoCell * 100).toFixed(1)}% × ${cellWidth})`);
 
@@ -1356,12 +1223,15 @@
                 console.log(`🔄 updateTimeIndicator: JST現在時刻: ${currentHour}:${String(currentMinute).padStart(2, '0')}`);
                 console.log(`🔄 タイムライン範囲: ${timelineStartHour}:00 - ${timelineEndHour}:00`);
 
-                // タイムライン範囲外の場合はインジケーターを削除
+                // タイムライン範囲外の場合はCSSクラスで非表示（削除しない！）
                 if (currentHour < timelineStartHour || currentHour >= timelineEndHour) {
-                    console.log('🔄 🚫 updateTimeIndicator: タイムライン範囲外のためインジケーター削除');
-                    indicator.remove();
+                    console.log('🔄 🚫 updateTimeIndicator: タイムライン範囲外のためCSS制御で非表示');
+                    indicator.classList.add('outside-business-hours');
                     return;
                 }
+
+                // 範囲内の場合はクラスを削除して表示
+                indicator.classList.remove('outside-business-hours');
 
                 const table = document.querySelector('.timeline-table');
                 if (table) {
@@ -1383,6 +1253,7 @@
                             const leftPosition = firstCellWidth + (cellIndex * cellWidth) + (percentageIntoCell * cellWidth);
 
                             indicator.style.left = leftPosition + 'px';
+                            indicator.style.visibility = 'visible';
 
                             console.log(`🔄 ✅ 位置更新: ${leftPosition.toFixed(1)}px (時刻: ${currentHour}:${String(currentMinute).padStart(2, '0')})`);
 
@@ -1460,24 +1331,32 @@
             window.updateTimeIndicator = updateTimeIndicator;
             window.updateIndicatorPosition = updateIndicatorPosition;
 
-            // Livewireイベント対応
+            // Livewireイベント対応（レガシーイベント）
             document.addEventListener('livewire:load', function () {
                 console.log('📡 Livewire loaded - インジケーター初期化');
                 setTimeout(createTimeIndicator, 1000);
             });
 
-            document.addEventListener('livewire:navigated', function () {
-                console.log('📡 Livewire navigated - インジケーター再作成');
-                setTimeout(createTimeIndicator, 1000);
-            });
-
-            // Livewire v3対応
+            // Livewire v3対応（位置更新のみ、再生成なし）
             if (window.Livewire) {
+                // DOM更新時（部分更新）
                 Livewire.hook('morph.updated', ({ el, component }) => {
                     if (el.querySelector('.timeline-table')) {
-                        console.log('📡 Livewire morph updated - インジケーター再作成');
-                        setTimeout(createTimeIndicator, 500);
+                        console.log('📡 Livewire morph updated - 位置更新のみ');
+                        setTimeout(updateIndicatorPosition, 500);
                     }
+                });
+
+                // ポーリング更新時（wire:poll）
+                Livewire.hook('message.received', (message, component) => {
+                    console.log('📡 Livewire message received (polling) - 位置更新のみ');
+                    setTimeout(updateIndicatorPosition, 500);
+                });
+
+                // 完全なページ遷移時のみ再生成（wire:navigateなど）
+                Livewire.hook('navigated', () => {
+                    console.log('📡 Livewire navigated - インジケーター再生成');
+                    setTimeout(createTimeIndicator, 1000);
                 });
             }
 
