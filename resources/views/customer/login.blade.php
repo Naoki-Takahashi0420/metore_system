@@ -248,9 +248,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                 })
             });
 
-            const data = await response.json();
-            
             if (response.ok) {
+                const data = await response.json();
                 showOTPModal(phone);
 
                 // メール送信の通知
@@ -271,9 +270,19 @@ document.addEventListener('DOMContentLoaded', async function() {
                     console.log('Debug OTP:', data.debug.otp_code);
                 }
             } else {
+                // エラーレスポンスの場合、JSONパースを試みるが失敗時はデフォルトメッセージ
+                let errorMessage = 'SMS送信に失敗しました';
+                try {
+                    const data = await response.json();
+                    errorMessage = data.error?.message || data.message || errorMessage;
+                } catch (parseError) {
+                    console.error('Error parsing error response:', parseError);
+                    errorMessage = `サーバーエラーが発生しました (HTTP ${response.status})`;
+                }
+
                 window.dispatchEvent(new CustomEvent('show-toast', {
                     detail: {
-                        message: data.message || 'SMS送信に失敗しました',
+                        message: errorMessage,
                         type: 'error'
                     }
                 }));
@@ -450,9 +459,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                 })
             });
 
-            const data = await response.json();
-
             if (response.ok) {
+                const data = await response.json();
                 // メール送信の有無に応じてメッセージを変更
                 const message = data.data?.email_sent
                     ? '認証コードをSMSとメールに送信しました'
@@ -472,11 +480,24 @@ document.addEventListener('DOMContentLoaded', async function() {
                 otpInput.value = '';
                 otpInput.focus();
                 otpError.classList.add('hidden');
-            } else if (response.status === 429) {
-                // Rate limit error
+            } else {
+                // エラーレスポンスの場合、JSONパースを試みるが失敗時はデフォルトメッセージ
+                let errorMessage = response.status === 429
+                    ? '30秒以内の再送信はできません'
+                    : '再送信に失敗しました';
+                try {
+                    const data = await response.json();
+                    errorMessage = data.error?.message || data.message || errorMessage;
+                } catch (parseError) {
+                    console.error('Error parsing error response:', parseError);
+                    if (response.status !== 429) {
+                        errorMessage = `サーバーエラーが発生しました (HTTP ${response.status})`;
+                    }
+                }
+
                 window.dispatchEvent(new CustomEvent('show-toast', {
                     detail: {
-                        message: data.error?.message || '30秒以内の再送信はできません',
+                        message: errorMessage,
                         type: 'error'
                     }
                 }));

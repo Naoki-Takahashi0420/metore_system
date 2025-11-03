@@ -24,77 +24,117 @@ class CustomerAuthController extends Controller
      */
     public function sendOtp(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'phone' => ['required', 'string', 'regex:/^[0-9\-]+$/'],
-            'is_resend' => ['boolean'],
-        ]);
+        try {
+            $validator = Validator::make($request->all(), [
+                'phone' => ['required', 'string', 'regex:/^[0-9\-]+$/'],
+                'is_resend' => ['boolean'],
+            ]);
 
-        if ($validator->fails()) {
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'VALIDATION_ERROR',
+                        'message' => '入力内容に誤りがあります',
+                        'details' => $validator->errors(),
+                    ],
+                ], 422);
+            }
+
+            \Log::info('[CustomerAuth::sendOtp] OTP送信リクエスト', [
+                'phone' => $request->phone,
+                'is_resend' => $request->boolean('is_resend', false),
+            ]);
+
+            // 再送信チェック（30秒以内の再送信を制限）
+            if (!$this->otpService->canResend($request->phone)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'RATE_LIMIT',
+                        'message' => '30秒以内の再送信はできません。しばらくお待ちください。',
+                    ],
+                ], 429);
+            }
+
+            // メールアドレスを取得してフォールバック送信（初回・再送信両方）
+            $email = null;
+            $isResend = $request->boolean('is_resend', false);
+
+            // 既存顧客のメールアドレスを取得（SMS届かない場合のメールフォールバック用）
+            $normalizedPhone = PhoneHelper::normalize($request->phone);
+            \Log::info('[CustomerAuth::sendOtp] 電話番号正規化完了', [
+                'original' => $request->phone,
+                'normalized' => $normalizedPhone,
+            ]);
+
+            $customer = Customer::where('phone', $normalizedPhone)
+                ->orWhere('phone', $request->phone)
+                ->whereNotNull('email')
+                ->first();
+
+            $email = $customer && $customer->email ? $customer->email : null;
+
+            \Log::info('[CustomerAuth::sendOtp] 顧客検索完了', [
+                'customer_found' => $customer ? true : false,
+                'customer_id' => $customer ? $customer->id : null,
+                'email' => $email,
+            ]);
+
+            // OTP送信（メールアドレスがあればSMS + Email、なければSMSのみ）
+            $result = $this->otpService->sendOtp($request->phone, $email);
+
+            \Log::info('[CustomerAuth::sendOtp] OTP送信完了', [
+                'sms_sent' => $result['sms_sent'],
+                'email_sent' => $result['email_sent'],
+                'success' => $result['success'],
+            ]);
+
+            if (!$result['success']) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'SMS_SEND_FAILED',
+                        'message' => 'SMS送信に失敗しました',
+                    ],
+                ], 500);
+            }
+
+            // 送信先に応じてメッセージを変更
+            $message = '認証コードを送信しました';
+            if ($result['sms_sent'] && $result['email_sent']) {
+                $message = '認証コードをSMSとメールに送信しました';
+            } elseif ($result['email_sent']) {
+                $message = '認証コードをメールに送信しました';
+            } elseif ($result['sms_sent']) {
+                $message = '認証コードをSMSに送信しました';
+            }
+
             return response()->json([
-                'success' => false,
-                'error' => [
-                    'code' => 'VALIDATION_ERROR',
-                    'message' => '入力内容に誤りがあります',
-                    'details' => $validator->errors(),
+                'success' => true,
+                'data' => [
+                    'message' => $message,
+                    'email_sent' => $result['email_sent'], // 実際のメール送信結果を返す
+                    'sms_sent' => $result['sms_sent'], // SMS送信結果も返す
                 ],
-            ], 422);
-        }
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('[CustomerAuth::sendOtp] エラー発生', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+                'phone' => $request->phone ?? 'N/A',
+            ]);
 
-        // 再送信チェック（30秒以内の再送信を制限）
-        if (!$this->otpService->canResend($request->phone)) {
             return response()->json([
                 'success' => false,
                 'error' => [
-                    'code' => 'RATE_LIMIT',
-                    'message' => '30秒以内の再送信はできません。しばらくお待ちください。',
-                ],
-            ], 429);
-        }
-
-        // メールアドレスを取得してフォールバック送信（初回・再送信両方）
-        $email = null;
-        $isResend = $request->boolean('is_resend', false);
-
-        // 既存顧客のメールアドレスを取得（SMS届かない場合のメールフォールバック用）
-        $normalizedPhone = PhoneHelper::normalize($request->phone);
-        $customer = Customer::where('phone', $normalizedPhone)
-            ->orWhere('phone', $request->phone)
-            ->whereNotNull('email')
-            ->first();
-
-        $email = $customer && $customer->email ? $customer->email : null;
-
-        // OTP送信（メールアドレスがあればSMS + Email、なければSMSのみ）
-        $result = $this->otpService->sendOtp($request->phone, $email);
-
-        if (!$result['success']) {
-            return response()->json([
-                'success' => false,
-                'error' => [
-                    'code' => 'SMS_SEND_FAILED',
-                    'message' => 'SMS送信に失敗しました',
+                    'code' => 'INTERNAL_ERROR',
+                    'message' => 'システムエラーが発生しました。しばらくしてから再度お試しください。',
                 ],
             ], 500);
         }
-
-        // 送信先に応じてメッセージを変更
-        $message = '認証コードを送信しました';
-        if ($result['sms_sent'] && $result['email_sent']) {
-            $message = '認証コードをSMSとメールに送信しました';
-        } elseif ($result['email_sent']) {
-            $message = '認証コードをメールに送信しました';
-        } elseif ($result['sms_sent']) {
-            $message = '認証コードをSMSに送信しました';
-        }
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'message' => $message,
-                'email_sent' => $result['email_sent'], // 実際のメール送信結果を返す
-                'sms_sent' => $result['sms_sent'], // SMS送信結果も返す
-            ],
-        ]);
     }
     
     /**
