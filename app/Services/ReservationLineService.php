@@ -84,8 +84,9 @@ class ReservationLineService
             $query->whereHas('staffAssignments', function ($q) use ($staffId, $startDateTime) {
                 $q->where('staff_id', $staffId)
                   ->where('date', $startDateTime->toDateString())
-                  ->where('start_time', '<=', $startDateTime->toTimeString())
-                  ->where('end_time', '>=', $startDateTime->toTimeString());
+                  // time()関数で時刻フォーマットを統一
+                  ->whereRaw('time(start_time) <= time(?)', [$startDateTime->toTimeString()])
+                  ->whereRaw('time(end_time) >= time(?)', [$startDateTime->toTimeString()]);
             });
         }
         

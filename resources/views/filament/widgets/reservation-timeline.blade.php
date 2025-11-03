@@ -281,8 +281,6 @@
         <style>
             .timeline-table {
                 border-collapse: collapse;
-                width: 100%;
-                min-width: 1200px;
                 position: relative;
             }
 
@@ -448,16 +446,16 @@
                 transform: scale(1.02);
                 box-shadow: 0 2px 8px rgba(0,0,0,0.15);
             }
-            
-            .booking-block.span-1 { width: calc(var(--cell-width) * 1 - 4px); }
-            .booking-block.span-2 { width: calc(var(--cell-width) * 2 - 4px); }
-            .booking-block.span-3 { width: calc(var(--cell-width) * 3 - 4px); }
-            .booking-block.span-4 { width: calc(var(--cell-width) * 4 - 4px); }
-            .booking-block.span-5 { width: calc(var(--cell-width) * 5 - 4px); }
-            .booking-block.span-6 { width: calc(var(--cell-width) * 6 - 4px); }
-            .booking-block.span-7 { width: calc(var(--cell-width) * 7 - 4px); }
-            .booking-block.span-8 { width: calc(var(--cell-width) * 8 - 4px); }
-            
+
+            .booking-block.span-1 { width: calc(var(--cell-width) * 1); }
+            .booking-block.span-2 { width: calc(var(--cell-width) * 2); }
+            .booking-block.span-3 { width: calc(var(--cell-width) * 3); }
+            .booking-block.span-4 { width: calc(var(--cell-width) * 4); }
+            .booking-block.span-5 { width: calc(var(--cell-width) * 5); }
+            .booking-block.span-6 { width: calc(var(--cell-width) * 6); }
+            .booking-block.span-7 { width: calc(var(--cell-width) * 7); }
+            .booking-block.span-8 { width: calc(var(--cell-width) * 8); }
+
             .booking-name {
                 font-weight: bold;
                 white-space: nowrap;
@@ -821,10 +819,10 @@
 
             @if(!empty($timelineData))
                 @php
-                    // セル幅を予約枠の長さに比例させる（1.5px/分）
-                    // これにより60分の予約はどの間隔でも約90pxで表示される
+                    // セル幅を予約枠の長さに比例させる（調整係数: 1.567）
+                    // 15分間隔の場合: 15 * 1.567 = 23.5px
                     $slotDuration = $timelineData['slotDuration'] ?? 30;
-                    $cellWidth = $slotDuration * 1.5;
+                    $cellWidth = $slotDuration * 1.567;
                 @endphp
                 <table class="timeline-table" style="--cell-width: {{ $cellWidth }}px;">
                     <thead>
@@ -1039,7 +1037,7 @@
                                                         course-{{ $reservation['course_type'] }}
                                                         span-{{ ceil($reservation['span']) }}
                                                         {{ $reservation['is_conflicting'] ?? false ? 'conflicting-reservation' : '' }}"
-                                                        style="width: calc(var(--cell-width) * {{ $reservation['span'] }} - 4px);"
+                                                        style="width: calc(var(--cell-width) * {{ ceil($reservation['span']) }} - 2px);"
                                                         wire:click="openReservationDetail({{ $reservation['id'] }})">
                                                         <div class="booking-name">
                                                             @if($reservation['is_new_customer'] ?? false)

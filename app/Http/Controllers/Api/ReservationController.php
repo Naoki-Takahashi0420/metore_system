@@ -649,10 +649,11 @@ class ReservationController extends Controller
             ->whereNotIn('status', ['cancelled', 'canceled', 'no_show'])
             ->where('id', '!=', $reservation->id) // 自分の予約は除外
             ->where(function($query) use ($validated, $newEndTime) {
-                // 時間重複チェック
+                // 時間重複チェック（境界を含まない: 14:30-15:30と15:30-17:00は重複しない）
+                // time()関数で時刻フォーマットを統一
                 $query->where(function($q) use ($validated, $newEndTime) {
-                    $q->where('start_time', '<', $newEndTime->format('H:i:s'))
-                      ->where('end_time', '>', $validated['new_time']);
+                    $q->whereRaw('time(start_time) < time(?)', [$newEndTime->format('H:i:s')])
+                      ->whereRaw('time(end_time) > time(?)', [$validated['new_time']]);
                 });
             })
             ->get();
@@ -776,8 +777,10 @@ class ReservationController extends Controller
                 ->where('id', '!=', $reservation->id)
                 ->where(function($query) use ($checkStartTime, $checkEndTime) {
                     $query->where(function($q) use ($checkStartTime, $checkEndTime) {
-                        $q->where('start_time', '<', $checkEndTime)
-                          ->where('end_time', '>', $checkStartTime);
+                        // 時間重複チェック（境界を含まない: 14:30-15:30と15:30-17:00は重複しない）
+                        // time()関数で時刻フォーマットを統一
+                        $q->whereRaw('time(start_time) < time(?)', [$checkEndTime])
+                          ->whereRaw('time(end_time) > time(?)', [$checkStartTime]);
                     });
                 })
                 ->get();
@@ -893,8 +896,10 @@ class ReservationController extends Controller
             ->where('id', '!=', $reservation->id)
             ->where(function($query) use ($reservation, $newEndTime) {
                 $query->where(function($q) use ($reservation, $newEndTime) {
-                    $q->where('start_time', '<', $newEndTime->format('H:i:s'))
-                      ->where('end_time', '>', $reservation->start_time);
+                    // 時間重複チェック（境界を含まない: 14:30-15:30と15:30-17:00は重複しない）
+                    // time()関数で時刻フォーマットを統一
+                    $q->whereRaw('time(start_time) < time(?)', [$newEndTime->format('H:i:s')])
+                      ->whereRaw('time(end_time) > time(?)', [$reservation->start_time]);
                 });
             })
             ->get();

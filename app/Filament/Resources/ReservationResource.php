@@ -48,10 +48,10 @@ class ReservationResource extends Resource
         $query = Reservation::where('reservation_date', $date)
             ->where('status', '!=', 'cancelled')
             ->where(function ($q) use ($startTime, $endTime) {
-                // 正しい重複判定: 既存予約のstart_time < 新予約のend_time AND 既存予約のend_time > 新予約のstart_time
-                // ピッタリ同じ時刻（17:00-18:00 と 18:00-19:00）は重複しない
-                $q->where('start_time', '<', $endTime)
-                  ->where('end_time', '>', $startTime);
+                // 時間重複チェック（境界を含まない: 14:30-15:30と15:30-17:00は重複しない）
+                // time()関数で時刻フォーマットを統一（'15:30:00' と '15:30' の比較を正しく処理）
+                $q->whereRaw('time(start_time) < time(?)', [$endTime])
+                  ->whereRaw('time(end_time) > time(?)', [$startTime]);
             });
 
         // 編集時は現在のレコードを除外
@@ -299,9 +299,10 @@ class ReservationResource extends Resource
                                         ->where('reservation_date', $get('reservation_date'))
                                         ->where('status', '!=', 'cancelled')
                                         ->where(function ($q) use ($get) {
-                                            // 正しい重複判定: 既存予約のstart_time < 新予約のend_time AND 既存予約のend_time > 新予約のstart_time
-                                            $q->where('start_time', '<', $get('end_time'))
-                                              ->where('end_time', '>', $get('start_time'));
+                                            // 時間重複チェック（境界を含まない: 14:30-15:30と15:30-17:00は重複しない）
+                                            // time()関数で時刻フォーマットを統一
+                                            $q->whereRaw('time(start_time) < time(?)', [$get('end_time')])
+                                              ->whereRaw('time(end_time) > time(?)', [$get('start_time')]);
                                         });
 
                                     // 編集時は現在のレコードを除外（自分自身を重複としてカウントしない）

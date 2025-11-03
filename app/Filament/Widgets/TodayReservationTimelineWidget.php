@@ -100,6 +100,12 @@ class TodayReservationTimelineWidget extends Widget
         
         $dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][$selectedDate->dayOfWeek];
         
+        // 最小予約スロット間隔を取得
+        $minSlotInterval = 30; // デフォルト
+        if ($stores->isNotEmpty()) {
+            $minSlotInterval = $stores->min('reservation_slot_duration') ?? 30;
+        }
+
         // データをキャッシュ
         $this->cachedData = [
             'reservations' => $reservations,
@@ -110,8 +116,9 @@ class TodayReservationTimelineWidget extends Widget
             'canNavigateBack' => $selectedDate->gt(Carbon::today()->subDays(30)),
             'canNavigateForward' => $selectedDate->lt(Carbon::today()->addDays(60)),
             'timeSlots' => $this->getTimeSlots(),
+            'minSlotInterval' => $minSlotInterval,
         ];
-        
+
         return $this->cachedData;
     }
     
@@ -406,9 +413,9 @@ class TodayReservationTimelineWidget extends Widget
             $minSlotInterval = $stores->min('reservation_slot_duration') ?? 30;
         }
 
-        // 営業時間のフルレンジを表示
+        // 営業時間のフルレンジを表示（最後の予約が見切れないように終了時刻+スロット間隔分延長）
         $start = $earliestOpen->copy();
-        $end = $latestClose->copy();
+        $end = $latestClose->copy()->addMinutes($minSlotInterval);
 
         $slots = collect();
         while ($start <= $end) {

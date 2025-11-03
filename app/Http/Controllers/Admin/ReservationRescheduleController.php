@@ -470,12 +470,14 @@ class ReservationRescheduleController extends Controller
             ->whereNull('line_type')
             ->where(function($query) use ($startTime, $endTime) {
                 $query->where(function($q) use ($startTime) {
-                    $q->where('start_time', '<=', $startTime)
-                      ->where('end_time', '>', $startTime);
+                    // time()関数で時刻フォーマットを統一
+                    $q->whereRaw('time(start_time) <= time(?)', [$startTime])
+                      ->whereRaw('time(end_time) > time(?)', [$startTime]);
                 })
                 ->orWhere(function($q) use ($endTime) {
-                    $q->where('start_time', '<', $endTime)
-                      ->where('end_time', '>=', $endTime);
+                    // time()関数で時刻フォーマットを統一
+                    $q->whereRaw('time(start_time) < time(?)', [$endTime])
+                      ->whereRaw('time(end_time) >= time(?)', [$endTime]);
                 })
                 ->orWhere(function($q) use ($startTime, $endTime) {
                     $q->where('start_time', '>=', $startTime)
@@ -494,12 +496,14 @@ class ReservationRescheduleController extends Controller
                 ->where('staff_id', $staffId)
                 ->where(function($query) use ($startTime, $endTime) {
                     $query->where(function($q) use ($startTime) {
-                        $q->where('start_time', '<=', $startTime)
-                          ->where('end_time', '>', $startTime);
+                        // time()関数で時刻フォーマットを統一
+                        $q->whereRaw('time(start_time) <= time(?)', [$startTime])
+                          ->whereRaw('time(end_time) > time(?)', [$startTime]);
                     })
                     ->orWhere(function($q) use ($endTime) {
-                        $q->where('start_time', '<', $endTime)
-                          ->where('end_time', '>=', $endTime);
+                        // time()関数で時刻フォーマットを統一
+                        $q->whereRaw('time(start_time) < time(?)', [$endTime])
+                          ->whereRaw('time(end_time) >= time(?)', [$endTime]);
                     })
                     ->orWhere(function($q) use ($startTime, $endTime) {
                         $q->where('start_time', '>=', $startTime)
@@ -525,11 +529,11 @@ class ReservationRescheduleController extends Controller
             $conflictQuery->where('staff_id', $staffId);
         }
 
-        // 正しい重複判定: 既存予約のstart_time < 新予約のend_time AND 既存予約のend_time > 新予約のstart_time
-        // ピッタリ同じ時刻（17:00-18:00 と 18:00-19:00）は重複しない
+        // 時間重複チェック（境界を含まない: 14:30-15:30と15:30-17:00は重複しない）
+        // time()関数で時刻フォーマットを統一
         $conflictCount = $conflictQuery->where(function($query) use ($startTime, $endTime) {
-            $query->where('start_time', '<', $endTime)
-                  ->where('end_time', '>', $startTime);
+            $query->whereRaw('time(start_time) < time(?)', [$endTime])
+                  ->whereRaw('time(end_time) > time(?)', [$startTime]);
         })->count();
 
         // 席数を考慮した判定（営業時間モードの場合）

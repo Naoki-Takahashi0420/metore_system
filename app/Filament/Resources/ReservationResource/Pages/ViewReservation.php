@@ -116,8 +116,9 @@ class ViewReservation extends ViewRecord
                                   ->orWhereBetween('end_time', [$startTime, $endTime])
                                   // または新しい予約が既存予約時間内
                                   ->orWhere(function ($q2) use ($startTime, $endTime) {
-                                      $q2->where('start_time', '<=', $startTime)
-                                         ->where('end_time', '>=', $endTime);
+                                      // time()関数で時刻フォーマットを統一
+                                      $q2->whereRaw('time(start_time) <= time(?)', [$startTime])
+                                         ->whereRaw('time(end_time) >= time(?)', [$endTime]);
                                   });
                             });
                         })

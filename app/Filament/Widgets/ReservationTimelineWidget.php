@@ -2457,9 +2457,10 @@ class ReservationTimelineWidget extends Widget
                         }
                     })
                     ->where(function ($q) use ($startTime, $endTime) {
-                        // 時間重複チェック（境界を含まない）
-                        $q->where('start_time', '<', $endTime->format('H:i'))
-                          ->where('end_time', '>', $startTime->format('H:i'));
+                        // 時間重複チェック（境界を含まない: 14:30-15:30と15:30-17:00は重複しない）
+                        // time()関数で時刻フォーマットを統一（'15:30:00' と '15:30' の比較を正しく処理）
+                        $q->whereRaw('time(start_time) < time(?)', [$endTime->format('H:i:s')])
+                          ->whereRaw('time(end_time) > time(?)', [$startTime->format('H:i:s')]);
                     })
                     ->get();
 
@@ -3648,9 +3649,9 @@ class ReservationTimelineWidget extends Widget
         $startTimeStr = $startTime->format('H:i:s');
         $newEndTimeStr = $newEndTime->format('H:i:s');
 
-        // 全ての候補を取得
-        $allCandidates = $query->where('start_time', '<', $newEndTimeStr)
-                              ->where('end_time', '>', $startTimeStr)
+        // 全ての候補を取得（time()関数で時刻フォーマットを統一）
+        $allCandidates = $query->whereRaw('time(start_time) < time(?)', [$newEndTimeStr])
+                              ->whereRaw('time(end_time) > time(?)', [$startTimeStr])
                               ->get();
 
         // 境界で接しているだけの予約を除外

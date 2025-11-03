@@ -183,12 +183,14 @@
                                                 : $reservation->end_time->format('H:i');
                                                 
                                             if ($slot === $reservationStartTime) {
-                                                // 開始セル - colspan計算
+                                                // 開始セル - colspan計算（タイムスロット生成基準で計算）
                                                 $isStartCell = true;
                                                 $startMinutes = strtotime($reservationStartTime);
                                                 $endMinutes = strtotime($reservationEndTime);
                                                 $durationMinutes = ($endMinutes - $startMinutes) / 60;
-                                                $colspan = max(1, intval($durationMinutes / 30)); // 30分単位
+                                                // タイムスロット生成の基準となる最小スロット間隔を使用
+                                                $slotInterval = $this->getData()['minSlotInterval'] ?? 30;
+                                                $colspan = max(1, ceil($durationMinutes / $slotInterval)); // スロット間隔単位（切り上げ）
                                             } elseif ($slot > $reservationStartTime && $slot < $reservationEndTime) {
                                                 // 中間セル - 非表示
                                                 $shouldHide = true;
