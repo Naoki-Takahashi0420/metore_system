@@ -3589,6 +3589,38 @@ class ReservationTimelineWidget extends Widget
             $subscriptionWarning = '選択されたメニューはサブスクリプションメニューですが、この顧客にアクティブなサブスクリプションがありません';
         }
 
+        // 回数券判定
+        $isTicket = false;
+        $activeTicket = null;
+        $ticketWarning = null;
+
+        if ($customer && $newMenu->id) {
+            // 顧客のアクティブな回数券を取得（店舗一致・残回数>0）
+            $activeTicket = \App\Models\CustomerTicket::where('customer_id', $customer->id)
+                ->where('store_id', $storeId)
+                ->where('status', 'active')
+                ->where('remaining_count', '>', 0)
+                ->whereHas('ticketPlan', function ($q) use ($newMenu) {
+                    $q->where('menu_id', $newMenu->id);
+                })
+                ->with('ticketPlan')
+                ->first();
+
+            if ($activeTicket) {
+                $isTicket = true;
+            } else {
+                // 回数券メニューなのにアクティブ回数券がない場合の警告
+                // （回数券プランが存在するか確認）
+                $ticketPlanExists = \App\Models\TicketPlan::where('menu_id', $newMenu->id)
+                    ->where('store_id', $storeId)
+                    ->exists();
+
+                if ($ticketPlanExists) {
+                    $ticketWarning = '選択されたメニューは回数券メニューですが、この顧客に利用可能な回数券がありません';
+                }
+            }
+        }
+
         // 合計時間を計算
         $totalMinutes = $newMenu->duration_minutes;
 
@@ -3726,8 +3758,12 @@ class ReservationTimelineWidget extends Widget
                 foreach ($optionIds as $optionId) {
                     $option = \App\Models\MenuOption::find($optionId);
                     if ($option) {
-                        // サブスクリプション予約の場合はオプション料金を0円にする
-                        $optionPrice = ($isSubscription && $activeSubscription) ? 0 : ($option->price ?? 0);
+                        // サブスクリプション or 回数券予約の場合はオプション料金を0円にする
+                        if (($isSubscription && $activeSubscription) || ($isTicket && $activeTicket)) {
+                            $optionPrice = 0;
+                        } else {
+                            $optionPrice = $option->price ?? 0;
+                        }
                         $totalOptionPrice += $optionPrice;
 
                         \App\Models\ReservationOption::create([
@@ -3741,17 +3777,27 @@ class ReservationTimelineWidget extends Widget
             }
 
             // 合計金額の計算
-            // サブスクリプション予約の場合は0円、非サブスクの場合はメニュー料金 + オプション料金
-            $totalAmount = ($isSubscription && $activeSubscription) ? 0 : (($newMenu->price ?? 0) + $totalOptionPrice);
+            // サブスクリプション or 回数券の場合は0円、それ以外はメニュー料金 + オプション料金
+            if (($isSubscription && $activeSubscription) || ($isTicket && $activeTicket)) {
+                $totalAmount = 0;
+            } else {
+                $totalAmount = ($newMenu->price ?? 0) + $totalOptionPrice;
+            }
 
             // 支払い方法の決定
-            // サブスクリプション予約の場合は'subscription'、それ以外は既存値を維持（未設定なら'cash'）
-            $paymentMethod = ($isSubscription && $activeSubscription) ? 'subscription' : ($reservation->payment_method ?? 'cash');
+            if ($isSubscription && $activeSubscription) {
+                $paymentMethod = 'subscription';
+            } elseif ($isTicket && $activeTicket) {
+                $paymentMethod = 'ticket';
+            } else {
+                $paymentMethod = $reservation->payment_method ?? 'cash';
+            }
 
             // 予約情報を更新
             $reservation->menu_id = $menuId;
             $reservation->end_time = $newEndTime->format('H:i:s');
             $reservation->customer_subscription_id = ($isSubscription && $activeSubscription) ? $activeSubscription->id : null;
+            $reservation->customer_ticket_id = ($isTicket && $activeTicket) ? $activeTicket->id : null;
             $reservation->payment_method = $paymentMethod;
             $reservation->total_amount = $totalAmount;
             $reservation->save();
@@ -3760,8 +3806,18 @@ class ReservationTimelineWidget extends Widget
 
             // レスポンスメッセージの構築
             $message = 'メニューを変更しました';
+            $warnings = [];
+
             if ($subscriptionWarning) {
-                $message .= '（警告: ' . $subscriptionWarning . '）';
+                $warnings[] = $subscriptionWarning;
+            }
+
+            if ($ticketWarning) {
+                $warnings[] = $ticketWarning;
+            }
+
+            if (!empty($warnings)) {
+                $message .= '（警告: ' . implode('、', $warnings) . '）';
             }
 
             return [
@@ -3772,9 +3828,11 @@ class ReservationTimelineWidget extends Widget
                     'total_duration' => $totalMinutes . '分',
                     'is_subscription' => $isSubscription,
                     'subscription_bound' => $activeSubscription ? true : false,
+                    'is_ticket' => $isTicket,
+                    'ticket_bound' => $activeTicket ? true : false,
                     'payment_method' => $paymentMethod,
                     'total_amount' => $totalAmount,
-                    'warning' => $subscriptionWarning
+                    'warning' => !empty($warnings) ? implode('、', $warnings) : null
                 ]
             ];
 
