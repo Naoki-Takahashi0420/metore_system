@@ -1194,10 +1194,76 @@ class MedicalRecordResource extends Resource
 
                 Tables\Filters\SelectFilter::make('customer_id')
                     ->label('顧客')
-                    ->options(Customer::all()->mapWithKeys(function ($customer) {
-                        return [$customer->id => $customer->last_name . ' ' . $customer->first_name];
-                    }))
-                    ->searchable(),
+                    ->searchable()
+                    ->getSearchResultsUsing(function (string $search) {
+                        $user = auth()->user();
+                        $dbDriver = \DB::connection()->getDriverName();
+                        $search = trim($search);
+
+                        // ベースクエリ
+                        $query = Customer::query();
+
+                        // 検索条件
+                        if ($dbDriver === 'mysql') {
+                            $query->where(function ($q) use ($search) {
+                                $q->where('last_name', 'like', "%{$search}%")
+                                  ->orWhere('first_name', 'like', "%{$search}%")
+                                  ->orWhere('last_name_kana', 'like', "%{$search}%")
+                                  ->orWhere('first_name_kana', 'like', "%{$search}%")
+                                  ->orWhere('phone', 'like', "%{$search}%")
+                                  ->orWhere('email', 'like', "%{$search}%")
+                                  ->orWhereRaw('CONCAT(last_name, first_name) LIKE ?', ["%{$search}%"])
+                                  ->orWhereRaw('CONCAT(last_name, " ", first_name) LIKE ?', ["%{$search}%"])
+                                  ->orWhereRaw('CONCAT(last_name_kana, first_name_kana) LIKE ?', ["%{$search}%"])
+                                  ->orWhereRaw('CONCAT(last_name_kana, " ", first_name_kana) LIKE ?', ["%{$search}%"]);
+                            });
+                        } else {
+                            $query->where(function ($q) use ($search) {
+                                $q->where('last_name', 'like', "%{$search}%")
+                                  ->orWhere('first_name', 'like', "%{$search}%")
+                                  ->orWhere('last_name_kana', 'like', "%{$search}%")
+                                  ->orWhere('first_name_kana', 'like', "%{$search}%")
+                                  ->orWhere('phone', 'like', "%{$search}%")
+                                  ->orWhere('email', 'like', "%{$search}%")
+                                  ->orWhereRaw('(last_name || first_name) LIKE ?', ["%{$search}%"])
+                                  ->orWhereRaw('(last_name || " " || first_name) LIKE ?', ["%{$search}%"])
+                                  ->orWhereRaw('(last_name_kana || first_name_kana) LIKE ?', ["%{$search}%"])
+                                  ->orWhereRaw('(last_name_kana || " " || first_name_kana) LIKE ?', ["%{$search}%"]);
+                            });
+                        }
+
+                        // 権限による絞り込み
+                        if (!$user->hasRole('super_admin')) {
+                            if ($user->hasRole('owner')) {
+                                $storeIds = $user->manageableStores()->pluck('stores.id')->toArray();
+                                $query->where(function ($q) use ($storeIds) {
+                                    $q->whereIn('store_id', $storeIds)
+                                      ->orWhereHas('reservations', function ($subQ) use ($storeIds) {
+                                          $subQ->whereIn('store_id', $storeIds);
+                                      });
+                                });
+                            } elseif ($user->store_id) {
+                                $query->where(function ($q) use ($user) {
+                                    $q->where('store_id', $user->store_id)
+                                      ->orWhereHas('reservations', function ($subQ) use ($user) {
+                                          $subQ->where('store_id', $user->store_id);
+                                      });
+                                });
+                            } else {
+                                return [];
+                            }
+                        }
+
+                        return $query->limit(50)->get()->mapWithKeys(function ($customer) {
+                            $label = ($customer->last_name ?? '') . ' ' . ($customer->first_name ?? '') . ' (' . ($customer->phone ?? '') . ')';
+                            return [$customer->id => $label];
+                        });
+                    })
+                    ->getOptionLabelUsing(function ($value) {
+                        $customer = Customer::find($value);
+                        if (!$customer) return $value;
+                        return ($customer->last_name ?? '') . ' ' . ($customer->first_name ?? '') . ' (' . ($customer->phone ?? '') . ')';
+                    }),
                 
                 Tables\Filters\Filter::make('has_next_notes')
                     ->label('引き継ぎありのみ')
@@ -1218,13 +1284,18 @@ class MedicalRecordResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('treatment_date', 'desc');
+            ->defaultSort('treatment_date', 'desc')
+            ->defaultPaginationPageOption(25)
+            ->paginationPageOptions([10, 25, 50, 100])
+            ->deferLoading();
     }
 
     public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
     {
         $user = auth()->user();
-        $query = parent::getEloquentQuery();
+        $query = parent::getEloquentQuery()
+            // N+1問題を防ぐためにEager Loading
+            ->with(['customer.store', 'reservation.store', 'reservation.menu', 'reservation.staff']);
 
         // スーパーアドミンは全カルテにアクセス可能
         if ($user->hasRole('super_admin')) {

@@ -34,8 +34,49 @@ class GenerateToken extends Page
                     ->schema([
                         Forms\Components\Select::make('customer_id')
                             ->label('顧客')
-                            ->options(Customer::all()->pluck('name', 'id'))
                             ->searchable()
+                            ->getSearchResultsUsing(function (string $search) {
+                                $dbDriver = \DB::connection()->getDriverName();
+                                $search = trim($search);
+
+                                // ベースクエリ
+                                $query = Customer::query();
+
+                                // 検索条件
+                                if ($dbDriver === 'mysql') {
+                                    $query->where(function ($q) use ($search) {
+                                        $q->where('last_name', 'like', "%{$search}%")
+                                          ->orWhere('first_name', 'like', "%{$search}%")
+                                          ->orWhere('last_name_kana', 'like', "%{$search}%")
+                                          ->orWhere('first_name_kana', 'like', "%{$search}%")
+                                          ->orWhere('phone', 'like', "%{$search}%")
+                                          ->orWhere('email', 'like', "%{$search}%")
+                                          ->orWhereRaw('CONCAT(last_name, first_name) LIKE ?', ["%{$search}%"])
+                                          ->orWhereRaw('CONCAT(last_name, " ", first_name) LIKE ?', ["%{$search}%"]);
+                                    });
+                                } else {
+                                    $query->where(function ($q) use ($search) {
+                                        $q->where('last_name', 'like', "%{$search}%")
+                                          ->orWhere('first_name', 'like', "%{$search}%")
+                                          ->orWhere('last_name_kana', 'like', "%{$search}%")
+                                          ->orWhere('first_name_kana', 'like', "%{$search}%")
+                                          ->orWhere('phone', 'like', "%{$search}%")
+                                          ->orWhere('email', 'like', "%{$search}%")
+                                          ->orWhereRaw('(last_name || first_name) LIKE ?', ["%{$search}%"])
+                                          ->orWhereRaw('(last_name || " " || first_name) LIKE ?', ["%{$search}%"]);
+                                    });
+                                }
+
+                                return $query->limit(50)->get()->mapWithKeys(function ($customer) {
+                                    $label = ($customer->last_name ?? '') . ' ' . ($customer->first_name ?? '') . ' (' . ($customer->phone ?? '') . ')';
+                                    return [$customer->id => $label];
+                                });
+                            })
+                            ->getOptionLabelUsing(function ($value) {
+                                $customer = Customer::find($value);
+                                if (!$customer) return $value;
+                                return ($customer->last_name ?? '') . ' ' . ($customer->first_name ?? '') . ' (' . ($customer->phone ?? '') . ')';
+                            })
                             ->required()
                             ->helperText('トークンを発行する顧客を選択'),
                             
