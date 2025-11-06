@@ -601,7 +601,7 @@ class DailyClosing extends Page implements HasForms
 
         // エディタデータ初期化
         $initialSubtotal = $source === 'spot' ? ($reservation->total_amount ?? 0) : 0;
-        $initialTaxAmount = floor($initialSubtotal * 0.1);
+        $initialTaxAmount = 0;  // 内税のため0
 
         // 計上済み売上がある場合は割引額を取得
         $initialDiscountAmount = $existingSale ? (int)($existingSale->discount_amount ?? 0) : 0;
@@ -626,9 +626,9 @@ class DailyClosing extends Page implements HasForms
             'payment_methods_list' => $storePaymentMethods, // 店舗の支払い方法リスト
             'payment_source' => $source,
             'subtotal' => $initialSubtotal,
-            'tax_amount' => $initialTaxAmount,
+            'tax_amount' => 0,  // 内税のため0
             'discount_amount' => $initialDiscountAmount, // 割引額
-            'total' => $initialSubtotal + $initialTaxAmount,
+            'total' => $initialSubtotal - $initialDiscountAmount,  // 内税のため税額を加算しない
         ];
 
         // オプション/物販がある場合は合計を再計算（税込み）
@@ -833,7 +833,7 @@ class DailyClosing extends Page implements HasForms
                         'name' => $item['name'],
                         'price' => $item['price'] ?? 0,
                         'quantity' => $item['quantity'] ?? 1,
-                        'tax_rate' => 0.1,
+                        'tax_rate' => 0,  // 内税のため0
                     ];
                 }
             }
@@ -921,7 +921,7 @@ class DailyClosing extends Page implements HasForms
         if ($sale->payment_source === 'spot') {
             $menuPrice = $reservation->total_amount ?? 0;
             $subtotal += $menuPrice;
-            $taxAmount += floor($menuPrice * 0.1);
+            // 内税のため税額計算なし
 
             // メニュー明細を作成
             if ($reservation->menu) {
@@ -933,8 +933,8 @@ class DailyClosing extends Page implements HasForms
                     'unit_price' => $menuPrice,
                     'quantity' => 1,
                     'discount_amount' => 0,
-                    'tax_rate' => 0.1,
-                    'tax_amount' => floor($menuPrice * 0.1),
+                    'tax_rate' => 0,  // 内税のため0
+                    'tax_amount' => 0,  // 内税のため0
                     'amount' => $menuPrice,
                 ]);
             }
@@ -944,7 +944,7 @@ class DailyClosing extends Page implements HasForms
         foreach ($options as $option) {
             $optionAmount = floatval($option['price'] ?? 0) * intval($option['quantity'] ?? 1);
             $subtotal += $optionAmount;
-            $taxAmount += floor($optionAmount * 0.1);
+            // 内税のため税額計算なし
 
             $sale->items()->create([
                 'menu_option_id' => $option['menu_option_id'] ?? null,
@@ -953,8 +953,8 @@ class DailyClosing extends Page implements HasForms
                 'unit_price' => $option['price'],
                 'quantity' => $option['quantity'],
                 'amount' => $optionAmount,
-                'tax_rate' => 0.1,
-                'tax_amount' => floor($optionAmount * 0.1),
+                'tax_rate' => 0,  // 内税のため0
+                'tax_amount' => 0,  // 内税のため0
             ]);
         }
 
@@ -962,7 +962,7 @@ class DailyClosing extends Page implements HasForms
         foreach ($products as $product) {
             $productAmount = floatval($product['price'] ?? 0) * intval($product['quantity'] ?? 1);
             $subtotal += $productAmount;
-            $taxAmount += floor($productAmount * ($product['tax_rate'] ?? 0.1));
+            // 内税のため税額計算なし
 
             $sale->items()->create([
                 'item_type' => 'product',
@@ -970,8 +970,8 @@ class DailyClosing extends Page implements HasForms
                 'unit_price' => $product['price'],
                 'quantity' => $product['quantity'],
                 'amount' => $productAmount,
-                'tax_rate' => $product['tax_rate'] ?? 0.1,
-                'tax_amount' => floor($productAmount * ($product['tax_rate'] ?? 0.1)),
+                'tax_rate' => 0,  // 内税のため0
+                'tax_amount' => 0,  // 内税のため0
             ]);
         }
 

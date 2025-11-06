@@ -113,8 +113,8 @@ class SalePostingService
                     'unit_price' => $reservation->menu->price ?? 0,
                     'quantity' => 1,
                     'discount_amount' => 0,
-                    'tax_rate' => 0.1,
-                    'tax_amount' => floor(($reservation->menu->price ?? 0) * 0.1),
+                    'tax_rate' => 0,  // 内税のため0
+                    'tax_amount' => 0,  // 内税のため0
                     'amount' => $reservation->menu->price ?? 0,
                 ]);
             }
@@ -328,11 +328,9 @@ class SalePostingService
     {
         $quantity = $data['quantity'] ?? 1;
         $unitPrice = $data['price'] ?? 0;
-        $taxRate = $data['tax_rate'] ?? 0.1;
 
-        // 小計と税額を計算
+        // 内税のため税率・税額は0
         $amount = $unitPrice * $quantity;
-        $taxAmount = floor($amount * $taxRate);
 
         $itemData = [
             'sale_id' => $sale->id,
@@ -340,8 +338,8 @@ class SalePostingService
             'quantity' => $quantity,
             'unit_price' => $unitPrice,
             'amount' => $amount,
-            'tax_rate' => $taxRate,
-            'tax_amount' => $taxAmount,
+            'tax_rate' => 0,  // 内税のため0
+            'tax_amount' => 0,  // 内税のため0
         ];
 
         // タイプに応じて追加フィールドを設定
