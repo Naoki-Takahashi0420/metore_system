@@ -1,0 +1,39 @@
+name: Check Tax Data
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check Tax Records in Production
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'CHECK'
+        set -e
+        cd /var/www/html
+
+        echo "=== 税額が設定されているsale_items件数 ==="
+        sqlite3 database/database.sqlite "SELECT COUNT(*) as count FROM sale_items WHERE tax_amount > 0;"
+
+        echo ""
+        echo "=== 税額が設定されているsales件数 ==="
+        sqlite3 database/database.sqlite "SELECT COUNT(*) as count FROM sales WHERE tax_amount > 0;"
+
+        echo ""
+        echo "=== sale_itemsのサンプル（最新5件） ==="
+        sqlite3 database/database.sqlite -header -column "SELECT id, sale_id, item_name, unit_price, quantity, amount, tax_rate, tax_amount, (amount + tax_amount) as total FROM sale_items WHERE tax_amount > 0 ORDER BY id DESC LIMIT 5;"
+
+        echo ""
+        echo "=== salesのサンプル（最新5件） ==="
+        sqlite3 database/database.sqlite -header -column "SELECT id, sale_number, sale_date, subtotal, tax_amount, discount_amount, total_amount FROM sales WHERE tax_amount > 0 ORDER BY id DESC LIMIT 5;"
+
+        CHECK
