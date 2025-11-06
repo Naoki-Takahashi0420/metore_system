@@ -225,6 +225,11 @@ class DailyClosing extends Page implements HasForms
         $reservations = Reservation::whereDate('reservation_date', $this->closingDate)
             ->when($this->selectedStoreId, fn($q) => $q->where('store_id', $this->selectedStoreId))
             ->where('status', 'completed')
+            // カルテがあり、担当者（handled_by）が入力されている予約のみ取得
+            ->whereHas('medicalRecords', function($q) {
+                $q->whereNotNull('handled_by')
+                  ->where('handled_by', '!=', '');
+            })
             ->with(['customer', 'menu', 'store', 'medicalRecords', 'sale'])
             ->orderBy('start_time')
             ->get();
