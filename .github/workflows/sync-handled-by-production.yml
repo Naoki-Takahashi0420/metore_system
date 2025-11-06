@@ -1,0 +1,46 @@
+name: Sync Handled By on Production
+
+on:
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Sync Handled By in Production
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        # SQLスクリプトをサーバーに転送
+        scp -o StrictHostKeyChecking=no -i deploy_key.pem sync-handled-by.sql ${EC2_USER}@${EC2_HOST}:/tmp/
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'SYNC'
+        set -e
+        cd /var/www/html
+
+        echo "=== 修正前の確認 ==="
+        echo "handled_byがNULLの売上件数:"
+        sudo sqlite3 database/database.sqlite "SELECT COUNT(*) FROM sales s INNER JOIN reservations r ON s.reservation_id = r.id INNER JOIN medical_records mr ON r.id = mr.reservation_id WHERE (s.handled_by IS NULL OR s.handled_by = '') AND mr.handled_by IS NOT NULL AND mr.handled_by != '';"
+
+        echo ""
+        echo "=== データベースバックアップ作成 ==="
+        sudo cp database/database.sqlite /tmp/database-backup-before-sync-handled-by-$(date +%Y%m%d-%H%M%S).sqlite
+        echo "バックアップ完了"
+
+        echo ""
+        echo "=== SQLスクリプト実行 ==="
+        sudo sqlite3 database/database.sqlite < /tmp/sync-handled-by.sql
+
+        echo ""
+        echo "=== 同期完了 ==="
+
+        SYNC
