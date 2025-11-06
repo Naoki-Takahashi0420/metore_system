@@ -1,0 +1,39 @@
+name: Investigate Errors
+
+on:
+  workflow_dispatch:
+
+jobs:
+  investigate:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Investigate Production Errors
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'INVESTIGATE'
+        set -e
+        cd /var/www/html
+
+        echo "=== 1. カルテテーブルでIDがNULLのレコード確認 ==="
+        sudo sqlite3 database/database.sqlite "SELECT COUNT(*) as null_id_count FROM medical_records WHERE id IS NULL;"
+
+        echo ""
+        echo "=== 2. カルテテーブルの異常レコード確認 ==="
+        sudo sqlite3 database/database.sqlite -header -column "SELECT id, customer_id, reservation_id, created_at FROM medical_records WHERE id IS NULL OR id = '' LIMIT 5;"
+
+        echo ""
+        echo "=== 3. LINE Channel ID設定確認 ==="
+        grep "LINE_CHANNEL_ID" .env | head -5 || echo "LINE_CHANNEL_ID not found in .env"
+
+        echo ""
+        echo "=== 4. 最近のLINEエラーログ確認 ==="
+        sudo tail -50 storage/logs/laravel-$(date +%F).log | grep -i "audience mismatch" -A 2 -B 2 || echo "No audience mismatch errors today"
+
+        INVESTIGATE
