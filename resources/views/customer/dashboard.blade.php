@@ -1240,9 +1240,9 @@ async function goToReservation() {
 
     try {
         // マイページからの予約用コンテキストを生成
-        // サーバー側で直近の予約店舗を自動選択
         const requestBody = {
-            source: 'mypage'  // マイページからの予約であることを明示
+            source: 'mypage',  // マイページからの予約であることを明示
+            store_id: customerData.store_id || null  // 現在の店舗IDを渡す（なければサーバー側で自動選択）
         };
 
         const response = await fetch('/api/customer/reservation-context/medical-record', {

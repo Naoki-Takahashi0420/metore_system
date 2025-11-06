@@ -250,32 +250,44 @@ class CustomerController extends Controller
             'source' => $source
         ]);
 
-        // 店舗IDが指定されていない場合、直近の予約店舗を自動選択
+        // 店舗IDが指定されていない場合、顧客の店舗ID → 直近の予約店舗を自動選択
         if (!$storeId) {
-            \Log::info('🔍 店舗ID未指定 - 直近の予約を検索中...');
+            \Log::info('🔍 店舗ID未指定 - 自動選択を開始');
 
-            $latestReservation = $customer->reservations()
-                ->whereNotIn('status', ['cancelled', 'canceled'])
-                ->orderBy('created_at', 'desc')
-                ->first();
-
-            \Log::info('🔍 予約検索結果', [
-                'found' => !!$latestReservation,
-                'reservation_id' => $latestReservation?->id,
-                'store_id' => $latestReservation?->store_id,
-                'status' => $latestReservation?->status,
-                'created_at' => $latestReservation?->created_at
-            ]);
-
-            if ($latestReservation && $latestReservation->store_id) {
-                $storeId = $latestReservation->store_id;
-                \Log::info('✅ 直近の予約店舗を自動選択', [
+            // まず顧客の店舗IDをチェック（店舗切り替え済みの場合）
+            if ($customer->store_id) {
+                $storeId = $customer->store_id;
+                \Log::info('✅ 顧客の店舗IDを使用', [
                     'customer_id' => $customer->id,
-                    'store_id' => $storeId,
-                    'reservation_id' => $latestReservation->id
+                    'store_id' => $storeId
                 ]);
             } else {
-                \Log::info('⚠️ 直近の予約が見つからない、または店舗IDなし');
+                // 顧客に店舗IDがない場合は、直近の予約から推測
+                \Log::info('🔍 顧客の店舗IDなし - 直近の予約を検索中...');
+
+                $latestReservation = $customer->reservations()
+                    ->whereNotIn('status', ['cancelled', 'canceled'])
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+
+                \Log::info('🔍 予約検索結果', [
+                    'found' => !!$latestReservation,
+                    'reservation_id' => $latestReservation?->id,
+                    'store_id' => $latestReservation?->store_id,
+                    'status' => $latestReservation?->status,
+                    'created_at' => $latestReservation?->created_at
+                ]);
+
+                if ($latestReservation && $latestReservation->store_id) {
+                    $storeId = $latestReservation->store_id;
+                    \Log::info('✅ 直近の予約店舗を自動選択', [
+                        'customer_id' => $customer->id,
+                        'store_id' => $storeId,
+                        'reservation_id' => $latestReservation->id
+                    ]);
+                } else {
+                    \Log::info('⚠️ 直近の予約が見つからない、または店舗IDなし');
+                }
             }
         } else {
             \Log::info('✅ 店舗IDがリクエストで指定されている', ['store_id' => $storeId]);
