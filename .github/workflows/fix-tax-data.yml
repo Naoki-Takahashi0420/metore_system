@@ -38,16 +38,16 @@ jobs:
 
         echo ""
         echo "=== SQLスクリプト実行 ==="
-        sqlite3 database/database.sqlite < /tmp/fix-tax-calculation-commit.sql
+        sudo sqlite3 database/database.sqlite < /tmp/fix-tax-calculation-commit.sql
 
         echo ""
         echo "=== 修正後の確認 ==="
         echo "税額が設定されているsale_items件数（0であるべき）:"
-        sqlite3 database/database.sqlite "SELECT COUNT(*) FROM sale_items WHERE tax_amount > 0;"
+        sudo sqlite3 database/database.sqlite "SELECT COUNT(*) FROM sale_items WHERE tax_amount > 0;"
 
         echo ""
         echo "税額が設定されているsales件数（0であるべき）:"
-        sqlite3 database/database.sqlite "SELECT COUNT(*) FROM sales WHERE tax_amount > 0;"
+        sudo sqlite3 database/database.sqlite "SELECT COUNT(*) FROM sales WHERE tax_amount > 0;"
 
         echo ""
         echo "=== 修正完了 ==="
