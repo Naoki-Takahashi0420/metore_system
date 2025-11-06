@@ -248,6 +248,7 @@ class CustomerAuthController extends Controller
                     'first_name' => $customer->first_name,
                     'phone' => $customer->phone,
                     'email' => $customer->email,
+                    'store_id' => $customer->store_id,
                 ],
             ],
         ]);
@@ -345,6 +346,7 @@ class CustomerAuthController extends Controller
                     'first_name' => $customer->first_name,
                     'phone' => $customer->phone,
                     'email' => $customer->email,
+                    'store_id' => $customer->store_id,
                 ],
             ],
         ]);
@@ -430,6 +432,7 @@ class CustomerAuthController extends Controller
                     'first_name' => $customer->first_name,
                     'phone' => $customer->phone,
                     'email' => $customer->email,
+                    'store_id' => $customer->store_id,
                 ],
             ],
         ]);
