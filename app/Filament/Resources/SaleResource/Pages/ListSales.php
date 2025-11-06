@@ -238,45 +238,30 @@ class ListSales extends ListRecords
             $sourceStats[] = $stat;
         }
 
-        // 1. 施術スタッフ別売上（既存）
-        $staffQuery = User::query()
-            ->whereHas('salesAsStaff', function (Builder $query) use ($from, $to) {
-                $query->where('status', 'completed')
-                    ->whereBetween('sale_date', [$from, $to]);
-                if ($this->storeId) {
-                    $query->where('store_id', $this->storeId);
-                }
-            })
-            ->withCount([
-                'salesAsStaff as sales_count' => function (Builder $query) use ($from, $to) {
-                    $query->where('status', 'completed')
-                        ->whereBetween('sale_date', [$from, $to]);
-                    if ($this->storeId) {
-                        $query->where('store_id', $this->storeId);
-                    }
-                }
+        // 1. 施術スタッフ別売上（handled_by基準）
+        $topStaffBySales = \DB::table('sales')
+            ->where('status', 'completed')
+            ->whereBetween('sale_date', [$from, $to])
+            ->when($this->storeId, fn($q) => $q->where('store_id', $this->storeId))
+            ->whereNotNull('handled_by')
+            ->where('handled_by', '!=', '')
+            ->select([
+                'handled_by',
+                \DB::raw('COUNT(*) as sales_count'),
+                \DB::raw('SUM(total_amount) as total_sales')
             ])
-            ->withSum([
-                'salesAsStaff as total_sales' => function (Builder $query) use ($from, $to) {
-                    $query->where('status', 'completed')
-                        ->whereBetween('sale_date', [$from, $to]);
-                    if ($this->storeId) {
-                        $query->where('store_id', $this->storeId);
-                    }
-                }
-            ], 'total_amount')
+            ->groupBy('handled_by')
             ->orderByDesc('total_sales')
             ->limit(10)
-            ->get();
-
-        $topStaffBySales = $staffQuery->map(function ($user, $index) {
-            return [
-                'rank' => $index + 1,
-                'name' => $user->name,
-                'count' => $user->sales_count,
-                'amount' => (int) $user->total_sales,
-            ];
-        });
+            ->get()
+            ->map(function ($item, $index) {
+                return [
+                    'rank' => $index + 1,
+                    'name' => $item->handled_by,
+                    'count' => $item->sales_count,
+                    'amount' => (int) $item->total_sales,
+                ];
+            });
 
         // 2. 指名スタッフ別売上（reservations.staff_id経由）
         $topStaffByReservation = \DB::table('users')
