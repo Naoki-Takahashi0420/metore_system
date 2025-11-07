@@ -2802,6 +2802,36 @@ class PublicReservationController extends Controller
             return; // ルールをスキップ
         }
 
+        // ✅ 予約変更時：同日の時間変更かどうかをチェック
+        if ($excludeReservationId) {
+            $originalReservation = Reservation::find($excludeReservationId);
+            if ($originalReservation) {
+                $originalDate = Carbon::parse($originalReservation->reservation_date);
+                $targetDateTime = Carbon::parse($targetDate);
+
+                // 同日の時間変更なら中5日ルール全体をスキップ
+                if ($originalDate->isSameDay($targetDateTime)) {
+                    \Log::info('✅ 同日の時間変更のため中5日ルールをスキップ', [
+                        'customer_id' => $customerId,
+                        'reservation_id' => $excludeReservationId,
+                        'original_date' => $originalDate->format('Y-m-d'),
+                        'target_date' => $targetDateTime->format('Y-m-d'),
+                    ]);
+                    return; // 同日変更はルールをスキップ
+                }
+
+                // 日付が変わる変更の場合、元の予約も含めてチェックする
+                \Log::info('⚠️ 日付が変わる予約変更のため、元の予約も含めて中5日ルールをチェック', [
+                    'customer_id' => $customerId,
+                    'reservation_id' => $excludeReservationId,
+                    'original_date' => $originalDate->format('Y-m-d'),
+                    'target_date' => $targetDateTime->format('Y-m-d'),
+                ]);
+                // excludeReservationIdをnullにして元の予約も含めてチェック
+                $excludeReservationId = null;
+            }
+        }
+
         // 店舗IDから最小予約間隔を取得
         $minIntervalDays = 5; // デフォルト
         if ($storeId) {
@@ -2826,7 +2856,7 @@ class PublicReservationController extends Controller
             $query->where('store_id', $storeId);
         }
 
-        // 予約変更時は、変更元の予約を除外
+        // 予約変更時は、変更元の予約を除外（同日変更でない場合はnullになっている）
         if ($excludeReservationId) {
             $query->where('id', '!=', $excludeReservationId);
         }
