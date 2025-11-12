@@ -208,6 +208,10 @@ class MarketingAnalyticsService
                 ->where('status', 'completed')
                 ->count();
 
+            // 予約件数（カルテから推測）
+            // このスタッフが対応したカルテ件数を予約件数とする
+            $reservationCount = $recordCount;
+
             // ユニーク顧客数（カルテから）
             // このスタッフが期間内に対応した顧客の人数（ユニーク）
             $newCustomers = \App\Models\MedicalRecord::query()
@@ -355,6 +359,7 @@ class MarketingAnalyticsService
                 'id' => $staff->id,
                 'name' => $staff->name,
                 'record_count' => $recordCount,            // カルテ対応回数
+                'reservation_count' => $reservationCount,  // 予約件数
                 'revenue' => $revenue,                     // 売上金額
                 'new_customers' => $newCustomers,          // ユニーク顧客数（カルテから）
                 'sales_count' => $salesCount,              // 売上件数

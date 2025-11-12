@@ -164,7 +164,7 @@
                             @foreach($this->unposted as $res)
                                 <tr wire:key="reservation-row-{{ $res['id'] }}-{{ $res['is_posted'] ? 'posted' : 'unposted' }}-{{ $res['amount'] }}"
                                     class="hover:bg-gray-50 {{ $res['is_posted'] ? 'bg-green-50' : '' }}">
-                                    <td class="px-3 py-3 text-sm text-gray-900">
+                                    <td class="px-3 py-3 text-sm text-gray-900 whitespace-nowrap">
                                         {{ $res['time'] }}
                                         @if($res['is_posted'])
                                             <span class="ml-2 px-2 py-0.5 text-xs bg-green-600 text-white rounded font-medium">計上済み</span>
@@ -274,10 +274,220 @@
             </div>
         @endif
 
-        <!-- スタッフ別売上 -->
+        <!-- 本日の未計上のサブスク決済 -->
+        <!-- デバッグ: {{ count($this->unpostedSubscriptions) }}件 -->
+        @if(true)
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold text-gray-900">本日の未計上のサブスク決済</h2>
+                    <button
+                        wire:click="postAllSubscriptions"
+                        class="px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 transition-colors shadow-sm"
+                    >
+                        一括計上
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">顧客</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">プラン</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">決済日</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">支払方法</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">金額</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @foreach($this->unpostedSubscriptions as $sub)
+                                <tr wire:key="subscription-row-{{ $sub['id'] }}-{{ $sub['is_posted'] ? 'posted' : 'unposted' }}-{{ $sub['payment_failed'] ? 'failed' : 'ok' }}"
+                                    class="hover:bg-gray-50 {{ $sub['is_posted'] ? 'bg-green-50' : '' }} {{ $sub['payment_failed'] ? 'bg-red-50' : '' }}">
+                                    <td class="px-3 py-3 text-sm text-gray-900 whitespace-nowrap">
+                                        {{ $sub['customer_name'] }}
+                                        @if($sub['is_posted'])
+                                            <span class="ml-2 px-2 py-0.5 text-xs bg-green-600 text-white rounded font-medium">計上済み</span>
+                                        @endif
+                                        @if($sub['payment_failed'])
+                                            <span class="ml-2 px-2 py-0.5 text-xs bg-red-600 text-white rounded font-medium">決済失敗</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-3 py-3 text-sm text-gray-900">{{ $sub['plan_name'] }}</td>
+                                    <td class="px-3 py-3 text-sm text-gray-900">{{ $sub['billing_date'] }}</td>
+                                    <td class="px-3 py-3">
+                                        <select
+                                            wire:change="updateSubscriptionRowState({{ $sub['id'] }}, 'payment_method', $event.target.value)"
+                                            class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                            {{ $sub['is_posted'] ? 'disabled' : '' }}
+                                        >
+                                            @foreach($sub['payment_methods'] ?? ['現金'] as $method)
+                                                <option value="{{ $method }}" {{ ($this->rowState[$sub['id']]['payment_method'] ?? $sub['payment_method'] ?? '') === $method ? 'selected' : '' }}>
+                                                    {{ $method }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </td>
+                                    <td class="px-3 py-3">
+                                        <span class="text-sm {{ $sub['amount'] > 0 ? 'text-gray-900 font-medium' : 'text-gray-500' }}">
+                                            ¥{{ number_format((int)($sub['amount'] ?? 0)) }}
+                                        </span>
+                                    </td>
+                                    <td class="px-3 py-3">
+                                        <div class="flex gap-2">
+                                            @if($sub['payment_failed'])
+                                                <!-- 決済失敗：復旧ボタン -->
+                                                <button
+                                                    wire:click="recoverSubscriptionPayment({{ $sub['id'] }})"
+                                                    wire:confirm="決済を復旧しますか？\n\n顧客名: {{ $sub['customer_name'] }}\nプラン: {{ $sub['plan_name'] }}\n\n決済が正常に処理されたことを確認してから復旧してください。"
+                                                    style="display: inline-block !important; visibility: visible !important; opacity: 1 !important; background-color: #d1fae5 !important; color: #065f46 !important; padding: 6px 12px !important; border-radius: 6px !important; font-size: 12px !important; font-weight: 500 !important; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important; border: 1px solid #6ee7b7 !important;"
+                                                    onmouseover="this.style.backgroundColor='#a7f3d0'"
+                                                    onmouseout="this.style.backgroundColor='#d1fae5'"
+                                                >
+                                                    決済復旧
+                                                </button>
+                                            @elseif($sub['is_posted'])
+                                                <!-- 計上済み：取消ボタン -->
+                                                <button
+                                                    wire:click="cancelSubscriptionSale({{ $sub['id'] }})"
+                                                    wire:confirm="本当にこのサブスク決済を取り消しますか？\n\n顧客名: {{ $sub['customer_name'] }}\nプラン: {{ $sub['plan_name'] }}\n金額: ¥{{ number_format((int)($sub['amount'] ?? 0)) }}"
+                                                    style="display: inline-block !important; visibility: visible !important; opacity: 1 !important; background-color: #fef3c7 !important; color: #92400e !important; padding: 6px 12px !important; border-radius: 6px !important; font-size: 12px !important; font-weight: 500 !important; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important; border: 1px solid #fbbf24 !important;"
+                                                    onmouseover="this.style.backgroundColor='#fde68a'"
+                                                    onmouseout="this.style.backgroundColor='#fef3c7'"
+                                                >
+                                                    取消
+                                                </button>
+                                            @else
+                                                <!-- 未計上：計上ボタン -->
+                                                <button
+                                                    wire:click="postSingleSubscription({{ $sub['id'] }})"
+                                                    style="display: inline-block !important; visibility: visible !important; opacity: 1 !important; background-color: #dbeafe !important; color: #1e40af !important; padding: 6px 12px !important; border-radius: 6px !important; font-size: 12px !important; font-weight: 500 !important; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important; border: 1px solid #93c5fd !important;"
+                                                    onmouseover="this.style.backgroundColor='#bfdbfe'"
+                                                    onmouseout="this.style.backgroundColor='#dbeafe'"
+                                                >
+                                                    計上
+                                                </button>
+
+                                                <!-- 決済失敗ボタン -->
+                                                <button
+                                                    wire:click="markSubscriptionPaymentFailed({{ $sub['id'] }})"
+                                                    wire:confirm="決済失敗に設定しますか？\n\n顧客名: {{ $sub['customer_name'] }}\nプラン: {{ $sub['plan_name'] }}\n\nカード期限切れや残高不足などで決済が失敗した場合に設定します。"
+                                                    style="display: inline-block !important; visibility: visible !important; opacity: 1 !important; background-color: #fee2e2 !important; color: #991b1b !important; padding: 6px 12px !important; border-radius: 6px !important; font-size: 12px !important; font-weight: 500 !important; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important; border: 1px solid #fca5a5 !important;"
+                                                    onmouseover="this.style.backgroundColor='#fecaca'"
+                                                    onmouseout="this.style.backgroundColor='#fee2e2'"
+                                                >
+                                                    決済失敗
+                                                </button>
+                                            @endif
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-3 text-sm text-gray-500">
+                    <p>
+                        サブスク決済は月額プラン料金が自動で計上されます。決済成功を確認してから計上してください。
+                    </p>
+                </div>
+            </div>
+        @endif
+
+        <!-- 回数券購入セクション -->
+        @if(count($this->unpostedTickets) > 0)
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold text-gray-900">本日の回数券購入</h2>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">顧客</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">プラン</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">購入日時</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">支払方法</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">金額</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @foreach($this->unpostedTickets as $ticket)
+                                <tr wire:key="ticket-row-{{ $ticket['id'] }}-{{ $ticket['is_posted'] ? 'posted' : 'unposted' }}"
+                                    class="hover:bg-gray-50 {{ $ticket['is_posted'] ? 'bg-green-50' : '' }}">
+                                    <td class="px-3 py-3 text-sm text-gray-900 whitespace-nowrap">
+                                        {{ $ticket['customer_name'] }}
+                                        @if($ticket['is_posted'])
+                                            <span class="ml-2 px-2 py-0.5 text-xs bg-green-600 text-white rounded font-medium">計上済み</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-3 py-3 text-sm text-gray-900">{{ $ticket['plan_name'] }}</td>
+                                    <td class="px-3 py-3 text-sm text-gray-900">{{ $ticket['purchased_at'] }}</td>
+                                    <td class="px-3 py-3">
+                                        <select
+                                            wire:change="updateTicketRowState({{ $ticket['id'] }}, 'payment_method', $event.target.value)"
+                                            class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                            {{ $ticket['is_posted'] ? 'disabled' : '' }}
+                                        >
+                                            @foreach($ticket['payment_methods'] ?? ['現金'] as $method)
+                                                <option value="{{ $method }}" {{ ($this->rowState[$ticket['id']]['payment_method'] ?? $ticket['payment_method'] ?? '') === $method ? 'selected' : '' }}>
+                                                    {{ $method }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </td>
+                                    <td class="px-3 py-3">
+                                        <span class="text-sm {{ $ticket['amount'] > 0 ? 'text-gray-900 font-medium' : 'text-gray-500' }}">
+                                            ¥{{ number_format((int)($ticket['amount'] ?? 0)) }}
+                                        </span>
+                                    </td>
+                                    <td class="px-3 py-3">
+                                        <div class="flex gap-2">
+                                            @if($ticket['is_posted'])
+                                                <!-- 計上済み：取消ボタン -->
+                                                <button
+                                                    wire:click="cancelTicketSale({{ $ticket['id'] }})"
+                                                    wire:confirm="本当にこの回数券購入を取り消しますか？\n\n顧客名: {{ $ticket['customer_name'] }}\nプラン: {{ $ticket['plan_name'] }}\n金額: ¥{{ number_format((int)($ticket['amount'] ?? 0)) }}"
+                                                    style="display: inline-block !important; visibility: visible !important; opacity: 1 !important; background-color: #fef3c7 !important; color: #92400e !important; padding: 6px 12px !important; border-radius: 6px !important; font-size: 12px !important; font-weight: 500 !important; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important; border: 1px solid #fbbf24 !important;"
+                                                    onmouseover="this.style.backgroundColor='#fde68a'"
+                                                    onmouseout="this.style.backgroundColor='#fef3c7'"
+                                                >
+                                                    取消
+                                                </button>
+                                            @else
+                                                <!-- 未計上：計上ボタン -->
+                                                <button
+                                                    wire:click="postSingleTicket({{ $ticket['id'] }})"
+                                                    style="display: inline-block !important; visibility: visible !important; opacity: 1 !important; background-color: #dbeafe !important; color: #1e40af !important; padding: 6px 12px !important; border-radius: 6px !important; font-size: 12px !important; font-weight: 500 !important; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important; border: 1px solid #93c5fd !important;"
+                                                    onmouseover="this.style.backgroundColor='#bfdbfe'"
+                                                    onmouseout="this.style.backgroundColor='#dbeafe'"
+                                                >
+                                                    計上
+                                                </button>
+                                            @endif
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-3 text-sm text-gray-500">
+                    <p>
+                        回数券の購入売上を計上します。購入代金の支払いを確認してから計上してください。
+                    </p>
+                </div>
+            </div>
+        @endif
+
+        <!-- スタッフ別施術実績（スポットのみ） -->
         @if(isset($this->salesData['sales_by_staff']) && count($this->salesData['sales_by_staff']) > 0)
             <div class="bg-white rounded-lg shadow p-6">
-                <h3 class="text-md font-medium text-gray-900 mb-3">スタッフ別売上</h3>
+                <h3 class="text-md font-medium text-gray-900 mb-3">スタッフ別施術実績（スポットのみ）</h3>
                 <div class="space-y-2">
                     @foreach($this->salesData['sales_by_staff'] as $staffSales)
                         <div class="flex justify-between items-center p-2 hover:bg-gray-50 rounded">
@@ -288,6 +498,39 @@
                             </div>
                         </div>
                     @endforeach
+                </div>
+                <div class="mt-3 text-xs text-gray-500">
+                    ※スポット予約の売上のみ集計（サブスク・回数券は含まない）
+                </div>
+            </div>
+        @endif
+
+        <!-- その他売上（サブスク決済・回数券購入） -->
+        @if(isset($this->salesData['other_sales']))
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-md font-medium text-gray-900 mb-3">その他売上</h3>
+                <div class="space-y-2">
+                    @if($this->salesData['other_sales']['subscription']['count'] > 0)
+                        <div class="flex justify-between items-center p-2 hover:bg-gray-50 rounded">
+                            <span class="text-sm">サブスク決済</span>
+                            <div class="text-right">
+                                <span class="font-semibold">¥{{ number_format((int)($this->salesData['other_sales']['subscription']['amount'] ?? 0)) }}</span>
+                                <span class="text-xs text-gray-500 ml-2">({{ $this->salesData['other_sales']['subscription']['count'] }}件)</span>
+                            </div>
+                        </div>
+                    @endif
+                    @if($this->salesData['other_sales']['ticket_purchase']['count'] > 0)
+                        <div class="flex justify-between items-center p-2 hover:bg-gray-50 rounded">
+                            <span class="text-sm">回数券購入</span>
+                            <div class="text-right">
+                                <span class="font-semibold">¥{{ number_format((int)($this->salesData['other_sales']['ticket_purchase']['amount'] ?? 0)) }}</span>
+                                <span class="text-xs text-gray-500 ml-2">({{ $this->salesData['other_sales']['ticket_purchase']['count'] }}件)</span>
+                            </div>
+                        </div>
+                    @endif
+                </div>
+                <div class="mt-3 text-xs text-gray-500">
+                    ※スタッフ個人の実績には含まれない売上
                 </div>
             </div>
         @endif
@@ -620,6 +863,19 @@
                                     <span class="text-primary-600">¥{{ number_format((int)($this->editorData['total'] ?? 0)) }}</span>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- 備考 -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-900 mb-2">備考</label>
+                            <textarea
+                                wire:model="editorData.notes"
+                                class="block w-full text-sm border-gray-300 rounded-md"
+                                rows="3"
+                                placeholder="例: サブスク初回に含む、初回来店分控除など"></textarea>
+                            <p class="mt-1 text-xs text-gray-500">
+                                割引理由や特記事項を記載してください
+                            </p>
                         </div>
                     </div>
 
