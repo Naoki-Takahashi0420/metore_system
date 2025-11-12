@@ -30,9 +30,11 @@ class MonthlyKpiStats extends Component
     {
         $this->period = $filters['period'] ?? 'month';
         $this->store_id = $filters['store_id'] ?? null;
+        $this->startDate = $filters['startDateA'] ?? null;
+        $this->endDate = $filters['endDateA'] ?? null;
 
         $service = new MarketingAnalyticsService();
-        $this->kpiData = $service->getMonthlyKpis($this->period, $this->store_id);
+        $this->kpiData = $service->getMonthlyKpis($this->period, $this->store_id, $this->startDate, $this->endDate);
     }
 
     public function render()

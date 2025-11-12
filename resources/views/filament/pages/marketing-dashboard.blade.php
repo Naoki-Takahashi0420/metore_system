@@ -1,94 +1,141 @@
 <x-filament-panels::page>
-    <div class="mb-6 bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
-        <div class="space-y-4">
-            <!-- モード選択 -->
-            <div class="flex items-center gap-4">
-                <label class="flex items-center">
-                    <input type="radio" wire:model.live="compareMode" value="0" class="mr-2">
-                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">通常表示</span>
-                </label>
-                <label class="flex items-center">
-                    <input type="radio" wire:model.live="compareMode" value="1" class="mr-2">
-                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">期間比較</span>
-                </label>
-            </div>
-
-            <!-- 期間選択 -->
-            <div class="flex flex-wrap gap-4">
-                @if(!$compareMode)
-                    <!-- 通常モード -->
-                    <div class="flex gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">期間</label>
-                            <select wire:model.live="period" class="w-48 rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-                                <option value="month">今月</option>
-                                <option value="last_month">先月</option>
-                                <option value="quarter">今四半期</option>
-                                <option value="year">今年</option>
-                                <option value="custom">カスタム期間</option>
-                            </select>
-                        </div>
-
-                        @if($period === 'custom')
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">開始日</label>
-                                <input type="date" wire:model.live="startDateA" class="rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">終了日</label>
-                                <input type="date" wire:model.live="endDateA" class="rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-                            </div>
-                        @endif
-                    </div>
-                @else
-                    <!-- 比較モード -->
-                    <div class="w-full space-y-3">
-                        <div class="flex items-center gap-4">
-                            <span class="text-sm font-medium text-blue-600 dark:text-blue-400 w-20">期間A</span>
-                            <div class="flex gap-2">
-                                <input type="date" wire:model.live="startDateA" class="rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-                                <span class="text-gray-500">〜</span>
-                                <input type="date" wire:model.live="endDateA" class="rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-4">
-                            <span class="text-sm font-medium text-green-600 dark:text-green-400 w-20">期間B</span>
-                            <div class="flex gap-2">
-                                <input type="date" wire:model.live="startDateB" class="rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-                                <span class="text-gray-500">〜</span>
-                                <input type="date" wire:model.live="endDateB" class="rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-                            </div>
-                        </div>
-                    </div>
-                @endif
-
-                <!-- 店舗選択 -->
-                <div class="ml-auto">
+    {{-- フィルタセクション --}}
+    <div class="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        @if(!$compareMode)
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                {{-- 店舗セレクト --}}
+                <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">店舗</label>
-                    <select wire:model.live="store_id" class="w-48 rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                    <select wire:model.live="store_id" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                         <option value="">全店舗</option>
-                        @foreach(\App\Models\Store::pluck('name', 'id') as $id => $name)
+                        @foreach(\App\Models\Store::orderBy('name')->pluck('name', 'id') as $id => $name)
                             <option value="{{ $id }}">{{ $name }}</option>
                         @endforeach
                     </select>
                 </div>
+
+                {{-- 開始日 --}}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
+                        <x-heroicon-o-calendar class="w-4 h-4" />
+                        開始日
+                    </label>
+                    <input type="date" wire:model.live="startDateA" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                </div>
+
+                {{-- 終了日 --}}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
+                        <x-heroicon-o-calendar class="w-4 h-4" />
+                        終了日
+                    </label>
+                    <input type="date" wire:model.live="endDateA" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                </div>
             </div>
 
-            @if($compareMode && $startDateA && $endDateA && $startDateB && $endDateB)
-                <div class="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                    <span class="text-blue-600 dark:text-blue-400">期間A: {{ \Carbon\Carbon::parse($startDateA)->format('Y/m/d') }} 〜 {{ \Carbon\Carbon::parse($endDateA)->format('Y/m/d') }}</span>
-                    と
-                    <span class="text-green-600 dark:text-green-400">期間B: {{ \Carbon\Carbon::parse($startDateB)->format('Y/m/d') }} 〜 {{ \Carbon\Carbon::parse($endDateB)->format('Y/m/d') }}</span>
-                    を比較中
+            {{-- クイックボタン --}}
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">クイック選択</label>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem;">
+                    <button wire:click="setToday" style="background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%); color: #ffffff !important;" class="px-4 py-2.5 text-sm font-bold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 flex items-center gap-2 border-2 border-blue-900">
+                        <x-heroicon-o-calendar-days class="w-5 h-5" style="color: #ffffff !important;" />
+                        <span style="color: #ffffff !important; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">今日</span>
+                    </button>
+                    <button wire:click="setThisMonth" style="background: linear-gradient(135deg, #15803d 0%, #14532d 100%); color: #ffffff !important;" class="px-4 py-2.5 text-sm font-bold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 flex items-center gap-2 border-2 border-green-900">
+                        <x-heroicon-o-chart-bar class="w-5 h-5" style="color: #ffffff !important;" />
+                        <span style="color: #ffffff !important; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">今月</span>
+                    </button>
+                    <button wire:click="setLastMonth" style="background: #7c3aed; color: #ffffff !important;" class="px-4 py-2 text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-1 border-2 border-purple-800 hover:bg-purple-700">
+                        <span style="color: #ffffff !important;">先月</span>
+                    </button>
+                    <button wire:click="setLast30Days" style="background: #ea580c; color: #ffffff !important;" class="px-4 py-2 text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-1 border-2 border-orange-800 hover:bg-orange-700">
+                        <span style="color: #ffffff !important;">30日</span>
+                    </button>
+                </div>
+            </div>
+
+            {{-- 現在のフィルタ表示 --}}
+            @if($startDateA && $endDateA)
+                <div class="text-sm text-gray-600 dark:text-gray-400 mt-4">
+                    期間: <span class="font-semibold">{{ $startDateA }}</span> 〜 <span class="font-semibold">{{ $endDateA }}</span>
+                    （{{ \Carbon\Carbon::parse($startDateA)->diffInDays(\Carbon\Carbon::parse($endDateA)) + 1 }}日間）
                 </div>
             @endif
-        </div>
+
+            {{-- 期間比較モード切り替え --}}
+            <div class="mt-4">
+                <button wire:click="$set('compareMode', true)" type="button"
+                        class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium">
+                    + 期間比較モードに切り替え
+                </button>
+            </div>
+        @else
+            <!-- 比較モード -->
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">期間比較モード</h3>
+                    <button wire:click="$set('compareMode', false)" type="button"
+                            class="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">
+                        通常モードに戻る
+                    </button>
+                </div>
+
+                <!-- 店舗選択 -->
+                <div class="max-w-xs">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">店舗</label>
+                    <select wire:model.live="store_id" class="w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                        <option value="">全店舗</option>
+                        @foreach(\App\Models\Store::orderBy('name')->pluck('name', 'id') as $id => $name)
+                            <option value="{{ $id }}">{{ $name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <!-- 期間A -->
+                <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                    <label class="block text-sm font-medium text-blue-700 dark:text-blue-300 mb-3">期間A</label>
+                    <div class="flex gap-3 items-center">
+                        <input type="date" wire:model.live="startDateA"
+                               class="rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                               max="{{ now()->format('Y-m-d') }}">
+                        <span class="text-gray-500 dark:text-gray-400">〜</span>
+                        <input type="date" wire:model.live="endDateA"
+                               class="rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                               max="{{ now()->format('Y-m-d') }}">
+                    </div>
+                </div>
+
+                <!-- 期間B -->
+                <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+                    <label class="block text-sm font-medium text-green-700 dark:text-green-300 mb-3">期間B</label>
+                    <div class="flex gap-3 items-center">
+                        <input type="date" wire:model.live="startDateB"
+                               class="rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                               max="{{ now()->format('Y-m-d') }}">
+                        <span class="text-gray-500 dark:text-gray-400">〜</span>
+                        <input type="date" wire:model.live="endDateB"
+                               class="rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                               max="{{ now()->format('Y-m-d') }}">
+                    </div>
+                </div>
+
+                @if($startDateA && $endDateA && $startDateB && $endDateB)
+                    <div class="text-sm text-gray-600 dark:text-gray-400">
+                        <span class="text-blue-600 dark:text-blue-400 font-medium">期間A: {{ \Carbon\Carbon::parse($startDateA)->format('Y/m/d') }} 〜 {{ \Carbon\Carbon::parse($endDateA)->format('Y/m/d') }}</span>
+                        と
+                        <span class="text-green-600 dark:text-green-400 font-medium">期間B: {{ \Carbon\Carbon::parse($startDateB)->format('Y/m/d') }} 〜 {{ \Carbon\Carbon::parse($endDateB)->format('Y/m/d') }}</span>
+                        を比較中
+                    </div>
+                @endif
+            </div>
+        @endif
     </div>
 
     <div class="grid grid-cols-1 gap-6">
         @if(!$compareMode)
             <!-- 通常モード -->
             @livewire('marketing.monthly-kpi-stats', ['period' => $period, 'store_id' => $store_id, 'startDate' => $startDateA, 'endDate' => $endDateA])
+            @livewire('marketing.complete-funnel-stats', ['period' => $period, 'store_id' => $store_id, 'startDate' => $startDateA, 'endDate' => $endDateA])
             @livewire('marketing.medical-record-conversion-stats', ['period' => $period, 'store_id' => $store_id, 'startDate' => $startDateA, 'endDate' => $endDateA])
             @livewire('marketing.staff-performance-stats', ['period' => $period, 'store_id' => $store_id, 'startDate' => $startDateA, 'endDate' => $endDateA])
             @livewire('marketing.customer-analysis-stats', ['period' => $period, 'store_id' => $store_id, 'startDate' => $startDateA, 'endDate' => $endDateA])

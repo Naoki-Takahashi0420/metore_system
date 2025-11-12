@@ -35,9 +35,6 @@
                                 スタッフ
                             </th>
                             <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                予約数
-                            </th>
-                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                 売上高
                             </th>
                             <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -84,16 +81,6 @@
                                                 </span>
                                             @endif
                                         </div>
-                                    </div>
-                                </td>
-
-                                <!-- 予約数 -->
-                                <td class="px-4 py-4 whitespace-nowrap text-right">
-                                    <div class="text-sm text-gray-900 dark:text-white font-semibold">
-                                        {{ number_format($staff['reservation_count']) }}件
-                                    </div>
-                                    <div class="text-xs text-gray-500">
-                                        ¥{{ number_format($staff['avg_ticket']) }}/件
                                     </div>
                                 </td>
 

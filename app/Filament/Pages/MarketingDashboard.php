@@ -20,6 +20,13 @@ class MarketingDashboard extends Page
     public ?string $startDateB = null;
     public ?string $endDateB = null;
 
+    public function mount(): void
+    {
+        // デフォルトで今月の1日から今日までを設定
+        $this->startDateA = now()->startOfMonth()->format('Y-m-d');
+        $this->endDateA = now()->format('Y-m-d');
+    }
+
     public static function canAccess(): bool
     {
         return auth()->user()->hasAnyRole(['staff', 'manager', 'owner', 'super_admin']);
@@ -57,6 +64,38 @@ class MarketingDashboard extends Page
 
     public function updatedEndDateB(): void
     {
+        $this->refreshData();
+    }
+
+    public function setToday(): void
+    {
+        $this->startDateA = now()->format('Y-m-d');
+        $this->endDateA = now()->format('Y-m-d');
+        $this->period = 'custom';
+        $this->refreshData();
+    }
+
+    public function setThisMonth(): void
+    {
+        $this->startDateA = now()->startOfMonth()->format('Y-m-d');
+        $this->endDateA = now()->format('Y-m-d');
+        $this->period = 'custom';
+        $this->refreshData();
+    }
+
+    public function setLastMonth(): void
+    {
+        $this->startDateA = now()->subMonth()->startOfMonth()->format('Y-m-d');
+        $this->endDateA = now()->subMonth()->endOfMonth()->format('Y-m-d');
+        $this->period = 'custom';
+        $this->refreshData();
+    }
+
+    public function setLast30Days(): void
+    {
+        $this->startDateA = now()->subDays(30)->format('Y-m-d');
+        $this->endDateA = now()->format('Y-m-d');
+        $this->period = 'custom';
         $this->refreshData();
     }
 
