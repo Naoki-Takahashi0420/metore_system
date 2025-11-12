@@ -1,12 +1,44 @@
 <div>
     <x-filament::card>
-        <div class="mb-4">
+        <div class="mb-6">
             <h2 class="text-xl font-bold text-gray-900 dark:text-white">
                 コンバージョンファネル
             </h2>
-            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                新規顧客の獲得から定着までの流れ
+            <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                新規顧客の獲得から定着までの流れを可視化。期間内に登録した新規顧客が、どの段階でどれだけ進んでいるかを追跡します。
             </p>
+
+            <!-- 各ステージの説明 -->
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                <div class="flex items-start gap-2 bg-blue-50 dark:bg-blue-900/20 rounded p-2">
+                    <span class="flex-shrink-0 w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold">1</span>
+                    <div>
+                        <span class="font-semibold text-blue-700 dark:text-blue-300">新規顧客登録</span>
+                        <p class="text-gray-600 dark:text-gray-400 mt-0.5">期間内に初めて登録した顧客</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-2 bg-green-50 dark:bg-green-900/20 rounded p-2">
+                    <span class="flex-shrink-0 w-5 h-5 bg-green-500 text-white rounded-full flex items-center justify-center font-bold">2</span>
+                    <div>
+                        <span class="font-semibold text-green-700 dark:text-green-300">初回来店</span>
+                        <p class="text-gray-600 dark:text-gray-400 mt-0.5">実際に来店して施術を完了した顧客</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-2 bg-yellow-50 dark:bg-yellow-900/20 rounded p-2">
+                    <span class="flex-shrink-0 w-5 h-5 bg-yellow-500 text-white rounded-full flex items-center justify-center font-bold">3</span>
+                    <div>
+                        <span class="font-semibold text-yellow-700 dark:text-yellow-300">2回目予約</span>
+                        <p class="text-gray-600 dark:text-gray-400 mt-0.5">リピート予約をした顧客（定着の兆し）</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-2 bg-purple-50 dark:bg-purple-900/20 rounded p-2">
+                    <span class="flex-shrink-0 w-5 h-5 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold">4</span>
+                    <div>
+                        <span class="font-semibold text-purple-700 dark:text-purple-300">サブスク契約</span>
+                        <p class="text-gray-600 dark:text-gray-400 mt-0.5">定期契約で完全に定着した顧客</p>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="space-y-4">

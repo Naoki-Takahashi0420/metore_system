@@ -80,15 +80,22 @@ class MarketingAnalyticsService
             ->when($storeId, fn($q) => $q->where('store_id', $storeId))
             ->count();
 
-        // 平均客単価
-        $avgTicket = $totalReservations > 0
-            ? round($totalRevenue / $totalReservations, 0)
+        // 平均客単価（売上件数ベース）
+        $salesCount = Sale::query()
+            ->whereBetween('sale_date', [$startDate, $endDate])
+            ->when($storeId, fn($q) => $q->where('store_id', $storeId))
+            ->where('status', 'completed')
+            ->count();
+
+        $avgTicket = $salesCount > 0
+            ? round($totalRevenue / $salesCount, 0)
             : 0;
 
         return [
             'total_reservations' => $totalReservations,
             'new_customers' => $newCustomers,
             'total_revenue' => $totalRevenue,
+            'total_transactions' => $salesCount,
             'repeat_rate' => $repeatRate,
             'revenue_growth' => $revenueGrowth,
             'active_subscriptions' => $activeSubscriptions,
@@ -111,176 +118,252 @@ class MarketingAnalyticsService
             [$startDate, $endDate] = $this->getPeriodDates($period);
         }
 
-        $staffData = User::query()
-            ->join('model_has_roles', 'users.id', '=', 'model_has_roles.model_id')
-            ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
-            ->whereIn('roles.name', ['staff', 'manager'])
-            ->when($storeId, function($q) use ($storeId) {
-                $q->join('store_managers', 'users.id', '=', 'store_managers.user_id')
-                    ->where('store_managers.store_id', $storeId);
-            })
-            ->select('users.id', 'users.name')
-            ->get();
+        // カルテのhandled_byから実際のスタッフ名を取得（店舗名を除外）
+        $staffNamesFromRecords = \App\Models\MedicalRecord::query()
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->when($storeId, fn($q) => $q->where('store_id', $storeId))
+            ->whereNotNull('handled_by')
+            ->where('handled_by', '!=', '')
+            // 店舗名パターンを除外（「〜店」で終わる、または「〜店舗」など）
+            ->where('handled_by', 'NOT LIKE', '%店')
+            ->where('handled_by', 'NOT LIKE', '%店舗')
+            ->where('handled_by', 'NOT LIKE', '%本部%')
+            ->select('handled_by')
+            ->distinct()
+            ->pluck('handled_by');
+
+        $staffData = collect($staffNamesFromRecords)->map(function($name) {
+            // スタッフ名の抽出ロジック
+            // パターン1: 「吉祥寺店 水島」→「水島」（スペース区切り）
+            // パターン2: 「吉祥寺店志藤」→「志藤」（店名の後にスタッフ名が続く）
+
+            // スペース区切りがある場合
+            if (str_contains($name, ' ')) {
+                $parts = explode(' ', $name);
+                $cleanName = end($parts);
+            } else {
+                // スペースがない場合、「〜店」の後の文字列を抽出
+                if (preg_match('/店(.+)$/', $name, $matches)) {
+                    $cleanName = $matches[1]; // 「吉祥寺店志藤」→「志藤」
+                } else {
+                    $cleanName = $name;
+                }
+            }
+
+            return (object)[
+                'id' => null,
+                'name' => $cleanName,
+                'original_name' => $name, // 検索用に元の名前も保持
+            ];
+        })->filter(function($staff) {
+            // さらに店舗名っぽいものを除外
+            return !str_ends_with($staff->name, '店')
+                && !str_ends_with($staff->name, '店舗')
+                && !str_contains($staff->name, '本部')
+                && !empty($staff->name); // 空文字も除外
+        })->values();
 
         $performanceData = [];
 
         foreach ($staffData as $staff) {
-            // 予約件数（指名回数）
-            $reservationCount = Reservation::query()
-                ->where('staff_id', $staff->id)
-                ->whereBetween('reservation_date', [$startDate, $endDate])
-                ->whereIn('status', ['completed', 'in_progress'])
+            // ============================================================
+            // 基本指標の集計
+            // ============================================================
+
+            // カルテ件数（対応回数）
+            // このスタッフが期間内に作成したカルテの総数
+            $recordCount = \App\Models\MedicalRecord::query()
+                ->where(function($q) use ($staff) {
+                    $q->where('handled_by', $staff->original_name)
+                      ->orWhere('handled_by', $staff->name)
+                      ->orWhere('handled_by', 'LIKE', '%' . $staff->name . '%');
+                })
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->when($storeId, fn($q) => $q->where('store_id', $storeId))
                 ->count();
 
-            // 売上金額
+            // 売上金額（handled_by基準）
+            // このスタッフが対応した売上の合計金額（完了済みのみ）
             $revenue = Sale::query()
-                ->where('staff_id', $staff->id)
+                ->where(function($q) use ($staff) {
+                    $q->where('handled_by', $staff->original_name)
+                      ->orWhere('handled_by', $staff->name)
+                      ->orWhere('handled_by', 'LIKE', '%' . $staff->name . '%');
+                })
                 ->whereBetween('sale_date', [$startDate, $endDate])
+                ->when($storeId, fn($q) => $q->where('store_id', $storeId))
                 ->where('status', 'completed')
                 ->sum('total_amount');
 
-            // 新規顧客数
-            $newCustomers = Reservation::query()
-                ->where('staff_id', $staff->id)
-                ->whereBetween('reservation_date', [$startDate, $endDate])
-                ->whereIn('status', ['completed'])
-                ->whereHas('customer', function($q) use ($startDate, $endDate) {
-                    $q->whereBetween('created_at', [$startDate, $endDate]);
+            // 売上件数
+            // このスタッフが対応した売上の件数
+            $salesCount = Sale::query()
+                ->where(function($q) use ($staff) {
+                    $q->where('handled_by', $staff->original_name)
+                      ->orWhere('handled_by', $staff->name)
+                      ->orWhere('handled_by', 'LIKE', '%' . $staff->name . '%');
                 })
-                ->distinct('customer_id')
-                ->count('customer_id');
+                ->whereBetween('sale_date', [$startDate, $endDate])
+                ->when($storeId, fn($q) => $q->where('store_id', $storeId))
+                ->where('status', 'completed')
+                ->count();
 
-            // サブスク転換数（新規顧客からサブスクへ）
-            $subscriptionConversions = CustomerSubscription::query()
-                ->whereHas('customer.reservations', function($q) use ($staff, $startDate, $endDate) {
-                    $q->where('staff_id', $staff->id)
-                        ->whereBetween('reservation_date', [$startDate, $endDate]);
+            // ユニーク顧客数（カルテから）
+            // このスタッフが期間内に対応した顧客の人数（ユニーク）
+            $newCustomers = \App\Models\MedicalRecord::query()
+                ->where(function($q) use ($staff) {
+                    $q->where('handled_by', $staff->original_name)
+                      ->orWhere('handled_by', $staff->name)
+                      ->orWhere('handled_by', 'LIKE', '%' . $staff->name . '%');
                 })
                 ->whereBetween('created_at', [$startDate, $endDate])
-                ->count();
-
-            // 転換率
-            $conversionRate = $newCustomers > 0
-                ? round(($subscriptionConversions / $newCustomers) * 100, 1)
-                : 0;
-
-            // リピート予約獲得数
-            $repeatReservations = Reservation::query()
-                ->where('staff_id', $staff->id)
-                ->whereBetween('reservation_date', [$startDate, $endDate])
-                ->whereIn('status', ['completed', 'confirmed'])
-                ->whereHas('customer', function($q) use ($startDate) {
-                    $q->where('created_at', '<', $startDate);
-                })
-                ->count();
-
-            // 初回顧客のうちリピートした人数
-            $firstTimeCustomerIds = Reservation::query()
-                ->where('staff_id', $staff->id)
-                ->whereBetween('reservation_date', [$startDate, $endDate])
-                ->whereIn('status', ['completed'])
-                ->whereHas('customer', function($q) use ($startDate, $endDate) {
-                    $q->whereBetween('created_at', [$startDate, $endDate]);
-                })
-                ->pluck('customer_id');
-
-            $repeatCustomersFromNew = 0;
-            if ($firstTimeCustomerIds->count() > 0) {
-                $repeatCustomersFromNew = Reservation::query()
-                    ->whereIn('customer_id', $firstTimeCustomerIds)
-                    ->where('staff_id', $staff->id)
-                    ->where('reservation_date', '>', $endDate)
-                    ->whereIn('status', ['completed', 'confirmed', 'pending'])
-                    ->distinct('customer_id')
-                    ->count('customer_id');
-            }
-
-            // リピート獲得率（初回顧客のうち次回予約を取った割合）
-            $repeatAcquisitionRate = $newCustomers > 0
-                ? round(($repeatCustomersFromNew / $newCustomers) * 100, 1)
-                : 0;
-
-            // 顧客継続率（担当した既存顧客のうち期間後も継続している割合）
-            $existingCustomers = Reservation::query()
-                ->where('staff_id', $staff->id)
-                ->whereBetween('reservation_date', [$startDate, $endDate])
-                ->whereIn('status', ['completed'])
-                ->whereHas('customer', function($q) use ($startDate) {
-                    $q->where('created_at', '<', $startDate);
-                })
+                ->when($storeId, fn($q) => $q->where('store_id', $storeId))
                 ->distinct('customer_id')
                 ->count('customer_id');
 
-            $continuingCustomers = Reservation::query()
-                ->where('staff_id', $staff->id)
-                ->where('reservation_date', '>', $endDate)
-                ->where('reservation_date', '<=', $endDate->copy()->addDays(60))
-                ->whereIn('status', ['completed', 'confirmed', 'pending'])
-                ->whereHas('customer', function($q) use ($startDate) {
-                    $q->where('created_at', '<', $startDate);
+            // ============================================================
+            // サブスク転換率の計算
+            // ============================================================
+            // 【定義】
+            // このスタッフが対応した顧客のうち、サブスク契約をした顧客の割合
+            //
+            // 【計算例】
+            // - 玲奈さんが10月に10人の顧客にカルテ作成
+            // - そのうち4人がサブスク契約
+            // - サブスク転換率 = 4人 ÷ 10人 = 40%
+            //
+            // 【意味】
+            // 商品・サービスへの満足度、営業力の指標
+            //
+            // 【注意】
+            // サブスク契約の created_at は期間外でもOK（長期的な転換を追跡）
+            // ============================================================
+            $customerIdsFromRecords = \App\Models\MedicalRecord::query()
+                ->where(function($q) use ($staff) {
+                    $q->where('handled_by', $staff->original_name)
+                      ->orWhere('handled_by', $staff->name)
+                      ->orWhere('handled_by', 'LIKE', '%' . $staff->name . '%');
                 })
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->when($storeId, fn($q) => $q->where('store_id', $storeId))
+                ->pluck('customer_id')
+                ->unique();
+
+            // サブスク契約数（期間外の契約も含む、長期的な転換を見る）
+            $subscriptionConversions = \App\Models\CustomerSubscription::query()
+                ->whereIn('customer_id', $customerIdsFromRecords)
+                ->when($storeId, fn($q) => $q->where('store_id', $storeId))
+                ->where('status', 'active')
                 ->distinct('customer_id')
                 ->count('customer_id');
 
-            $customerRetentionRate = $existingCustomers > 0
-                ? round(($continuingCustomers / $existingCustomers) * 100, 1)
+            $conversionRate = $customerIdsFromRecords->count() > 0
+                ? round(($subscriptionConversions / $customerIdsFromRecords->count()) * 100, 1)
                 : 0;
 
-            // 平均接客間隔（日数）- データベース互換性対応
-            $customerVisits = Reservation::query()
-                ->where('staff_id', $staff->id)
-                ->whereBetween('reservation_date', [$startDate, $endDate])
-                ->whereIn('status', ['completed'])
-                ->select('customer_id')
-                ->selectRaw('COUNT(*) as visit_count')
-                ->selectRaw('MAX(reservation_date) as max_date')
-                ->selectRaw('MIN(reservation_date) as min_date')
-                ->groupBy('customer_id')
-                ->havingRaw('visit_count > 1')
+            // ============================================================
+            // 顧客継続率（リテンション率）の計算
+            // ============================================================
+            // 【定義】
+            // このスタッフが期間内に初回カルテ対応した顧客のうち、
+            // 翌月末までに2回目の予約をした顧客の割合
+            //
+            // 【計算例】
+            // - 10月に玲奈さんが新規顧客5人にカルテ作成（玲奈にとって初回対応）
+            // - そのうち3人が11月末までに2回目の予約（どのスタッフでもOK）
+            // - 顧客継続率 = 3人 ÷ 5人 = 60%
+            //
+            // 【意味】
+            // スタッフが対応した顧客のうち、リピーターになってくれた割合
+            // = 「一回限りで終わったか、継続してくれたか」の指標
+            // ============================================================
+
+            // ステップ1: このスタッフの全カルテを取得（全期間）
+            $allRecordsByStaff = \App\Models\MedicalRecord::query()
+                ->where(function($q) use ($staff) {
+                    $q->where('handled_by', $staff->original_name)
+                      ->orWhere('handled_by', $staff->name)
+                      ->orWhere('handled_by', 'LIKE', '%' . $staff->name . '%');
+                })
+                ->when($storeId, fn($q) => $q->where('store_id', $storeId))
+                ->orderBy('created_at')
                 ->get();
 
-            $avgVisitInterval = 0;
-            if ($customerVisits->count() > 0) {
-                $intervals = $customerVisits->map(function($visit) {
-                    $maxDate = Carbon::parse($visit->max_date);
-                    $minDate = Carbon::parse($visit->min_date);
-                    $dateSpan = $maxDate->diffInDays($minDate);
-                    return $dateSpan / ($visit->visit_count - 1);
-                });
-                $avgVisitInterval = round($intervals->avg(), 1);
+            // ステップ2: 期間内のカルテから、「このスタッフにとって初回対応」の顧客を抽出
+            // 注: システム全体で初回ではなく、このスタッフにとって初回であることが重要
+            // 例: 顧客Aさんが9月に涼介さん、10月に玲奈さんにカルテ作成
+            //     → 玲奈さんにとっては初回対応としてカウント
+            $firstTimeCustomerIds = collect();
+            foreach ($allRecordsByStaff as $record) {
+                if ($record->created_at >= $startDate && $record->created_at <= $endDate) {
+                    // この顧客の、このスタッフによる過去のカルテがあるか確認
+                    $hasPreviousRecord = $allRecordsByStaff
+                        ->where('customer_id', $record->customer_id)
+                        ->where('created_at', '<', $record->created_at)
+                        ->isNotEmpty();
+
+                    if (!$hasPreviousRecord) {
+                        $firstTimeCustomerIds->push($record->customer_id);
+                    }
+                }
             }
+            $firstTimeCustomerIds = $firstTimeCustomerIds->unique();
 
-            // 顧客満足度スコア（キャンセル率の逆数で推定）
-            $totalCustomerReservations = Reservation::query()
-                ->where('staff_id', $staff->id)
-                ->whereBetween('reservation_date', [$startDate, $endDate])
-                ->count();
+            // ステップ3: その顧客が期間終了後（翌月末まで）に2回目の予約をしたかチェック
+            // 注: reservation_date（実際の予約日）で判定（created_atではない）
+            // 注: どのスタッフへの予約でもOK（顧客起点で判定）
+            $nextMonthEnd = $endDate->copy()->addMonth()->endOfMonth();
+            $repeatCustomers = \App\Models\Reservation::query()
+                ->whereIn('customer_id', $firstTimeCustomerIds)
+                ->where('reservation_date', '>', $endDate)
+                ->where('reservation_date', '<=', $nextMonthEnd)
+                ->distinct('customer_id')
+                ->count('customer_id');
 
-            $cancelledReservations = Reservation::query()
-                ->where('staff_id', $staff->id)
-                ->whereBetween('reservation_date', [$startDate, $endDate])
-                ->whereIn('status', ['cancelled', 'no_show'])
-                ->count();
+            // ステップ4: 継続率を計算
+            $customerRetentionRate = $firstTimeCustomerIds->count() > 0
+                ? round(($repeatCustomers / $firstTimeCustomerIds->count()) * 100, 1)
+                : 0;
 
-            $satisfactionScore = $totalCustomerReservations > 0
-                ? round((1 - ($cancelledReservations / $totalCustomerReservations)) * 100, 1)
-                : 100;
+            // ============================================================
+            // リピート獲得率
+            // ============================================================
+            // 【定義】
+            // 顧客継続率と同じ意味（初回対応顧客のリピート率）
+            // ============================================================
+            $repeatAcquisitionRate = $customerRetentionRate;
+
+            // ============================================================
+            // 満足度スコア
+            // ============================================================
+            // 【定義】
+            // サブスク転換率と顧客継続率の平均
+            //
+            // 【計算例】
+            // - サブスク転換率: 40%（商品への満足度）
+            // - 顧客継続率: 60%（サービスへの満足度）
+            // - 満足度スコア = (40 + 60) ÷ 2 = 50%
+            //
+            // 【意味】
+            // - 転換率が高い = 商品・サービスに満足して契約
+            // - 継続率が高い = 接客・対応に満足してリピート
+            // - 両方の平均 = 総合的な顧客満足度の指標
+            // ============================================================
+            $satisfactionScore = round(($conversionRate + $customerRetentionRate) / 2, 1);
 
             $performanceData[] = [
                 'id' => $staff->id,
                 'name' => $staff->name,
-                'reservation_count' => $reservationCount,
-                'revenue' => $revenue,
-                'new_customers' => $newCustomers,
-                'subscription_conversions' => $subscriptionConversions,
-                'conversion_rate' => $conversionRate,
-                'repeat_reservations' => $repeatReservations,
-                'repeat_acquisition_rate' => $repeatAcquisitionRate,
-                'customer_retention_rate' => $customerRetentionRate,
-                'avg_visit_interval' => $avgVisitInterval,
-                'satisfaction_score' => $satisfactionScore,
-                'avg_ticket' => $reservationCount > 0
-                    ? round($revenue / $reservationCount, 0)
+                'record_count' => $recordCount,            // カルテ対応回数
+                'revenue' => $revenue,                     // 売上金額
+                'new_customers' => $newCustomers,          // ユニーク顧客数（カルテから）
+                'sales_count' => $salesCount,              // 売上件数
+                'conversion_rate' => $conversionRate,      // サブスク転換率
+                'repeat_acquisition_rate' => $repeatAcquisitionRate,  // リピート率（計算不可）
+                'customer_retention_rate' => $customerRetentionRate,  // 継続率（計算不可）
+                'satisfaction_score' => $satisfactionScore,           // 満足度スコア
+                'avg_ticket' => $salesCount > 0
+                    ? round($revenue / $salesCount, 0)
                     : 0,
             ];
         }
@@ -384,6 +467,89 @@ class MarketingAnalyticsService
             ? round(($noShowReservations / $totalReservations) * 100, 1)
             : 0;
 
+        // キャンセル顧客一覧（最新10件）
+        $cancelledCustomers = Reservation::query()
+            ->with('customer')
+            ->whereBetween('reservation_date', [$startDate, $endDate])
+            ->when($storeId, fn($q) => $q->where('store_id', $storeId))
+            ->where('status', 'cancelled')
+            ->orderBy('reservation_date', 'desc')
+            ->limit(10)
+            ->get()
+            ->map(fn($r) => [
+                'customer_id' => $r->customer_id,
+                'customer_name' => $r->customer?->full_name ?? '不明',
+                'reservation_date' => $r->reservation_date,
+                'cancelled_at' => $r->updated_at->format('Y-m-d H:i'),
+            ]);
+
+        // ノーショー顧客一覧（最新10件）
+        $noShowCustomers = Reservation::query()
+            ->with('customer')
+            ->whereBetween('reservation_date', [$startDate, $endDate])
+            ->when($storeId, fn($q) => $q->where('store_id', $storeId))
+            ->where('status', 'no_show')
+            ->orderBy('reservation_date', 'desc')
+            ->limit(10)
+            ->get()
+            ->map(fn($r) => [
+                'customer_id' => $r->customer_id,
+                'customer_name' => $r->customer?->full_name ?? '不明',
+                'reservation_date' => $r->reservation_date,
+            ]);
+
+        // 流入経路別分析（CVR付き）
+        // record_dateがNULLの場合はcreated_atを使用（吉祥寺店など一部データでrecord_dateが未設定）
+        $medicalRecordsBySource = \DB::table('medical_records')
+            ->where(function($q) use ($startDate, $endDate) {
+                $q->whereBetween('record_date', [$startDate, $endDate])
+                  ->orWhere(function($q2) use ($startDate, $endDate) {
+                      $q2->whereNull('record_date')
+                         ->whereBetween('created_at', [$startDate, $endDate]);
+                  });
+            })
+            ->when($storeId, fn($q) => $q->where('store_id', $storeId))
+            ->whereNotNull('reservation_source')
+            ->where('reservation_source', '!=', '')
+            ->get();
+
+        $acquisitionSources = [];
+        foreach ($medicalRecordsBySource->groupBy('reservation_source') as $source => $records) {
+            $recordCount = $records->count();
+            $customerIds = $records->pluck('customer_id')->unique();
+
+            // サブスク契約数
+            $subscriptionCount = \App\Models\CustomerSubscription::whereIn('customer_id', $customerIds)
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->when($storeId, fn($q) => $q->where('store_id', $storeId))
+                ->count();
+
+            // 回数券契約数
+            $ticketCount = \App\Models\CustomerTicket::whereIn('customer_id', $customerIds)
+                ->whereBetween('purchased_at', [$startDate, $endDate])
+                ->when($storeId, fn($q) => $q->where('store_id', $storeId))
+                ->count();
+
+            $totalContracts = $subscriptionCount + $ticketCount;
+            $conversionRate = $recordCount > 0
+                ? round(($totalContracts / $recordCount) * 100, 1)
+                : 0;
+
+            $acquisitionSources[] = [
+                'source' => $source,
+                'record_count' => $recordCount,
+                'subscription_count' => $subscriptionCount,
+                'ticket_count' => $ticketCount,
+                'total_contracts' => $totalContracts,
+                'conversion_rate' => $conversionRate,
+            ];
+        }
+
+        // 転換率の高い順にソート
+        usort($acquisitionSources, function ($a, $b) {
+            return $b['conversion_rate'] <=> $a['conversion_rate'];
+        });
+
         return [
             'new_customers_trend' => $newCustomersTrend,
             'existing_customer_visits' => $existingCustomerVisits,
@@ -391,11 +557,29 @@ class MarketingAnalyticsService
             'segments' => $segments,
             'cancel_rate' => $cancelRate,
             'no_show_rate' => $noShowRate,
+            'cancelled_customers' => $cancelledCustomers,
+            'no_show_customers' => $noShowCustomers,
+            'acquisition_sources' => $acquisitionSources,
         ];
     }
 
     /**
      * コンバージョンファネルデータを取得
+     */
+    /**
+     * コンバージョンファネル分析
+     *
+     * 【定義】期間内に登録した新規顧客の行動を追跡
+     *
+     * ステップ1: 新規顧客登録（期間内に created_at）
+     * ステップ2: 初回来店（ステップ1の顧客が completed 予約を持つ）
+     * ステップ3: 2回目予約（ステップ2の顧客が2回目の予約を持つ）
+     * ステップ4: サブスク契約（ステップ1の顧客がアクティブなサブスク契約を持つ）
+     *
+     * 【重要】
+     * - 各ステップは「新規顧客」を起点とする
+     * - 既存顧客の予約は含まない
+     * - 予約の完了は期間外でもカウント（顧客の長期的な行動を追跡）
      */
     public function getConversionFunnel(?string $period = 'month', ?int $storeId = null, ?string $customStartDate = null, ?string $customEndDate = null): array
     {
@@ -409,73 +593,86 @@ class MarketingAnalyticsService
         // ファネル各段階の数値
         $funnel = [];
 
-        // 1. 新規顧客獲得
-        $newCustomers = Customer::query()
+        // ============================================================
+        // ステップ1: 新規顧客登録
+        // ============================================================
+        // 期間内に登録された顧客
+        $newCustomerIds = Customer::query()
             ->whereBetween('created_at', [$startDate, $endDate])
             ->when($storeId, fn($q) => $q->where('store_id', $storeId))
-            ->count();
+            ->pluck('id');
+
+        $newCustomersCount = $newCustomerIds->count();
 
         $funnel[] = [
             'stage' => '新規顧客登録',
-            'count' => $newCustomers,
+            'count' => $newCustomersCount,
             'rate' => 100,
         ];
 
-        // 2. 初回予約完了
-        $firstReservations = Reservation::query()
-            ->whereBetween('reservation_date', [$startDate, $endDate])
+        // ============================================================
+        // ステップ2: 初回来店（completed予約）
+        // ============================================================
+        // 新規顧客が completed 予約を持つ（期間外も含む、顧客の長期的な行動を追跡）
+        $firstReservationsCustomerIds = Reservation::query()
+            ->whereIn('customer_id', $newCustomerIds)
             ->when($storeId, fn($q) => $q->where('store_id', $storeId))
-            ->whereIn('status', ['completed'])
-            ->whereHas('customer', function($q) use ($startDate, $endDate) {
-                $q->whereBetween('created_at', [$startDate, $endDate]);
-            })
+            ->where('status', 'completed')
+            ->distinct('customer_id')
+            ->pluck('customer_id');
+
+        $firstReservationsCount = $firstReservationsCustomerIds->count();
+
+        $funnel[] = [
+            'stage' => '初回来店',
+            'count' => $firstReservationsCount,
+            'rate' => $newCustomersCount > 0
+                ? round(($firstReservationsCount / $newCustomersCount) * 100, 1)
+                : 0,
+        ];
+
+        // ============================================================
+        // ステップ3: 2回目予約
+        // ============================================================
+        // ステップ2の顧客（初回来店済み）のうち、2回目の予約を持つ顧客
+        // 各顧客について、2回以上の予約があるかチェック
+        $secondReservationsCount = 0;
+        if ($firstReservationsCustomerIds->isNotEmpty()) {
+            $secondReservationsCount = DB::table('reservations')
+                ->select('customer_id')
+                ->whereIn('customer_id', $firstReservationsCustomerIds)
+                ->when($storeId, fn($q) => $q->where('store_id', $storeId))
+                ->whereIn('status', ['completed', 'confirmed'])
+                ->groupBy('customer_id')
+                ->havingRaw('COUNT(*) >= 2')
+                ->get()
+                ->count();
+        }
+
+        $funnel[] = [
+            'stage' => '2回目予約',
+            'count' => $secondReservationsCount,
+            'rate' => $firstReservationsCount > 0
+                ? round(($secondReservationsCount / $firstReservationsCount) * 100, 1)
+                : 0,
+        ];
+
+        // ============================================================
+        // ステップ4: サブスク契約
+        // ============================================================
+        // 新規顧客がアクティブなサブスク契約を持つ
+        $subscriptionsCount = CustomerSubscription::query()
+            ->whereIn('customer_id', $newCustomerIds)
+            ->when($storeId, fn($q) => $q->where('store_id', $storeId))
+            ->where('status', 'active')
             ->distinct('customer_id')
             ->count('customer_id');
 
         $funnel[] = [
-            'stage' => '初回来店',
-            'count' => $firstReservations,
-            'rate' => $newCustomers > 0
-                ? round(($firstReservations / $newCustomers) * 100, 1)
-                : 0,
-        ];
-
-        // 3. 2回目予約
-        $secondReservations = DB::table('reservations as r1')
-            ->join('reservations as r2', function($join) use ($startDate, $endDate) {
-                $join->on('r1.customer_id', '=', 'r2.customer_id')
-                    ->whereRaw('r2.reservation_date > r1.reservation_date')
-                    ->whereBetween('r2.reservation_date', [$startDate, $endDate]);
-            })
-            ->whereBetween('r1.reservation_date', [$startDate, $endDate])
-            ->when($storeId, fn($q) => $q->where('r1.store_id', $storeId))
-            ->whereIn('r1.status', ['completed'])
-            ->whereIn('r2.status', ['completed', 'confirmed'])
-            ->distinct('r1.customer_id')
-            ->count('r1.customer_id');
-
-        $funnel[] = [
-            'stage' => '2回目予約',
-            'count' => $secondReservations,
-            'rate' => $firstReservations > 0
-                ? round(($secondReservations / $firstReservations) * 100, 1)
-                : 0,
-        ];
-
-        // 4. サブスク契約
-        $subscriptions = CustomerSubscription::query()
-            ->whereHas('customer', function($q) use ($startDate, $endDate) {
-                $q->whereBetween('created_at', [$startDate, $endDate]);
-            })
-            ->when($storeId, fn($q) => $q->where('store_id', $storeId))
-            ->where('status', 'active')
-            ->count();
-
-        $funnel[] = [
             'stage' => 'サブスク契約',
-            'count' => $subscriptions,
-            'rate' => $secondReservations > 0
-                ? round(($subscriptions / $secondReservations) * 100, 1)
+            'count' => $subscriptionsCount,
+            'rate' => $newCustomersCount > 0
+                ? round(($subscriptionsCount / $newCustomersCount) * 100, 1)
                 : 0,
         ];
 
@@ -560,6 +757,231 @@ class MarketingAnalyticsService
             default:
                 return '';
         }
+    }
+
+    /**
+     * 完全なファネル分析（新規顧客→初回予約→カルテ→契約）
+     * 店舗ごと・スタッフごとの詳細データをテーブル形式で取得
+     *
+     * @param string|null $period 期間
+     * @param int|null $storeId 店舗ID
+     * @param string|null $customStartDate カスタム開始日
+     * @param string|null $customEndDate カスタム終了日
+     * @return array 店舗別・スタッフ別の完全なファネルデータ
+     */
+    public function getCompleteConversionFunnel(
+        ?string $period = 'month',
+        ?int $storeId = null,
+        ?string $customStartDate = null,
+        ?string $customEndDate = null
+    ): array {
+        // 期間を決定
+        if ($period === 'custom' && $customStartDate && $customEndDate) {
+            $startDate = Carbon::parse($customStartDate)->startOfDay();
+            $endDate = Carbon::parse($customEndDate)->endOfDay();
+        } else {
+            [$startDate, $endDate] = $this->getPeriodDates($period);
+        }
+
+        // 新規顧客を取得（期間内に登録された顧客）
+        $newCustomersQuery = \App\Models\Customer::query()
+            ->with(['reservations', 'medicalRecords.staff', 'subscriptions', 'tickets', 'store'])
+            ->whereBetween('created_at', [$startDate, $endDate]);
+
+        if ($storeId) {
+            $newCustomersQuery->where('store_id', $storeId);
+        }
+
+        $newCustomers = $newCustomersQuery->get();
+
+        // 店舗別・スタッフ別データを集計
+        $storeData = [];
+        $staffData = [];
+
+        foreach ($newCustomers as $customer) {
+            // 初回予約を取得して店舗を特定
+            $firstReservation = $customer->reservations()
+                ->orderBy('reservation_date', 'asc')
+                ->first();
+
+            // 店舗IDを特定（優先順位: 予約 > 顧客）
+            $customerStoreId = null;
+            $customerStoreName = '不明';
+
+            if ($firstReservation && $firstReservation->store_id) {
+                $customerStoreId = $firstReservation->store_id;
+                $customerStoreName = $firstReservation->store ? $firstReservation->store->name : '不明';
+            } elseif ($customer->store_id) {
+                $customerStoreId = $customer->store_id;
+                $customerStoreName = $customer->store ? $customer->store->name : '不明';
+            }
+
+            // 店舗が特定できない場合はスキップ
+            if (!$customerStoreId) {
+                continue;
+            }
+
+            // 店舗別データの初期化
+            if (!isset($storeData[$customerStoreId])) {
+                $storeData[$customerStoreId] = [
+                    'store_id' => $customerStoreId,
+                    'store_name' => $customerStoreName,
+                    'new_customers' => 0,
+                    'with_first_reservation' => 0,
+                    'with_medical_record' => 0,
+                    'with_next_reservation' => 0,
+                    'with_subscription' => 0,
+                    'with_ticket' => 0,
+                    'with_any_contract' => 0,
+                ];
+            }
+
+            $storeData[$customerStoreId]['new_customers']++;
+
+            if ($firstReservation) {
+                $storeData[$customerStoreId]['with_first_reservation']++;
+
+                // カルテを取得
+                $medicalRecord = $customer->medicalRecords()
+                    ->whereNotNull('staff_id')
+                    ->orderBy('created_at', 'asc')
+                    ->first();
+
+                if ($medicalRecord) {
+                    $storeData[$customerStoreId]['with_medical_record']++;
+
+                    $staffId = $medicalRecord->staff_id;
+                    $staffName = $medicalRecord->staff ? $medicalRecord->staff->name : '不明';
+
+                    // スタッフ別データの初期化
+                    if (!isset($staffData[$staffId])) {
+                        $staffData[$staffId] = [
+                            'staff_id' => $staffId,
+                            'staff_name' => $staffName,
+                            'store_id' => $customerStoreId,
+                            'store_name' => $customerStoreName,
+                            'new_customers' => 0,
+                            'with_first_reservation' => 0,
+                            'with_medical_record' => 0,
+                            'with_next_reservation' => 0,
+                            'with_subscription' => 0,
+                            'with_ticket' => 0,
+                            'with_any_contract' => 0,
+                        ];
+                    }
+
+                    $staffData[$staffId]['new_customers']++;
+                    $staffData[$staffId]['with_first_reservation']++;
+                    $staffData[$staffId]['with_medical_record']++;
+
+                    // 次回予約を確認
+                    $nextReservation = $customer->reservations()
+                        ->where('created_at', '>', $medicalRecord->created_at)
+                        ->orderBy('created_at', 'asc')
+                        ->first();
+
+                    if ($nextReservation) {
+                        $storeData[$customerStoreId]['with_next_reservation']++;
+                        $staffData[$staffId]['with_next_reservation']++;
+                    }
+
+                    // 契約を確認
+                    $hasSubscription = $customer->subscriptions()->exists();
+                    $hasTicket = $customer->tickets()->exists();
+
+                    if ($hasSubscription) {
+                        $storeData[$customerStoreId]['with_subscription']++;
+                        $staffData[$staffId]['with_subscription']++;
+                    }
+
+                    if ($hasTicket) {
+                        $storeData[$customerStoreId]['with_ticket']++;
+                        $staffData[$staffId]['with_ticket']++;
+                    }
+
+                    if ($hasSubscription || $hasTicket) {
+                        $storeData[$customerStoreId]['with_any_contract']++;
+                        $staffData[$staffId]['with_any_contract']++;
+                    }
+                }
+            }
+        }
+
+        // 転換率を計算
+        foreach ($storeData as &$data) {
+            $this->calculateConversionRates($data);
+        }
+
+        foreach ($staffData as &$data) {
+            $this->calculateConversionRates($data);
+        }
+
+        // 契約転換率でソート
+        usort($storeData, fn($a, $b) => $b['contract_conversion_rate'] <=> $a['contract_conversion_rate']);
+        usort($staffData, fn($a, $b) => $b['contract_conversion_rate'] <=> $a['contract_conversion_rate']);
+
+        return [
+            'stores' => array_values($storeData),
+            'staff' => array_values($staffData),
+            'summary' => $this->calculateSummary($storeData),
+        ];
+    }
+
+    /**
+     * 転換率を計算
+     */
+    private function calculateConversionRates(array &$data): void
+    {
+        $newCustomers = $data['new_customers'];
+        $withFirstReservation = $data['with_first_reservation'];
+        $withMedicalRecord = $data['with_medical_record'];
+
+        $data['first_reservation_rate'] = $newCustomers > 0
+            ? round(($withFirstReservation / $newCustomers) * 100, 1)
+            : 0;
+
+        $data['medical_record_rate'] = $withFirstReservation > 0
+            ? round(($withMedicalRecord / $withFirstReservation) * 100, 1)
+            : 0;
+
+        $data['next_reservation_rate'] = $withMedicalRecord > 0
+            ? round(($data['with_next_reservation'] / $withMedicalRecord) * 100, 1)
+            : 0;
+
+        $data['contract_conversion_rate'] = $withMedicalRecord > 0
+            ? round(($data['with_any_contract'] / $withMedicalRecord) * 100, 1)
+            : 0;
+
+        // 全体の転換率（新規顧客→契約）
+        $data['overall_conversion_rate'] = $newCustomers > 0
+            ? round(($data['with_any_contract'] / $newCustomers) * 100, 1)
+            : 0;
+    }
+
+    /**
+     * サマリーを計算
+     */
+    private function calculateSummary(array $storeData): array
+    {
+        $summary = [
+            'new_customers' => 0,
+            'with_first_reservation' => 0,
+            'with_medical_record' => 0,
+            'with_next_reservation' => 0,
+            'with_subscription' => 0,
+            'with_ticket' => 0,
+            'with_any_contract' => 0,
+        ];
+
+        foreach ($storeData as $data) {
+            foreach ($summary as $key => $value) {
+                $summary[$key] += $data[$key];
+            }
+        }
+
+        $this->calculateConversionRates($summary);
+
+        return $summary;
     }
 
     /**

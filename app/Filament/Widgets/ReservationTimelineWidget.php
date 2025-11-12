@@ -2065,6 +2065,7 @@ class ReservationTimelineWidget extends Widget
                 'first_name_kana' => '', // カナは空で設定
                 'email' => !empty($this->newCustomer['email']) ? $this->newCustomer['email'] : null,
                 'phone' => $this->newCustomer['phone'],
+                'store_id' => $this->selectedStore, // 予約店舗を顧客の所属店舗として設定
             ]);
         } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
             // メールアドレス重複の場合、確認画面を表示（空文字列の場合はスキップ）
