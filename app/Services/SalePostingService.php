@@ -34,7 +34,8 @@ class SalePostingService
         ?string $paymentMethod = null,
         array $options = [],
         array $products = [],
-        int $discountAmount = 0
+        int $discountAmount = 0,
+        string $notes = ''
     ): Sale {
         DB::beginTransaction();
 
@@ -87,17 +88,19 @@ class SalePostingService
                 'total_amount' => $amounts['total_amount'],
                 'status' => 'completed',
                 'completed_at' => now(),
-                'notes' => "予約番号: {$reservation->reservation_number}",
+                'notes' => $notes ?: "予約番号: {$reservation->reservation_number}",
             ];
 
-            // 支払ソースに応じた追加情報
-            if ($paymentSource === PaymentSource::SUBSCRIPTION->value && $reservation->customer_subscription_id) {
-                $saleData['notes'] .= " | サブスク利用";
-            } elseif ($paymentSource === PaymentSource::TICKET->value && $reservation->customer_ticket_id) {
-                $ticket = CustomerTicket::find($reservation->customer_ticket_id);
-                if ($ticket) {
-                    $remaining = $ticket->remaining_count;
-                    $saleData['notes'] .= " | 回数券利用 (残り: {$remaining}回)";
+            // ユーザーが備考を入力していない場合のみ、支払ソースに応じた追加情報を追記
+            if (empty($notes)) {
+                if ($paymentSource === PaymentSource::SUBSCRIPTION->value && $reservation->customer_subscription_id) {
+                    $saleData['notes'] .= " | サブスク利用";
+                } elseif ($paymentSource === PaymentSource::TICKET->value && $reservation->customer_ticket_id) {
+                    $ticket = CustomerTicket::find($reservation->customer_ticket_id);
+                    if ($ticket) {
+                        $remaining = $ticket->remaining_count;
+                        $saleData['notes'] .= " | 回数券利用 (残り: {$remaining}回)";
+                    }
                 }
             }
 

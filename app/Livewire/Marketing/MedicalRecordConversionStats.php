@@ -71,6 +71,12 @@ class MedicalRecordConversionStats extends Component
         return in_array($handlerId, $this->expandedHandlers);
     }
 
+    // handler_id が変更されたら自動的にデータを再読み込み
+    public function updatedHandlerId(): void
+    {
+        $this->loadData();
+    }
+
     public function render()
     {
         return view('livewire.marketing.medical-record-conversion-stats');

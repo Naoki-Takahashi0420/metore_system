@@ -49,17 +49,17 @@
                 @endphp
 
                 <!-- ファネルチャート -->
-                <div class="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-900 rounded-lg p-6 mb-6">
+                <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 mb-6">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 text-center">転換ファネル</h3>
                     <div class="max-w-3xl mx-auto space-y-2">
                         <!-- 1. 新規予約 -->
                         <div class="relative">
-                            <div class="bg-indigo-500 rounded-lg p-4 text-white shadow-lg" style="width: 100%;">
+                            <div class="bg-indigo-500 rounded-lg p-4 shadow-lg" style="width: 100%;">
                                 <div class="flex justify-between items-center">
-                                    <span class="font-semibold">1. 新規予約</span>
-                                    <span class="text-xl font-bold">{{ number_format($totalNewReservations) }}件</span>
+                                    <span class="font-semibold" style="color: black !important;">1. 新規予約</span>
+                                    <span class="text-xl font-bold" style="color: black !important;">{{ number_format($totalNewReservations) }}件</span>
                                 </div>
-                                <div class="text-sm opacity-90 mt-1">初回接点</div>
+                                <div class="text-sm mt-1" style="color: black !important;">初回接点</div>
                             </div>
                         </div>
 
@@ -73,12 +73,12 @@
                         <!-- 2. カルテ作成 -->
                         <div class="relative flex justify-center">
                             @php $medicalRecordWidth = $totalNewReservations > 0 ? ($totalRecords / $totalNewReservations) * 100 : 0; @endphp
-                            <div class="bg-blue-500 rounded-lg p-4 text-white shadow-lg" style="width: {{ max($medicalRecordWidth, 20) }}%;">
+                            <div class="bg-blue-500 rounded-lg p-4 shadow-lg" style="width: {{ max($medicalRecordWidth, 20) }}%;">
                                 <div class="flex justify-between items-center">
-                                    <span class="font-semibold">2. カルテ作成</span>
-                                    <span class="text-xl font-bold">{{ number_format($totalRecords) }}件</span>
+                                    <span class="font-semibold" style="color: black !important;">2. カルテ作成</span>
+                                    <span class="text-xl font-bold" style="color: black !important;">{{ number_format($totalRecords) }}件</span>
                                 </div>
-                                <div class="text-sm opacity-90 mt-1">転換率: {{ $medicalRecordRate }}%</div>
+                                <div class="text-sm mt-1" style="color: black !important;">転換率: {{ $medicalRecordRate }}%</div>
                             </div>
                         </div>
 
@@ -92,12 +92,12 @@
                         <!-- 3. 次回予約 -->
                         <div class="relative flex justify-center">
                             @php $nextReservationWidth = $totalRecords > 0 ? ($totalNextReservations / $totalRecords) * 100 : 0; @endphp
-                            <div class="bg-green-500 rounded-lg p-4 text-white shadow-lg" style="width: {{ max($nextReservationWidth, 15) }}%;">
+                            <div class="bg-green-500 rounded-lg p-4 shadow-lg" style="width: {{ max($nextReservationWidth, 15) }}%;">
                                 <div class="flex justify-between items-center">
-                                    <span class="font-semibold">3. 次回予約</span>
-                                    <span class="text-xl font-bold">{{ number_format($totalNextReservations) }}件</span>
+                                    <span class="font-semibold" style="color: black !important;">3. 次回予約</span>
+                                    <span class="text-xl font-bold" style="color: black !important;">{{ number_format($totalNextReservations) }}件</span>
                                 </div>
-                                <div class="text-sm opacity-90 mt-1">転換率: {{ $nextReservationRate }}%</div>
+                                <div class="text-sm mt-1" style="color: black !important;">転換率: {{ $nextReservationRate }}%</div>
                             </div>
                         </div>
 
@@ -111,12 +111,12 @@
                         <!-- 4. 契約獲得 -->
                         <div class="relative flex justify-center">
                             @php $contractWidth = $totalRecords > 0 ? ($totalContracts / $totalRecords) * 100 : 0; @endphp
-                            <div class="bg-purple-500 rounded-lg p-4 text-white shadow-lg" style="width: {{ max($contractWidth, 10) }}%;">
+                            <div class="bg-purple-500 rounded-lg p-4 shadow-lg" style="width: {{ max($contractWidth, 10) }}%;">
                                 <div class="flex justify-between items-center">
-                                    <span class="font-semibold">4. 契約獲得</span>
-                                    <span class="text-xl font-bold">{{ number_format($totalContracts) }}件</span>
+                                    <span class="font-semibold" style="color: black !important;">4. 契約獲得</span>
+                                    <span class="text-xl font-bold" style="color: black !important;">{{ number_format($totalContracts) }}件</span>
                                 </div>
-                                <div class="text-sm opacity-90 mt-1">転換率: {{ $contractRate }}%</div>
+                                <div class="text-sm mt-1" style="color: black !important;">転換率: {{ $contractRate }}%</div>
                             </div>
                         </div>
                     </div>
@@ -127,7 +127,7 @@
                     <div class="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4">
                         <p class="text-sm text-indigo-600 dark:text-indigo-400 font-medium">新規予約</p>
                         <p class="text-2xl font-bold text-indigo-900 dark:text-indigo-100 mt-1">{{ number_format($totalNewReservations) }}</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">初回接点</p>
+                        <p class="text-xs text-indigo-700 dark:text-indigo-300 mt-1">初回接点</p>
                     </div>
 
                     <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">

@@ -49,6 +49,8 @@ class DailyClosing extends Page implements HasForms
 
     public $salesData = [];
     public $unposted = []; // 未計上予約のDTO配列
+    public $unpostedSubscriptions = []; // 未計上のサブスク決済
+    public $unpostedTickets = []; // 未計上の回数券購入
     public $rowState = []; // 各行のpayment_methodやoverride_source/amountのUI状態
 
     // 編集ドロワー用
@@ -80,6 +82,8 @@ class DailyClosing extends Page implements HasForms
 
         $this->loadSalesData();
         $this->loadUnpostedReservations();
+        $this->loadUnpostedSubscriptions();
+        $this->loadUnpostedTickets();
     }
 
     /**
@@ -115,6 +119,8 @@ class DailyClosing extends Page implements HasForms
     {
         $this->loadSalesData();
         $this->loadUnpostedReservations();
+        $this->loadUnpostedSubscriptions();
+        $this->loadUnpostedTickets();
     }
 
     /**
@@ -124,6 +130,8 @@ class DailyClosing extends Page implements HasForms
     {
         $this->loadSalesData();
         $this->loadUnpostedReservations();
+        $this->loadUnpostedSubscriptions();
+        $this->loadUnpostedTickets();
     }
 
     /**
@@ -134,6 +142,8 @@ class DailyClosing extends Page implements HasForms
         $this->closingDate = \Carbon\Carbon::parse($this->closingDate)->subDay()->toDateString();
         $this->loadSalesData();
         $this->loadUnpostedReservations();
+        $this->loadUnpostedSubscriptions();
+        $this->loadUnpostedTickets();
     }
 
     /**
@@ -144,6 +154,8 @@ class DailyClosing extends Page implements HasForms
         $this->closingDate = \Carbon\Carbon::parse($this->closingDate)->addDay()->toDateString();
         $this->loadSalesData();
         $this->loadUnpostedReservations();
+        $this->loadUnpostedSubscriptions();
+        $this->loadUnpostedTickets();
     }
     
     public function loadSalesData(): void
@@ -187,14 +199,34 @@ class DailyClosing extends Page implements HasForms
             'ticket_with_products_amount' => $ticketWithProducts->sum('total_amount'),
         ];
 
-        // スタッフ別売上
-        $this->salesData['sales_by_staff'] = $sales->groupBy('staff_id')->map(function ($staffSales) {
+        // スタッフ別施術実績（スポットのみ）
+        $spotSales = $sales->filter(fn($sale) => $sale->payment_source === 'spot');
+        $this->salesData['sales_by_staff'] = $spotSales->groupBy('handled_by')->map(function ($staffSales) {
             return [
-                'name' => $staffSales->first()->staff?->name ?? '不明',
+                'name' => $staffSales->first()->handled_by ?? '不明',
                 'amount' => $staffSales->sum('total_amount'),
                 'count' => $staffSales->count(),
             ];
         });
+
+        // その他売上（サブスク決済・回数券購入）
+        $subscriptionSales = $sales->filter(fn($sale) => $sale->payment_source === 'subscription');
+        $ticketPurchaseSales = $sales->filter(function($sale) {
+            // 回数券購入（予約なし）のみ
+            return $sale->payment_source === 'ticket'
+                && (empty($sale->reservation_id) || $sale->reservation_id == 0);
+        });
+
+        $this->salesData['other_sales'] = [
+            'subscription' => [
+                'amount' => $subscriptionSales->sum('total_amount'),
+                'count' => $subscriptionSales->count(),
+            ],
+            'ticket_purchase' => [
+                'amount' => $ticketPurchaseSales->sum('total_amount'),
+                'count' => $ticketPurchaseSales->count(),
+            ],
+        ];
         
         // メニュー別売上（売上明細から集計）
         $menuSales = DB::table('sale_items')
@@ -334,6 +366,165 @@ class DailyClosing extends Page implements HasForms
     }
 
     /**
+     * 本日が決済予定日のサブスク契約を取得
+     */
+    public function loadUnpostedSubscriptions(): void
+    {
+        \Log::info('🔄 loadUnpostedSubscriptions() 実行開始', [
+            'closing_date' => $this->closingDate,
+            'selected_store_id' => $this->selectedStoreId,
+        ]);
+
+        // その日が決済日（初回 or 継続）のアクティブなサブスク契約を取得
+        $subscriptions = \App\Models\CustomerSubscription::where(function($query) {
+                // 初回決済: billing_start_date が今日
+                $query->whereDate('billing_start_date', $this->closingDate)
+                    // または 継続決済: next_billing_date が今日
+                    ->orWhereDate('next_billing_date', $this->closingDate);
+            })
+            ->when($this->selectedStoreId, fn($q) => $q->where('store_id', $this->selectedStoreId))
+            ->where('status', 'active')
+            ->with(['customer', 'store', 'menu'])
+            ->orderBy('billing_start_date')
+            ->get();
+
+        \Log::info('📊 取得したサブスク契約数', [
+            'count' => $subscriptions->count(),
+        ]);
+
+        // 店舗のデフォルト支払方法を取得
+        $store = $subscriptions->first()?->store;
+        $storePaymentMethods = $store && $store->payment_methods
+            ? collect($store->payment_methods)->pluck('name')->toArray()
+            : ['現金', 'クレジットカード', 'その他'];
+        $defaultPaymentMethod = $storePaymentMethods[0] ?? '現金';
+
+        $this->unpostedSubscriptions = $subscriptions->map(function ($subscription) use ($defaultPaymentMethod, $storePaymentMethods) {
+            // その日のサブスク決済の売上がすでに計上されているかチェック
+            $existingSale = Sale::where('customer_id', $subscription->customer_id)
+                ->where('customer_subscription_id', $subscription->id)
+                ->whereDate('sale_date', $this->closingDate)
+                ->where('payment_source', 'subscription')
+                ->first();
+
+            $isPosted = (bool)$existingSale;
+
+            // 計上済みの場合は売上レコードから金額と支払方法を取得、未計上はプランから取得
+            if ($isPosted) {
+                $amount = (int)($existingSale->total_amount ?? 0);
+                $paymentMethod = $existingSale->payment_method ?? $subscription->payment_method ?? $defaultPaymentMethod;
+                $saleId = $existingSale->id;
+            } else {
+                $amount = (int)($subscription->monthly_price ?? 0);
+                // サブスク契約の決済方法を優先、なければデフォルト
+                $paymentMethod = $subscription->payment_method ?? $defaultPaymentMethod;
+                $saleId = null;
+            }
+
+            // 今日が決済日かを判定（初回 or 継続）
+            $billingDateForDisplay = null;
+            if ($subscription->billing_start_date && $subscription->billing_start_date->format('Y-m-d') === $this->closingDate) {
+                // 初回決済
+                $billingDateForDisplay = $subscription->billing_start_date->format('Y-m-d');
+            } elseif ($subscription->next_billing_date && $subscription->next_billing_date->format('Y-m-d') === $this->closingDate) {
+                // 継続決済
+                $billingDateForDisplay = $subscription->next_billing_date->format('Y-m-d');
+            }
+
+            $result = [
+                'id' => $subscription->id,
+                'customer_id' => $subscription->customer_id,
+                'customer_name' => $subscription->customer->full_name ?? '不明',
+                'plan_name' => $subscription->plan_name ?? 'サブスクプラン',
+                'amount' => $amount,
+                'payment_method' => $paymentMethod,
+                'payment_methods' => $storePaymentMethods,
+                'is_posted' => $isPosted,
+                'sale_id' => $saleId,
+                'billing_date' => $billingDateForDisplay ?? $this->closingDate,
+                'payment_failed' => $subscription->payment_failed ?? false,
+            ];
+
+            \Log::info('📋 サブスク契約データ', $result);
+
+            return $result;
+        })->toArray();
+    }
+
+    /**
+     * その日に購入された回数券を取得（未計上/計上済み両方）
+     */
+    protected function loadUnpostedTickets()
+    {
+        \Log::info('🎫 loadUnpostedTickets() 実行開始', [
+            'closing_date' => $this->closingDate,
+            'selected_store_id' => $this->selectedStoreId,
+        ]);
+
+        // その日に購入された回数券を取得
+        $tickets = \App\Models\CustomerTicket::whereDate('purchased_at', $this->closingDate)
+            ->when($this->selectedStoreId, fn($q) => $q->where('store_id', $this->selectedStoreId))
+            ->with(['customer', 'store'])
+            ->orderBy('purchased_at')
+            ->get();
+
+        \Log::info('📊 取得した回数券購入数', [
+            'count' => $tickets->count(),
+        ]);
+
+        // 店舗のデフォルト支払方法を取得
+        $store = $tickets->first()?->store;
+        $storePaymentMethods = $store && $store->payment_methods
+            ? collect($store->payment_methods)->pluck('name')->toArray()
+            : ['現金', 'クレジットカード', 'その他'];
+        $defaultPaymentMethod = $storePaymentMethods[0] ?? '現金';
+
+        $this->unpostedTickets = $tickets->map(function ($ticket) use ($defaultPaymentMethod, $storePaymentMethods) {
+            // その日の回数券購入の売上がすでに計上されているかチェック
+            $existingSale = Sale::where('customer_id', $ticket->customer_id)
+                ->where('customer_ticket_id', $ticket->id)
+                ->whereDate('sale_date', $this->closingDate)
+                ->where('payment_source', 'ticket')
+                ->where(function($q) {
+                    $q->whereNull('reservation_id')
+                      ->orWhere('reservation_id', 0);
+                })
+                ->first();
+
+            $isPosted = (bool)$existingSale;
+
+            // 計上済みの場合は売上レコードから金額と支払方法を取得、未計上はチケットから取得
+            if ($isPosted) {
+                $amount = (int)($existingSale->total_amount ?? 0);
+                $paymentMethod = $existingSale->payment_method ?? $ticket->payment_method ?? $defaultPaymentMethod;
+                $saleId = $existingSale->id;
+            } else {
+                $amount = (int)($ticket->purchase_price ?? 0);
+                // 回数券の決済方法を優先、なければデフォルト
+                $paymentMethod = $ticket->payment_method ?? $defaultPaymentMethod;
+                $saleId = null;
+            }
+
+            $result = [
+                'id' => $ticket->id,
+                'customer_id' => $ticket->customer_id,
+                'customer_name' => $ticket->customer->full_name ?? '不明',
+                'plan_name' => $ticket->plan_name ?? '回数券',
+                'amount' => $amount,
+                'payment_method' => $paymentMethod,
+                'payment_methods' => $storePaymentMethods,
+                'is_posted' => $isPosted,
+                'sale_id' => $saleId,
+                'purchased_at' => $ticket->purchased_at->format('Y-m-d H:i'),
+            ];
+
+            \Log::info('📋 回数券購入データ', $result);
+
+            return $result;
+        })->toArray();
+    }
+
+    /**
      * 行の状態を更新（支払方法や金額の変更）
      */
     public function updateRowState($reservationId, $field, $value)
@@ -438,6 +629,508 @@ class DailyClosing extends Page implements HasForms
             $this->rowState = [];
 
             $this->loadUnpostedReservations();
+            $this->loadSalesData();
+
+            // Livewireコンポーネントを明示的にリフレッシュ
+            $this->dispatch('$refresh');
+
+        } catch (\Exception $e) {
+            Notification::make()
+                ->danger()
+                ->title('取消失敗')
+                ->body('エラー: ' . $e->getMessage())
+                ->send();
+        }
+    }
+
+    /**
+     * サブスク決済の行状態を更新
+     */
+    public function updateSubscriptionRowState($subscriptionId, $field, $value)
+    {
+        if (!isset($this->rowState[$subscriptionId])) {
+            $this->rowState[$subscriptionId] = [];
+        }
+
+        $this->rowState[$subscriptionId][$field] = $value;
+
+        \Log::info('Subscription row state updated', [
+            'subscription_id' => $subscriptionId,
+            'field' => $field,
+            'value' => $value,
+        ]);
+    }
+
+    /**
+     * サブスク決済を個別に計上
+     */
+    public function postSingleSubscription(int $subscriptionId): void
+    {
+        try {
+            // 既に計上済みかチェック
+            $subscription = \App\Models\CustomerSubscription::findOrFail($subscriptionId);
+
+            $existingSale = Sale::where('customer_id', $subscription->customer_id)
+                ->where('customer_subscription_id', $subscription->id)
+                ->whereDate('sale_date', $this->closingDate)
+                ->where('source', 'subscription_billing')
+                ->first();
+
+            if ($existingSale) {
+                Notification::make()
+                    ->warning()
+                    ->title('既に計上済みです')
+                    ->body('このサブスク決済は既に売上計上されています')
+                    ->send();
+                return;
+            }
+
+            // 行の状態から支払方法を取得（なければサブスク契約の決済方法を使用）
+            $rowData = $this->rowState[$subscriptionId] ?? [];
+            $paymentMethod = $rowData['payment_method'] ?? $subscription->payment_method ?? '現金';
+
+            // 売上計上
+            Sale::create([
+                'sale_number' => Sale::generateSaleNumber(),
+                'customer_id' => $subscription->customer_id,
+                'customer_subscription_id' => $subscription->id,
+                'store_id' => $subscription->store_id,
+                'sale_date' => $this->closingDate,
+                'sale_time' => now()->format('H:i:s'),
+                'payment_source' => 'subscription',
+                'payment_method' => $paymentMethod,
+                'total_amount' => $subscription->monthly_price ?? 0,
+                'tax_rate' => 0,
+                'tax_amount' => 0,
+                'status' => 'completed',
+                'notes' => 'サブスク決済（' . $subscription->plan_name . '）',
+                'handled_by' => auth()->user()->name ?? '管理者',
+                'staff_id' => auth()->id(),
+            ]);
+
+            Notification::make()
+                ->success()
+                ->title('計上完了')
+                ->body('サブスク決済を計上しました')
+                ->send();
+
+            // 配列を完全にリセットしてから再読み込み
+            $this->unposted = [];
+            $this->unpostedSubscriptions = [];
+            $this->salesData = [];
+            $this->rowState = [];
+
+            $this->loadUnpostedReservations();
+            $this->loadUnpostedSubscriptions();
+            $this->loadSalesData();
+
+            // Livewireコンポーネントを明示的にリフレッシュ
+            $this->dispatch('$refresh');
+
+        } catch (\Exception $e) {
+            Notification::make()
+                ->danger()
+                ->title('計上失敗')
+                ->body('エラー: ' . $e->getMessage())
+                ->send();
+        }
+    }
+
+    /**
+     * サブスク決済を一括計上
+     */
+    public function postAllSubscriptions(): void
+    {
+        try {
+            $count = 0;
+            $errors = [];
+
+            foreach ($this->unpostedSubscriptions as $sub) {
+                if ($sub['is_posted']) {
+                    continue; // 既に計上済みはスキップ
+                }
+
+                try {
+                    $subscription = \App\Models\CustomerSubscription::find($sub['id']);
+                    if (!$subscription) {
+                        continue;
+                    }
+
+                    // 行の状態から支払方法を取得（なければサブスク契約の決済方法を使用）
+                    $rowData = $this->rowState[$sub['id']] ?? [];
+                    $paymentMethod = $rowData['payment_method'] ?? $subscription->payment_method ?? '現金';
+
+                    // 売上計上
+                    Sale::create([
+                        'sale_number' => Sale::generateSaleNumber(),
+                        'customer_id' => $subscription->customer_id,
+                        'customer_subscription_id' => $subscription->id,
+                        'store_id' => $subscription->store_id,
+                        'sale_date' => $this->closingDate,
+                        'sale_time' => now()->format('H:i:s'),
+                        'payment_source' => 'subscription',
+                        'payment_method' => $paymentMethod,
+                        'total_amount' => $subscription->monthly_price ?? 0,
+                        'tax_rate' => 0,
+                        'tax_amount' => 0,
+                        'status' => 'completed',
+                        'notes' => 'サブスク決済（' . $subscription->plan_name . '）',
+                        'handled_by' => auth()->user()->name ?? '管理者',
+                        'staff_id' => auth()->id(),
+                    ]);
+
+                    $count++;
+                } catch (\Exception $e) {
+                    $errors[] = $sub['customer_name'] . ': ' . $e->getMessage();
+                }
+            }
+
+            if ($count > 0) {
+                Notification::make()
+                    ->success()
+                    ->title('一括計上完了')
+                    ->body("{$count}件のサブスク決済を計上しました")
+                    ->send();
+            }
+
+            if (count($errors) > 0) {
+                Notification::make()
+                    ->warning()
+                    ->title('一部計上失敗')
+                    ->body('エラー: ' . implode(', ', $errors))
+                    ->send();
+            }
+
+            // 配列を完全にリセットしてから再読み込み
+            $this->unposted = [];
+            $this->unpostedSubscriptions = [];
+            $this->salesData = [];
+            $this->rowState = [];
+
+            $this->loadUnpostedReservations();
+            $this->loadUnpostedSubscriptions();
+            $this->loadSalesData();
+
+            // Livewireコンポーネントを明示的にリフレッシュ
+            $this->dispatch('$refresh');
+
+        } catch (\Exception $e) {
+            Notification::make()
+                ->danger()
+                ->title('計上失敗')
+                ->body('エラー: ' . $e->getMessage())
+                ->send();
+        }
+    }
+
+    /**
+     * サブスク決済の売上を取り消す
+     */
+    public function cancelSubscriptionSale(int $subscriptionId): void
+    {
+        try {
+            $subscription = \App\Models\CustomerSubscription::findOrFail($subscriptionId);
+
+            $sale = Sale::where('customer_id', $subscription->customer_id)
+                ->where('customer_subscription_id', $subscription->id)
+                ->whereDate('sale_date', $this->closingDate)
+                ->where('payment_source', 'subscription')
+                ->first();
+
+            if (!$sale) {
+                Notification::make()
+                    ->warning()
+                    ->title('売上が見つかりません')
+                    ->body('このサブスク決済には売上が紐づいていません')
+                    ->send();
+                return;
+            }
+
+            // SalePostingServiceを使用して売上取り消し
+            $salePostingService = new \App\Services\SalePostingService();
+            $salePostingService->void($sale);
+
+            Notification::make()
+                ->success()
+                ->title('取消完了')
+                ->body('サブスク決済を取り消しました。')
+                ->send();
+
+            // 配列を完全にリセットしてから再読み込み
+            $this->unposted = [];
+            $this->unpostedSubscriptions = [];
+            $this->salesData = [];
+            $this->rowState = [];
+
+            $this->loadUnpostedReservations();
+            $this->loadUnpostedSubscriptions();
+            $this->loadSalesData();
+
+            // Livewireコンポーネントを明示的にリフレッシュ
+            $this->dispatch('$refresh');
+
+        } catch (\Exception $e) {
+            Notification::make()
+                ->danger()
+                ->title('取消失敗')
+                ->body('エラー: ' . $e->getMessage())
+                ->send();
+        }
+    }
+
+    /**
+     * サブスク決済を失敗に設定
+     */
+    public function markSubscriptionPaymentFailed(int $subscriptionId): void
+    {
+        try {
+            $subscription = \App\Models\CustomerSubscription::findOrFail($subscriptionId);
+
+            // 既に失敗状態かチェック
+            if ($subscription->payment_failed) {
+                Notification::make()
+                    ->warning()
+                    ->title('既に決済失敗状態です')
+                    ->body('このサブスクは既に決済失敗として記録されています')
+                    ->send();
+                return;
+            }
+
+            // 決済失敗に設定
+            $subscription->update([
+                'payment_failed' => true,
+                'payment_failed_at' => now(),
+                'payment_failed_reason' => 'card_declined',
+            ]);
+
+            Notification::make()
+                ->warning()
+                ->title('決済失敗設定完了')
+                ->body('決済失敗として記録しました。サブスク管理画面で確認できます。')
+                ->send();
+
+            // 配列を完全にリセットしてから再読み込み
+            $this->unposted = [];
+            $this->unpostedSubscriptions = [];
+            $this->salesData = [];
+            $this->rowState = [];
+
+            $this->loadUnpostedReservations();
+            $this->loadUnpostedSubscriptions();
+            $this->loadSalesData();
+
+            // Livewireコンポーネントを明示的にリフレッシュ
+            $this->dispatch('$refresh');
+
+        } catch (\Exception $e) {
+            Notification::make()
+                ->danger()
+                ->title('設定失敗')
+                ->body('エラー: ' . $e->getMessage())
+                ->send();
+        }
+    }
+
+    /**
+     * サブスク決済失敗を復旧
+     */
+    public function recoverSubscriptionPayment(int $subscriptionId): void
+    {
+        try {
+            $subscription = \App\Models\CustomerSubscription::findOrFail($subscriptionId);
+
+            // 既に正常状態かチェック
+            if (!$subscription->payment_failed) {
+                Notification::make()
+                    ->warning()
+                    ->title('既に正常状態です')
+                    ->body('このサブスクは決済失敗状態ではありません')
+                    ->send();
+                return;
+            }
+
+            // 決済復旧
+            $subscription->update([
+                'payment_failed' => false,
+                'payment_failed_at' => null,
+                'payment_failed_reason' => null,
+                'payment_failed_notes' => null,
+            ]);
+
+            Notification::make()
+                ->success()
+                ->title('決済復旧完了')
+                ->body('決済が正常状態に戻りました。計上が可能になります。')
+                ->send();
+
+            // 配列を完全にリセットしてから再読み込み
+            $this->unposted = [];
+            $this->unpostedSubscriptions = [];
+            $this->salesData = [];
+            $this->rowState = [];
+
+            $this->loadUnpostedReservations();
+            $this->loadUnpostedSubscriptions();
+            $this->loadSalesData();
+
+            // Livewireコンポーネントを明示的にリフレッシュ
+            $this->dispatch('$refresh');
+
+        } catch (\Exception $e) {
+            Notification::make()
+                ->danger()
+                ->title('復旧失敗')
+                ->body('エラー: ' . $e->getMessage())
+                ->send();
+        }
+    }
+
+    /**
+     * 回数券購入の行状態を更新
+     */
+    public function updateTicketRowState($ticketId, $field, $value)
+    {
+        if (!isset($this->rowState[$ticketId])) {
+            $this->rowState[$ticketId] = [];
+        }
+
+        $this->rowState[$ticketId][$field] = $value;
+
+        \Log::info('Ticket row state updated', [
+            'ticket_id' => $ticketId,
+            'field' => $field,
+            'value' => $value,
+        ]);
+    }
+
+    /**
+     * 回数券購入を個別に計上
+     */
+    public function postSingleTicket(int $ticketId): void
+    {
+        try {
+            // 既に計上済みかチェック
+            $ticket = \App\Models\CustomerTicket::findOrFail($ticketId);
+
+            $existingSale = Sale::where('customer_id', $ticket->customer_id)
+                ->where('customer_ticket_id', $ticket->id)
+                ->whereDate('sale_date', $this->closingDate)
+                ->where('payment_source', 'ticket')
+                ->where(function($q) {
+                    $q->whereNull('reservation_id')
+                      ->orWhere('reservation_id', 0);
+                })
+                ->first();
+
+            if ($existingSale) {
+                Notification::make()
+                    ->warning()
+                    ->title('既に計上済みです')
+                    ->body('この回数券購入は既に売上計上されています')
+                    ->send();
+                return;
+            }
+
+            // 行の状態から支払方法を取得（なければチケットの決済方法を使用）
+            $rowData = $this->rowState[$ticketId] ?? [];
+            $paymentMethod = $rowData['payment_method'] ?? $ticket->payment_method ?? '現金';
+
+            // 売上計上
+            Sale::create([
+                'sale_number' => Sale::generateSaleNumber(),
+                'customer_id' => $ticket->customer_id,
+                'customer_ticket_id' => $ticket->id,
+                'store_id' => $ticket->store_id,
+                'sale_date' => $this->closingDate,
+                'sale_time' => now()->format('H:i:s'),
+                'payment_source' => 'ticket',
+                'payment_method' => $paymentMethod,
+                'total_amount' => $ticket->purchase_price ?? 0,
+                'subtotal' => $ticket->purchase_price ?? 0,
+                'tax_rate' => 0,
+                'tax_amount' => 0,
+                'status' => 'completed',
+                'notes' => '回数券購入（' . $ticket->plan_name . '）',
+                'handled_by' => auth()->user()->name ?? '管理者',
+                'staff_id' => auth()->id(),
+            ]);
+
+            Notification::make()
+                ->success()
+                ->title('計上完了')
+                ->body('回数券購入の売上を計上しました')
+                ->send();
+
+            // 配列を完全にリセットしてから再読み込み
+            $this->unposted = [];
+            $this->unpostedSubscriptions = [];
+            $this->unpostedTickets = [];
+            $this->salesData = [];
+            $this->rowState = [];
+
+            $this->loadUnpostedReservations();
+            $this->loadUnpostedSubscriptions();
+            $this->loadUnpostedTickets();
+            $this->loadSalesData();
+
+            // Livewireコンポーネントを明示的にリフレッシュ
+            $this->dispatch('$refresh');
+
+        } catch (\Exception $e) {
+            Notification::make()
+                ->danger()
+                ->title('計上失敗')
+                ->body('エラー: ' . $e->getMessage())
+                ->send();
+        }
+    }
+
+    /**
+     * 回数券購入の売上を取り消す
+     */
+    public function cancelTicketSale(int $ticketId): void
+    {
+        try {
+            $ticket = \App\Models\CustomerTicket::findOrFail($ticketId);
+
+            $sale = Sale::where('customer_id', $ticket->customer_id)
+                ->where('customer_ticket_id', $ticket->id)
+                ->whereDate('sale_date', $this->closingDate)
+                ->where('payment_source', 'ticket')
+                ->where(function($q) {
+                    $q->whereNull('reservation_id')
+                      ->orWhere('reservation_id', 0);
+                })
+                ->first();
+
+            if (!$sale) {
+                Notification::make()
+                    ->warning()
+                    ->title('売上が見つかりません')
+                    ->body('この回数券購入には売上が紐づいていません')
+                    ->send();
+                return;
+            }
+
+            // 売上を削除（ソフトデリート）
+            $sale->delete();
+
+            Notification::make()
+                ->success()
+                ->title('取消完了')
+                ->body('回数券購入の売上を取り消しました')
+                ->send();
+
+            // 配列を完全にリセットしてから再読み込み
+            $this->unposted = [];
+            $this->unpostedSubscriptions = [];
+            $this->unpostedTickets = [];
+            $this->salesData = [];
+            $this->rowState = [];
+
+            $this->loadUnpostedReservations();
+            $this->loadUnpostedSubscriptions();
+            $this->loadUnpostedTickets();
             $this->loadSalesData();
 
             // Livewireコンポーネントを明示的にリフレッシュ
@@ -634,6 +1327,7 @@ class DailyClosing extends Page implements HasForms
             'tax_amount' => 0,  // 内税のため0
             'discount_amount' => $initialDiscountAmount, // 割引額
             'total' => $initialSubtotal - $initialDiscountAmount,  // 内税のため税額を加算しない
+            'notes' => $existingSale->notes ?? '', // 備考（既存の売上から読み込み）
         ];
 
         // オプション/物販がある場合は合計を再計算（税込み）
@@ -848,14 +1542,17 @@ class DailyClosing extends Page implements HasForms
             // 割引額を取得
             $discountAmount = (int)($this->editorData['discount_amount'] ?? 0);
 
+            // 備考を取得
+            $notes = $this->editorData['notes'] ?? '';
+
             if ($existingSale) {
                 // 既に計上済み：売上を更新
-                $this->updateExistingSale($existingSale, $reservation, $method, $options, $products, $discountAmount);
+                $this->updateExistingSale($existingSale, $reservation, $method, $options, $products, $discountAmount, $notes);
                 $message = "予約番号 {$reservation->reservation_number} の売上を更新しました";
             } else {
                 // 未計上：新規作成
                 $salePostingService = new \App\Services\SalePostingService();
-                $sale = $salePostingService->post($reservation, $method, $options, $products, $discountAmount);
+                $sale = $salePostingService->post($reservation, $method, $options, $products, $discountAmount, $notes);
 
                 // ポイント付与（スポットまたは合計>0の場合）
                 if ($sale->payment_source === 'spot' || $totalAmount > 0) {
@@ -913,7 +1610,8 @@ class DailyClosing extends Page implements HasForms
         string $paymentMethod,
         array $options,
         array $products,
-        int $discountAmount = 0
+        int $discountAmount = 0,
+        string $notes = ''
     ): void {
         // 既存の明細を削除
         $sale->items()->delete();
@@ -996,6 +1694,7 @@ class DailyClosing extends Page implements HasForms
             'tax_amount' => $taxAmount,
             'discount_amount' => $discountAmount,
             'total_amount' => $totalAmount,
+            'notes' => $notes,
         ]);
 
         // 更新後のデータを確認
