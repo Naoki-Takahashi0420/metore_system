@@ -216,12 +216,12 @@ class ListSales extends ListRecords
                 $query->where('store_id', $this->storeId);
             }
             $count = $query->count();
-            $amount = (int) $query->sum('total_amount'); // 利用時の物販金額
+            $amount = (int) $query->sum('total_amount'); // 売上金額（スポット:施術、サブスク:決済、回数券:購入+使用）
 
             $stat = [
                 'label' => $source->label(),
                 'count' => $count,
-                'amount' => $amount, // 物販金額
+                'amount' => $amount, // 売上金額
                 'color' => $source->color(),
             ];
 
@@ -238,9 +238,10 @@ class ListSales extends ListRecords
             $sourceStats[] = $stat;
         }
 
-        // 1. 施術スタッフ別売上（handled_by基準）
+        // 1. 施術スタッフ別売上（handled_by基準、スポットのみ）
         $topStaffBySales = \DB::table('sales')
             ->where('status', 'completed')
+            ->where('payment_source', 'spot')  // スポットのみ
             ->whereBetween('sale_date', [$from, $to])
             ->when($this->storeId, fn($q) => $q->where('store_id', $this->storeId))
             ->whereNotNull('handled_by')

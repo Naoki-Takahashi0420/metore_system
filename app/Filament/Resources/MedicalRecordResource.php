@@ -249,6 +249,8 @@ class MedicalRecordResource extends Resource
                                                             return $reservation->staff->name;
                                                         }
                                                     }
+                                                    // 予約がない場合はログインユーザー
+                                                    return Auth::user()->name;
                                                 }
                                                 return null;
                                             })
@@ -289,7 +291,6 @@ class MedicalRecordResource extends Resource
                                                 // デフォルトは全スタッフ（念のため）
                                                 return $query->pluck('name', 'name');
                                             })
-                                            ->default(Auth::user()->name)
                                             ->searchable()
                                             ->reactive()
                                             ->placeholder('対応者を選択（任意）')

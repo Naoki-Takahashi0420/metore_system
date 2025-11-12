@@ -2559,6 +2559,37 @@ class PublicReservationController extends Controller
                 'reservation_data_keys' => array_keys($reservationData)
             ]);
 
+            // 座席重複チェック（Eloquentフックに依存せず明示的にチェック）
+            $tempReservation = new Reservation($reservationData);
+            try {
+                \Log::info('🔍 明示的な座席重複チェック開始', [
+                    'store_id' => $reservationData['store_id'],
+                    'date' => $reservationData['reservation_date'],
+                    'time' => $reservationData['start_time'] . '-' . $reservationData['end_time'],
+                    'staff_id' => $reservationData['staff_id'] ?? null
+                ]);
+
+                if (!Reservation::checkAvailability($tempReservation)) {
+                    \Log::warning('❌ 座席重複検出', [
+                        'store_id' => $reservationData['store_id'],
+                        'date' => $reservationData['reservation_date'],
+                        'time' => $reservationData['start_time'] . '-' . $reservationData['end_time']
+                    ]);
+                    return back()->with('error', 'この時間帯は既に予約が入っています。別の時間をお選びください。');
+                }
+
+                \Log::info('✅ 座席重複チェックOK', [
+                    'assigned_seat' => $tempReservation->seat_number
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('❌ 座席チェックでエラー', [
+                    'error' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine()
+                ]);
+                return back()->with('error', $e->getMessage());
+            }
+
             $reservation = Reservation::create($reservationData);
 
             // 回数券の使用回数を増やす（予約確定時点で消費）

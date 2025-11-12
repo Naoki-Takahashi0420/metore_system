@@ -111,18 +111,20 @@
                             </span>
                         </div>
 
-                        {{-- スポット：施術売上 --}}
-                        @if($source['label'] === 'スポット' && $source['amount'] > 0)
+                        {{-- 売上金額の表示 --}}
+                        @if($source['label'] === 'スポット')
                             <div class="text-sm text-gray-600 dark:text-gray-400">施術売上</div>
-                            <div class="text-lg font-semibold text-gray-900 dark:text-white">
+                            <div class="text-lg font-semibold {{ $source['amount'] > 0 ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500' }}">
                                 ¥{{ number_format($source['amount']) }}
                             </div>
-                        @endif
-
-                        {{-- サブスク・回数券：物販売上 --}}
-                        @if($source['label'] !== 'スポット' && $source['amount'] > 0)
-                            <div class="text-sm text-gray-600 dark:text-gray-400">物販売上</div>
-                            <div class="text-lg font-semibold text-gray-900 dark:text-white">
+                        @elseif($source['label'] === 'サブスク')
+                            <div class="text-sm text-gray-600 dark:text-gray-400">決済売上</div>
+                            <div class="text-lg font-semibold {{ $source['amount'] > 0 ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500' }}">
+                                ¥{{ number_format($source['amount']) }}
+                            </div>
+                        @elseif($source['label'] === '回数券')
+                            <div class="text-sm text-gray-600 dark:text-gray-400">販売売上</div>
+                            <div class="text-lg font-semibold {{ $source['amount'] > 0 ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500' }}">
                                 ¥{{ number_format($source['amount']) }}
                             </div>
                         @endif
