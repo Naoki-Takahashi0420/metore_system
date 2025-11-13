@@ -1622,7 +1622,13 @@ class PublicReservationController extends Controller
                 // 営業時間ベースの場合はシフトチェックをスキップ
                 
                 // 予約が重複していないかチェック
-                $overlappingCount = $dayReservations->filter(function ($reservation) use ($slotTime, $slotEnd, $selectedStaffId) {
+                $changeReservationId = Session::get('change_reservation_id');
+                $overlappingCount = $dayReservations->filter(function ($reservation) use ($slotTime, $slotEnd, $selectedStaffId, $changeReservationId) {
+                    // 予約変更モードの場合、変更元の予約を除外
+                    if ($changeReservationId && $reservation->id == $changeReservationId) {
+                        return false;
+                    }
+
                     // 指名スタッフがいる場合は、そのスタッフの予約のみをカウント
                     if ($selectedStaffId) {
                         // 指名スタッフの予約以外は除外
