@@ -1654,9 +1654,67 @@ class PublicReservationController extends Controller
                     return $slotTime->lt($reservationEnd) && $slotEnd->gt($reservationStart);
                 })->count();
 
-                // 最終的な予約可否を判定（$maxConcurrentは既に上で適切に設定済み）
-                // ブロック数 + 予約数 < 総席数 の場合のみ予約可能
-                $finalAvailability = ($overlappingCount + $blockedMainLinesCount) < $maxConcurrent;
+                // 最終的な予約可否を判定
+                // 座席管理がある場合は、座席ごとに空きを確認
+                if ($maxConcurrent > 1 && !$selectedStaffId) {
+                    // 各座席の空き状況を確認
+                    $availableSeats = 0;
+                    for ($seatNum = 1; $seatNum <= $maxConcurrent; $seatNum++) {
+                        $seatOccupied = $dayReservations->filter(function ($reservation) use ($slotTime, $slotEnd, $seatNum, $changeReservationId) {
+                            // 予約変更モードの場合、変更元の予約を除外
+                            if ($changeReservationId && $reservation->id == $changeReservationId) {
+                                return false;
+                            }
+
+                            // この座席の予約のみチェック
+                            if ($reservation->seat_number != $seatNum) {
+                                return false;
+                            }
+
+                            // サブラインは除外
+                            if ($reservation->line_type === 'sub' || $reservation->is_sub == true) {
+                                return false;
+                            }
+
+                            $dateStr = Carbon::parse($reservation->reservation_date)->format('Y-m-d');
+                            $reservationStart = Carbon::parse($dateStr . ' ' . $reservation->start_time);
+                            $reservationEnd = Carbon::parse($dateStr . ' ' . $reservation->end_time);
+
+                            return $slotTime->lt($reservationEnd) && $slotEnd->gt($reservationStart);
+                        })->count();
+
+                        if ($seatOccupied == 0) {
+                            $availableSeats++;
+                        }
+                    }
+
+                    $finalAvailability = $availableSeats > 0;
+                } else {
+                    // 従来のロジック（座席管理なし、またはスタッフ指名あり）
+                    $finalAvailability = ($overlappingCount + $blockedMainLinesCount) < $maxConcurrent;
+                }
+
+                // 14:45のデバッグログ
+                if ($slot === '14:45' && $dateStr === '2025-11-14') {
+                    \Log::info("🔍 14:45 可用性判定", [
+                        'slot' => $slot,
+                        'overlappingCount' => $overlappingCount,
+                        'blockedMainLinesCount' => $blockedMainLinesCount,
+                        'maxConcurrent' => $maxConcurrent,
+                        'finalAvailability' => $finalAvailability,
+                        'changeReservationId' => $changeReservationId,
+                        'availableSeats' => $availableSeats ?? 'N/A',
+                        'dayReservations_count' => $dayReservations->count(),
+                        'dayReservations' => $dayReservations->map(function($r) {
+                            return [
+                                'id' => $r->id,
+                                'start' => $r->start_time,
+                                'end' => $r->end_time,
+                                'seat' => $r->seat_number
+                            ];
+                        })->toArray()
+                    ]);
+                }
 
                 // 既存顧客の5日間隔制限チェック（マイページ・回数券・サブスク全て適用）
                 if ($finalAvailability && !empty($existingReservationDates)) {
