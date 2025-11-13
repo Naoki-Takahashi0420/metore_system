@@ -1109,7 +1109,10 @@ class PublicReservationController extends Controller
             'from_session' => Session::has('selected_staff_id')
         ]);
 
-        $availability = $this->getAvailability($selectedStoreId, $selectedStore, $startDate, $dates, $totalDuration, $customerId, $staffId);
+        // 予約変更モードの場合は、変更元の予約IDを取得
+        $changeReservationId = Session::get('change_reservation_id');
+
+        $availability = $this->getAvailability($selectedStoreId, $selectedStore, $startDate, $dates, $totalDuration, $customerId, $staffId, $changeReservationId);
 
         // 既存顧客情報を取得
         $existingCustomer = null;
@@ -1283,7 +1286,7 @@ class PublicReservationController extends Controller
         return $slots;
     }
     
-    private function getAvailability($storeId, $store, $startDate, $dates, $menuDuration = 60, $customerId = null, $staffId = null, $changeMode = false)
+    private function getAvailability($storeId, $store, $startDate, $dates, $menuDuration = 60, $customerId = null, $staffId = null, $changeReservationId = null)
     {
         $availability = [];
         $endDate = $startDate->copy()->addDays(6);
@@ -1622,7 +1625,6 @@ class PublicReservationController extends Controller
                 // 営業時間ベースの場合はシフトチェックをスキップ
                 
                 // 予約が重複していないかチェック
-                $changeReservationId = Session::get('change_reservation_id');
                 $overlappingCount = $dayReservations->filter(function ($reservation) use ($slotTime, $slotEnd, $selectedStaffId, $changeReservationId) {
                     // 予約変更モードの場合、変更元の予約を除外
                     if ($changeReservationId && $reservation->id == $changeReservationId) {
