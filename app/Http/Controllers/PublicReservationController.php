@@ -1694,28 +1694,6 @@ class PublicReservationController extends Controller
                     $finalAvailability = ($overlappingCount + $blockedMainLinesCount) < $maxConcurrent;
                 }
 
-                // 14:45のデバッグログ
-                if ($slot === '14:45' && $dateStr === '2025-11-14') {
-                    \Log::info("🔍 14:45 可用性判定", [
-                        'slot' => $slot,
-                        'overlappingCount' => $overlappingCount,
-                        'blockedMainLinesCount' => $blockedMainLinesCount,
-                        'maxConcurrent' => $maxConcurrent,
-                        'finalAvailability' => $finalAvailability,
-                        'changeReservationId' => $changeReservationId,
-                        'availableSeats' => $availableSeats ?? 'N/A',
-                        'dayReservations_count' => $dayReservations->count(),
-                        'dayReservations' => $dayReservations->map(function($r) {
-                            return [
-                                'id' => $r->id,
-                                'start' => $r->start_time,
-                                'end' => $r->end_time,
-                                'seat' => $r->seat_number
-                            ];
-                        })->toArray()
-                    ]);
-                }
-
                 // 既存顧客の5日間隔制限チェック（マイページ・回数券・サブスク全て適用）
                 if ($finalAvailability && !empty($existingReservationDates)) {
                     $currentDate = Carbon::parse($dateStr);
