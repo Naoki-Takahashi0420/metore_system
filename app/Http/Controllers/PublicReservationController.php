@@ -2561,12 +2561,20 @@ class PublicReservationController extends Controller
 
             // 座席重複チェック（Eloquentフックに依存せず明示的にチェック）
             $tempReservation = new Reservation($reservationData);
+
+            // 予約変更の場合は、既存予約IDを設定（自己除外のため）
+            if (Session::has('change_reservation_id')) {
+                $tempReservation->id = Session::get('change_reservation_id');
+            }
+
             try {
                 \Log::info('🔍 明示的な座席重複チェック開始', [
                     'store_id' => $reservationData['store_id'],
                     'date' => $reservationData['reservation_date'],
                     'time' => $reservationData['start_time'] . '-' . $reservationData['end_time'],
-                    'staff_id' => $reservationData['staff_id'] ?? null
+                    'staff_id' => $reservationData['staff_id'] ?? null,
+                    'is_change_mode' => Session::has('change_reservation_id'),
+                    'reservation_id' => $tempReservation->id ?? null
                 ]);
 
                 if (!Reservation::checkAvailability($tempReservation)) {
