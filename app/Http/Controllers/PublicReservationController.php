@@ -1306,7 +1306,7 @@ class PublicReservationController extends Controller
         $customer = $customerId ? Customer::find($customerId) : null;
         $isIgnoreIntervalRule = $customer && $customer->ignore_interval_rule;
 
-        if ($customerId && !$changeMode && !$isChangeReservation && !$isIgnoreIntervalRule) {
+        if ($customerId && !$changeReservationId && !$isChangeReservation && !$isIgnoreIntervalRule) {
             \Log::info('既存予約取得開始（5日間ルール適用）', [
                 'customer_id' => $customerId,
                 'store_id' => $storeId,
