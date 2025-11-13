@@ -2041,12 +2041,15 @@ class PublicReservationController extends Controller
                     ],
                 ];
 
+                // 座席番号をクリアして、座席の再割り当てを可能にする
                 $existingReservation->update([
                     'reservation_date' => $validated['date'],
                     'start_time' => $validated['time'],
                     'end_time' => $endTime->format('H:i:s'),
                     'store_id' => $validated['store_id'],
                     'menu_id' => $validated['menu_id'],
+                    'seat_number' => null,  // 座席番号をクリアして再割り当てを促す
+                    'line_number' => null,
                 ]);
 
                 // サブスクリプションIDの再評価（店舗やメニューが変更された場合に対応）
