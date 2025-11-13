@@ -88,10 +88,10 @@ class SendCustomerReservationCancellationNotification implements ShouldQueue
         ]);
 
         // LINE通知を送信（LINE連携済みの場合）
-        if ($customer->line_user_id) {
+        if ($customer->line_user_id && $store->line_enabled) {
             try {
                 $message = $this->buildLineMessage($reservation);
-                $this->lineService->pushMessage($customer->line_user_id, $message);
+                $this->lineService->sendMessage($store, $customer->line_user_id, $message);
 
                 Log::info('✅ 予約キャンセルLINE通知送信成功', [
                     'customer_id' => $customer->id,
