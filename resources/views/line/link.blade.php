@@ -136,27 +136,31 @@
         // URLパラメータから予約番号を取得
         function getReservationNumber() {
             const urlParams = new URLSearchParams(window.location.search);
-            
+
             // 1. 通常のreservationパラメータ
             let reservation = urlParams.get('reservation');
             if (reservation) {
                 console.log('Found reservation in URL:', reservation);
+                // sessionStorageに保存（LINE認証後も使えるように）
+                sessionStorage.setItem('reservation_number', reservation);
                 return reservation;
             }
-            
+
             // 2. liff.stateパラメータから取得
             const liffState = urlParams.get('liff.state');
             if (liffState) {
                 const decodedState = decodeURIComponent(liffState);
                 console.log('Decoded liff.state:', decodedState);
-                
+
                 const match = decodedState.match(/reservation=([^&]+)/);
                 if (match) {
                     console.log('Found reservation in liff.state:', match[1]);
+                    // sessionStorageに保存
+                    sessionStorage.setItem('reservation_number', match[1]);
                     return match[1];
                 }
             }
-            
+
             // 3. セッションストレージから取得（LIFF認証後のリダイレクト対策）
             const sessionReservation = sessionStorage.getItem('reservation_number');
             if (sessionReservation) {
@@ -210,6 +214,10 @@
         // LIFF初期化
         async function initializeLiff() {
             try {
+                console.log('=== LIFF Initialization Started ===');
+                console.log('Current URL:', window.location.href);
+                console.log('URL search:', window.location.search);
+
                 // 初回アクセス時に予約番号を保存
                 const urlParams = new URLSearchParams(window.location.search);
                 const reservation = urlParams.get('reservation');
@@ -217,20 +225,34 @@
                     sessionStorage.setItem('reservation_number', reservation);
                     console.log('Saved initial reservation:', reservation);
                 }
-                
+
                 // 予約番号から予約情報を取得
                 const reservationNumber = getReservationNumber();
+                console.log('Retrieved reservation number:', reservationNumber);
+
                 if (!reservationNumber) {
+                    console.error('No reservation number found!');
                     throw new Error('予約番号が指定されていません');
                 }
-                
+
                 console.log('Fetching reservation info for:', reservationNumber);
                 
                 // 予約情報を取得して店舗のLIFF IDを取得
                 const response = await fetch(`/api/reservation/${reservationNumber}/store-info`);
+                console.log('API response status:', response.status);
+
+                if (!response.ok) {
+                    console.error('API request failed:', response.status, response.statusText);
+                    const errorData = await response.json().catch(() => ({}));
+                    console.error('Error data:', errorData);
+                    throw new Error(errorData.error || '予約が見つかりません');
+                }
+
                 const data = await response.json();
-                
+                console.log('API response data:', data);
+
                 if (!data.success) {
+                    console.error('API returned success=false:', data);
                     throw new Error(data.error || '予約情報の取得に失敗しました');
                 }
                 
