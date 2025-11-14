@@ -400,12 +400,20 @@ class CustomerSubscriptionResource extends Resource
                     
                 Tables\Columns\TextColumn::make('current_period_visits')
                     ->label('今月利用')
-                    ->formatStateUsing(function ($record) {
+                    ->getStateUsing(function ($record) {
                         // 予約データから動的に計算（正確な値）
-                        $actualVisits = $record->getCurrentPeriodVisitsCount();
-                        return $record->monthly_limit ?
-                            "{$actualVisits}/{$record->monthly_limit}" :
-                            $actualVisits;
+                        try {
+                            $actualVisits = $record->getCurrentPeriodVisitsCount();
+                            return $record->monthly_limit ?
+                                "{$actualVisits}/{$record->monthly_limit}" :
+                                (string)$actualVisits;
+                        } catch (\Exception $e) {
+                            \Log::error('今月利用カラムの計算エラー', [
+                                'subscription_id' => $record->id,
+                                'error' => $e->getMessage()
+                            ]);
+                            return '-';
+                        }
                     }),
                     
                 Tables\Columns\TextColumn::make('end_date')
