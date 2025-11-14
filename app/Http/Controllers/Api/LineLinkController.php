@@ -86,17 +86,37 @@ class LineLinkController extends Controller
                 ], 400);
             }
 
-            // IDトークンを検証（.envのChannel IDを使用）
+            // 顧客の店舗からChannel IDを取得
+            $store = $customer->store;
+            if (!$store || !$store->line_liff_id) {
+                $this->logAuditEvent('line_link_attempt', $customer->id, 'failed', [
+                    'error' => 'store_not_configured',
+                    'store_id' => $customer->store_id,
+                    'ip' => $request->ip()
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'error' => 'LINE linking is not enabled for this store'
+                ], 400);
+            }
+
+            // LIFFアプリIDからチャンネルIDを抽出
+            $liffChannelId = explode('-', $store->line_liff_id)[0];
+
+            // IDトークンを検証（店舗のChannel IDを使用）
             try {
-                $lineUserData = $this->tokenVerificationService->verifyIdToken($validatedData['id_token']);
+                $lineUserData = $this->tokenVerificationService->verifyIdToken($validatedData['id_token'], $liffChannelId);
             } catch (Exception $e) {
                 // JWKs検証失敗時はAPI検証を試行
                 try {
-                    $lineUserData = $this->tokenVerificationService->verifyTokenWithAPI($validatedData['id_token']);
+                    $lineUserData = $this->tokenVerificationService->verifyTokenWithAPI($validatedData['id_token'], $liffChannelId);
                 } catch (Exception $apiError) {
                     $this->logAuditEvent('line_link_attempt', $customer->id, 'failed', [
                         'error' => 'token_verification_failed',
                         'message' => $apiError->getMessage(),
+                        'store_id' => $store->id,
+                        'liff_channel_id' => $liffChannelId,
                         'ip' => $request->ip()
                     ]);
 
@@ -243,9 +263,6 @@ class LineLinkController extends Controller
                 'customer_name' => 'sometimes|string|max:100',
             ]);
 
-            // IDトークンを検証してLINE User IDを取得
-            $lineUserData = $this->tokenVerificationService->verifyIdToken($validatedData['id_token']);
-
             // 電話番号で顧客を検索
             $customer = Customer::where('phone', $customerData['customer_phone'])->first();
 
@@ -261,6 +278,27 @@ class LineLinkController extends Controller
                     'error' => 'Customer not found with provided phone number'
                 ], 404);
             }
+
+            // 顧客の店舗からChannel IDを取得
+            $store = $customer->store;
+            if (!$store || !$store->line_liff_id) {
+                $this->logAuditEvent('line_link_generic_attempt', $customer->id, 'failed', [
+                    'error' => 'store_not_configured',
+                    'store_id' => $customer->store_id,
+                    'ip' => $request->ip()
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'error' => 'LINE linking is not enabled for this store'
+                ], 400);
+            }
+
+            // LIFFアプリIDからチャンネルIDを抽出
+            $liffChannelId = explode('-', $store->line_liff_id)[0];
+
+            // IDトークンを検証してLINE User IDを取得（店舗のChannel IDを使用）
+            $lineUserData = $this->tokenVerificationService->verifyIdToken($validatedData['id_token'], $liffChannelId);
 
             // 既に別の顧客に連携されているかチェック
             $existingCustomer = Customer::findByLineUserId($lineUserData['user_id']);
@@ -403,25 +441,29 @@ class LineLinkController extends Controller
                 ], 400);
             }
 
-            // IDトークンを検証（店舗のChannel IDを使用）
+            // LIFFアプリIDからチャンネルIDを抽出（例: 2008211284-v3KLlrEM → 2008211284）
+            $liffChannelId = explode('-', $store->line_liff_id)[0];
+
+            // IDトークンを検証（LIFFチャンネルIDを使用）
             try {
                 $lineUserData = $this->tokenVerificationService->verifyIdToken(
                     $validatedData['id_token'],
-                    $store->line_channel_id
+                    $liffChannelId
                 );
             } catch (Exception $e) {
-                // JWKs検証失敗時はAPI検証を試行（店舗のChannel IDを使用）
+                // JWKs検証失敗時はAPI検証を試行（LIFFチャンネルIDを使用）
                 try {
                     $lineUserData = $this->tokenVerificationService->verifyTokenWithAPI(
                         $validatedData['id_token'],
-                        $store->line_channel_id
+                        $liffChannelId
                     );
                 } catch (Exception $apiError) {
                     $this->logAuditEvent('line_link_reservation_attempt', $customer->id, 'failed', [
                         'error' => 'token_verification_failed',
                         'message' => $apiError->getMessage(),
                         'store_id' => $store->id,
-                        'has_channel_id' => !empty($store->line_channel_id),
+                        'liff_channel_id' => $liffChannelId,
+                        'has_liff_id' => !empty($store->line_liff_id),
                         'ip' => $request->ip()
                     ]);
 
