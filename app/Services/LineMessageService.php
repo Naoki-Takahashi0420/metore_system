@@ -228,8 +228,8 @@ class LineMessageService
     private function buildConfirmationMessage(Reservation $reservation): string
     {
         $date = Carbon::parse($reservation->reservation_date)->format('Y年m月d日');
-        $time = Carbon::parse($reservation->reservation_date)->format('H:i');
-        
+        $time = $reservation->start_time ? Carbon::parse($reservation->start_time)->format('H:i') : '';
+
         return "🎉 ご予約ありがとうございます！\n\n" .
                "📅 日時: {$date} {$time}\n" .
                "📍 店舗: {$reservation->store->name}\n" .
@@ -244,7 +244,7 @@ class LineMessageService
     private function buildReminderMessage(Reservation $reservation, string $timing): string
     {
         $date = Carbon::parse($reservation->reservation_date)->format('Y年m月d日');
-        $time = Carbon::parse($reservation->reservation_date)->format('H:i');
+        $time = $reservation->start_time ? Carbon::parse($reservation->start_time)->format('H:i') : '';
         
         $timingText = match($timing) {
             '24h' => '明日',
