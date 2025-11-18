@@ -33,6 +33,7 @@ class AdminPanelProvider extends PanelProvider
             ->brandLogo(asset('images/logo.png'))
             ->brandLogoHeight('2.5rem')
             ->sidebarCollapsibleOnDesktop()
+            ->darkMode(false) // ダークモード切り替えを無効化（ライトモードのみ）
             ->colors([
                 'primary' => Color::Blue,
                 'success' => Color::Green,

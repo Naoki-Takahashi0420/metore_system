@@ -572,6 +572,51 @@ class StoreResource extends Resource
                                     ->columns(1)
                                     ->visible(fn ($get) => $get('line_enabled')),
                             ]),
+
+                        Forms\Components\Tabs\Tab::make('FC設定')
+                            ->schema([
+                                Forms\Components\Section::make('FC本部・加盟店設定')
+                                    ->description('この店舗のFC（フランチャイズ）タイプを設定します')
+                                    ->schema([
+                                        Forms\Components\Select::make('fc_type')
+                                            ->label('FC店舗タイプ')
+                                            ->options([
+                                                'regular' => '通常店舗（FCなし）',
+                                                'headquarters' => 'FC本部',
+                                                'fc_store' => 'FC加盟店',
+                                            ])
+                                            ->default('regular')
+                                            ->reactive()
+                                            ->helperText('FC本部として他の加盟店を管理するか、加盟店として本部に所属するかを選択'),
+
+                                        Forms\Components\Select::make('headquarters_store_id')
+                                            ->label('所属する本部店舗')
+                                            ->options(function () {
+                                                return Store::where('fc_type', 'headquarters')
+                                                    ->pluck('name', 'id');
+                                            })
+                                            ->searchable()
+                                            ->visible(fn ($get) => $get('fc_type') === 'fc_store')
+                                            ->required(fn ($get) => $get('fc_type') === 'fc_store')
+                                            ->helperText('この加盟店が所属する本部を選択してください'),
+
+                                        Forms\Components\Placeholder::make('fc_stores_info')
+                                            ->label('傘下の加盟店')
+                                            ->content(function ($record) {
+                                                if (!$record || $record->fc_type !== 'headquarters') {
+                                                    return '';
+                                                }
+                                                $fcStores = Store::where('headquarters_store_id', $record->id)->get();
+                                                if ($fcStores->isEmpty()) {
+                                                    return '加盟店はまだありません';
+                                                }
+                                                $list = $fcStores->map(fn ($s) => "• {$s->name}")->join("\n");
+                                                return new \Illuminate\Support\HtmlString("<pre class='text-sm'>{$list}</pre>");
+                                            })
+                                            ->visible(fn ($get) => $get('fc_type') === 'headquarters'),
+                                    ])
+                                    ->columns(1),
+                            ]),
                     ])
                     ->columnSpanFull(),
             ]);
@@ -618,6 +663,19 @@ class StoreResource extends Resource
                     ->falseIcon('heroicon-o-x-circle')
                     ->trueColor('success')
                     ->falseColor('gray'),
+                Tables\Columns\BadgeColumn::make('fc_type')
+                    ->label('FC')
+                    ->colors([
+                        'primary' => 'headquarters',
+                        'success' => 'fc_store',
+                        'gray' => 'regular',
+                    ])
+                    ->formatStateUsing(fn ($state) => match($state) {
+                        'headquarters' => '本部',
+                        'fc_store' => '加盟店',
+                        default => '-',
+                    })
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('登録日')
                     ->dateTime()

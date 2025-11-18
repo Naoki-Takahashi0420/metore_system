@@ -11,6 +11,8 @@ class Store extends Model
 
     protected $fillable = [
         'name',
+        'fc_type', // headquarters=本部, fc_store=加盟店, regular=通常店舗
+        'headquarters_store_id', // 本部店舗ID（加盟店の場合）
         'name_kana',
         'code',
         'postal_code',
@@ -140,6 +142,96 @@ class Store extends Model
     {
         return $this->belongsToMany(User::class, 'store_managers', 'store_id', 'user_id')
                     ->withTimestamps();
+    }
+
+    // ========== FC関連リレーション ==========
+
+    /**
+     * 本部店舗（この店舗が加盟店の場合）
+     */
+    public function headquartersStore()
+    {
+        return $this->belongsTo(Store::class, 'headquarters_store_id');
+    }
+
+    /**
+     * 加盟店（この店舗が本部の場合）
+     */
+    public function fcStores()
+    {
+        return $this->hasMany(Store::class, 'headquarters_store_id');
+    }
+
+    /**
+     * FC商品カテゴリ（本部として）
+     */
+    public function fcProductCategories()
+    {
+        return $this->hasMany(FcProductCategory::class, 'headquarters_store_id');
+    }
+
+    /**
+     * FC商品（本部として）
+     */
+    public function fcProducts()
+    {
+        return $this->hasMany(FcProduct::class, 'headquarters_store_id');
+    }
+
+    /**
+     * 発注（FC店舗として）
+     */
+    public function fcOrdersAsStore()
+    {
+        return $this->hasMany(FcOrder::class, 'fc_store_id');
+    }
+
+    /**
+     * 受注（本部として）
+     */
+    public function fcOrdersAsHeadquarters()
+    {
+        return $this->hasMany(FcOrder::class, 'headquarters_store_id');
+    }
+
+    /**
+     * 請求書（FC店舗として）
+     */
+    public function fcInvoicesAsStore()
+    {
+        return $this->hasMany(FcInvoice::class, 'fc_store_id');
+    }
+
+    /**
+     * 請求書（本部として）
+     */
+    public function fcInvoicesAsHeadquarters()
+    {
+        return $this->hasMany(FcInvoice::class, 'headquarters_store_id');
+    }
+
+    /**
+     * 本部店舗かどうか
+     */
+    public function isHeadquarters(): bool
+    {
+        return $this->fc_type === 'headquarters';
+    }
+
+    /**
+     * FC加盟店かどうか
+     */
+    public function isFcStore(): bool
+    {
+        return $this->fc_type === 'fc_store';
+    }
+
+    /**
+     * 通常店舗かどうか
+     */
+    public function isRegularStore(): bool
+    {
+        return $this->fc_type === 'regular' || empty($this->fc_type);
     }
 
     /**

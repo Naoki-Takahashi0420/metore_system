@@ -40,7 +40,7 @@ class SendLineReminders extends Command
             $targetDate = now()->addDays($daysBefore)->format('Y-m-d');
             $reservations = Reservation::where('store_id', $store->id)
                 ->whereDate('reservation_date', $targetDate)
-                ->where('status', 'confirmed')
+                ->whereIn('status', ['booked', 'confirmed'])
                 ->whereNull('line_reminder_sent_at')
                 ->with(['customer', 'menu'])
                 ->get();

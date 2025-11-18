@@ -10,6 +10,7 @@
         "aws/aws-sdk-php": "^3.356",
         "barryvdh/laravel-dompdf": "^3.1",
         "blade-ui-kit/blade-heroicons": "^2.6",
+        "carlos-meneses/laravel-mpdf": "^2.1",
         "filament/filament": "^3.0",
         "firebase/php-jwt": "^6.0",
         "guzzlehttp/guzzle": "^7.0",

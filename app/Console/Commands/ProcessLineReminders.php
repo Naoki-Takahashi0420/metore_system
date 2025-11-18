@@ -54,7 +54,7 @@ class ProcessLineReminders extends Command
                 $targetTime->copy()->startOfHour(),
                 $targetTime->copy()->endOfHour()
             ])
-            ->where('status', 'confirmed')
+            ->whereIn('status', ['booked', 'confirmed'])
             ->whereNull('reminder_sent_24h')
             ->get();
             
@@ -78,7 +78,7 @@ class ProcessLineReminders extends Command
                 $targetTime->copy()->startOfHour(),
                 $targetTime->copy()->endOfHour()
             ])
-            ->where('status', 'confirmed')
+            ->whereIn('status', ['booked', 'confirmed'])
             ->whereNull('reminder_sent_3h')
             ->get();
             

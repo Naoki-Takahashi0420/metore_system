@@ -76,10 +76,21 @@ class Announcement extends Model
      */
     public function scopeForUser($query, $user)
     {
-        if (!$user || !$user->store_id) {
+        if (!$user) {
             return $query->where('target_type', 'all');
         }
 
+        // super_adminは全てのお知らせを閲覧可能
+        if ($user->hasRole('super_admin')) {
+            return $query;
+        }
+
+        // 店舗IDがない一般ユーザーは「全店舗」対象のみ
+        if (!$user->store_id) {
+            return $query->where('target_type', 'all');
+        }
+
+        // 店舗ユーザーは「全店舗」または「自分の店舗」対象のお知らせ
         return $query->where(function ($q) use ($user) {
             $q->where('target_type', 'all')
               ->orWhereHas('stores', function ($storeQuery) use ($user) {
