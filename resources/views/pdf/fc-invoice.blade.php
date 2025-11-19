@@ -10,7 +10,7 @@
         }
 
         body {
-            font-family: 'DejaVu Sans', sans-serif;
+            font-family: sans-serif;
             font-size: 12px;
             line-height: 1.6;
         }
@@ -277,17 +277,29 @@
     </div>
     @endif
 
+    @if($invoice->headquartersStore->bank_name)
     <div style="margin-top: 30px; padding: 15px; border: 2px solid #333; background-color: #f0f0f0;">
         <h3 style="margin: 0 0 10px 0; font-size: 14px;">お振込先</h3>
         <p style="margin: 0; font-size: 11px; line-height: 1.8;">
-            【銀行名】○○銀行 ○○支店<br>
-            【口座種別】普通預金<br>
-            【口座番号】1234567<br>
-            【口座名義】カ）メノトレーニング<br>
+            @if($invoice->headquartersStore->bank_name && $invoice->headquartersStore->bank_branch)
+            【銀行名】{{ $invoice->headquartersStore->bank_name }} {{ $invoice->headquartersStore->bank_branch }}<br>
+            @endif
+            @if($invoice->headquartersStore->bank_account_type)
+            【口座種別】{{ $invoice->headquartersStore->bank_account_type }}<br>
+            @endif
+            @if($invoice->headquartersStore->bank_account_number)
+            【口座番号】{{ $invoice->headquartersStore->bank_account_number }}<br>
+            @endif
+            @if($invoice->headquartersStore->bank_account_name)
+            【口座名義】{{ $invoice->headquartersStore->bank_account_name }}<br>
+            @endif
+            @if($invoice->headquartersStore->bank_transfer_note)
             <br>
-            ※振込手数料はご負担ください
+            {!! nl2br(e($invoice->headquartersStore->bank_transfer_note)) !!}
+            @endif
         </p>
     </div>
+    @endif
 
     <div class="footer">
         <p>この請求書に関するお問い合わせは、上記連絡先までお願いいたします。</p>

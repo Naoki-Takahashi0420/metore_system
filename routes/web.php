@@ -373,6 +373,32 @@ Route::get('/admin/attendance-report/pdf', function() {
         ->header('Content-Type', 'text/html; charset=UTF-8');
 })->name('attendance-report.pdf')->middleware('auth');
 
+// FC請求書PDF出力用ルート
+Route::get('/admin/fc-invoices/{invoice}/pdf', function(App\Models\FcInvoice $invoice) {
+    // mPDFで日本語対応
+    $mpdf = new \Mpdf\Mpdf([
+        'mode' => 'utf-8',
+        'format' => 'A4',
+        'orientation' => 'P',
+        'margin_left' => 15,
+        'margin_right' => 15,
+        'margin_top' => 16,
+        'margin_bottom' => 16,
+        'margin_header' => 9,
+        'margin_footer' => 9,
+        'autoScriptToLang' => true,
+        'autoLangToFont' => true,
+    ]);
+
+    $html = view('pdf.fc-invoice', ['invoice' => $invoice])->render();
+    $mpdf->WriteHTML($html);
+
+    return response($mpdf->Output('', 'S'), 200, [
+        'Content-Type' => 'application/pdf',
+        'Content-Disposition' => 'inline; filename="invoice_' . $invoice->invoice_number . '.pdf"',
+    ]);
+})->name('fc-invoice.pdf')->middleware('auth');
+
 // パスワードリセット用ルート
 Route::get('/admin/password-reset', [PasswordResetController::class, 'showRequestForm'])->name('password.request');
 Route::post('/admin/password-reset', [PasswordResetController::class, 'sendResetLink'])->name('password.email');

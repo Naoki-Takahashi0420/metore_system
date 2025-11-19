@@ -26,21 +26,16 @@ class FcCatalogPage extends Page
         return '商品カタログ';
     }
 
-    public static function getNavigationBadge(): ?string
-    {
-        return 'NEW';
-    }
-
-    public static function getNavigationBadgeColor(): ?string
-    {
-        return 'success';
-    }
-
     public static function shouldRegisterNavigation(array $parameters = []): bool
     {
         $user = auth()->user();
         if (!$user) {
             return false;
+        }
+
+        // super_adminはナビゲーションに表示
+        if ($user->hasRole('super_admin')) {
+            return true;
         }
 
         // FC加盟店のみナビゲーションに表示

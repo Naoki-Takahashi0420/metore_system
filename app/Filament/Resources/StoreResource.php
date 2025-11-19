@@ -585,7 +585,7 @@ class StoreResource extends Resource
                                                 'headquarters' => 'FC本部',
                                                 'fc_store' => 'FC加盟店',
                                             ])
-                                            ->default('regular')
+                                            ->default('fc_store')
                                             ->reactive()
                                             ->helperText('FC本部として他の加盟店を管理するか、加盟店として本部に所属するかを選択'),
 
@@ -596,6 +596,10 @@ class StoreResource extends Resource
                                                     ->pluck('name', 'id');
                                             })
                                             ->searchable()
+                                            ->default(function () {
+                                                // デフォルトで銀座本店を選択
+                                                return Store::where('fc_type', 'headquarters')->first()?->id;
+                                            })
                                             ->visible(fn ($get) => $get('fc_type') === 'fc_store')
                                             ->required(fn ($get) => $get('fc_type') === 'fc_store')
                                             ->helperText('この加盟店が所属する本部を選択してください'),
@@ -616,6 +620,51 @@ class StoreResource extends Resource
                                             ->visible(fn ($get) => $get('fc_type') === 'headquarters'),
                                     ])
                                     ->columns(1),
+                            ]),
+
+                        Forms\Components\Tabs\Tab::make('振込先設定')
+                            ->schema([
+                                Forms\Components\Section::make('振込先情報')
+                                    ->description('FC請求書に表示される振込先情報を設定します（FC本部のみ）')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('bank_name')
+                                            ->label('銀行名')
+                                            ->maxLength(100)
+                                            ->placeholder('例: ○○銀行'),
+
+                                        Forms\Components\TextInput::make('bank_branch')
+                                            ->label('支店名')
+                                            ->maxLength(100)
+                                            ->placeholder('例: ○○支店'),
+
+                                        Forms\Components\Select::make('bank_account_type')
+                                            ->label('口座種別')
+                                            ->options([
+                                                '普通預金' => '普通預金',
+                                                '当座預金' => '当座預金',
+                                                '貯蓄預金' => '貯蓄預金',
+                                            ])
+                                            ->default('普通預金'),
+
+                                        Forms\Components\TextInput::make('bank_account_number')
+                                            ->label('口座番号')
+                                            ->maxLength(20)
+                                            ->placeholder('例: 1234567'),
+
+                                        Forms\Components\TextInput::make('bank_account_name')
+                                            ->label('口座名義')
+                                            ->maxLength(100)
+                                            ->placeholder('例: カ）メノトレーニング'),
+
+                                        Forms\Components\Textarea::make('bank_transfer_note')
+                                            ->label('振込に関する注意事項')
+                                            ->rows(3)
+                                            ->maxLength(500)
+                                            ->placeholder('例: ※振込手数料はご負担ください')
+                                            ->helperText('請求書に表示される注意事項を入力してください'),
+                                    ])
+                                    ->columns(2)
+                                    ->visible(fn ($get) => $get('fc_type') === 'headquarters'),
                             ]),
                     ])
                     ->columnSpanFull(),

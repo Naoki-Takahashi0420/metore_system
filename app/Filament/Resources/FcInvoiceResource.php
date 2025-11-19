@@ -188,6 +188,19 @@ class FcInvoiceResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->description(new \Illuminate\Support\HtmlString('
+                <div style="background: #fef3c7; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #f59e0b;">
+                    <div style="font-weight: bold; font-size: 18px; margin-bottom: 16px; color: #92400e;">📋 操作方法</div>
+
+                    <div style="font-size: 15px; line-height: 2;">
+                        <div><strong style="font-size: 16px;">①</strong> 請求書作成 → <strong style="font-size: 16px;">②</strong> 「発行」ボタン → <strong style="font-size: 16px;">③</strong> 「送付」ボタン（加盟店に通知） → <strong style="font-size: 16px;">④</strong> 入金確認後「入金記録」ボタン</div>
+                    </div>
+
+                    <div style="margin-top: 12px; padding: 12px; background: white; border-radius: 4px; font-size: 14px;">
+                        💡 ステータス欄に「次に押すボタン」が表示されます
+                    </div>
+                </div>
+            '))
             ->columns([
                 Tables\Columns\TextColumn::make('invoice_number')
                     ->label('請求書番号')
@@ -212,6 +225,14 @@ class FcInvoiceResource extends Resource
                         'paid' => '入金完了',
                         'cancelled' => 'キャンセル',
                         default => $state,
+                    })
+                    ->description(fn (FcInvoice $record): string => match ($record->status) {
+                        'draft' => '→「発行」ボタンを押してください',
+                        'issued' => '→「送付」ボタンを押してください',
+                        'sent' => '→ 入金確認後「入金記録」を押す',
+                        'paid' => '✓ 完了',
+                        'cancelled' => 'キャンセル済み',
+                        default => '',
                     }),
                 Tables\Columns\TextColumn::make('billing_period_start')
                     ->label('請求期間')
@@ -261,30 +282,11 @@ class FcInvoiceResource extends Resource
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\Action::make('download_pdf')
-                    ->label('PDF出力')
-                    ->icon('heroicon-o-arrow-down-tray')
+                    ->label('PDF表示')
+                    ->icon('heroicon-o-document-text')
                     ->color('success')
-                    ->action(function (FcInvoice $record) {
-                        $mpdf = new \Mpdf\Mpdf([
-                            'mode' => 'utf-8',
-                            'format' => 'A4',
-                            'margin_left' => 10,
-                            'margin_right' => 10,
-                            'margin_top' => 10,
-                            'margin_bottom' => 10,
-                            'margin_header' => 0,
-                            'margin_footer' => 0,
-                        ]);
-
-                        $html = view('pdf.fc-invoice', ['invoice' => $record])->render();
-                        $mpdf->WriteHTML($html);
-
-                        return response()->streamDownload(
-                            fn () => print($mpdf->Output('', 'S')),
-                            "invoice_{$record->invoice_number}.pdf",
-                            ['Content-Type' => 'application/pdf']
-                        );
-                    }),
+                    ->url(fn (FcInvoice $record): string => route('fc-invoice.pdf', $record))
+                    ->openUrlInNewTab(),
                 Tables\Actions\Action::make('issue')
                     ->label('発行')
                     ->icon('heroicon-o-document-check')
@@ -339,30 +341,35 @@ class FcInvoiceResource extends Resource
                     ->visible(fn (FcInvoice $record): bool =>
                         !in_array($record->status, ['draft', 'paid', 'cancelled'])
                     )
-                    ->form([
-                        Forms\Components\TextInput::make('amount')
-                            ->label('入金額')
-                            ->numeric()
-                            ->required()
-                            ->prefix('¥'),
-                        Forms\Components\DatePicker::make('payment_date')
-                            ->label('入金日')
-                            ->required()
-                            ->default(now()),
-                        Forms\Components\Select::make('payment_method')
-                            ->label('支払方法')
-                            ->options([
-                                'bank_transfer' => '銀行振込',
-                                'cash' => '現金',
-                                'other' => 'その他',
-                            ])
-                            ->default('bank_transfer')
-                            ->required(),
-                        Forms\Components\TextInput::make('reference_number')
-                            ->label('振込参照番号'),
-                        Forms\Components\Textarea::make('notes')
-                            ->label('備考'),
-                    ])
+                    ->form(function (FcInvoice $record) {
+                        return [
+                            Forms\Components\TextInput::make('amount')
+                                ->label('入金額')
+                                ->numeric()
+                                ->required()
+                                ->prefix('¥')
+                                ->default(intval($record->outstanding_amount))
+                                ->helperText('未払い金額: ¥' . number_format($record->outstanding_amount))
+                                ->step(1)
+                                ->minValue(0),
+                            Forms\Components\DatePicker::make('payment_date')
+                                ->label('入金日')
+                                ->required()
+                                ->default(now()),
+                            Forms\Components\Select::make('payment_method')
+                                ->label('支払方法')
+                                ->options([
+                                    'bank_transfer' => '銀行振込',
+                                    'cash' => '現金',
+                                    'other' => 'その他',
+                                ])
+                                ->default('bank_transfer')
+                                ->required(),
+                            Forms\Components\Textarea::make('notes')
+                                ->label('備考')
+                                ->rows(2),
+                        ];
+                    })
                     ->action(function (FcInvoice $record, array $data) {
                         $amount = floatval($data['amount']);
 
@@ -371,7 +378,6 @@ class FcInvoiceResource extends Resource
                             'amount' => $amount,
                             'payment_date' => $data['payment_date'],
                             'payment_method' => $data['payment_method'],
-                            'reference_number' => $data['reference_number'] ?? null,
                             'notes' => $data['notes'] ?? null,
                             'confirmed_by' => Auth::id(),
                         ]);

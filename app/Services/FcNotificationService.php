@@ -233,10 +233,16 @@ class FcNotificationService
         }
 
         // お知らせ作成（FC店舗向け）
-        $status = $invoice->status === 'paid' ? '入金完了' : '一部入金';
+        $status = $invoice->status === 'paid' ? '✓ 入金完了しました' : '一部入金を確認しました';
+        $statusDetail = $invoice->status === 'paid'
+            ? "請求書番号 {$invoice->invoice_number} の入金が完了しました。"
+            : "請求書番号 {$invoice->invoice_number} の一部入金を確認しました。";
+
         $this->createAnnouncement(
-            "【入金確認】請求書番号 {$invoice->invoice_number}",
-            "ステータス: {$status}\n今回の入金: ¥" . number_format($amount) . "\n残高: ¥" . number_format($invoice->outstanding_amount) . "\n\nありがとうございます。",
+            "【入金確認】{$statusDetail}",
+            "今回の入金額: ¥" . number_format($amount) . "\n" .
+            "残高: ¥" . number_format($invoice->outstanding_amount) . "\n\n" .
+            "ご入金ありがとうございます。",
             'normal',
             [$fcStore->id]
         );

@@ -71,6 +71,13 @@ class Store extends Model
         'line_followup_message_60days',
         'line_reminder_time',
         'line_reminder_days_before',
+        // 振込先情報
+        'bank_name',
+        'bank_branch',
+        'bank_account_type',
+        'bank_account_number',
+        'bank_account_name',
+        'bank_transfer_note',
     ];
 
     protected $casts = [

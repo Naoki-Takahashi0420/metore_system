@@ -32,4 +32,18 @@ class ListFcOrders extends ListRecords
 
         return $actions;
     }
+
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            \App\Filament\Widgets\FcStatsOverviewWidget::class,
+        ];
+    }
+
+    protected function getFooterWidgets(): array
+    {
+        return [
+            \App\Filament\Widgets\FcUnshippedOrdersWidget::class,
+        ];
+    }
 }

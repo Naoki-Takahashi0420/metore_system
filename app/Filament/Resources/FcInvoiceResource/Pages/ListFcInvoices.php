@@ -17,4 +17,18 @@ class ListFcInvoices extends ListRecords
                 ->label('新規請求書'),
         ];
     }
+
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            \App\Filament\Widgets\FcStatsOverviewWidget::class,
+        ];
+    }
+
+    protected function getFooterWidgets(): array
+    {
+        return [
+            \App\Filament\Widgets\FcUnpaidInvoicesWidget::class,
+        ];
+    }
 }
