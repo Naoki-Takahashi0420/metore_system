@@ -21,6 +21,7 @@ use App\Listeners\SendCustomerReservationChangeNotification;
 use App\Listeners\SendCustomerReservationCancellationNotification;
 use Filament\Support\Facades\FilamentView;
 use Illuminate\Support\Facades\Blade;
+use Livewire\Livewire;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -40,6 +41,11 @@ class AppServiceProvider extends ServiceProvider
         // タイムゾーンをAsia/Tokyoに統一（SQLiteはDB接続レベルでTZ設定不可）
         date_default_timezone_set('Asia/Tokyo');
         \Carbon\Carbon::setTestNow(null);
+
+        // FCウィジェットをLivewireコンポーネントとして登録
+        Livewire::component('app.filament.widgets.fc-stats-overview-widget', \App\Filament\Widgets\FcStatsOverviewWidget::class);
+        Livewire::component('app.filament.widgets.fc-unpaid-invoices-widget', \App\Filament\Widgets\FcUnpaidInvoicesWidget::class);
+        Livewire::component('app.filament.widgets.fc-unshipped-orders-widget', \App\Filament\Widgets\FcUnshippedOrdersWidget::class);
 
         // デバッグ用: 予約INSERT時のログ（一時的）
         \DB::listen(function ($query) {
