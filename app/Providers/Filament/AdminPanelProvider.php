@@ -65,9 +65,6 @@ class AdminPanelProvider extends PanelProvider
                 \App\Filament\Widgets\TodayReservationsWidget::class,
                 \App\Filament\Widgets\ShiftManagementLinkWidget::class,
                 \App\Filament\Widgets\SubscriptionStatsWidget::class,
-                \App\Filament\Widgets\FcStatsOverviewWidget::class,
-                \App\Filament\Widgets\FcUnpaidInvoicesWidget::class,
-                \App\Filament\Widgets\FcUnshippedOrdersWidget::class,
             ])
             // DailyClosingページが自動的にナビゲーションに追加されるため、
             // navigationItems での手動登録は不要
