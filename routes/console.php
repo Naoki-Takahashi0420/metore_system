@@ -46,3 +46,13 @@ Schedule::command('tickets:update-expired')
 Schedule::command('health:check')
     ->dailyAt('00:05') // 毎日午前0時5分に実行（日付変更直後）
     ->description('日次ヘルスチェック：ログ権限・DB・キュー確認');
+
+// FC本部管理：支払期限リマインダー（3日前）
+Schedule::command('fc:payment-reminder')
+    ->dailyAt('09:00') // 毎日午前9時に実行
+    ->description('FC請求書支払期限リマインダー送信');
+
+// FC本部管理：支払期限超過チェック
+Schedule::command('fc:check-overdue')
+    ->dailyAt('10:00') // 毎日午前10時に実行
+    ->description('FC請求書支払期限超過チェック・通知');
