@@ -14,6 +14,9 @@ class FcUnshippedOrdersWidget extends Widget
 
     protected int | string | array $columnSpan = 'full';
 
+    // 自動検出を無効化（特定ページでのみ手動登録）
+    protected static bool $isDiscovered = false;
+
     public function getOrders()
     {
         return FcOrder::query()

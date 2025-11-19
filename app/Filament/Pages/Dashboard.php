@@ -19,6 +19,7 @@ class Dashboard extends BaseDashboard
 
     public function getWidgets(): array
     {
+        // ダッシュボード専用のウィジェットのみ表示（FCウィジェットは除外）
         return [
             \App\Filament\Widgets\ReservationTimelineWidget::class,     // 1. 予約タイムラインテーブル
             \App\Filament\Widgets\PaymentFailedAlertWidget::class,      // 2. 決済失敗アラート
