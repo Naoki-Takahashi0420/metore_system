@@ -1954,7 +1954,8 @@ class PublicReservationController extends Controller
         if (!$isExistingCustomer) {
             $rules['last_name'] = 'required|string|max:50';
             $rules['first_name'] = 'required|string|max:50';
-            $rules['phone'] = 'required|string|max:20';
+            // 日本の電話番号: 10-11桁（ハイフン含めて最大13桁）、数字とハイフンのみ
+            $rules['phone'] = 'required|string|min:10|max:13|regex:/^[0-9\-]+$/';
             $rules['email'] = 'nullable|email|max:255';
         }
 
@@ -1972,6 +1973,11 @@ class PublicReservationController extends Controller
         }
 
         $validated = $request->validate($rules);
+
+        // 電話番号のハイフンを削除（DBには数字のみ保存）
+        if (isset($validated['phone'])) {
+            $validated['phone'] = str_replace('-', '', $validated['phone']);
+        }
 
         // オプションメニューの処理
         $selectedOptions = collect();
