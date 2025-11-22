@@ -141,7 +141,7 @@ class AvailabilityController extends Controller
             }
 
             // 既存予約との重複チェック（店舗設定に応じた席数制御）
-            $overlappingCount = 0;
+            $overlappingReservations = collect();
             foreach ($existingReservations as $reservation) {
                 // reservation_dateから日付部分のみを抽出
                 $resDate = Carbon::parse($reservation->reservation_date)->format('Y-m-d');
@@ -150,12 +150,24 @@ class AvailabilityController extends Controller
 
                 // 正しい重複判定: slotStart < resEnd AND slotEnd > resStart
                 if ($slotStart->lt($resEnd) && $slotEnd->gt($resStart)) {
-                    $overlappingCount++;
+                    $overlappingReservations->push($reservation);
                 }
             }
-
+            
             // 店舗設定に応じてキャパシティを決定
             $storeCapacity = $this->getSlotCapacity($store, $slotStart, $date);
+            
+            // 店舗の席数に応じて計算方法を変更
+            if ($storeCapacity > 1) {
+                // 複数席店舗: ユニーク席番号をカウント（重複予約防止）
+                $overlappingCount = $overlappingReservations->pluck('line_number')
+                    ->filter() // nullを除去
+                    ->unique()
+                    ->count();
+            } else {
+                // 1席店舗: 従来通り予約件数をカウント
+                $overlappingCount = $overlappingReservations->count();
+            }
 
             // ブロック数 + 予約数 >= 総席数 の場合は予約不可
             if ($blockedMainLinesCount + $overlappingCount >= $storeCapacity) {

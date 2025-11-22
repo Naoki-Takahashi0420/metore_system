@@ -1554,7 +1554,7 @@ class PublicReservationController extends Controller
 
                         // 正しい重複判定: slotStart < blockEnd AND slotEnd > blockStart
                         return $slotTime->lt($blockEnd) && $slotEnd->gt($blockStart);
-                    })->count();
+                    })->pluck('line_number')->unique()->count();
                 }
                 
                 // 店舗の同時予約可能数を初期化
@@ -1625,7 +1625,7 @@ class PublicReservationController extends Controller
                 // 営業時間ベースの場合はシフトチェックをスキップ
                 
                 // 予約が重複していないかチェック
-                $overlappingCount = $dayReservations->filter(function ($reservation) use ($slotTime, $slotEnd, $selectedStaffId, $changeReservationId) {
+                $overlappingReservations = $dayReservations->filter(function ($reservation) use ($slotTime, $slotEnd, $selectedStaffId, $changeReservationId) {
                     // 予約変更モードの場合、変更元の予約を除外
                     if ($changeReservationId && $reservation->id == $changeReservationId) {
                         return false;
@@ -1652,14 +1652,39 @@ class PublicReservationController extends Controller
                     // 正しい重複判定: slotStart < resEnd AND slotEnd > resStart
                     // ピッタリ同じ時刻（17:00-18:00 と 18:00-19:00）は重複しない
                     return $slotTime->lt($reservationEnd) && $slotEnd->gt($reservationStart);
-                })->count();
+                });
+                
+                // 店舗の席数に応じて計算方法を変更
+                if ($maxConcurrent > 1) {
+                    // 複数席店舗: ユニーク席番号をカウント（重複予約防止）
+                    $overlappingCount = $overlappingReservations->pluck('line_number')
+                        ->filter() // nullを除去
+                        ->unique()
+                        ->count();
+                    
+                    \Log::info('複数席店舗の重複チェック', [
+                        'date' => $dateStr,
+                        'slot' => $slot,
+                        'overlapping_reservations' => $overlappingReservations->map(function($r) {
+                            return ['id' => $r->id, 'line_number' => $r->line_number, 'time' => $r->start_time];
+                        })->toArray(),
+                        'overlapping_count' => $overlappingCount,
+                        'blocked_count' => $blockedMainLinesCount,
+                        'max_concurrent' => $maxConcurrent,
+                        'total_used' => $blockedMainLinesCount + $overlappingCount
+                    ]);
+                } else {
+                    // 1席店舗: 従来通り予約件数をカウント
+                    $overlappingCount = $overlappingReservations->count();
+                }
 
                 // 最終的な予約可否を判定
                 // 座席管理がある場合は、座席ごとに空きを確認
                 if ($maxConcurrent > 1 && !$selectedStaffId) {
-                    // 各座席の空き状況を確認
+                    // 各座席の空き状況を確認（ブロック状況も考慮）
                     $availableSeats = 0;
                     for ($seatNum = 1; $seatNum <= $maxConcurrent; $seatNum++) {
+                        // 座席の予約状況チェック
                         $seatOccupied = $dayReservations->filter(function ($reservation) use ($slotTime, $slotEnd, $seatNum, $changeReservationId) {
                             // 予約変更モードの場合、変更元の予約を除外
                             if ($changeReservationId && $reservation->id == $changeReservationId) {
@@ -1667,7 +1692,7 @@ class PublicReservationController extends Controller
                             }
 
                             // この座席の予約のみチェック
-                            if ($reservation->seat_number != $seatNum) {
+                            if ($reservation->seat_number != $seatNum && $reservation->line_number != $seatNum) {
                                 return false;
                             }
 
@@ -1683,7 +1708,20 @@ class PublicReservationController extends Controller
                             return $slotTime->lt($reservationEnd) && $slotEnd->gt($reservationStart);
                         })->count();
 
-                        if ($seatOccupied == 0) {
+                        // 座席のブロック状況チェック
+                        $seatBlocked = $dayBlocks->filter(function ($block) use ($slotTime, $slotEnd, $seatNum, $dateStr) {
+                            if ($block->line_type !== 'main' || $block->line_number != $seatNum) {
+                                return false;
+                            }
+
+                            $blockStart = Carbon::parse($dateStr . ' ' . $block->start_time);
+                            $blockEnd = Carbon::parse($dateStr . ' ' . $block->end_time);
+                            
+                            return $slotTime->lt($blockEnd) && $slotEnd->gt($blockStart);
+                        })->count();
+
+                        // 座席が予約もブロックもされていない場合のみ利用可能
+                        if ($seatOccupied == 0 && $seatBlocked == 0) {
                             $availableSeats++;
                         }
                     }
@@ -1691,7 +1729,8 @@ class PublicReservationController extends Controller
                     $finalAvailability = $availableSeats > 0;
                 } else {
                     // 従来のロジック（座席管理なし、またはスタッフ指名あり）
-                    $finalAvailability = ($overlappingCount + $blockedMainLinesCount) < $maxConcurrent;
+                    // AvailabilityControllerと統一: ブロック数 + 予約数 >= 総席数 で予約不可
+                    $finalAvailability = ($blockedMainLinesCount + $overlappingCount) < $maxConcurrent;
                 }
 
                 // 既存顧客の5日間隔制限チェック（マイページ・回数券・サブスク全て適用）
@@ -1954,8 +1993,35 @@ class PublicReservationController extends Controller
         if (!$isExistingCustomer) {
             $rules['last_name'] = 'required|string|max:50';
             $rules['first_name'] = 'required|string|max:50';
-            // 日本の電話番号: 10-11桁（ハイフン含めて最大13桁）、数字とハイフンのみ
-            $rules['phone'] = 'required|string|min:10|max:13|regex:/^[0-9\-]+$/';
+            // 日本の電話番号バリデーション（カスタムルール使用）
+            $rules['phone'] = [
+                'required',
+                'string',
+                function ($attribute, $value, $fail) {
+                    // ハイフンを削除
+                    $cleaned = str_replace('-', '', $value);
+                    $length = strlen($cleaned);
+
+                    // 数字のみかチェック
+                    if (!preg_match('/^\d+$/', $cleaned)) {
+                        $fail('電話番号は数字とハイフンのみ使用できます。');
+                        return;
+                    }
+
+                    // 携帯電話: 050/070/080/090 で始まる11桁
+                    if (preg_match('/^(050|070|080|090)\d{8}$/', $cleaned)) {
+                        return; // 正常
+                    }
+
+                    // 固定電話: 0X で始まる10桁（市外局番2-5桁）
+                    // ただし 070/080/090 は携帯電話なので除外
+                    if ($length === 10 && preg_match('/^0[1-6]\d{8}$/', $cleaned)) {
+                        return; // 正常
+                    }
+
+                    $fail('正しい日本の電話番号を入力してください（携帯: 050/070/080/090で始まる11桁、固定: 市外局番付き10桁）。');
+                },
+            ];
             $rules['email'] = 'nullable|email|max:255';
         }
 
@@ -2544,6 +2610,7 @@ class PublicReservationController extends Controller
                 'start_time' => $validated['time'],
                 'end_time' => Carbon::parse($validated['time'])->addMinutes($totalDuration)->format('H:i'),
                 'status' => 'booked',
+                'line_type' => 'main', // デフォルトはメインライン
                 'total_amount' => $totalAmount,
                 'notes' => $validated['notes'],
                 'source' => 'online',
@@ -2649,6 +2716,26 @@ class PublicReservationController extends Controller
                     'line' => $e->getLine()
                 ]);
                 return back()->with('error', $e->getMessage());
+            }
+
+            // 席番号自動割り当て（営業時間ベース店舗のみ）
+            if (!$store->use_staff_assignment && $reservationData['line_type'] === 'main') {
+                $availableSeat = $this->assignAvailableSeat(
+                    $store, 
+                    $reservationData['reservation_date'], 
+                    $reservationData['start_time'], 
+                    $reservationData['end_time']
+                );
+                
+                if ($availableSeat) {
+                    $reservationData['line_number'] = $availableSeat;
+                    \Log::info('自動席割り当て実行', [
+                        'assigned_seat' => $availableSeat,
+                        'store_id' => $store->id,
+                        'date' => $reservationData['reservation_date'],
+                        'time' => $reservationData['start_time']
+                    ]);
+                }
             }
 
             $reservation = Reservation::create($reservationData);
@@ -3419,5 +3506,64 @@ class PublicReservationController extends Controller
             'current_bookings' => $overlappingReservations,
             'subscription' => $subscriptionInfo
         ]);
+    }
+
+    /**
+     * ブロックされていない席に自動割り当て
+     */
+    private function assignAvailableSeat(Store $store, $date, $startTime, $endTime): ?int
+    {
+        $totalSeats = $store->main_lines_count ?? 1;
+        
+        // 指定時間でブロックされている席番号を取得
+        $blockedSeats = BlockedTimePeriod::where('store_id', $store->id)
+            ->whereDate('blocked_date', $date)
+            ->where('line_type', 'main')
+            ->get()
+            ->filter(function ($block) use ($startTime, $endTime, $date) {
+                $blockStart = Carbon::parse($date . ' ' . $block->start_time);
+                $blockEnd = Carbon::parse($date . ' ' . $block->end_time);
+                $slotStart = Carbon::parse($date . ' ' . $startTime);
+                $slotEnd = Carbon::parse($date . ' ' . $endTime);
+                
+                // 正しい重複判定: slotStart < blockEnd AND slotEnd > blockStart
+                return $slotStart->lt($blockEnd) && $slotEnd->gt($blockStart);
+            })
+            ->pluck('line_number')
+            ->unique()
+            ->toArray();
+            
+        // 既に予約が入っている席番号を取得
+        $reservedSeats = Reservation::where('store_id', $store->id)
+            ->whereDate('reservation_date', $date)
+            ->where('line_type', 'main')
+            ->whereNotIn('status', ['cancelled', 'canceled', 'no_show'])
+            ->get()
+            ->filter(function ($reservation) use ($startTime, $endTime, $date) {
+                $resDate = Carbon::parse($reservation->reservation_date)->format('Y-m-d');
+                $resStart = Carbon::parse($resDate . ' ' . $reservation->start_time);
+                $resEnd = Carbon::parse($resDate . ' ' . $reservation->end_time);
+                $slotStart = Carbon::parse($date . ' ' . $startTime);
+                $slotEnd = Carbon::parse($date . ' ' . $endTime);
+                
+                // 正しい重複判定: slotStart < resEnd AND slotEnd > resStart
+                return $slotStart->lt($resEnd) && $slotEnd->gt($resStart);
+            })
+            ->pluck('line_number')
+            ->filter()  // nullを除去
+            ->unique()
+            ->toArray();
+            
+        // 利用不可席をまとめる
+        $unavailableSeats = array_merge($blockedSeats, $reservedSeats);
+        
+        // 利用可能な最小席番号を返す
+        for ($seat = 1; $seat <= $totalSeats; $seat++) {
+            if (!in_array($seat, $unavailableSeats)) {
+                return $seat;
+            }
+        }
+        
+        return null; // 全席埋まっている
     }
 }

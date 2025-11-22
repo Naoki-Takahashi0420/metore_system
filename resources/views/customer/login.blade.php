@@ -88,7 +88,7 @@
         
         <div class="mb-4">
             <label class="flex items-center">
-                <input type="checkbox" id="remember-me" class="rounded border-gray-300 text-primary-600 shadow-sm focus:border-primary-300 focus:ring focus:ring-primary-200 focus:ring-opacity-50">
+                <input type="checkbox" id="remember-me" class="rounded border-gray-300 text-primary-600 shadow-sm focus:border-primary-300 focus:ring focus:ring-primary-200 focus:ring-opacity-50" checked>
                 <span class="ml-2 text-sm text-gray-600">ログイン状態を保持する（30日間）</span>
             </label>
         </div>
