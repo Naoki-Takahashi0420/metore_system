@@ -190,14 +190,14 @@ class FcInvoiceResource extends Resource
         return $table
             ->description(new \Illuminate\Support\HtmlString('
                 <div style="background: #fef3c7; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #f59e0b;">
-                    <div style="font-weight: bold; font-size: 18px; margin-bottom: 16px; color: #92400e;">📋 操作方法</div>
+                    <div style="font-weight: bold; font-size: 18px; margin-bottom: 16px; color: #92400e;">📋 請求書処理フロー</div>
 
                     <div style="font-size: 15px; line-height: 2;">
-                        <div><strong style="font-size: 16px;">①</strong> 請求書作成 → <strong style="font-size: 16px;">②</strong> 「発行」ボタン → <strong style="font-size: 16px;">③</strong> 「送付」ボタン（加盟店に通知） → <strong style="font-size: 16px;">④</strong> 入金確認後「入金記録」ボタン</div>
+                        <div><strong style="font-size: 16px;">①</strong> 納品完了 → <strong style="font-size: 16px;">②</strong> 請求書自動発行（加盟店に自動通知） → <strong style="font-size: 16px;">③</strong> 入金確認後「入金記録」ボタン → <strong style="font-size: 16px;">④</strong> 完了</div>
                     </div>
 
                     <div style="margin-top: 12px; padding: 12px; background: white; border-radius: 4px; font-size: 14px;">
-                        💡 ステータス欄に「次に押すボタン」が表示されます
+                        💡 発注管理で「納品完了」にすると請求書が自動発行され、加盟店に通知されます
                     </div>
                 </div>
             '))
@@ -228,7 +228,7 @@ class FcInvoiceResource extends Resource
                     })
                     ->description(fn (FcInvoice $record): string => match ($record->status) {
                         'draft' => '→「発行」ボタンを押してください',
-                        'issued' => '→「送付」ボタンを押してください',
+                        'issued' => '→ 入金確認後「入金記録」を押す',
                         'sent' => '→ 入金確認後「入金記録」を押す',
                         'paid' => '✓ 完了',
                         'cancelled' => 'キャンセル済み',
@@ -291,7 +291,13 @@ class FcInvoiceResource extends Resource
                     ->label('発行')
                     ->icon('heroicon-o-document-check')
                     ->color('primary')
-                    ->visible(fn (FcInvoice $record): bool => $record->status === 'draft')
+                    ->visible(function (FcInvoice $record): bool {
+                        $user = auth()->user();
+                        // 本部のユーザーまたはsuper_adminのみ表示
+                        $canManage = $user->hasRole('super_admin') || 
+                                   ($user->store && $user->store->isHeadquarters());
+                        return $record->status === 'draft' && $canManage;
+                    })
                     ->requiresConfirmation()
                     ->action(function (FcInvoice $record) {
                         $record->update([
@@ -311,36 +317,19 @@ class FcInvoiceResource extends Resource
                             ->success()
                             ->send();
                     }),
-                Tables\Actions\Action::make('send')
-                    ->label('送付')
-                    ->icon('heroicon-o-paper-airplane')
-                    ->color('info')
-                    ->visible(fn (FcInvoice $record): bool => $record->status === 'issued')
-                    ->requiresConfirmation()
-                    ->action(function (FcInvoice $record) {
-                        $record->update([
-                            'status' => 'sent',
-                        ]);
-
-                        // FC店舗に請求書送付通知
-                        try {
-                            app(FcNotificationService::class)->notifyInvoiceSent($record);
-                        } catch (\Exception $e) {
-                            \Log::error("FC請求書送付通知エラー: " . $e->getMessage());
-                        }
-
-                        Notification::make()
-                            ->title('請求書を送付しました')
-                            ->success()
-                            ->send();
-                    }),
                 Tables\Actions\Action::make('record_payment')
                     ->label('入金記録')
                     ->icon('heroicon-o-banknotes')
                     ->color('success')
-                    ->visible(fn (FcInvoice $record): bool =>
-                        !in_array($record->status, ['draft', 'paid', 'cancelled'])
-                    )
+                    ->visible(function (FcInvoice $record): bool {
+                        $user = auth()->user();
+                        // 本部のユーザーまたはsuper_adminのみ表示
+                        $canManage = $user->hasRole('super_admin') || 
+                                   ($user->store && $user->store->isHeadquarters());
+                        // 発行済み（issued）または送付済み（sent）の場合のみ表示
+                        $statusOk = in_array($record->status, ['issued', 'sent']);
+                        return $statusOk && $canManage;
+                    })
                     ->form(function (FcInvoice $record) {
                         return [
                             Forms\Components\TextInput::make('amount')

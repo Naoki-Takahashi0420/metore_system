@@ -216,6 +216,42 @@ class FcNotificationService
     }
 
     /**
+     * 納品完了通知（本部→FC店舗）
+     */
+    public function notifyOrderDelivered(FcOrder $order, ?FcInvoice $invoice = null): void
+    {
+        $fcStore = $order->fcStore;
+        $storeManagers = $fcStore->managers;
+
+        // メール通知
+        foreach ($storeManagers as $manager) {
+            $this->sendEmail(
+                $manager->email,
+                "【納品完了】発注番号 {$order->order_number} の納品が完了しました",
+                $this->buildOrderDeliveredMessage($order, $invoice)
+            );
+        }
+
+        // お知らせ作成（FC店舗向け）
+        $invoiceInfo = $invoice 
+            ? "請求書番号: {$invoice->invoice_number}\n請求金額: ¥" . number_format($invoice->total_amount)
+            : "請求書は別途発行いたします";
+            
+        $this->createAnnouncement(
+            "【納品完了】発注番号 {$order->order_number}",
+            "ご注文の商品の納品が完了いたしました。\n\n{$invoiceInfo}\n\nご確認をお願いいたします。",
+            'normal',
+            [$fcStore->id]
+        );
+
+        Log::info("FC納品完了通知送信", [
+            'order_number' => $order->order_number,
+            'fc_store' => $fcStore->name,
+            'invoice_number' => $invoice?->invoice_number,
+        ]);
+    }
+
+    /**
      * 入金確認通知（本部→FC店舗）
      */
     public function notifyPaymentReceived(FcInvoice $invoice, float $amount): void
@@ -283,101 +319,140 @@ class FcNotificationService
     protected function buildOrderSubmittedMessage(FcOrder $order, Store $fcStore): string
     {
         $itemsList = $order->items->map(function ($item) {
-            return "  - {$item->product_name} x {$item->quantity} = ¥" . number_format($item->total);
+            $unitPrice = number_format($item->unit_price);
+            $itemTotal = number_format($item->total);
+            return "  ◆ {$item->product_name}\n    　数量: {$item->quantity}個　単価: ¥{$unitPrice}　小計: ¥{$itemTotal}";
         })->join("\n");
 
+        $itemCount = $order->items->count();
+        $totalQuantity = $order->items->sum('quantity');
+
         return <<<MESSAGE
-FC加盟店からの発注申請です。
+🏪 FC加盟店より新規発注申請がございました
 
-【発注情報】
+【📋 発注概要】
 発注番号: {$order->order_number}
-発注元: {$fcStore->name}
-発注日時: {$order->ordered_at->format('Y/m/d H:i')}
+発注店舗: {$fcStore->name}
+発注日時: {$order->ordered_at->format('Y年m月d日 H:i')}
+商品種類: {$itemCount}種類　総数量: {$totalQuantity}個
 
-【発注内容】
+【📦 発注明細】
 {$itemsList}
 
-【金額】
+【💰 金額内訳】
 小計（税抜）: ¥{number_format($order->subtotal)}
-消費税: ¥{number_format($order->tax_amount)}
+消費税（10%）: ¥{number_format($order->tax_amount)}
+━━━━━━━━━━━━━━━━━━
 合計（税込）: ¥{number_format($order->total_amount)}
 
-【備考】
+【📝 連絡事項】
 {$order->notes}
 
-管理画面から承認処理を行ってください。
+【⚡ 次のステップ】
+管理画面にログインして「承認」処理を行い、発送準備を開始してください。
 MESSAGE;
     }
 
     protected function buildOrderApprovedMessage(FcOrder $order): string
     {
+        $itemCount = $order->items->count();
+        $totalQuantity = $order->items->sum('quantity');
+        
         return <<<MESSAGE
-発注が承認されました。
+✅ ご発注が承認されました
 
-【発注情報】
+【📋 発注概要】
 発注番号: {$order->order_number}
-承認日時: {$order->approved_at->format('Y/m/d H:i')}
+承認日時: {$order->approved_at->format('Y年m月d日 H:i')}
+商品種類: {$itemCount}種類　総数量: {$totalQuantity}個
 合計金額: ¥{number_format($order->total_amount)}
 
-発送準備が完了次第、追跡番号をお知らせいたします。
+【📦 次のステップ】
+発送準備を開始いたします。
+発送完了次第、追跡番号と共にご連絡いたします。
+
+引き続きよろしくお願いいたします。
 MESSAGE;
     }
 
     protected function buildOrderShippedMessage(FcOrder $order): string
     {
         $trackingInfo = $order->shipping_tracking_number
-            ? "追跡番号: {$order->shipping_tracking_number}"
-            : "追跡番号: なし";
+            ? "🔍 追跡番号: {$order->shipping_tracking_number}"
+            : "📦 追跡番号: 設定なし";
+            
+        $itemCount = $order->items->count();
+        $totalQuantity = $order->items->sum('quantity');
 
         return <<<MESSAGE
-ご注文の商品を発送いたしました。
+🚚 ご注文商品を発送いたしました
 
-【発送情報】
+【📋 発注情報】
 発注番号: {$order->order_number}
-発送日時: {$order->shipped_at->format('Y/m/d H:i')}
+商品種類: {$itemCount}種類　総数量: {$totalQuantity}個
+合計金額: ¥{number_format($order->total_amount)}
+
+【🚛 発送詳細】
+発送日時: {$order->shipped_at->format('Y年m月d日 H:i')}
 {$trackingInfo}
 
+【📅 お届け予定】
+通常1-2営業日でお届け予定です。
 到着まで今しばらくお待ちください。
+
+商品到着後は内容をご確認いただき、
+何かございましたらお気軽にお問い合わせください。
 MESSAGE;
     }
 
     protected function buildInvoiceIssuedMessage(FcInvoice $invoice): string
     {
+        $daysUntilDue = now()->diffInDays($invoice->due_date, false);
+        
         return <<<MESSAGE
-請求書を発行いたしました。
+📄 請求書を発行いたしました
 
-【請求書情報】
+【📋 請求書情報】
 請求書番号: {$invoice->invoice_number}
-発行日: {$invoice->issue_date->format('Y/m/d')}
-支払期限: {$invoice->due_date->format('Y/m/d')}
+発行日: {$invoice->issue_date->format('Y年m月d日')}
+支払期限: {$invoice->due_date->format('Y年m月d日')}（{$daysUntilDue}日後）
 
-【請求金額】
+【💰 請求金額】
 小計（税抜）: ¥{number_format($invoice->subtotal)}
-消費税: ¥{number_format($invoice->tax_amount)}
+消費税（10%）: ¥{number_format($invoice->tax_amount)}
+━━━━━━━━━━━━━━━━━━
 合計（税込）: ¥{number_format($invoice->total_amount)}
 
-【請求対象期間】
-{$invoice->billing_period_start->format('Y/m/d')} - {$invoice->billing_period_end->format('Y/m/d')}
+【📅 請求対象期間】
+{$invoice->billing_period_start->format('Y年m月d日')} ～ {$invoice->billing_period_end->format('Y年m月d日')}
 
-お支払期限までにお振込みをお願いいたします。
+【🏦 お支払いについて】
+お支払期限までに指定口座へのお振込みをお願いいたします。
+ご不明な点がございましたらお気軽にお問い合わせください。
 MESSAGE;
     }
 
     protected function buildPaymentReminderMessage(FcInvoice $invoice): string
     {
         $daysUntilDue = now()->diffInDays($invoice->due_date, false);
-
+        $urgencyIcon = $daysUntilDue <= 3 ? '🔥' : '⏰';
+        
         return <<<MESSAGE
-お支払期限が近づいております。
+{$urgencyIcon} お支払期限のリマインダー
 
-【請求書情報】
+【📋 請求書情報】
 請求書番号: {$invoice->invoice_number}
-支払期限: {$invoice->due_date->format('Y/m/d')}（あと{$daysUntilDue}日）
+支払期限: {$invoice->due_date->format('Y年m月d日')}（あと{$daysUntilDue}日）
 
-【未払い金額】
+【💰 未払い金額】
 ¥{number_format($invoice->outstanding_amount)}
 
-お支払期限までにお振込みをお願いいたします。
+【⚡ お願い】
+お支払期限が近づいております。
+期限内のお振込みをお願いいたします。
+
+既にお振込み済みの場合は、確認にお時間をいただく場合がございます。
+ご不明な点がございましたらお気軽にお問い合わせください。
 MESSAGE;
     }
 
@@ -386,38 +461,79 @@ MESSAGE;
         $overdueDays = now()->diffInDays($invoice->due_date);
 
         return <<<MESSAGE
-支払期限が超過した請求書があります。
+🚨 【緊急】支払期限超過のお知らせ
 
-【請求書情報】
+【⚠️ 請求書情報】
 請求書番号: {$invoice->invoice_number}
-請求先: {$invoice->fcStore->name}
-支払期限: {$invoice->due_date->format('Y/m/d')}（{$overdueDays}日超過）
+請求先FC店舗: {$invoice->fcStore->name}
+支払期限: {$invoice->due_date->format('Y年m月d日')}（{$overdueDays}日超過）
 
-【未払い金額】
+【💰 未払い金額】
 ¥{number_format($invoice->outstanding_amount)}
 
-早急に確認・対応をお願いします。
+【🔥 対応が必要】
+支払期限を{$overdueDays}日超過しています。
+加盟店への確認と早急な対応をお願いします。
+
+・入金確認の見落としがないかチェック
+・加盟店への督促連絡
+・支払い計画の確認
+
+本部管理者は速やかに対応してください。
+MESSAGE;
+    }
+
+    protected function buildOrderDeliveredMessage(FcOrder $order, ?FcInvoice $invoice = null): string
+    {
+        $itemsList = $order->items->map(function ($item) {
+            return "  - {$item->product_name} x {$item->quantity} = ¥" . number_format($item->total);
+        })->join("\n");
+
+        $invoiceSection = $invoice
+            ? "\n【請求書情報】\n請求書番号: {$invoice->invoice_number}\n請求金額: ¥" . number_format($invoice->total_amount) . "\n支払期限: {$invoice->due_date->format('Y/m/d')}"
+            : "\n【請求書】\n請求書は別途発行いたします。";
+
+        return <<<MESSAGE
+発注いただいた商品の納品が完了いたしました。
+
+【発注情報】
+発注番号: {$order->order_number}
+発注元: {$order->fcStore->name}
+発注日時: {$order->ordered_at->format('Y/m/d H:i')}
+納品日時: {$order->delivered_at->format('Y/m/d H:i')}
+
+【納品内容】
+{$itemsList}
+
+【合計金額】
+¥{number_format($order->total_amount)}{$invoiceSection}
+
+商品の確認をお願いいたします。
+何かご不明な点がございましたら、お気軽にお問い合わせください。
 MESSAGE;
     }
 
     protected function buildPaymentReceivedMessage(FcInvoice $invoice, float $amount): string
     {
-        $status = $invoice->status === 'paid' ? '入金完了' : '一部入金';
+        $status = $invoice->status === 'paid' ? '✅ 入金完了' : '🔄 一部入金';
+        $completionMessage = $invoice->status === 'paid'
+            ? "\n🎉 請求書の入金が完了いたしました。\nありがとうございました。"
+            : "\n📝 残金のお支払いをお待ちしております。";
 
         return <<<MESSAGE
-入金を確認いたしました。
+💰 入金を確認いたしました
 
-【請求書情報】
+【📋 請求書情報】
 請求書番号: {$invoice->invoice_number}
 ステータス: {$status}
 
-【今回の入金】
+【💵 今回の入金】
 ¥{number_format($amount)}
 
-【残高】
-¥{number_format($invoice->outstanding_amount)}
+【📊 残高状況】
+¥{number_format($invoice->outstanding_amount)}{$completionMessage}
 
-ありがとうございます。
+今後ともよろしくお願いいたします。
 MESSAGE;
     }
 

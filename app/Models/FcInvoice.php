@@ -135,6 +135,44 @@ class FcInvoice extends Model
     }
 
     /**
+     * 注文から請求書を自動作成
+     */
+    public static function createFromOrder(FcOrder $order): self
+    {
+        // 既に同じ注文番号で請求書が作成されている場合はスキップ
+        $existingInvoice = self::where('notes', 'like', '%' . $order->order_number . '%')->first();
+
+        if ($existingInvoice) {
+            return $existingInvoice;
+        }
+
+        // 注文の合計金額を使用（税込み）
+        $subtotal = floatval($order->subtotal ?? 0);
+        $taxAmount = floatval($order->tax_amount ?? 0);
+        $totalAmount = floatval($order->total_amount ?? 0);
+
+        // 請求書を作成
+        $invoice = self::create([
+            'invoice_number' => self::generateInvoiceNumber(),
+            'fc_store_id' => $order->fc_store_id,
+            'headquarters_store_id' => $order->headquarters_store_id,
+            'status' => self::STATUS_ISSUED,
+            'billing_period_start' => $order->delivered_at->startOfDay(),
+            'billing_period_end' => $order->delivered_at->endOfDay(),
+            'issue_date' => now(),
+            'due_date' => now()->addDays(30), // 30日後が支払期限
+            'subtotal' => $subtotal,
+            'tax_amount' => $taxAmount,
+            'total_amount' => $totalAmount,
+            'paid_amount' => 0,
+            'outstanding_amount' => $totalAmount,
+            'notes' => "発注番号: {$order->order_number}\n納品日: {$order->delivered_at->format('Y年m月d日')}",
+        ]);
+
+        return $invoice;
+    }
+
+    /**
      * ステータス別スコープ
      */
     public function scopeStatus($query, string $status)

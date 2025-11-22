@@ -343,10 +343,61 @@ class FcOrderResource extends Resource
                             'status' => 'delivered',
                             'delivered_at' => now(),
                         ]);
-                        Notification::make()
-                            ->title('納品を確認しました')
-                            ->success()
-                            ->send();
+
+                        // 請求書を自動発行
+                        try {
+                            $invoice = \App\Models\FcInvoice::createFromOrder($record);
+                            
+                            // FC店舗に納品完了通知
+                            try {
+                                app(FcNotificationService::class)->notifyOrderDelivered($record, $invoice);
+                            } catch (\Exception $e) {
+                                \Log::error("FC納品完了通知エラー: " . $e->getMessage());
+                            }
+                            
+                            Notification::make()
+                                ->title('納品を確認し、請求書を自動発行しました')
+                                ->body("請求書番号: {$invoice->invoice_number}")
+                                ->success()
+                                ->send();
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->title('納品を確認しました（請求書発行でエラーが発生）')
+                                ->body("エラー: {$e->getMessage()}")
+                                ->warning()
+                                ->send();
+                        }
+                    }),
+                Tables\Actions\Action::make('create_invoice')
+                    ->label('請求書発行')
+                    ->icon('heroicon-o-document-text')
+                    ->color('warning')
+                    ->visible(function (FcOrder $record): bool {
+                        // 納品済みで、まだ請求書が発行されていない場合のみ表示
+                        if ($record->status !== 'delivered') {
+                            return false;
+                        }
+                        
+                        // 既に請求書があるかチェック
+                        $existingInvoice = \App\Models\FcInvoice::where('notes', 'like', '%' . $record->order_number . '%')->first();
+                        return !$existingInvoice;
+                    })
+                    ->requiresConfirmation()
+                    ->action(function (FcOrder $record) {
+                        try {
+                            $invoice = \App\Models\FcInvoice::createFromOrder($record);
+                            Notification::make()
+                                ->title('請求書を手動で発行しました')
+                                ->body("請求書番号: {$invoice->invoice_number}")
+                                ->success()
+                                ->send();
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->title('請求書発行でエラーが発生しました')
+                                ->body("エラー: {$e->getMessage()}")
+                                ->danger()
+                                ->send();
+                        }
                     }),
                 Tables\Actions\Action::make('cancel')
                     ->label('キャンセル')
