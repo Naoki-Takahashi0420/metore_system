@@ -2165,7 +2165,7 @@ class PublicReservationController extends Controller
                     'store_id' => $validated['store_id'],
                     'menu_id' => $validated['menu_id'],
                     'seat_number' => null,  // 座席番号をクリアして再割り当てを促す
-                    'line_number' => null,
+                    'line_number' => 1,  // NOT NULL制約のためデフォルト値1を設定
                 ]);
 
                 // サブスクリプションIDの再評価（店舗やメニューが変更された場合に対応）
