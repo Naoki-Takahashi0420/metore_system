@@ -215,7 +215,12 @@ class TodayReservationsWidget extends BaseWidget
                         $record->customer->last_name . ' ' . $record->customer->first_name : 
                         '未設定'
                     )
-                    ->searchable(['customer.last_name', 'customer.first_name']),
+                    ->searchable(query: function ($query, $search) {
+                        return $query->whereHas('customer', function ($q) use ($search) {
+                            $q->where('last_name', 'like', "%{$search}%")
+                              ->orWhere('first_name', 'like', "%{$search}%");
+                        });
+                    }),
                     
                 Tables\Columns\TextColumn::make('customer.phone')
                     ->label('電話番号')

@@ -14,7 +14,7 @@ class FcPaymentReminder extends Command
 
     public function handle()
     {
-        $days = $this->option('days');
+        $days = (int) $this->option('days');
         $targetDate = Carbon::today()->addDays($days);
 
         $invoices = FcInvoice::unpaid()
