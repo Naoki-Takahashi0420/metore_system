@@ -2177,6 +2177,43 @@
                                 </p>
                             </div>
                         </div>
+
+                        <!-- 備考・内部メモセクション -->
+                        <div class="border-t pt-4 mt-4">
+                            <!-- 備考（顧客からの要望） -->
+                            <div class="mb-4">
+                                <p class="text-xs font-semibold text-gray-600 mb-2 flex items-center">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                    備考
+                                </p>
+                                @if($selectedReservation->notes)
+                                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                                        <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ $selectedReservation->notes }}</p>
+                                    </div>
+                                @else
+                                    <p class="text-sm text-gray-400">なし</p>
+                                @endif
+                            </div>
+
+                            <!-- 内部メモ（スタッフ用） -->
+                            <div>
+                                <p class="text-xs font-semibold text-gray-600 mb-2 flex items-center">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                                    </svg>
+                                    内部メモ（スタッフ用）
+                                </p>
+                                @if($selectedReservation->internal_notes)
+                                    <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+                                        <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ $selectedReservation->internal_notes }}</p>
+                                    </div>
+                                @else
+                                    <p class="text-sm text-gray-400">なし</p>
+                                @endif
+                            </div>
+                        </div>
                         <div class="mt-3">
                             <p class="text-xs text-gray-500 mb-1">追加オプション</p>
                             @php
