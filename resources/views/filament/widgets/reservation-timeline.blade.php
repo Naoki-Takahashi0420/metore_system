@@ -2743,7 +2743,17 @@
                 }
             }"
             x-show="show"
-            x-init="document.body.style.overflow = 'hidden'"
+            x-init="
+                document.body.style.overflow = 'hidden';
+                // グラフを描画
+                setTimeout(() => {
+                    const customerId = {{ $selectedReservation->customer_id ?? 'null' }};
+                    if (customerId && typeof renderModalVisionCharts === 'function') {
+                        console.log('[DEBUG] Initializing modal charts for customer:', customerId);
+                        renderModalVisionCharts(customerId);
+                    }
+                }, 500);
+            "
             x-transition:enter="transition ease-out duration-300"
             x-transition:enter-start="opacity-0"
             x-transition:enter-end="opacity-100"
@@ -2775,7 +2785,7 @@
                     @php
                         // この顧客の全カルテを取得
                         $allMedicalRecords = \App\Models\MedicalRecord::where('customer_id', $selectedReservation->customer_id)
-                            ->with(['presbyopiaMeasurements'])
+                            ->with(['presbyopiaMeasurements', 'reservation', 'staff'])
                             ->orderBy('treatment_date', 'desc')
                             ->orderBy('created_at', 'desc')
                             ->get();
@@ -2820,47 +2830,7 @@
                             $rightAfterDataJS = json_encode($rightAfterData ?? [0.6, 0.8, 1.0, 1.2, 1.5]);
                         @endphp
                         
-                        <div id="modal-vision-chart-container" class="mb-6"
-                             x-data="{
-                                 loadChart() {
-                                     if (typeof Chart === 'undefined') {
-                                         const script = document.createElement('script');
-                                         script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
-                                         script.onload = () => this.drawChart();
-                                         document.head.appendChild(script);
-                                     } else {
-                                         this.drawChart();
-                                     }
-                                 },
-                                 drawChart() {
-                                     const canvas = document.getElementById('modalSimpleChart');
-                                     if (!canvas) return;
-                                     
-                                     const ctx = canvas.getContext('2d');
-                                     new Chart(ctx, {
-                                         type: 'line',
-                                         data: {
-                                             labels: {!! $chartLabelsJS !!},
-                                             datasets: [{
-                                                 label: '左眼（施術後）',
-                                                 data: {!! $leftAfterDataJS !!},
-                                                 borderColor: 'rgb(59, 130, 246)',
-                                                 backgroundColor: 'rgba(59, 130, 246, 0.1)'
-                                             }, {
-                                                 label: '右眼（施術後）',
-                                                 data: {!! $rightAfterDataJS !!},
-                                                 borderColor: 'rgb(239, 68, 68)',
-                                                 backgroundColor: 'rgba(239, 68, 68, 0.1)'
-                                             }]
-                                         },
-                                         options: {
-                                             responsive: true,
-                                             maintainAspectRatio: false
-                                         }
-                                     });
-                                 }
-                             }"
-                             x-init="setTimeout(() => loadChart(), 500)">
+                        <div id="modal-vision-chart-container" class="hidden mb-6">
                             <div class="bg-white rounded-lg border border-gray-200 p-6">
                                 <h3 class="text-lg font-semibold mb-4 text-gray-900">視力推移グラフ</h3>
                                 
@@ -2868,29 +2838,41 @@
                                 <div class="mb-6 border-b border-gray-200">
                                     <nav class="flex space-x-4" aria-label="グラフ切り替え">
                                         <button 
-                                            @click="loadChart()"
-                                            id="tab-naked" 
-                                            class="vision-tab px-4 py-2 text-sm font-medium border-b-2 border-primary-500 text-primary-600">
+                                            onclick="switchModalVisionChart('naked')"
+                                            id="modal-tab-naked" 
+                                            class="modal-vision-tab px-4 py-2 text-sm font-medium border-b-2 border-primary-500 text-primary-600">
                                             裸眼視力
                                         </button>
                                         <button 
-                                            @click="loadChart()"
-                                            id="tab-corrected" 
-                                            class="vision-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                                            onclick="switchModalVisionChart('corrected')"
+                                            id="modal-tab-corrected" 
+                                            class="modal-vision-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
                                             矯正視力
                                         </button>
                                         <button 
-                                            @click="loadChart()"
-                                            id="tab-presbyopia" 
-                                            class="vision-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                                            onclick="switchModalVisionChart('presbyopia')"
+                                            id="modal-tab-presbyopia" 
+                                            class="modal-vision-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
                                             老眼測定
                                         </button>
                                     </nav>
                                 </div>
                                 
                                 <!-- グラフコンテンツ -->
-                                <div wire:ignore class="relative" style="height: 300px;">
-                                    <canvas id="modalSimpleChart"></canvas>
+                                <div id="modal-naked-vision-chart-wrapper" class="modal-chart-content">
+                                    <div class="relative" style="height: 300px;">
+                                        <canvas id="modalNakedVisionChart"></canvas>
+                                    </div>
+                                </div>
+                                <div id="modal-corrected-vision-chart-wrapper" class="modal-chart-content hidden">
+                                    <div class="relative" style="height: 300px;">
+                                        <canvas id="modalCorrectedVisionChart"></canvas>
+                                    </div>
+                                </div>
+                                <div id="modal-presbyopia-vision-chart-wrapper" class="modal-chart-content hidden">
+                                    <div class="relative" style="height: 300px;">
+                                        <canvas id="modalPresbyopiaChart"></canvas>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2962,6 +2944,75 @@
                                     <p class="text-sm text-gray-700">{{ $record->notes }}</p>
                                 </div>
                             @endif
+
+                            {{-- 予約時の情報 --}}
+                            @if($record->reservation)
+                                @if($record->reservation->notes || $record->reservation->internal_notes)
+                                    <div class="mt-2 p-2 bg-blue-50 rounded border border-blue-200">
+                                        @if($record->reservation->notes)
+                                            <p class="text-xs text-gray-500 mb-1">予約時の備考</p>
+                                            <p class="text-sm text-gray-700 mb-2">{{ $record->reservation->notes }}</p>
+                                        @endif
+                                        @if($record->reservation->internal_notes)
+                                            <p class="text-xs text-gray-500 mb-1">内部メモ</p>
+                                            <p class="text-sm text-gray-700">{{ $record->reservation->internal_notes }}</p>
+                                        @endif
+                                    </div>
+                                @endif
+                            @endif
+
+                            {{-- その他の詳細情報 --}}
+                            <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600">
+                                @if($record->reservation_source)
+                                    <div>
+                                        <span class="font-semibold">流入経路:</span> 
+                                        <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium
+                                            @if($record->reservation_source == 'web') bg-blue-100 text-blue-800
+                                            @elseif($record->reservation_source == 'phone') bg-yellow-100 text-yellow-800
+                                            @elseif($record->reservation_source == 'walk_in') bg-green-100 text-green-800
+                                            @else bg-gray-100 text-gray-800 @endif">
+                                            {{ $record->reservation_source }}
+                                        </span>
+                                    </div>
+                                @endif
+                                
+                                @if($record->visit_purpose)
+                                    <div>
+                                        <span class="font-semibold">来院目的:</span> {{ Str::limit($record->visit_purpose, 20) }}
+                                    </div>
+                                @endif
+                                
+                                @if($record->chief_complaint)
+                                    <div class="col-span-2">
+                                        <span class="font-semibold">主訴:</span> {{ Str::limit($record->chief_complaint, 40) }}
+                                    </div>
+                                @endif
+                                
+                                @if($record->service_memo)
+                                    <div class="col-span-2">
+                                        <span class="font-semibold">サービスメモ:</span> {{ Str::limit($record->service_memo, 40) }}
+                                    </div>
+                                @endif
+                                
+                                @if($record->payment_method)
+                                    <div>
+                                        <span class="font-semibold">支払:</span>
+                                        <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium
+                                            @if($record->payment_method == 'cash') bg-green-100 text-green-800
+                                            @elseif($record->payment_method == 'credit') bg-blue-100 text-blue-800
+                                            @elseif($record->payment_method == 'subscription') bg-purple-100 text-purple-800
+                                            @else bg-gray-100 text-gray-800 @endif">
+                                            {{ $record->payment_method }}
+                                        </span>
+                                    </div>
+                                @endif
+                                
+                                @if($record->handled_by)
+                                    <div>
+                                        <span class="font-semibold">対応者:</span> {{ $record->handled_by }}
+                                    </div>
+                                @endif
+                            </div>
 
                             <div class="mt-3">
                                 <a
@@ -4271,11 +4322,315 @@
             initMedicalChart();
         };
         
+        // 視力グラフ切り替え関数（モーダル用）
+        window.switchModalVisionChart = function(type) {
+            // 全てのタブとコンテンツを非アクティブに
+            document.querySelectorAll('.modal-vision-tab').forEach(tab => {
+                tab.classList.remove('border-primary-500', 'text-primary-600');
+                tab.classList.add('border-transparent', 'text-gray-500');
+            });
+            
+            document.querySelectorAll('.modal-chart-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            
+            // 選択されたタブとコンテンツをアクティブに
+            const activeTab = document.getElementById(`modal-tab-${type}`);
+            const activeContent = document.getElementById(`modal-${type}-vision-chart-wrapper`);
+            
+            if (activeTab) {
+                activeTab.classList.remove('border-transparent', 'text-gray-500');
+                activeTab.classList.add('border-primary-500', 'text-primary-600');
+            }
+            
+            if (activeContent) {
+                activeContent.classList.remove('hidden');
+            }
+        };
+        
+        // モーダル用視力チャート描画関数
+        window.renderModalVisionCharts = function(customerId) {
+            console.log('[DEBUG] Fetching medical records for customer:', customerId);
+            
+            // APIからデータ取得
+            fetch(`/api/admin/customers/${customerId}/medical-records`)
+                .then(response => response.json())
+                .then(data => {
+                    const records = data.data || [];
+                    console.log('[DEBUG] Medical records fetched:', records.length);
+                    
+                    // 全カルテから視力記録を収集
+                    const allVisionRecords = [];
+                    
+                    records.forEach(record => {
+                        // vision_recordsがある場合
+                        if (record.vision_records && record.vision_records.length > 0) {
+                            record.vision_records.forEach(vision => {
+                                allVisionRecords.push({
+                                    ...vision,
+                                    date: record.record_date || record.treatment_date || record.created_at,
+                                    treatment_date: record.record_date || record.treatment_date || record.created_at
+                                });
+                            });
+                        }
+                    });
+                    
+                    if (allVisionRecords.length === 0) {
+                        console.log('[DEBUG] No vision records found');
+                        return;
+                    }
+                    
+                    // 日付でソート
+                    allVisionRecords.sort((a, b) => {
+                        const dateA = new Date(a.date || a.treatment_date);
+                        const dateB = new Date(b.date || b.treatment_date);
+                        return dateA - dateB;
+                    });
+                    
+                    // データ整形
+                    const dates = [];
+                    const leftNakedBefore = [];
+                    const leftNakedAfter = [];
+                    const rightNakedBefore = [];
+                    const rightNakedAfter = [];
+                    const leftCorrectedBefore = [];
+                    const leftCorrectedAfter = [];
+                    const rightCorrectedBefore = [];
+                    const rightCorrectedAfter = [];
+                    
+                    let hasNakedData = false;
+                    let hasCorrectedData = false;
+                    
+                    allVisionRecords.forEach(vision => {
+                        const date = vision.date ? new Date(vision.date) : new Date(vision.treatment_date);
+                        dates.push(date.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }));
+                        
+                        // 施術前後の視力を収集
+                        const leftNakedB = vision.before_naked_left ? parseFloat(vision.before_naked_left) : null;
+                        const leftNakedA = vision.after_naked_left ? parseFloat(vision.after_naked_left) : null;
+                        const rightNakedB = vision.before_naked_right ? parseFloat(vision.before_naked_right) : null;
+                        const rightNakedA = vision.after_naked_right ? parseFloat(vision.after_naked_right) : null;
+                        
+                        const leftCorrectedB = vision.before_corrected_left ? parseFloat(vision.before_corrected_left) : null;
+                        const leftCorrectedA = vision.after_corrected_left ? parseFloat(vision.after_corrected_left) : null;
+                        const rightCorrectedB = vision.before_corrected_right ? parseFloat(vision.before_corrected_right) : null;
+                        const rightCorrectedA = vision.after_corrected_right ? parseFloat(vision.after_corrected_right) : null;
+                        
+                        leftNakedBefore.push(leftNakedB);
+                        leftNakedAfter.push(leftNakedA);
+                        rightNakedBefore.push(rightNakedB);
+                        rightNakedAfter.push(rightNakedA);
+                        leftCorrectedBefore.push(leftCorrectedB);
+                        leftCorrectedAfter.push(leftCorrectedA);
+                        rightCorrectedBefore.push(rightCorrectedB);
+                        rightCorrectedAfter.push(rightCorrectedA);
+                        
+                        if (leftNakedB !== null || leftNakedA !== null || rightNakedB !== null || rightNakedA !== null) hasNakedData = true;
+                        if (leftCorrectedB !== null || leftCorrectedA !== null || rightCorrectedB !== null || rightCorrectedA !== null) hasCorrectedData = true;
+                    });
+                    
+                    const chartContainer = document.getElementById('modal-vision-chart-container');
+                    if (!chartContainer) return;
+                    
+                    // データがあればコンテナを表示
+                    if (hasNakedData || hasCorrectedData) {
+                        chartContainer.classList.remove('hidden');
+                    }
+                    
+                    const chartConfig = {
+                        type: 'line',
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'top',
+                                    labels: {
+                                        font: { size: 12 },
+                                        padding: 10,
+                                        boxWidth: 40
+                                    }
+                                },
+                                tooltip: {
+                                    mode: 'index',
+                                    intersect: false,
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    max: 2.0,
+                                    ticks: {
+                                        stepSize: 0.1,
+                                        font: { size: 11 }
+                                    },
+                                    title: {
+                                        display: true,
+                                        text: '視力',
+                                        font: { size: 12 }
+                                    }
+                                },
+                                x: {
+                                    ticks: { font: { size: 11 } },
+                                    title: {
+                                        display: true,
+                                        text: '測定日',
+                                        font: { size: 12 }
+                                    }
+                                }
+                            }
+                        }
+                    };
+                    
+                    // 既存のチャートを破棄
+                    if (window.modalNakedChart) {
+                        window.modalNakedChart.destroy();
+                        window.modalNakedChart = null;
+                    }
+                    if (window.modalCorrectedChart) {
+                        window.modalCorrectedChart.destroy();
+                        window.modalCorrectedChart = null;
+                    }
+                    
+                    // 裸眼視力グラフ
+                    if (hasNakedData) {
+                        const nakedCanvas = document.getElementById('modalNakedVisionChart');
+                        if (nakedCanvas) {
+                            window.modalNakedChart = new Chart(nakedCanvas, {
+                                ...chartConfig,
+                                data: {
+                                    labels: dates,
+                                    datasets: [
+                                        {
+                                            label: '左眼 施術前',
+                                            data: leftNakedBefore,
+                                            borderColor: 'rgb(255, 99, 132)',
+                                            backgroundColor: 'rgb(255, 99, 132)',
+                                            borderDash: [5, 5],
+                                            pointStyle: 'rect',
+                                            pointRadius: 6,
+                                            tension: 0.4,
+                                            spanGaps: true
+                                        },
+                                        {
+                                            label: '左眼 施術後',
+                                            data: leftNakedAfter,
+                                            borderColor: 'rgb(255, 99, 132)',
+                                            backgroundColor: 'rgb(255, 99, 132)',
+                                            pointStyle: 'circle',
+                                            pointRadius: 6,
+                                            tension: 0.4,
+                                            spanGaps: true
+                                        },
+                                        {
+                                            label: '右眼 施術前',
+                                            data: rightNakedBefore,
+                                            borderColor: 'rgb(54, 162, 235)',
+                                            backgroundColor: 'rgb(54, 162, 235)',
+                                            borderDash: [5, 5],
+                                            pointStyle: 'rect',
+                                            pointRadius: 6,
+                                            tension: 0.4,
+                                            spanGaps: true
+                                        },
+                                        {
+                                            label: '右眼 施術後',
+                                            data: rightNakedAfter,
+                                            borderColor: 'rgb(54, 162, 235)',
+                                            backgroundColor: 'rgb(54, 162, 235)',
+                                            pointStyle: 'circle',
+                                            pointRadius: 6,
+                                            tension: 0.4,
+                                            spanGaps: true
+                                        }
+                                    ]
+                                }
+                            });
+                        }
+                    }
+                    
+                    // 矯正視力グラフ
+                    if (hasCorrectedData) {
+                        const correctedCanvas = document.getElementById('modalCorrectedVisionChart');
+                        if (correctedCanvas) {
+                            window.modalCorrectedChart = new Chart(correctedCanvas, {
+                                ...chartConfig,
+                                data: {
+                                    labels: dates,
+                                    datasets: [
+                                        {
+                                            label: '左眼 施術前',
+                                            data: leftCorrectedBefore,
+                                            borderColor: 'rgb(255, 159, 64)',
+                                            backgroundColor: 'rgb(255, 159, 64)',
+                                            borderDash: [5, 5],
+                                            pointStyle: 'rect',
+                                            pointRadius: 6,
+                                            tension: 0.4,
+                                            spanGaps: true
+                                        },
+                                        {
+                                            label: '左眼 施術後',
+                                            data: leftCorrectedAfter,
+                                            borderColor: 'rgb(255, 159, 64)',
+                                            backgroundColor: 'rgb(255, 159, 64)',
+                                            pointStyle: 'circle',
+                                            pointRadius: 6,
+                                            tension: 0.4,
+                                            spanGaps: true
+                                        },
+                                        {
+                                            label: '右眼 施術前',
+                                            data: rightCorrectedBefore,
+                                            borderColor: 'rgb(75, 192, 192)',
+                                            backgroundColor: 'rgb(75, 192, 192)',
+                                            borderDash: [5, 5],
+                                            pointStyle: 'rect',
+                                            pointRadius: 6,
+                                            tension: 0.4,
+                                            spanGaps: true
+                                        },
+                                        {
+                                            label: '右眼 施術後',
+                                            data: rightCorrectedAfter,
+                                            borderColor: 'rgb(75, 192, 192)',
+                                            backgroundColor: 'rgb(75, 192, 192)',
+                                            pointStyle: 'circle',
+                                            pointRadius: 6,
+                                            tension: 0.4,
+                                            spanGaps: true
+                                        }
+                                    ]
+                                }
+                            });
+                        }
+                    }
+                    
+                    // デフォルトで最初に表示するタブを決定
+                    if (hasNakedData) {
+                        switchModalVisionChart('naked');
+                        if (!hasNakedData) document.getElementById('modal-tab-naked').style.display = 'none';
+                        if (!hasCorrectedData) document.getElementById('modal-tab-corrected').style.display = 'none';
+                    } else if (hasCorrectedData) {
+                        switchModalVisionChart('corrected');
+                        if (!hasCorrectedData) document.getElementById('modal-tab-corrected').style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    console.error('[ERROR] Failed to fetch medical records:', error);
+                });
+        };
+        
         // モーダルが開いたら自動的にチャートを描画
         const modalObserver = new MutationObserver((mutations) => {
             const chartContainer = document.getElementById('modal-vision-chart-container');
-            if (chartContainer && !window.modalVisionChart) {
-                setTimeout(initMedicalChart, 500);
+            if (chartContainer && chartContainer.parentElement.parentElement.style.display !== 'none') {
+                const customerId = {{ $selectedReservation->customer_id ?? 'null' }};
+                if (customerId) {
+                    console.log('[DEBUG] Modal opened, rendering charts for customer:', customerId);
+                    setTimeout(() => renderModalVisionCharts(customerId), 500);
+                }
                 modalObserver.disconnect();
             }
         });

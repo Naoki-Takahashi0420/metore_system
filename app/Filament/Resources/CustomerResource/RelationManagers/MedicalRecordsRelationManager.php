@@ -57,15 +57,112 @@ class MedicalRecordsRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('record_date')
                     ->label('記録日')
                     ->date('Y/m/d')
-                    ->sortable(),
+                    ->sortable()
+                    ->description(fn ($record) => $record->created_at ? '作成: ' . $record->created_at->format('H:i') : null),
                 Tables\Columns\TextColumn::make('reservation.menu.name')
                     ->label('施術メニュー')
-                    ->default('-'),
+                    ->default('-')
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('chief_complaint')
                     ->label('主訴')
-                    ->limit(30),
+                    ->limit(30)
+                    ->tooltip(fn ($record) => $record->chief_complaint),
+                Tables\Columns\TextColumn::make('reservation_source')
+                    ->label('流入経路')
+                    ->badge()
+                    ->color(function ($state) {
+                        return match ($state) {
+                            'web' => 'info',
+                            'phone' => 'warning',
+                            'walk_in' => 'success',
+                            'referral' => 'danger',
+                            default => 'gray',
+                        };
+                    })
+                    ->default('-'),
+                Tables\Columns\TextColumn::make('visit_purpose')
+                    ->label('来院目的')
+                    ->limit(20)
+                    ->tooltip(fn ($record) => $record->visit_purpose)
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('handled_by')
+                    ->label('対応者')
+                    ->default('-')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('payment_method')
+                    ->label('支払方法')
+                    ->badge()
+                    ->color(function ($state) {
+                        return match ($state) {
+                            'cash' => 'success',
+                            'credit' => 'info',
+                            'subscription' => 'warning',
+                            default => 'gray',
+                        };
+                    })
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('service_memo')
+                    ->label('サービスメモ')
+                    ->limit(30)
+                    ->tooltip(fn ($record) => $record->service_memo)
+                    ->default('-')
+                    ->toggleable(isToggledHiddenByDefault: false),
+                Tables\Columns\TextColumn::make('workplace_address')
+                    ->label('職場住所')
+                    ->limit(20)
+                    ->tooltip(fn ($record) => $record->workplace_address)
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('device_usage')
+                    ->label('デバイス使用')
+                    ->limit(20)
+                    ->tooltip(fn ($record) => $record->device_usage)
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\BooleanColumn::make('genetic_possibility')
+                    ->label('遺伝可能性')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\BooleanColumn::make('has_astigmatism')
+                    ->label('乱視')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('eye_diseases')
+                    ->label('眼疾患')
+                    ->limit(20)
+                    ->tooltip(fn ($record) => $record->eye_diseases)
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('symptoms')
+                    ->label('症状')
+                    ->limit(20)
+                    ->tooltip(fn ($record) => $record->symptoms)
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('treatment')
+                    ->label('施術内容')
+                    ->limit(20)
+                    ->tooltip(fn ($record) => $record->treatment)
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('staff.name')
-                    ->label('担当スタッフ'),
+                    ->label('担当スタッフ')
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('naked_vision')
+                    ->label('裸眼視力')
+                    ->state(function ($record) {
+                        if ($record->after_naked_left || $record->after_naked_right) {
+                            $left = $record->after_naked_left ?? '-';
+                            $right = $record->after_naked_right ?? '-';
+                            return "L:{$left} R:{$right}";
+                        }
+                        return '-';
+                    })
+                    ->toggleable(isToggledHiddenByDefault: false),
+                Tables\Columns\TextColumn::make('corrected_vision')
+                    ->label('矯正視力')
+                    ->state(function ($record) {
+                        if ($record->after_corrected_left || $record->after_corrected_right) {
+                            $left = $record->after_corrected_left ?? '-';
+                            $right = $record->after_corrected_right ?? '-';
+                            return "L:{$left} R:{$right}";
+                        }
+                        return '-';
+                    })
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('next_visit_date')
                     ->label('次回来院予定')
                     ->date('Y/m/d')

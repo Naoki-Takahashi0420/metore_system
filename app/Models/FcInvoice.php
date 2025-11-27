@@ -184,4 +184,33 @@ class FcInvoice extends Model
     {
         return $query->whereNotIn('status', [self::STATUS_PAID, self::STATUS_CANCELLED]);
     }
+
+    /**
+     * 支払期限超過の請求書を取得
+     */
+    public function scopeOverdue($query)
+    {
+        return $query->where('due_date', '<', now()->startOfDay())
+                     ->whereNotIn('status', [self::STATUS_PAID, self::STATUS_CANCELLED]);
+    }
+
+    /**
+     * 支払期限超過の請求書を自動的にマーク
+     * @return int マークした請求書の件数
+     */
+    public static function markOverdueInvoices(): int
+    {
+        // 既に期限超過ステータスになっているものは除外
+        // 現在は特別なステータス変更は行わず、カウントのみ返す
+        // 将来的に'overdue'ステータスを追加する場合はここで更新処理を実装
+        
+        $overdueCount = self::overdue()->count();
+        
+        // 必要に応じてログ記録
+        if ($overdueCount > 0) {
+            \Log::info("FC請求書期限超過チェック: {$overdueCount}件の期限超過を検出");
+        }
+        
+        return $overdueCount;
+    }
 }

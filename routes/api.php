@@ -189,3 +189,35 @@ Route::middleware('auth:web')->prefix('admin')->group(function () {
         ]);
     });
 });
+
+// 管理者向けAPI（認証なしで管理画面から呼び出し）
+Route::prefix('admin')->group(function () {
+    // 顧客のカルテデータ取得（管理画面用）
+    Route::get('customers/{customer}/medical-records', function (\App\Models\Customer $customer) {
+        $records = $customer->medicalRecords()
+            ->with(['images', 'staff', 'reservation.menu'])
+            ->orderBy('treatment_date', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($record) {
+                // 老眼測定データを追加
+                $record->presbyopia_measurements = null;
+                if ($record->presbyopia_measurement_id) {
+                    $measurement = \App\Models\PresbyopiaMeasurement::find($record->presbyopia_measurement_id);
+                    if ($measurement) {
+                        $record->presbyopia_measurements = [
+                            'before' => $measurement->before_measurements,
+                            'after' => $measurement->after_measurements,
+                        ];
+                    }
+                }
+                
+                // vision_recordsは既にJSONカラムなので、そのまま使用
+                // castsで配列に自動変換される
+                
+                return $record;
+            });
+        
+        return response()->json(['data' => $records]);
+    });
+});

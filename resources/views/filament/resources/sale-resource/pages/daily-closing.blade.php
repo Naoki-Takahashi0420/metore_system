@@ -822,15 +822,15 @@
                         <div class="bg-gray-50 rounded-lg p-4">
                             <div class="space-y-3">
                                 @php
-                                    // 小計を計算（割引前）
-                                    $serviceTotal = ($this->editorData['service_item']['price'] ?? 0) * ($this->editorData['service_item']['quantity'] ?? 1);
+                                    // 小計を計算（割引前）- 文字列を数値に変換
+                                    $serviceTotal = floatval($this->editorData['service_item']['price'] ?? 0) * intval($this->editorData['service_item']['quantity'] ?? 1);
                                     $optionTotal = 0;
                                     foreach ($this->editorData['option_items'] ?? [] as $item) {
-                                        $optionTotal += ($item['price'] ?? 0) * ($item['quantity'] ?? 1);
+                                        $optionTotal += floatval($item['price'] ?? 0) * intval($item['quantity'] ?? 1);
                                     }
                                     $productTotal = 0;
                                     foreach ($this->editorData['product_items'] ?? [] as $item) {
-                                        $productTotal += ($item['price'] ?? 0) * ($item['quantity'] ?? 1);
+                                        $productTotal += floatval($item['price'] ?? 0) * intval($item['quantity'] ?? 1);
                                     }
                                     $subtotalBeforeDiscount = $serviceTotal + $optionTotal + $productTotal;
                                 @endphp

@@ -107,6 +107,14 @@ class CustomerResource extends Resource
                             ->label('名')
                             ->required()
                             ->maxLength(50),
+                        Forms\Components\TextInput::make('last_name_kana')
+                            ->label('せい（ふりがな）')
+                            ->maxLength(50)
+                            ->placeholder('ひらがなで入力'),
+                        Forms\Components\TextInput::make('first_name_kana')
+                            ->label('めい（ふりがな）')
+                            ->maxLength(50)
+                            ->placeholder('ひらがなで入力'),
                     ])
                     ->columns(2),
 

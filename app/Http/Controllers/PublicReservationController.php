@@ -742,8 +742,29 @@ class PublicReservationController extends Controller
         // 予約変更の場合：URLパラメータから直接取得（マイページからの日程変更）
         $existingReservationId = $request->get('existing_reservation_id');
 
+        // existing_reservation_idがURLパラメータにある場合、セッションに保存
+        if ($existingReservationId) {
+            Session::put('is_reservation_change', true);
+            Session::put('change_reservation_id', $existingReservationId);
+            
+            // 予約情報を取得して顧客IDもセッションに保存
+            $reservation = Reservation::with('customer')->find($existingReservationId);
+            if ($reservation) {
+                Session::put('original_reservation_date', $reservation->reservation_date);
+                Session::put('original_reservation_time', $reservation->start_time);
+                
+                if ($reservation->customer) {
+                    Session::put('customer_id', $reservation->customer->id);
+                    Session::put('is_existing_customer', true);
+                    \Log::info('URLパラメータから予約変更検出: 顧客情報をセッションに保存', [
+                        'reservation_id' => $existingReservationId,
+                        'customer_id' => $reservation->customer->id
+                    ]);
+                }
+            }
+        }
         // 予約変更フラグがコンテキストにもURLパラメータにもない場合、セッションから削除
-        if ((!$context || !isset($context['existing_reservation_id'])) && !$existingReservationId) {
+        else if ((!$context || !isset($context['existing_reservation_id']))) {
             Session::forget('is_reservation_change');
             Session::forget('change_reservation_id');
             Session::forget('original_reservation_date');
@@ -1083,12 +1104,14 @@ class PublicReservationController extends Controller
                 'customer_name' => $request->user()->full_name
             ]);
         }
-        // 3. レガシー：セッションベース（サブスク予約の場合のみ）
-        else if (Session::get('is_subscription_booking')) {
+        // 3. レガシー：セッションベース（サブスク予約または予約変更の場合）
+        else if (Session::get('is_subscription_booking') || Session::get('is_reservation_change')) {
             // existing_customer_id または customer_id を取得
             $customerId = Session::get('existing_customer_id') ?? Session::get('customer_id');
 
-            \Log::info('【優先3】レガシー：サブスク予約の顧客ID確認', [
+            \Log::info('【優先3】セッションから顧客ID取得', [
+                'is_subscription' => Session::get('is_subscription_booking'),
+                'is_change' => Session::get('is_reservation_change'),
                 'existing_customer_id' => Session::get('existing_customer_id'),
                 'customer_id' => Session::get('customer_id'),
                 'final_customer_id' => $customerId
@@ -1306,18 +1329,30 @@ class PublicReservationController extends Controller
         $customer = $customerId ? Customer::find($customerId) : null;
         $isIgnoreIntervalRule = $customer && $customer->ignore_interval_rule;
 
-        if ($customerId && !$changeReservationId && !$isChangeReservation && !$isIgnoreIntervalRule) {
+        if ($customerId && !$isIgnoreIntervalRule) {
             \Log::info('既存予約取得開始（5日間ルール適用）', [
                 'customer_id' => $customerId,
                 'store_id' => $storeId,
                 'customer_id_type' => gettype($customerId),
-                'is_subscription' => $isSubscriptionBooking
+                'is_subscription' => $isSubscriptionBooking,
+                'is_change' => $changeReservationId || $isChangeReservation
             ]);
 
-            $existingReservations = Reservation::where('customer_id', $customerId)
+            // 予約変更時は、変更対象の予約を除外
+            $query = Reservation::where('customer_id', $customerId)
                 ->where('store_id', $storeId)
-                ->whereNotIn('status', ['cancelled', 'canceled'])
-                ->get();
+                ->whereNotIn('status', ['cancelled', 'canceled']);
+            
+            // 予約変更の場合は変更対象を除外
+            if ($changeReservationId || $isChangeReservation) {
+                $excludeId = $changeReservationId ?: Session::get('change_reservation_id');
+                if ($excludeId) {
+                    $query->where('id', '!=', $excludeId);
+                    \Log::info('予約変更モード: 変更対象を除外', ['exclude_id' => $excludeId]);
+                }
+            }
+            
+            $existingReservations = $query->get();
 
             \Log::info('既存予約クエリ結果', [
                 'customer_id' => $customerId,
@@ -2900,8 +2935,8 @@ class PublicReservationController extends Controller
             $menu->duration = $validated['menu_duration'] ?? 60;
         }
         
-        // 元の予約情報を取得
-        $originalReservation = Reservation::find($validated['reservation_id']);
+        // 元の予約情報を取得（顧客情報も含めて）
+        $originalReservation = Reservation::with('customer')->find($validated['reservation_id']);
         
         // セッションに保存
         Session::put('reservation_menu', $menu);
@@ -2913,6 +2948,18 @@ class PublicReservationController extends Controller
         if ($originalReservation) {
             Session::put('original_reservation_date', $originalReservation->reservation_date);
             Session::put('original_reservation_time', $originalReservation->start_time);
+            
+            // 顧客情報もセッションに保存（5日ルールチェックで必要）
+            if ($originalReservation->customer) {
+                Session::put('customer_id', $originalReservation->customer->id);
+                Session::put('is_existing_customer', true);
+                
+                \Log::info('予約変更準備: 顧客情報をセッションに保存', [
+                    'reservation_id' => $validated['reservation_id'],
+                    'customer_id' => $originalReservation->customer->id,
+                    'customer_name' => $originalReservation->customer->last_name . ' ' . $originalReservation->customer->first_name
+                ]);
+            }
         }
 
         // カレンダーページへリダイレクト（コンテキストパラメータ付き）

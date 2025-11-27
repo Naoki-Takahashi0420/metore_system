@@ -307,22 +307,12 @@
                                                 onclick="selectTimeSlot(this)">
                                             ○
                                         </button>
-                                    @elseif($withinFiveDays && !Session::has('is_reservation_change'))
-                                        {{-- ✅ 変更モード時は5日間制限を無視 --}}
-                                        {{-- 既存顧客の5日間制限内の場合は△を表示 --}}
+                                    @elseif($withinFiveDays)
+                                        {{-- 5日間制限内の場合は△を表示（変更モードでも表示） --}}
                                         <div class="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gray-400 text-white font-bold flex items-center justify-center border-2 border-gray-500 shadow-md text-xs sm:text-base mx-auto"
                                              title="前回予約から5日以内のため予約できません">
                                             △
                                         </div>
-                                    @elseif($withinFiveDays && Session::has('is_reservation_change'))
-                                        {{-- ✅ 変更モード時は予約可能として表示 --}}
-                                        <button type="button"
-                                                class="time-slot w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-green-500 text-white font-bold hover:bg-green-600 text-xs sm:text-base"
-                                                data-date="{{ $dateStr }}"
-                                                data-time="{{ $slot }}"
-                                                onclick="selectTimeSlot(this)">
-                                            ○
-                                        </button>
                                     @else
                                         <span class="text-gray-400 text-lg sm:text-xl">×</span>
                                     @endif

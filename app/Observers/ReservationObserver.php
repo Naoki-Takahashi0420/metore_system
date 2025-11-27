@@ -124,6 +124,61 @@ class ReservationObserver
 
             // 実際に日時が変更されているかチェック
             if ($oldDate !== $newDate || $oldTime !== $newTime) {
+                
+                // ========== 5日ルール再チェックを追加（2025-11-27修正） ==========
+                // 日付が変更された場合、5日ルールをチェック
+                if ($oldDate !== $newDate) {
+                    // 顧客の5日ルール除外設定をチェック
+                    if (!$customer->ignore_interval_rule) {
+                        $store = $reservation->store;
+                        $minIntervalDays = $store->min_interval_days ?? 5;
+                        
+                        // 他の予約との間隔をチェック
+                        $existingReservations = Reservation::where('customer_id', $reservation->customer_id)
+                            ->whereNotIn('status', ['cancelled', 'canceled'])
+                            ->where('store_id', $reservation->store_id)
+                            ->where('id', '!=', $reservation->id) // 自身を除外
+                            ->get();
+                        
+                        $targetDateTime = Carbon::parse($newDate);
+                        
+                        foreach ($existingReservations as $otherReservation) {
+                            $otherDate = Carbon::parse($otherReservation->reservation_date);
+                            $daysDiff = abs($targetDateTime->diffInDays($otherDate));
+                            
+                            if ($daysDiff > 0 && $daysDiff <= $minIntervalDays) {
+                                \Log::error('⚠️ 予約日変更が5日ルール違反', [
+                                    'reservation_id' => $reservation->id,
+                                    'customer_id' => $reservation->customer_id,
+                                    'old_date' => $oldDate,
+                                    'new_date' => $newDate,
+                                    'conflict_with' => $otherReservation->id,
+                                    'conflict_date' => $otherReservation->reservation_date,
+                                    'days_diff' => $daysDiff,
+                                    'min_interval_days' => $minIntervalDays
+                                ]);
+                                
+                                // エラーを投げて変更を阻止
+                                throw new \Exception(
+                                    sprintf('予約日の変更により、%sの予約と%d日以内となるため変更できません。（最小間隔: %d日）',
+                                        $otherReservation->reservation_date,
+                                        $daysDiff,
+                                        $minIntervalDays
+                                    )
+                                );
+                            }
+                        }
+                        
+                        \Log::info('✅ 予約日変更の5日ルールチェック完了（問題なし）', [
+                            'reservation_id' => $reservation->id,
+                            'old_date' => $oldDate,
+                            'new_date' => $newDate,
+                            'checked_reservations' => $existingReservations->count()
+                        ]);
+                    }
+                }
+                // ========== 5日ルール再チェック終了 ==========
+                
                 $customer->increment('change_count');
                 $countChanged = true;
 
