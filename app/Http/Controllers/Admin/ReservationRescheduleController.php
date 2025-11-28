@@ -151,12 +151,12 @@ class ReservationRescheduleController extends Controller
             $startTime = Carbon::createFromTimeString($validated['start_time']);
             $endTime = $startTime->copy()->addMinutes($menu->duration);
 
-            // 空き状況チェック
-            $availability = $this->checkSlotAvailability(
+            // 空き状況チェックと自動席割り当て（時刻をHH:MM:SS形式で渡す）
+            $availability = $this->checkSlotAvailabilityWithSeatAssignment(
                 $store,
                 $validated['reservation_date'],
-                $validated['start_time'],
-                $endTime->format('H:i'),
+                $validated['start_time'] . ':00',  // HH:MM → HH:MM:SS
+                $endTime->format('H:i:s'),         // H:i:s で秒まで含める
                 $validated['staff_id'],
                 $reservation->id
             );
@@ -176,6 +176,20 @@ class ReservationRescheduleController extends Controller
                 'is_sub' => false,      // サブフラグをオフ
                 'updated_at' => now(),
             ];
+            
+            // 営業時間モードの場合は自動割り当てされた席番号を設定
+            if (!$store->use_staff_assignment && isset($availability['assigned_seat'])) {
+                $updateData['seat_number'] = $availability['assigned_seat'];
+                $updateData['line_number'] = $availability['assigned_seat'];
+                
+                \Log::info('🔄 日程変更: 席自動割り当て', [
+                    'reservation_id' => $reservation->id,
+                    'original_seat' => $reservation->seat_number,
+                    'new_seat' => $availability['assigned_seat'],
+                    'date' => $validated['reservation_date'],
+                    'time' => $validated['start_time']
+                ]);
+            }
 
             $reservation->update($updateData);
 
@@ -441,6 +455,59 @@ class ReservationRescheduleController extends Controller
         return $availability;
     }
 
+    private function checkSlotAvailabilityWithSeatAssignment($store, $date, $startTime, $endTime, $staffId = null, $excludeReservationId = null)
+    {
+        // 営業時間モードの場合：空き席を自動で探す
+        if (!$store->use_staff_assignment) {
+            $maxSeats = $store->main_lines_count ?? 1;
+            $availableSeats = [];
+            
+            \Log::info('🔍 日程変更: 席空き状況チェック開始', [
+                'date' => $date,
+                'time' => $startTime . '-' . $endTime,
+                'max_seats' => $maxSeats,
+                'exclude_reservation_id' => $excludeReservationId
+            ]);
+            
+            for ($seatNumber = 1; $seatNumber <= $maxSeats; $seatNumber++) {
+                // この席の重複チェック
+                $hasConflict = Reservation::where('store_id', $store->id)
+                    ->whereDate('reservation_date', $date)
+                    ->where('seat_number', $seatNumber)
+                    ->where('is_sub', false)
+                    ->whereNotIn('status', ['cancelled', 'canceled'])
+                    ->where('id', '!=', $excludeReservationId)
+                    ->where(function($query) use ($startTime, $endTime) {
+                        // time()関数で時刻フォーマットを統一
+                        $query->whereRaw('time(start_time) < time(?)', [$endTime])
+                              ->whereRaw('time(end_time) > time(?)', [$startTime]);
+                    })
+                    ->exists();
+                
+                if (!$hasConflict) {
+                    $availableSeats[] = $seatNumber;
+                    \Log::info("  席{$seatNumber}: ✅ 空き");
+                } else {
+                    \Log::info("  席{$seatNumber}: ❌ 重複あり");
+                }
+            }
+            
+            // 空き席がある場合は最初の席を割り当て
+            if (!empty($availableSeats)) {
+                return [
+                    'available' => true,
+                    'message' => '予約可能です',
+                    'assigned_seat' => $availableSeats[0]
+                ];
+            }
+            
+            return ['available' => false, 'message' => '選択された時間帯は満席です'];
+        }
+        
+        // スタッフシフトモードの場合は従来の処理
+        return $this->checkSlotAvailability($store, $date, $startTime, $endTime, $staffId, $excludeReservationId);
+    }
+    
     private function checkSlotAvailability($store, $date, $startTime, $endTime, $staffId = null, $excludeReservationId = null)
     {
         $dayName = strtolower(Carbon::parse($date)->format('l'));
