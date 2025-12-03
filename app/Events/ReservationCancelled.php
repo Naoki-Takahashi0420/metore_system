@@ -21,6 +21,11 @@ class ReservationCancelled implements ShouldBroadcast
     public function __construct(Reservation $reservation)
     {
         $this->reservation = $reservation;
+        \Log::info('🚫 ReservationCancelled event fired', [
+            'reservation_id' => $reservation->id,
+            'store_id' => $reservation->store_id,
+            'channels' => ['reservations.' . $reservation->store_id, 'reservations'],
+        ]);
     }
 
     /**

@@ -26,6 +26,13 @@ class ReservationChanged implements ShouldBroadcast
     {
         $this->oldReservationData = $oldReservationData;
         $this->newReservation = $newReservation;
+        \Log::info('📝 ReservationChanged event fired', [
+            'reservation_id' => $newReservation->id,
+            'store_id' => $newReservation->store_id,
+            'old_date' => $oldReservationData['reservation_date'] ?? null,
+            'new_date' => $newReservation->reservation_date,
+            'channels' => ['reservations.' . $newReservation->store_id, 'reservations'],
+        ]);
     }
 
     /**

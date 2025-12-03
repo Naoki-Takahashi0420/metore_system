@@ -250,6 +250,20 @@ jobs:
         sudo chown www-data:www-data $APP_DIR/storage/logs/queue-worker.log
         sudo chmod 664 $APP_DIR/storage/logs/queue-worker.log
 
+        # 当日のLaravelログファイルの権限修正（デプロイ後のPermission denied対策）
+        echo "=== Fixing today's log file permissions ==="
+        TODAY_LOG="$APP_DIR/storage/logs/laravel-$(date +%Y-%m-%d).log"
+        if [ -f "$TODAY_LOG" ]; then
+          sudo chown www-data:www-data "$TODAY_LOG"
+          sudo chmod 664 "$TODAY_LOG"
+          echo "✅ Fixed permissions for: $TODAY_LOG"
+        else
+          sudo touch "$TODAY_LOG"
+          sudo chown www-data:www-data "$TODAY_LOG"
+          sudo chmod 664 "$TODAY_LOG"
+          echo "✅ Created and fixed permissions for: $TODAY_LOG"
+        fi
+
         # Laravelスケジューラーのcron設定（www-dataユーザーで実行）
         echo "=== Setting up Laravel Scheduler ==="
         # 既存のLaravelスケジューラーcronを削除（root側）
