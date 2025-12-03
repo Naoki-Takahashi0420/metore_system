@@ -48,9 +48,19 @@ class CreateCustomerSubscription extends CreateRecord
                     $data['end_date'] = $endDate->format('Y-m-d');
                 }
 
-                // 次回請求日が設定されていない場合は計算
+                // 次回請求日が設定されていない場合は計算（月末処理を考慮）
                 if (!isset($data['next_billing_date']) && isset($data['billing_start_date'])) {
-                    $nextBilling = \Carbon\Carbon::parse($data['billing_start_date'])->addMonth();
+                    $billingStart = \Carbon\Carbon::parse($data['billing_start_date']);
+                    $originalDay = $billingStart->day;
+                    $nextMonth = $billingStart->copy()->addMonthNoOverflow();
+                    $lastDayOfNextMonth = $nextMonth->daysInMonth;
+
+                    if ($originalDay > $lastDayOfNextMonth) {
+                        // 元の日が翌月に存在しない場合は月末に設定
+                        $nextBilling = $nextMonth->endOfMonth();
+                    } else {
+                        $nextBilling = $nextMonth->startOfMonth()->day($originalDay);
+                    }
                     $data['next_billing_date'] = $nextBilling->format('Y-m-d');
                 }
             }

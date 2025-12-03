@@ -431,10 +431,29 @@ class DailyClosing extends Page implements HasForms
                 $billingDateForDisplay = $subscription->next_billing_date->format('Y-m-d');
             }
 
+            // 顧客名の取得を詳細にログ
+            $customerName = '不明';
+            if ($subscription->customer) {
+                $customerName = $subscription->customer->full_name ?? '不明';
+                \Log::info('✅ 顧客データ取得成功', [
+                    'subscription_id' => $subscription->id,
+                    'customer_id' => $subscription->customer_id,
+                    'customer_name' => $customerName,
+                    'last_name' => $subscription->customer->last_name,
+                    'first_name' => $subscription->customer->first_name,
+                ]);
+            } else {
+                \Log::warning('❌ 顧客データ取得失敗', [
+                    'subscription_id' => $subscription->id,
+                    'customer_id' => $subscription->customer_id,
+                    'customer_exists' => \App\Models\Customer::where('id', $subscription->customer_id)->exists(),
+                ]);
+            }
+
             $result = [
                 'id' => $subscription->id,
                 'customer_id' => $subscription->customer_id,
-                'customer_name' => $subscription->customer->full_name ?? '不明',
+                'customer_name' => $customerName,
                 'plan_name' => $subscription->plan_name ?? 'サブスクプラン',
                 'amount' => $amount,
                 'payment_method' => $paymentMethod,
@@ -708,6 +727,25 @@ class DailyClosing extends Page implements HasForms
                 'staff_id' => auth()->id(),
             ]);
 
+            // 次回請求日を翌月に更新（月末処理を考慮）
+            // 計上日（closingDate）を基準に翌月を計算する
+            $billingStartDate = $subscription->billing_start_date;
+            if ($billingStartDate) {
+                $originalDay = \Carbon\Carbon::parse($billingStartDate)->day;
+                // 計上日から翌月を計算（next_billing_dateではなく実際の計上日を使用）
+                $currentDate = \Carbon\Carbon::parse($this->closingDate);
+                $nextMonth = $currentDate->copy()->addMonthNoOverflow();
+                $lastDayOfNextMonth = $nextMonth->daysInMonth;
+
+                if ($originalDay > $lastDayOfNextMonth) {
+                    // 元の日が翌月に存在しない場合は月末に設定
+                    $nextBillingDate = $nextMonth->endOfMonth();
+                } else {
+                    $nextBillingDate = $nextMonth->startOfMonth()->day($originalDay);
+                }
+                $subscription->update(['next_billing_date' => $nextBillingDate]);
+            }
+
             Notification::make()
                 ->success()
                 ->title('計上完了')
@@ -778,6 +816,25 @@ class DailyClosing extends Page implements HasForms
                         'handled_by' => auth()->user()->name ?? '管理者',
                         'staff_id' => auth()->id(),
                     ]);
+
+                    // 次回請求日を翌月に更新（月末処理を考慮）
+                    // 計上日（closingDate）を基準に翌月を計算する
+                    $billingStartDate = $subscription->billing_start_date;
+                    if ($billingStartDate) {
+                        $originalDay = \Carbon\Carbon::parse($billingStartDate)->day;
+                        // 計上日から翌月を計算（next_billing_dateではなく実際の計上日を使用）
+                        $currentDate = \Carbon\Carbon::parse($this->closingDate);
+                        $nextMonth = $currentDate->copy()->addMonthNoOverflow();
+                        $lastDayOfNextMonth = $nextMonth->daysInMonth;
+
+                        if ($originalDay > $lastDayOfNextMonth) {
+                            // 元の日が翌月に存在しない場合は月末に設定
+                            $nextBillingDate = $nextMonth->endOfMonth();
+                        } else {
+                            $nextBillingDate = $nextMonth->startOfMonth()->day($originalDay);
+                        }
+                        $subscription->update(['next_billing_date' => $nextBillingDate]);
+                    }
 
                     $count++;
                 } catch (\Exception $e) {
@@ -1279,21 +1336,17 @@ class DailyClosing extends Page implements HasForms
                 'products' => count($autoLoadedProducts),
             ]);
         } else {
-            // 未計上：予約のreservationOptionsから読み込み
-            $reservationOptions = $reservation->getOptionMenusSafely();
+            // 未計上：予約のoptionMenus（reservation_menu_options）から読み込み
+            $reservationOptions = $reservation->optionMenus;
 
-            foreach ($reservationOptions as $reservationOption) {
-                // MenuOption経由の場合
-                if ($reservationOption->menuOption) {
-                    $menuOption = $reservationOption->menuOption;
-                    $autoLoadedOptions[] = [
-                        'option_id' => $menuOption->id,
-                        'option_type' => 'menu_option',
-                        'name' => $menuOption->name ?? '',
-                        'price' => (int)($reservationOption->price ?? $menuOption->price ?? 0),
-                        'quantity' => (int)($reservationOption->quantity ?? 1),
-                    ];
-                }
+            foreach ($reservationOptions as $optionMenu) {
+                $autoLoadedOptions[] = [
+                    'option_id' => $optionMenu->id,
+                    'option_type' => 'menu',
+                    'name' => $optionMenu->name ?? '',
+                    'price' => (int)($optionMenu->pivot->price ?? $optionMenu->price ?? 0),
+                    'quantity' => 1,
+                ];
             }
         }
 
@@ -1304,6 +1357,21 @@ class DailyClosing extends Page implements HasForms
         // 計上済み売上がある場合は割引額を取得
         $initialDiscountAmount = $existingSale ? (int)($existingSale->discount_amount ?? 0) : 0;
 
+        // 計上済みの場合はsale_itemsからサービス価格を取得
+        $servicePrice = 0;
+        $serviceName = $reservation->menu?->name ?? 'サービス';
+        if ($existingSale) {
+            // 計上済み：sale_itemsからメインサービス（menu_idがあるもの）を取得
+            $mainServiceItem = $existingSale->items->firstWhere('menu_id', '!=', null);
+            if ($mainServiceItem) {
+                $servicePrice = (int)$mainServiceItem->unit_price;
+                $serviceName = $mainServiceItem->item_name;
+            }
+        } else {
+            // 未計上：予約の金額を使用（spotの場合のみ）
+            $servicePrice = ($source === 'spot') ? (int)($reservation->total_amount ?? 0) : 0;
+        }
+
         $this->editorData = [
             'reservation' => [
                 'id' => $reservation->id,
@@ -1313,8 +1381,8 @@ class DailyClosing extends Page implements HasForms
                 'menu_name' => $reservation->menu?->name ?? '不明',
             ],
             'service_item' => [
-                'name' => $reservation->menu?->name ?? 'サービス',
-                'price' => (int)($source === 'spot' ? ($reservation->total_amount ?? 0) : 0),
+                'name' => $serviceName,
+                'price' => $servicePrice,
                 'quantity' => 1,
             ],
             'option_items' => $autoLoadedOptions, // 売上/予約から自動読込されたオプション

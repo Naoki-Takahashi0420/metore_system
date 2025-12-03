@@ -37,6 +37,12 @@ class AnnouncementResource extends Resource
             ->schema([
                 Forms\Components\Section::make('基本情報')
                     ->schema([
+                        Forms\Components\Select::make('type')
+                            ->label('お知らせタイプ')
+                            ->options(Announcement::getTypes())
+                            ->default(Announcement::TYPE_GENERAL)
+                            ->required(),
+
                         Forms\Components\TextInput::make('title')
                             ->label('タイトル')
                             ->required()
@@ -106,6 +112,14 @@ class AnnouncementResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\BadgeColumn::make('type')
+                    ->label('タイプ')
+                    ->colors([
+                        'primary' => Announcement::TYPE_GENERAL,
+                        'warning' => Announcement::TYPE_ORDER_NOTIFICATION,
+                    ])
+                    ->formatStateUsing(fn (string $state): string => Announcement::getTypes()[$state] ?? $state),
+
                 Tables\Columns\TextColumn::make('title')
                     ->label('タイトル')
                     ->searchable()
@@ -164,6 +178,10 @@ class AnnouncementResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('type')
+                    ->label('お知らせタイプ')
+                    ->options(Announcement::getTypes()),
+
                 Tables\Filters\SelectFilter::make('priority')
                     ->label('優先度')
                     ->options([
@@ -181,6 +199,13 @@ class AnnouncementResource extends Resource
 
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('公開状態'),
+            ])
+            ->tabs([
+                'all' => Tables\Filters\Tab::make('全て'),
+                'general' => Tables\Filters\Tab::make('一般お知らせ')
+                    ->modifyQueryUsing(fn (Builder $query) => $query->general()),
+                'order_notification' => Tables\Filters\Tab::make('発注通知')
+                    ->modifyQueryUsing(fn (Builder $query) => $query->orderNotifications()),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

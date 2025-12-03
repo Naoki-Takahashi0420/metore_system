@@ -1,13 +1,13 @@
 <x-filament-panels::page>
     <div class="space-y-6">
-        <!-- 店舗・日付選択 -->
+        <!-- 店舗・日付選択（レスポンシブ対応） -->
         <div class="bg-white rounded-lg shadow p-4">
-            <div class="flex items-center gap-6">
-                <div class="flex items-center gap-4">
-                    <label class="text-sm font-medium text-gray-700">店舗：</label>
+            <div class="flex flex-col lg:flex-row gap-4 lg:gap-6">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+                    <label class="text-sm font-medium text-gray-700 whitespace-nowrap">店舗：</label>
                     <select
                         wire:model.live="selectedStoreId"
-                        class="block w-64 text-sm border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                        class="block w-full sm:w-64 text-sm border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500"
                     >
                         @if(auth()->user()->hasRole('super_admin'))
                             <option value="">全店舗</option>
@@ -17,31 +17,31 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="flex items-center gap-4">
-                    <label class="text-sm font-medium text-gray-700">日付：</label>
-                    <div class="flex items-center gap-2">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+                    <label class="text-sm font-medium text-gray-700 whitespace-nowrap">日付：</label>
+                    <div class="flex items-center gap-1 sm:gap-2 w-full sm:w-auto">
                         <button
                             wire:click="previousDay"
                             type="button"
-                            class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                            class="inline-flex items-center px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                         >
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                             </svg>
-                            <span class="ml-1">前の日</span>
+                            <span class="ml-1 hidden sm:inline">前の日</span>
                         </button>
                         <input
                             type="date"
                             wire:model.live="closingDate"
-                            class="block w-48 text-sm border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                            class="block flex-1 sm:flex-none sm:w-48 text-sm border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500"
                         />
                         <button
                             wire:click="nextDay"
                             type="button"
-                            class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                            class="inline-flex items-center px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                         >
-                            <span class="mr-1">次の日</span>
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <span class="mr-1 hidden sm:inline">次の日</span>
+                            <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                             </svg>
                         </button>
@@ -147,17 +147,17 @@
                     </button>
                 </div>
 
-                <div class="overflow-x-auto">
+                <div class="overflow-x-auto" style="-webkit-overflow-scrolling: touch;">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">時間</th>
-                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">顧客</th>
-                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">メニュー</th>
-                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">種別</th>
-                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">支払方法</th>
-                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">金額</th>
-                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
+                                <th class="px-2 sm:px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">時間</th>
+                                <th class="px-2 sm:px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">顧客</th>
+                                <th class="px-2 sm:px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase hidden sm:table-cell">メニュー</th>
+                                <th class="px-2 sm:px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase hidden md:table-cell">種別</th>
+                                <th class="px-2 sm:px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase hidden lg:table-cell">支払</th>
+                                <th class="px-2 sm:px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">金額</th>
+                                <th class="px-2 sm:px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">操作</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">

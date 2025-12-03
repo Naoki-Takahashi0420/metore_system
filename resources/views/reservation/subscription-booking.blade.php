@@ -140,6 +140,7 @@ let storeId = null;
 let menuId = null;
 let customerId = null;
 let isChangeMode = false; // ✅ グローバル変数として宣言
+let changeReservationId = null; // ✅ 変更中の予約ID（5日ルールチェックで自身を除外するため）
 const maxWeeks = 4; // 最大4週間先まで
 
 document.addEventListener('DOMContentLoaded', async function() {
@@ -180,6 +181,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         const changingData = sessionStorage.getItem('changingReservation');
         if (changingData) {
             changingReservation = JSON.parse(changingData);
+            // ✅ 変更中の予約IDを保存（5日ルールチェックで自身を除外するため）
+            changeReservationId = changingReservation.id;
+            console.log('📝 変更中の予約ID:', changeReservationId);
             // タイトルと説明を変更
             document.querySelector('h1').textContent = '予約日時の変更';
             document.querySelector('h1').nextElementSibling.textContent = '新しい日時を選択してください';
@@ -359,7 +363,8 @@ async function checkSlotAvailability(date, time, td) {
             customer_id: customerId,  // 顧客IDを追加
             date: date,
             time: time,
-            change_mode: isChangeMode  // ✅ 変更モードフラグを追加
+            change_mode: isChangeMode,  // ✅ 変更モードフラグを追加
+            change_reservation_id: changeReservationId  // ✅ 変更中の予約ID（5日ルールで自身を除外）
         };
 
         console.log('📤 API Request:', requestBody);
@@ -389,8 +394,8 @@ async function checkSlotAvailability(date, time, td) {
                     console.log(`⚠️ ${date} ${time} - Other menu already booked`);
                     td.innerHTML = '<span class="text-yellow-500 text-xl font-bold">△</span>';
                     td.title = '他メニューで予約済み';
-                } else if (sub.within_five_days && !isChangeMode) {
-                    // ✅ 変更モード時は5日間制限を無視
+                } else if (sub.within_five_days) {
+                    // ✅ 変更モードでも5日ルールを適用（自分自身の予約は除外済み）
                     // 前回予約から5日以内（予約不可）
                     console.log(`⚠️ ${date} ${time} - Within 5 days restriction`);
                     td.innerHTML = '<span class="text-yellow-500 text-xl font-bold">△</span>';

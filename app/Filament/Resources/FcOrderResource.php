@@ -307,7 +307,17 @@ class FcOrderResource extends Resource
                     ->label('発送')
                     ->icon('heroicon-o-truck')
                     ->color('info')
-                    ->visible(fn (FcOrder $record): bool => $record->isShippable())
+                    ->visible(function (FcOrder $record): bool {
+                        // 発送可能な状態でない場合は非表示
+                        if (!$record->isShippable()) {
+                            return false;
+                        }
+                        
+                        // 本部ユーザーまたはsuper_adminのみ発送ボタンを表示
+                        $user = auth()->user();
+                        return $user->hasRole('super_admin') || 
+                               ($user->store && $user->store->isHeadquarters());
+                    })
                     ->form([
                         Forms\Components\TextInput::make('shipping_tracking_number')
                             ->label('追跡番号')
@@ -336,7 +346,17 @@ class FcOrderResource extends Resource
                     ->label('納品完了')
                     ->icon('heroicon-o-check-badge')
                     ->color('success')
-                    ->visible(fn (FcOrder $record): bool => $record->isDeliverable())
+                    ->visible(function (FcOrder $record): bool {
+                        // 納品可能な状態でない場合は非表示
+                        if (!$record->isDeliverable()) {
+                            return false;
+                        }
+                        
+                        // 本部ユーザーまたはsuper_adminのみ納品完了ボタンを表示
+                        $user = auth()->user();
+                        return $user->hasRole('super_admin') || 
+                               ($user->store && $user->store->isHeadquarters());
+                    })
                     ->requiresConfirmation()
                     ->action(function (FcOrder $record) {
                         $record->update([
@@ -380,7 +400,14 @@ class FcOrderResource extends Resource
                         
                         // 既に請求書があるかチェック
                         $existingInvoice = \App\Models\FcInvoice::where('notes', 'like', '%' . $record->order_number . '%')->first();
-                        return !$existingInvoice;
+                        if ($existingInvoice) {
+                            return false;
+                        }
+                        
+                        // 本部ユーザーまたはsuper_adminのみ請求書発行ボタンを表示
+                        $user = auth()->user();
+                        return $user->hasRole('super_admin') || 
+                               ($user->store && $user->store->isHeadquarters());
                     })
                     ->requiresConfirmation()
                     ->action(function (FcOrder $record) {

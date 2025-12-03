@@ -10,8 +10,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Announcement extends Model
 {
     protected $fillable = [
+        'type',
         'title',
         'content',
+        'metadata',
         'priority',
         'target_type',
         'published_at',
@@ -24,7 +26,20 @@ class Announcement extends Model
         'published_at' => 'datetime',
         'expires_at' => 'datetime',
         'is_active' => 'boolean',
+        'metadata' => 'array',
     ];
+    
+    // お知らせのタイプ定義
+    const TYPE_GENERAL = 'general';
+    const TYPE_ORDER_NOTIFICATION = 'order_notification';
+    
+    public static function getTypes()
+    {
+        return [
+            self::TYPE_GENERAL => '一般お知らせ',
+            self::TYPE_ORDER_NOTIFICATION => '発注通知',
+        ];
+    }
 
     /**
      * お知らせを作成したユーザー
@@ -69,6 +84,22 @@ class Announcement extends Model
                 $q->whereNull('expires_at')
                   ->orWhere('expires_at', '>', now());
             });
+    }
+    
+    /**
+     * スコープ: 一般お知らせのみ
+     */
+    public function scopeGeneral($query)
+    {
+        return $query->where('type', self::TYPE_GENERAL);
+    }
+    
+    /**
+     * スコープ: 発注通知のみ
+     */
+    public function scopeOrderNotifications($query)
+    {
+        return $query->where('type', self::TYPE_ORDER_NOTIFICATION);
     }
 
     /**

@@ -252,6 +252,42 @@ class FcNotificationService
     }
 
     /**
+     * 月初請求書一括生成通知（本部→FC店舗）
+     */
+    public function notifyMonthlyInvoiceGenerated(FcInvoice $invoice): void
+    {
+        $fcStore = $invoice->fcStore;
+        $storeManagers = $fcStore->managers;
+
+        // メール通知
+        foreach ($storeManagers as $manager) {
+            $this->sendEmail(
+                $manager->email,
+                "【月次請求書発行】{$invoice->billing_period_start->format('Y年m月')}分の請求書を発行しました",
+                $this->buildMonthlyInvoiceMessage($invoice)
+            );
+        }
+
+        // お知らせ作成（FC店舗向け - 発注通知として分類）
+        $this->createMonthlyInvoiceAnnouncement($invoice);
+
+        Log::info("FC月次請求書発行通知送信", [
+            'invoice_number' => $invoice->invoice_number,
+            'fc_store' => $fcStore->name,
+            'billing_period' => $invoice->billing_period_start->format('Y-m'),
+            'total_amount' => $invoice->total_amount,
+        ]);
+    }
+
+    /**
+     * 納品完了通知（エイリアス、recordDelivery用）
+     */
+    public function notifyDeliveryCompleted(FcOrder $order, FcInvoice $invoice): void
+    {
+        $this->notifyOrderDelivered($order, $invoice);
+    }
+
+    /**
      * 入金確認通知（本部→FC店舗）
      */
     public function notifyPaymentReceived(FcInvoice $invoice, float $amount): void
@@ -535,6 +571,87 @@ MESSAGE;
 
 今後ともよろしくお願いいたします。
 MESSAGE;
+    }
+
+    protected function buildMonthlyInvoiceMessage(FcInvoice $invoice): string
+    {
+        $daysUntilDue = now()->diffInDays($invoice->due_date, false);
+        $itemsCount = $invoice->items->count();
+        
+        return <<<MESSAGE
+📅 月次請求書を発行いたしました
+
+【📋 請求書情報】
+請求書番号: {$invoice->invoice_number}
+対象期間: {$invoice->billing_period_start->format('Y年m月d日')} ～ {$invoice->billing_period_end->format('Y年m月d日')}
+発行日: {$invoice->issue_date->format('Y年m月d日')}
+支払期限: {$invoice->due_date->format('Y年m月d日')}（{$daysUntilDue}日後）
+
+【📦 請求内容】
+商品・サービス: {$itemsCount}件
+前月納品分の商品代金をまとめて請求いたします。
+
+【💰 請求金額】
+小計（税抜）: ¥{number_format($invoice->subtotal)}
+消費税（10%）: ¥{number_format($invoice->tax_amount)}
+━━━━━━━━━━━━━━━━━━
+合計（税込）: ¥{number_format($invoice->total_amount)}
+
+【🏦 お支払いについて】
+お支払期限までに指定口座へのお振込みをお願いいたします。
+詳細は管理画面よりPDF請求書をダウンロードしてご確認ください。
+
+今後ともよろしくお願いいたします。
+MESSAGE;
+    }
+
+    /**
+     * 月次請求書用のお知らせ作成（発注通知として分類）
+     */
+    protected function createMonthlyInvoiceAnnouncement(FcInvoice $invoice): ?Announcement
+    {
+        try {
+            $systemUser = User::role('super_admin')->first() ?? User::first();
+            if (!$systemUser) {
+                Log::error("月次請求書お知らせ作成失敗: システムユーザーが見つかりません");
+                return null;
+            }
+
+            $announcement = Announcement::create([
+                'type' => Announcement::TYPE_ORDER_NOTIFICATION, // 発注通知として分類
+                'title' => "【月次請求書】{$invoice->billing_period_start->format('Y年m月')}分の請求書発行",
+                'content' => "請求書番号: {$invoice->invoice_number}\n" .
+                           "請求期間: {$invoice->billing_period_start->format('Y年m月d日')} ～ {$invoice->billing_period_end->format('Y年m月d日')}\n" .
+                           "請求金額: ¥" . number_format($invoice->total_amount) . "\n" .
+                           "支払期限: {$invoice->due_date->format('Y年m月d日')}\n\n" .
+                           "前月にご注文いただいた商品の請求書を発行いたしました。\n" .
+                           "管理画面よりPDFをダウンロードしてご確認ください。",
+                'priority' => 'important',
+                'target_type' => 'specific_stores',
+                'published_at' => now(),
+                'expires_at' => $invoice->due_date->addDays(7), // 支払期限の1週間後まで表示
+                'is_active' => true,
+                'created_by' => $systemUser->id,
+            ]);
+
+            // FC店舗を関連付け
+            $announcement->stores()->sync([$invoice->fc_store_id]);
+
+            Log::info("月次請求書お知らせ作成", [
+                'announcement_id' => $announcement->id,
+                'invoice_number' => $invoice->invoice_number,
+                'fc_store_id' => $invoice->fc_store_id,
+            ]);
+
+            return $announcement;
+        } catch (\Exception $e) {
+            Log::error("月次請求書お知らせ作成失敗", [
+                'invoice_number' => $invoice->invoice_number,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 
     /**

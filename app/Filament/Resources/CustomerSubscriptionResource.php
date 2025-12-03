@@ -132,10 +132,19 @@ class CustomerSubscriptionResource extends Resource
                                             $set('end_date', $endDate->format('Y-m-d'));
                                         }
 
-                                        // 次回請求日を計算
+                                        // 次回請求日を計算（月末処理を考慮）
                                         $billingStartDate = $get('billing_start_date');
                                         if ($billingStartDate) {
-                                            $nextBilling = \Carbon\Carbon::parse($billingStartDate)->addMonth();
+                                            $billingStart = \Carbon\Carbon::parse($billingStartDate);
+                                            $originalDay = $billingStart->day;
+                                            $nextMonth = $billingStart->copy()->addMonthNoOverflow();
+                                            $lastDayOfNextMonth = $nextMonth->daysInMonth;
+
+                                            if ($originalDay > $lastDayOfNextMonth) {
+                                                $nextBilling = $nextMonth->endOfMonth();
+                                            } else {
+                                                $nextBilling = $nextMonth->startOfMonth()->day($originalDay);
+                                            }
                                             $set('next_billing_date', $nextBilling->format('Y-m-d'));
                                         }
                                     }
@@ -218,8 +227,17 @@ class CustomerSubscriptionResource extends Resource
                             ->helperText(fn ($operation) => $operation === 'edit' ? '契約時に決定（変更不可）' : '課金を開始する日を選択')
                             ->afterStateUpdated(function ($state, callable $set) {
                                 if ($state) {
-                                    // 次回請求日を計算（翌月同日）
-                                    $nextBilling = \Carbon\Carbon::parse($state)->addMonth();
+                                    // 次回請求日を計算（月末処理を考慮）
+                                    $billingStart = \Carbon\Carbon::parse($state);
+                                    $originalDay = $billingStart->day;
+                                    $nextMonth = $billingStart->copy()->addMonthNoOverflow();
+                                    $lastDayOfNextMonth = $nextMonth->daysInMonth;
+
+                                    if ($originalDay > $lastDayOfNextMonth) {
+                                        $nextBilling = $nextMonth->endOfMonth();
+                                    } else {
+                                        $nextBilling = $nextMonth->startOfMonth()->day($originalDay);
+                                    }
                                     $set('next_billing_date', $nextBilling->format('Y-m-d'));
                                 }
                             }),

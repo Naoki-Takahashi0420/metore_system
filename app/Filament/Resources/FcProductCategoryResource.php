@@ -127,7 +127,8 @@ class FcProductCategoryResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('sort_order', 'asc');
+            ->defaultSort('sort_order', 'asc')
+            ->reorderable('sort_order');
     }
 
     public static function getRelations(): array

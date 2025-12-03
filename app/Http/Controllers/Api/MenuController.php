@@ -97,19 +97,18 @@ class MenuController extends Controller
         if ($request->has('menu_id')) {
             $selectedMenu = Menu::find($request->menu_id);
 
-            // 選択されたメニューがサブスクリプションメニューの場合
-            if ($selectedMenu && $selectedMenu->is_subscription) {
+            if ($selectedMenu) {
                 $upsellMenus = $upsellMenus->filter(function ($menu) use ($selectedMenu) {
-                    // オプションメニューのsubscription_plan_idsに選択されたサブスクメニューのIDが含まれているか確認
-                    $subscriptionPlanIds = is_string($menu->subscription_plan_ids)
+                    // オプションメニューのsubscription_plan_ids（実際は紐付けメニューID配列）を確認
+                    $linkedMenuIds = is_string($menu->subscription_plan_ids)
                         ? json_decode($menu->subscription_plan_ids, true)
                         : $menu->subscription_plan_ids;
 
-                    if (empty($subscriptionPlanIds)) {
+                    if (empty($linkedMenuIds)) {
                         return false; // 紐付けなしの場合は表示しない（厳密フィルタリング）
                     }
 
-                    return in_array($selectedMenu->id, $subscriptionPlanIds);
+                    return in_array($selectedMenu->id, $linkedMenuIds);
                 })->values();
             }
         }

@@ -13,6 +13,8 @@ class FcOrderItem extends Model
         'product_name',
         'product_sku',
         'quantity',
+        'shipped_quantity',
+        'shipping_status',
         'unit_price',
         'tax_rate',
         'subtotal',
@@ -65,5 +67,49 @@ class FcOrderItem extends Model
             'tax_amount' => $taxAmount,
             'total' => $total,
         ];
+    }
+
+    /**
+     * 未発送数量を取得
+     */
+    public function getUnshippedQuantityAttribute(): int
+    {
+        return max(0, $this->quantity - ($this->shipped_quantity ?? 0));
+    }
+
+    /**
+     * 発送済み数量に基づいて金額を計算
+     */
+    public function calculateShippedAmounts(): array
+    {
+        $shippedQty = $this->shipped_quantity ?? 0;
+        $unitPrice = floatval($this->unit_price);
+        $taxRate = floatval($this->tax_rate);
+
+        $subtotal = $unitPrice * $shippedQty;
+        $taxAmount = $subtotal * ($taxRate / 100);
+        $total = $subtotal + $taxAmount;
+
+        return [
+            'quantity' => $shippedQty,
+            'subtotal' => $subtotal,
+            'tax_amount' => $taxAmount,
+            'total' => $total,
+        ];
+    }
+
+    /**
+     * 発送ステータスを更新
+     */
+    public function updateShippingStatus(): void
+    {
+        if ($this->shipped_quantity >= $this->quantity) {
+            $this->shipping_status = 'completed';
+        } elseif ($this->shipped_quantity > 0) {
+            $this->shipping_status = 'partial';
+        } else {
+            $this->shipping_status = 'pending';
+        }
+        $this->save();
     }
 }

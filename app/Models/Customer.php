@@ -499,7 +499,7 @@ class Customer extends Model
     /**
      * LINEアカウント連携
      */
-    public function linkToLine(string $lineUserId, array $lineProfile = null): void
+    public function linkToLine(string $lineUserId, ?array $lineProfile = null): void
     {
         $this->update([
             'line_user_id' => $lineUserId,
@@ -525,7 +525,7 @@ class Customer extends Model
     /**
      * アクセストークンを取得または生成
      */
-    public function getOrCreateAccessToken(Store $store = null, array $options = []): CustomerAccessToken
+    public function getOrCreateAccessToken(?Store $store = null, array $options = []): CustomerAccessToken
     {
         // 既存のアクティブなトークンをチェック
         $existingToken = CustomerAccessToken::where('customer_id', $this->id)

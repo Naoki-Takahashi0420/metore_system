@@ -158,6 +158,31 @@ class MenusRelationManager extends RelationManager
                             ->helperText('ONにすると「ご一緒にいかがですか？」で追加提案されます')
                             ->reactive()
                             ->default(false),
+                        Forms\Components\Select::make('subscription_plan_ids')
+                            ->label('紐づくメインメニュー')
+                            ->multiple()
+                            ->options(function () {
+                                $storeId = $this->getOwnerRecord()->store_id;
+                                if (!$storeId) {
+                                    return [];
+                                }
+
+                                // サブスクメニューと通常メインメニュー（オプションではない）を取得
+                                return \App\Models\Menu::where('is_available', true)
+                                    ->where('store_id', $storeId)
+                                    ->where('show_in_upsell', false) // オプションメニュー自身は除外
+                                    ->orderBy('is_subscription', 'desc')
+                                    ->orderBy('name')
+                                    ->get()
+                                    ->mapWithKeys(function ($menu) {
+                                        $prefix = $menu->is_subscription ? '🔄 ' : '';
+                                        return [$menu->id => $prefix . $menu->name];
+                                    });
+                            })
+                            ->helperText('このオプションを提案するメインメニューを選択（空の場合は非表示）')
+                            ->visible(fn (Forms\Get $get) => $get('show_in_upsell'))
+                            ->searchable()
+                            ->columnSpanFull(),
                         Forms\Components\Textarea::make('upsell_description')
                             ->label('追加提案メッセージ')
                             ->placeholder('例：お疲れの目をさらにケアしませんか？')

@@ -23,10 +23,12 @@ class Announcements extends Page
     protected static bool $shouldRegisterNavigation = false; // ナビゲーションには表示しない
 
     public $filter = 'all'; // all, unread, read
+    public $tab = 'general'; // general（一般）, order（発注通知）
 
     public function mount(): void
     {
         // 初期化処理
+        $this->tab = request()->get('tab', 'general');
     }
 
     public function getAnnouncements()
@@ -35,10 +37,20 @@ class Announcements extends Page
 
         $query = Announcement::query()
             ->active()
-            ->forUser($user)
-            ->orderBy('published_at', 'desc');
+            ->forUser($user);
 
-        // フィルタ適用
+        // タブによるフィルタリング
+        if ($this->tab === 'order') {
+            $query->where('type', 'order_notification');
+        } else {
+            // デフォルトは一般的なお知らせ
+            $query->where(function($q) {
+                $q->where('type', 'general')
+                  ->orWhereNull('type'); // 既存データ互換性のため
+            });
+        }
+
+        // 既読・未読フィルタ適用
         if ($this->filter === 'unread') {
             $query->whereDoesntHave('reads', function($q) use ($user) {
                 $q->where('user_id', $user->id);
@@ -48,6 +60,8 @@ class Announcements extends Page
                 $q->where('user_id', $user->id);
             });
         }
+
+        $query->orderBy('published_at', 'desc');
 
         return $query->paginate(10);
     }
@@ -73,7 +87,19 @@ class Announcements extends Page
 
         $announcements = Announcement::query()
             ->active()
-            ->forUser($user)
+            ->forUser($user);
+
+        // 現在のタブに応じてフィルタ
+        if ($this->tab === 'order') {
+            $announcements->where('type', 'order_notification');
+        } else {
+            $announcements->where(function($q) {
+                $q->where('type', 'general')
+                  ->orWhereNull('type');
+            });
+        }
+
+        $announcements = $announcements
             ->whereDoesntHave('reads', function($q) use ($user) {
                 $q->where('user_id', $user->id);
             })
@@ -89,6 +115,13 @@ class Announcements extends Page
         }
 
         $this->dispatch('all-announcements-read');
+    }
+
+    public function setTab(string $tab): void
+    {
+        $this->tab = $tab;
+        $this->filter = 'all'; // タブ切り替え時にフィルタをリセット
+        $this->resetPage(); // ページネーションをリセット
     }
 
     public static function canAccess(): bool

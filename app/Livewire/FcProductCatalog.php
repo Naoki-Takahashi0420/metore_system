@@ -247,21 +247,62 @@ class FcProductCatalog extends Component
             ->orderBy('sort_order')
             ->get();
 
-        $query = FcProduct::where('is_active', true);
+        $query = FcProduct::where('fc_products.is_active', true)
+            ->leftJoin('fc_product_categories', 'fc_products.category_id', '=', 'fc_product_categories.id')
+            ->select('fc_products.*');
 
         if ($this->selectedCategory) {
-            $query->where('category_id', $this->selectedCategory);
+            $query->where('fc_products.category_id', $this->selectedCategory);
         }
 
         if ($this->searchQuery) {
             $query->where(function ($q) {
-                $q->where('name', 'like', "%{$this->searchQuery}%")
-                  ->orWhere('sku', 'like', "%{$this->searchQuery}%")
-                  ->orWhere('description', 'like', "%{$this->searchQuery}%");
+                $q->where('fc_products.name', 'like', "%{$this->searchQuery}%")
+                  ->orWhere('fc_products.sku', 'like', "%{$this->searchQuery}%")
+                  ->orWhere('fc_products.description', 'like', "%{$this->searchQuery}%");
             });
         }
 
-        $products = $query->orderBy('name')->paginate(12);
+        // カテゴリごとにグループ化して取得
+        if (!$this->selectedCategory && !$this->searchQuery) {
+            // カテゴリごとのグループ表示（検索なし、カテゴリフィルタなし）
+            $groupedProducts = [];
+            foreach ($categories as $category) {
+                $categoryProducts = FcProduct::where('is_active', true)
+                    ->where('category_id', $category->id)
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+                    ->get();
+                
+                if ($categoryProducts->count() > 0) {
+                    $groupedProducts[] = [
+                        'category' => $category,
+                        'products' => $categoryProducts
+                    ];
+                }
+            }
+            $products = collect(); // 空のコレクション（ページネーションなし）
+        } else {
+            // 通常の表示（検索あり、またはカテゴリフィルタあり）
+            $products = $query->orderBy('fc_product_categories.sort_order')
+                              ->orderBy('fc_products.sort_order')
+                              ->orderBy('fc_products.name')
+                              ->paginate(12);
+            $groupedProducts = null;
+        }
+        
+        // デバッグ用：最初の3商品の並び順を確認
+        \Log::info('FC商品カタログの並び順確認:', [
+            'products' => $products->take(3)->map(function($p) {
+                return [
+                    'id' => $p->id,
+                    'name' => $p->name,
+                    'sort_order' => $p->sort_order,
+                    'category_id' => $p->category_id,
+                    'unit_price' => $p->unit_price
+                ];
+            })->toArray()
+        ]);
 
         // カート合計計算
         $cartTotal = 0;
@@ -280,6 +321,7 @@ class FcProductCatalog extends Component
         return view('livewire.fc-product-catalog', [
             'categories' => $categories,
             'products' => $products,
+            'groupedProducts' => $groupedProducts ?? null,
             'cartItemCount' => count($this->cart),
             'cartSubtotal' => $cartSubtotal,
             'cartTaxTotal' => $cartTaxTotal,

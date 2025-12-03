@@ -439,9 +439,24 @@ class CustomerSubscription extends Model
      */
     public function resetMonthlyCount(): void
     {
+        // 月末処理を考慮した次回請求日の計算
+        $currentDate = Carbon::now();
+        $originalDay = $this->billing_start_date
+            ? Carbon::parse($this->billing_start_date)->day
+            : $this->reset_day;
+
+        $nextMonth = $currentDate->copy()->addMonthNoOverflow();
+        $lastDayOfNextMonth = $nextMonth->daysInMonth;
+
+        if ($originalDay > $lastDayOfNextMonth) {
+            $nextBillingDate = $nextMonth->endOfMonth();
+        } else {
+            $nextBillingDate = $nextMonth->startOfMonth()->day($originalDay);
+        }
+
         $this->update([
             'current_month_visits' => 0,
-            'next_billing_date' => Carbon::now()->addMonth()->day($this->reset_day),
+            'next_billing_date' => $nextBillingDate,
         ]);
     }
 

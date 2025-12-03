@@ -122,52 +122,58 @@ class FcInvoiceResource extends Resource
                     ])
                     ->columns(2),
 
-                Forms\Components\Section::make('金額')
+                // 明細編集セクション（編集画面のみ表示）
+                Forms\Components\Section::make('請求明細')
+                    ->schema([
+                        Forms\Components\ViewField::make('invoice_items')
+                            ->label('')
+                            ->view('livewire.fc-invoice-item-editor-form')
+                            ->viewData(function ($record) {
+                                return [
+                                    'invoice' => $record,
+                                    'readonly' => !$record || $record->status !== 'draft'
+                                ];
+                            })
+                            ->visible(fn ($record) => $record !== null)
+                            ->columnSpanFull(),
+                    ])
+                    ->visible(fn ($record) => $record !== null),
+
+                Forms\Components\Section::make('金額サマリー')
                     ->schema([
                         Forms\Components\TextInput::make('subtotal')
                             ->label('小計（税抜）')
                             ->numeric()
-                            ->required()
                             ->prefix('¥')
-                            ->default(0)
-                            ->reactive()
-                            ->afterStateUpdated(function ($state, Forms\Get $get, Forms\Set $set) {
-                                $subtotal = floatval($state ?? 0);
-                                $taxRate = 10; // 10% tax
-                                $taxAmount = $subtotal * ($taxRate / 100);
-                                $totalAmount = $subtotal + $taxAmount;
-                                $paidAmount = floatval($get('paid_amount') ?? 0);
-
-                                $set('tax_amount', $taxAmount);
-                                $set('total_amount', $totalAmount);
-                                $set('outstanding_amount', $totalAmount - $paidAmount);
-                            }),
+                            ->disabled()
+                            ->dehydrated(false),
                         Forms\Components\TextInput::make('tax_amount')
                             ->label('消費税')
                             ->numeric()
                             ->prefix('¥')
-                            ->default(0)
-                            ->disabled(),
+                            ->disabled()
+                            ->dehydrated(false),
                         Forms\Components\TextInput::make('total_amount')
                             ->label('合計（税込）')
                             ->numeric()
                             ->prefix('¥')
-                            ->default(0)
-                            ->disabled(),
+                            ->disabled()
+                            ->dehydrated(false),
                         Forms\Components\TextInput::make('paid_amount')
                             ->label('入金済み金額')
                             ->numeric()
                             ->prefix('¥')
-                            ->default(0)
-                            ->disabled(),
+                            ->disabled()
+                            ->dehydrated(false),
                         Forms\Components\TextInput::make('outstanding_amount')
                             ->label('未払い金額')
                             ->numeric()
                             ->prefix('¥')
-                            ->default(0)
-                            ->disabled(),
+                            ->disabled()
+                            ->dehydrated(false),
                     ])
-                    ->columns(3),
+                    ->columns(3)
+                    ->description('※ 金額は明細から自動計算されます'),
 
                 Forms\Components\Section::make('その他')
                     ->schema([
@@ -407,6 +413,7 @@ class FcInvoiceResource extends Resource
             'create' => Pages\CreateFcInvoice::route('/create'),
             'view' => Pages\ViewFcInvoice::route('/{record}'),
             'edit' => Pages\EditFcInvoice::route('/{record}/edit'),
+            'preview' => Pages\FcInvoicePreview::route('/preview'),
         ];
     }
 }

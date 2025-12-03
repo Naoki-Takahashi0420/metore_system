@@ -63,6 +63,14 @@ class FcInvoice extends Model
     }
 
     /**
+     * 請求明細
+     */
+    public function items(): HasMany
+    {
+        return $this->hasMany(FcInvoiceItem::class, 'fc_invoice_id')->orderBy('sort_order');
+    }
+
+    /**
      * 入金記録
      */
     public function payments(): HasMany

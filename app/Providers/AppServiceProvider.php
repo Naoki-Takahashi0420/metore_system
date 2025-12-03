@@ -99,6 +99,12 @@ class AppServiceProvider extends ServiceProvider
             SendCustomerReservationCancellationNotification::class
         );
 
+        // Filament: モバイル対応CSSを追加
+        FilamentView::registerRenderHook(
+            'panels::head.end',
+            fn (): string => '<link rel="stylesheet" href="' . asset('css/filament-mobile.css') . '?v=' . time() . '">'
+        );
+
         // Filament: 未保存変更の警告を追加
         FilamentView::registerRenderHook(
             'panels::body.end',

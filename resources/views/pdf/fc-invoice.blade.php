@@ -1,308 +1,301 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <title>請求書 {{ $invoice->invoice_number }}</title>
     <style>
-        @page {
-            margin: 20mm;
-        }
-
         body {
-            font-family: sans-serif;
+            font-family: "DejaVu Sans", sans-serif;
             font-size: 12px;
-            line-height: 1.6;
+            line-height: 1.4;
+            margin: 0;
+            padding: 20px;
         }
 
         .header {
             text-align: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 15px;
             margin-bottom: 30px;
         }
 
         .header h1 {
             font-size: 24px;
             margin: 0;
-            padding: 10px 0;
-            border-bottom: 3px solid #333;
+            font-weight: bold;
         }
 
         .invoice-info {
-            margin-bottom: 30px;
-        }
-
-        .invoice-info table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .invoice-info td {
-            padding: 5px;
-            border: 1px solid #ddd;
-        }
-
-        .invoice-info .label {
-            background-color: #f5f5f5;
-            font-weight: bold;
-            width: 30%;
-        }
-
-        .billing-info {
             display: table;
             width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .invoice-info-left, .invoice-info-right {
+            display: table-cell;
+            vertical-align: top;
+            width: 50%;
+        }
+
+        .invoice-info-right {
+            text-align: right;
+        }
+
+        .billing-section {
             margin-bottom: 30px;
         }
 
-        .billing-to, .billing-from {
-            display: table-cell;
-            width: 50%;
-            vertical-align: top;
-            padding: 10px;
+        .section-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 3px;
         }
 
-        .billing-to {
-            border: 2px solid #333;
-            padding: 15px;
+        .company-info {
+            margin-bottom: 15px;
         }
 
-        .billing-to h2 {
+        .company-name {
             font-size: 16px;
-            margin: 0 0 10px 0;
-            border-bottom: 2px solid #333;
-            padding-bottom: 5px;
+            font-weight: bold;
+            margin-bottom: 5px;
         }
 
-        .billing-from {
-            text-align: right;
-            padding-right: 0;
-        }
-
-        .items-table {
+        .invoice-details table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
 
-        .items-table th {
-            background-color: #333;
-            color: white;
-            padding: 10px;
-            text-align: left;
-            font-weight: bold;
-        }
-
-        .items-table td {
+        .invoice-details th, .invoice-details td {
+            border: 1px solid #000;
             padding: 8px;
-            border-bottom: 1px solid #ddd;
-        }
-
-        .items-table .text-right {
-            text-align: right;
-        }
-
-        .items-table .text-center {
             text-align: center;
         }
 
-        .total-section {
-            width: 50%;
-            margin-left: auto;
+        .invoice-details th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+
+        .invoice-details .text-left {
+            text-align: left;
+        }
+
+        .invoice-details .text-right {
+            text-align: right;
+        }
+
+        .summary-section {
+            float: right;
+            width: 300px;
+            margin-top: 20px;
+        }
+
+        .summary-table {
+            width: 100%;
             border-collapse: collapse;
         }
 
-        .total-section td {
+        .summary-table th, .summary-table td {
+            border: 1px solid #000;
             padding: 8px;
-            border-bottom: 1px solid #ddd;
         }
 
-        .total-section .label {
-            background-color: #f5f5f5;
-            font-weight: bold;
-            width: 50%;
+        .summary-table th {
+            background-color: #f0f0f0;
+            text-align: left;
+            width: 150px;
         }
 
-        .total-section .amount {
+        .summary-table td {
             text-align: right;
-            width: 50%;
         }
 
-        .total-section .grand-total .label,
-        .total-section .grand-total .amount {
-            background-color: #333;
-            color: white;
-            font-size: 16px;
+        .total-row {
+            background-color: #e0e0e0;
             font-weight: bold;
-            padding: 12px;
-        }
-
-        .notes {
-            margin-top: 30px;
-            padding: 15px;
-            background-color: #f9f9f9;
-            border: 1px solid #ddd;
-        }
-
-        .notes h3 {
-            margin: 0 0 10px 0;
             font-size: 14px;
         }
 
+        .bank-info {
+            clear: both;
+            margin-top: 40px;
+            border: 1px solid #000;
+            padding: 15px;
+        }
+
+        .bank-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
         .footer {
-            margin-top: 50px;
+            margin-top: 30px;
             text-align: center;
             font-size: 10px;
             color: #666;
-            border-top: 1px solid #ddd;
-            padding-top: 10px;
+        }
+
+        .notes {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
         }
     </style>
 </head>
 <body>
+    <!-- ヘッダー -->
     <div class="header">
-        <h1>請　求　書</h1>
+        <h1>請求書</h1>
     </div>
 
+    <!-- 請求書情報 -->
     <div class="invoice-info">
+        <div class="invoice-info-left">
+            <strong>請求書番号:</strong> {{ $invoice->invoice_number }}<br>
+            <strong>発行日:</strong> {{ $invoice->issue_date->format('Y年m月d日') }}<br>
+            <strong>支払期限:</strong> {{ $invoice->due_date->format('Y年m月d日') }}
+        </div>
+        <div class="invoice-info-right">
+            <strong>請求期間:</strong> {{ $invoice->billing_period_start->format('Y年m月d日') }} ～ {{ $invoice->billing_period_end->format('Y年m月d日') }}
+        </div>
+    </div>
+
+    <!-- 請求先・請求元 -->
+    <div class="billing-section">
+        <div style="width: 48%; float: left;">
+            <div class="section-title">請求先</div>
+            <div class="company-info">
+                <div class="company-name">{{ $invoice->fcStore->name }}</div>
+                @if($invoice->fcStore->address)
+                    {{ $invoice->fcStore->address }}<br>
+                @endif
+                @if($invoice->fcStore->phone)
+                    TEL: {{ $invoice->fcStore->phone }}<br>
+                @endif
+            </div>
+        </div>
+
+        <div style="width: 48%; float: right;">
+            <div class="section-title">請求元</div>
+            <div class="company-info">
+                <div class="company-name">{{ $invoice->headquartersStore->name }}</div>
+                @if($invoice->headquartersStore->address)
+                    {{ $invoice->headquartersStore->address }}<br>
+                @endif
+                @if($invoice->headquartersStore->phone)
+                    TEL: {{ $invoice->headquartersStore->phone }}<br>
+                @endif
+            </div>
+        </div>
+        <div style="clear: both;"></div>
+    </div>
+
+    <!-- 請求明細 -->
+    <div class="invoice-details">
+        <div class="section-title">請求明細</div>
         <table>
-            <tr>
-                <td class="label">請求書番号</td>
-                <td>{{ $invoice->invoice_number }}</td>
-                <td class="label">発行日</td>
-                <td>{{ $invoice->issue_date ? $invoice->issue_date->format('Y年m月d日') : '未設定' }}</td>
-            </tr>
-            <tr>
-                <td class="label">請求対象期間</td>
-                <td colspan="3">
-                    {{ $invoice->billing_period_start->format('Y年m月d日') }} 〜
-                    {{ $invoice->billing_period_end->format('Y年m月d日') }}
-                </td>
-            </tr>
-            <tr>
-                <td class="label">支払期限</td>
-                <td colspan="3" style="font-weight: bold; color: #d00;">
-                    {{ $invoice->due_date ? $invoice->due_date->format('Y年m月d日') : '未設定' }}
-                </td>
-            </tr>
+            <thead>
+                <tr>
+                    <th style="width: 10%;">項目</th>
+                    <th style="width: 35%;">商品・サービス名</th>
+                    <th style="width: 8%;">数量</th>
+                    <th style="width: 12%;">単価</th>
+                    <th style="width: 12%;">小計</th>
+                    <th style="width: 8%;">税率</th>
+                    <th style="width: 15%;">備考</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($invoice->items as $item)
+                <tr>
+                    <td>{{ $item->getTypeLabel() }}</td>
+                    <td class="text-left">{{ $item->description }}</td>
+                    <td>{{ number_format($item->quantity, $item->quantity == (int)$item->quantity ? 0 : 2) }}</td>
+                    <td class="text-right">¥{{ number_format($item->unit_price) }}</td>
+                    <td class="text-right">¥{{ number_format($item->subtotal) }}</td>
+                    <td>{{ $item->tax_rate }}%</td>
+                    <td class="text-left" style="font-size: 10px;">{{ $item->notes }}</td>
+                </tr>
+                @empty
+                <tr>
+                    <td colspan="7" style="text-align: center; color: #666;">明細がありません</td>
+                </tr>
+                @endforelse
+            </tbody>
         </table>
     </div>
 
-    <div class="billing-info">
-        <div class="billing-to">
-            <h2>請求先</h2>
-            <p style="font-size: 18px; font-weight: bold; margin: 10px 0;">
-                {{ $invoice->fcStore->name }} 御中
-            </p>
-            @if($invoice->fcStore->address)
-            <p style="margin: 5px 0;">
-                〒 {{ $invoice->fcStore->postal_code }}<br>
-                {{ $invoice->fcStore->address }}
-            </p>
+    <!-- 合計金額 -->
+    <div class="summary-section">
+        <table class="summary-table">
+            <tr>
+                <th>小計（税抜）</th>
+                <td>¥{{ number_format($invoice->subtotal) }}</td>
+            </tr>
+            <tr>
+                <th>消費税</th>
+                <td>¥{{ number_format($invoice->tax_amount) }}</td>
+            </tr>
+            <tr class="total-row">
+                <th>合計金額</th>
+                <td>¥{{ number_format($invoice->total_amount) }}</td>
+            </tr>
+            @if($invoice->paid_amount > 0)
+            <tr>
+                <th>入金済み</th>
+                <td>¥{{ number_format($invoice->paid_amount) }}</td>
+            </tr>
+            <tr>
+                <th>未払い残高</th>
+                <td>¥{{ number_format($invoice->outstanding_amount) }}</td>
+            </tr>
             @endif
-            @if($invoice->fcStore->phone)
-            <p style="margin: 5px 0;">
-                TEL: {{ $invoice->fcStore->phone }}
-            </p>
-            @endif
-        </div>
-
-        <div class="billing-from">
-            <p style="font-size: 16px; font-weight: bold; margin: 10px 0;">
-                {{ $invoice->headquartersStore->name }}
-            </p>
-            @if($invoice->headquartersStore->address)
-            <p style="margin: 5px 0; font-size: 11px;">
-                〒 {{ $invoice->headquartersStore->postal_code }}<br>
-                {{ $invoice->headquartersStore->address }}
-            </p>
-            @endif
-            @if($invoice->headquartersStore->phone)
-            <p style="margin: 5px 0; font-size: 11px;">
-                TEL: {{ $invoice->headquartersStore->phone }}
-            </p>
-            @endif
-        </div>
+        </table>
     </div>
 
-    <table class="items-table">
-        <thead>
-            <tr>
-                <th style="width: 60%;">項目</th>
-                <th class="text-right" style="width: 20%;">金額（税抜）</th>
-                <th class="text-right" style="width: 20%;">金額（税込）</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>
-                    {{ $invoice->billing_period_start->format('Y年m月') }} ご利用分<br>
-                    <span style="font-size: 10px; color: #666;">
-                        期間: {{ $invoice->billing_period_start->format('Y/m/d') }} - {{ $invoice->billing_period_end->format('Y/m/d') }}
-                    </span>
-                </td>
-                <td class="text-right">¥{{ number_format($invoice->subtotal) }}</td>
-                <td class="text-right">¥{{ number_format($invoice->subtotal + $invoice->tax_amount) }}</td>
-            </tr>
-        </tbody>
-    </table>
-
-    <table class="total-section">
-        <tr>
-            <td class="label">小計（税抜）</td>
-            <td class="amount">¥{{ number_format($invoice->subtotal) }}</td>
-        </tr>
-        <tr>
-            <td class="label">消費税（10%）</td>
-            <td class="amount">¥{{ number_format($invoice->tax_amount) }}</td>
-        </tr>
-        <tr class="grand-total">
-            <td class="label">合計金額（税込）</td>
-            <td class="amount">¥{{ number_format($invoice->total_amount) }}</td>
-        </tr>
-        @if($invoice->paid_amount > 0)
-        <tr>
-            <td class="label">入金済み</td>
-            <td class="amount" style="color: #060;">¥{{ number_format($invoice->paid_amount) }}</td>
-        </tr>
-        <tr>
-            <td class="label">未払い残高</td>
-            <td class="amount" style="color: #d00; font-weight: bold;">¥{{ number_format($invoice->outstanding_amount) }}</td>
-        </tr>
+    <!-- 振込先情報 -->
+    <div class="bank-info">
+        <div class="bank-title">お振込先</div>
+        @if($invoice->headquartersStore->bank_name)
+            <strong>銀行名:</strong> {{ $invoice->headquartersStore->bank_name }}<br>
         @endif
-    </table>
+        @if($invoice->headquartersStore->bank_branch)
+            <strong>支店名:</strong> {{ $invoice->headquartersStore->bank_branch }}<br>
+        @endif
+        @if($invoice->headquartersStore->bank_account_type)
+            <strong>預金種別:</strong> {{ $invoice->headquartersStore->bank_account_type }}<br>
+        @endif
+        @if($invoice->headquartersStore->bank_account_number)
+            <strong>口座番号:</strong> {{ $invoice->headquartersStore->bank_account_number }}<br>
+        @endif
+        @if($invoice->headquartersStore->bank_account_name)
+            <strong>口座名義:</strong> {{ $invoice->headquartersStore->bank_account_name }}<br>
+        @endif
+        
+        @if(!$invoice->headquartersStore->bank_name)
+            <div style="color: #666; font-style: italic;">
+                振込先情報が設定されていません。管理画面の店舗設定で振込先を設定してください。
+            </div>
+        @endif
+    </div>
 
+    <!-- 備考 -->
     @if($invoice->notes)
     <div class="notes">
-        <h3>備考</h3>
-        <p style="white-space: pre-line; margin: 0;">{{ $invoice->notes }}</p>
+        <div class="section-title">備考</div>
+        {{ $invoice->notes }}
     </div>
     @endif
 
-    @if($invoice->headquartersStore->bank_name)
-    <div style="margin-top: 30px; padding: 15px; border: 2px solid #333; background-color: #f0f0f0;">
-        <h3 style="margin: 0 0 10px 0; font-size: 14px;">お振込先</h3>
-        <p style="margin: 0; font-size: 11px; line-height: 1.8;">
-            @if($invoice->headquartersStore->bank_name && $invoice->headquartersStore->bank_branch)
-            【銀行名】{{ $invoice->headquartersStore->bank_name }} {{ $invoice->headquartersStore->bank_branch }}<br>
-            @endif
-            @if($invoice->headquartersStore->bank_account_type)
-            【口座種別】{{ $invoice->headquartersStore->bank_account_type }}<br>
-            @endif
-            @if($invoice->headquartersStore->bank_account_number)
-            【口座番号】{{ $invoice->headquartersStore->bank_account_number }}<br>
-            @endif
-            @if($invoice->headquartersStore->bank_account_name)
-            【口座名義】{{ $invoice->headquartersStore->bank_account_name }}<br>
-            @endif
-            @if($invoice->headquartersStore->bank_transfer_note)
-            <br>
-            {!! nl2br(e($invoice->headquartersStore->bank_transfer_note)) !!}
-            @endif
-        </p>
-    </div>
-    @endif
-
+    <!-- フッター -->
     <div class="footer">
-        <p>この請求書に関するお問い合わせは、上記連絡先までお願いいたします。</p>
+        生成日時: {{ isset($generatedAt) ? $generatedAt->format('Y年m月d日 H:i') : now()->format('Y年m月d日 H:i') }}
     </div>
 </body>
 </html>

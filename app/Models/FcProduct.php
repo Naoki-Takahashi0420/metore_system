@@ -20,6 +20,7 @@ class FcProduct extends Model
         'unit',
         'stock_quantity',
         'min_order_quantity',
+        'sort_order',
         'is_active',
     ];
 

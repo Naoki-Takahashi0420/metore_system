@@ -24,6 +24,12 @@ class FcOrder extends Model
         'shipped_at',
         'delivered_at',
         'shipping_tracking_number',
+        'is_partial_shipped',
+        'shipping_notes',
+        'cutoff_date',
+        'cutoff_cycle',
+        'shipping_history',
+        'shipped_by',
     ];
 
     protected $casts = [
@@ -34,6 +40,9 @@ class FcOrder extends Model
         'approved_at' => 'datetime',
         'shipped_at' => 'datetime',
         'delivered_at' => 'datetime',
+        'cutoff_date' => 'date',
+        'is_partial_shipped' => 'boolean',
+        'shipping_history' => 'array',
     ];
 
     // ステータス定数
@@ -150,6 +159,14 @@ class FcOrder extends Model
     }
 
     /**
+     * 発送処理者
+     */
+    public function shippedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'shipped_by');
+    }
+
+    /**
      * ステータス別スコープ
      */
     public function scopeStatus($query, string $status)
@@ -165,5 +182,139 @@ class FcOrder extends Model
     public function scopeActive($query)
     {
         return $query->whereNotIn('status', [self::STATUS_CANCELLED, self::STATUS_DELIVERED]);
+    }
+
+    /**
+     * 締め日サイクル別スコープ
+     */
+    public function scopeByCutoffCycle($query, string $cycle)
+    {
+        return $query->where('cutoff_cycle', $cycle);
+    }
+
+    /**
+     * 締め日計算
+     */
+    public static function calculateCutoffDate(string $cycle = 'month_end', ?Carbon $baseDate = null): Carbon
+    {
+        $date = $baseDate ?: Carbon::now();
+        
+        return match($cycle) {
+            '15th' => $date->day <= 15 
+                ? $date->copy()->day(15) 
+                : $date->copy()->addMonth()->day(15),
+            'month_end' => $date->copy()->endOfMonth(),
+            default => $date->copy()->endOfMonth(),
+        };
+    }
+
+    /**
+     * 月初請求書発行対象の注文を取得
+     */
+    public static function getOrdersForMonthlyInvoicing(?Carbon $month = null): \Illuminate\Database\Eloquent\Collection
+    {
+        $targetMonth = $month ?: Carbon::now()->subMonth();
+        
+        return self::where('status', self::STATUS_DELIVERED)
+            ->whereBetween('delivered_at', [
+                $targetMonth->copy()->startOfMonth(),
+                $targetMonth->copy()->endOfMonth()
+            ])
+            ->with(['fcStore', 'headquartersStore', 'items.product'])
+            ->orderBy('fc_store_id')
+            ->orderBy('delivered_at')
+            ->get();
+    }
+
+    /**
+     * 部分発送記録
+     */
+    public function recordPartialShipping(array $itemIds, ?string $notes = null, ?int $shippedBy = null): void
+    {
+        $history = $this->shipping_history ?? [];
+        $history[] = [
+            'type' => 'partial',
+            'item_ids' => $itemIds,
+            'notes' => $notes,
+            'shipped_at' => now(),
+            'shipped_by' => $shippedBy ?: auth()->id(),
+        ];
+
+        $this->update([
+            'is_partial_shipped' => true,
+            'shipping_history' => $history,
+            'shipping_notes' => $notes,
+            'shipped_by' => $shippedBy ?: auth()->id(),
+        ]);
+    }
+
+    /**
+     * 完全発送記録
+     */
+    public function recordFullShipping(?string $trackingNumber = null, ?string $notes = null, ?int $shippedBy = null): void
+    {
+        $history = $this->shipping_history ?? [];
+        $history[] = [
+            'type' => 'full',
+            'tracking_number' => $trackingNumber,
+            'notes' => $notes,
+            'shipped_at' => now(),
+            'shipped_by' => $shippedBy ?: auth()->id(),
+        ];
+
+        $this->update([
+            'status' => self::STATUS_SHIPPED,
+            'shipped_at' => now(),
+            'shipping_tracking_number' => $trackingNumber,
+            'shipping_notes' => $notes,
+            'shipping_history' => $history,
+            'shipped_by' => $shippedBy ?: auth()->id(),
+        ]);
+    }
+
+    /**
+     * 納品完了記録（請求書自動生成）
+     */
+    public function recordDelivery(?string $notes = null): FcInvoice
+    {
+        $this->update([
+            'status' => self::STATUS_DELIVERED,
+            'delivered_at' => now(),
+        ]);
+
+        // 請求書自動生成
+        $invoice = FcInvoice::createFromOrder($this);
+
+        // FC店舗に納品完了 & 請求書発行通知
+        try {
+            app(FcNotificationService::class)->notifyDeliveryCompleted($this, $invoice);
+        } catch (\Exception $e) {
+            \Log::error("FC納品完了通知エラー: " . $e->getMessage());
+        }
+
+        return $invoice;
+    }
+
+    /**
+     * 締め日サイクル設定
+     */
+    public function setCutoffCycle(string $cycle): void
+    {
+        $this->update([
+            'cutoff_cycle' => $cycle,
+            'cutoff_date' => self::calculateCutoffDate($cycle, $this->ordered_at)
+        ]);
+    }
+
+    /**
+     * 締め日文言取得
+     */
+    public function getCutoffCycleLabel(): string
+    {
+        return match($this->cutoff_cycle) {
+            '15th' => '毎月15日締め',
+            'month_end' => '月末締め',
+            default => '月末締め',
+        };
     }
 }

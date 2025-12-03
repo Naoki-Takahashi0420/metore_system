@@ -898,11 +898,7 @@ class ReservationTimelineWidget extends Widget
         \Log::info('Opening reservation detail', ['reservation_id' => $reservationId]);
 
         try {
-            $this->selectedReservation = Reservation::with(['customer', 'menu', 'staff'])->find($reservationId);
-            // reservationOptionsを安全に読み込み
-            if ($this->selectedReservation) {
-                $this->selectedReservation->load('reservationOptions.menuOption');
-            }
+            $this->selectedReservation = Reservation::with(['customer', 'menu', 'staff', 'optionMenus'])->find($reservationId);
         } catch (\Exception $e) {
             \Log::error('Error loading reservation detail in timeline', [
                 'reservation_id' => $reservationId,
