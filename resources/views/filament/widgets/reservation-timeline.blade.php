@@ -456,6 +456,20 @@
             .booking-block.span-7 { width: calc(var(--cell-width) * 7); }
             .booking-block.span-8 { width: calc(var(--cell-width) * 8); }
 
+            /* 6時間以内に作成・変更された予約の名前点滅 */
+            @keyframes name-blink {
+                0%, 100% {
+                    opacity: 1 !important;
+                }
+                50% {
+                    opacity: 0.2 !important;
+                }
+            }
+            .booking-block.recently-created .booking-name {
+                animation: name-blink 1s ease-in-out infinite !important;
+                color: #2563eb !important;
+            }
+
             .booking-name {
                 font-weight: bold;
                 white-space: nowrap;
@@ -639,8 +653,8 @@
             </div>
         @endif
         
-        <!-- ヘッダー -->
-        <div class="flex justify-between items-center mb-4">
+        <!-- ヘッダー（レスポンシブ対応） -->
+        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 mb-4">
             {{-- 店舗選択（柔軟な表示方式） --}}
             @php
                 $storeCount = $stores->count();
@@ -651,12 +665,12 @@
             
             @if($storeCount <= 3)
                 {{-- 3店舗以下：ボタン形式 --}}
-                <div class="flex items-center gap-2">
-                    <label class="text-sm font-medium">店舗：</label>
+                <div class="flex flex-wrap items-center gap-2">
+                    <label class="text-sm font-medium whitespace-nowrap">店舗：</label>
                     @foreach($stores as $store)
                         <button
                             wire:click="$set('selectedStore', {{ $store->id }})"
-                            class="px-3 py-1 text-sm rounded-lg transition-colors {{ $selectedStore == $store->id ? 'bg-primary-600 text-white' : 'bg-gray-100 hover:bg-gray-200' }}"
+                            class="px-2 sm:px-3 py-1 text-xs sm:text-sm rounded-lg transition-colors {{ $selectedStore == $store->id ? 'bg-primary-600 text-white' : 'bg-gray-100 hover:bg-gray-200' }}"
                         >
                             {{ $store->name }}
                         </button>
@@ -706,29 +720,31 @@
             @endif
             
             {{-- 予約管理モード表示 --}}
-            <div class="flex items-center gap-2 px-3 py-1 rounded-lg text-sm {{ $useStaffAssignment ? 'bg-blue-50 text-blue-700' : 'bg-gray-50 text-gray-700' }}">
+            <div class="flex items-center gap-2 px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm {{ $useStaffAssignment ? 'bg-blue-50 text-blue-700' : 'bg-gray-50 text-gray-700' }}">
                 @if($useStaffAssignment)
-                    <x-heroicon-m-user-group class="w-4 h-4" />
-                    <span>シフトベース（スタッフ別）</span>
-                    <span class="font-medium">（最大{{ $shiftBasedCapacity }}席）</span>
+                    <x-heroicon-m-user-group class="w-4 h-4 flex-shrink-0" />
+                    <span class="hidden sm:inline">シフトベース（スタッフ別）</span>
+                    <span class="sm:hidden">シフト</span>
+                    <span class="font-medium whitespace-nowrap">（最大{{ $shiftBasedCapacity }}席）</span>
                 @else
-                    <x-heroicon-m-clock class="w-4 h-4" />
-                    <span>営業時間ベース</span>
-                    <span class="font-medium">（{{ $currentStore->main_lines_count ?? 3 }}席）</span>
+                    <x-heroicon-m-clock class="w-4 h-4 flex-shrink-0" />
+                    <span class="hidden sm:inline">営業時間ベース</span>
+                    <span class="sm:hidden">営業</span>
+                    <span class="font-medium whitespace-nowrap">（{{ $currentStore->main_lines_count ?? 3 }}席）</span>
                 @endif
             </div>
             
-            <div class="flex items-center gap-2">
-                <button wire:click="changeDate('prev')" class="px-3 py-1 border rounded hover:bg-gray-100 transition-colors">
+            <div class="flex items-center gap-1 sm:gap-2 w-full lg:w-auto justify-center lg:justify-end">
+                <button wire:click="changeDate('prev')" class="p-2 sm:px-3 sm:py-1 border rounded hover:bg-gray-100 transition-colors text-base sm:text-sm">
                     ◀
                 </button>
 
-                <div class="relative" x-data="{ showPicker: false }">
-                    <div class="font-bold px-4 py-1 bg-gray-50 rounded cursor-pointer hover:bg-blue-50 hover:shadow-md transition-all select-none border-b-2 border-transparent hover:border-blue-500"
+                <div class="relative flex-1 lg:flex-none" x-data="{ showPicker: false }">
+                    <div class="font-bold px-2 sm:px-4 py-1 bg-gray-50 rounded cursor-pointer hover:bg-blue-50 hover:shadow-md transition-all select-none border-b-2 border-transparent hover:border-blue-500 text-center lg:text-left"
                          @click="$refs.datePicker.showPicker ? $refs.datePicker.showPicker() : $refs.datePicker.click()"
                          title="クリックして日付を選択">
-                        {{ \Carbon\Carbon::parse($selectedDate)->format('Y年n月j日') }}
-                        <span class="text-sm text-gray-600">({{ ['日', '月', '火', '水', '木', '金', '土'][\Carbon\Carbon::parse($selectedDate)->dayOfWeek] }})</span>
+                        <span class="text-sm sm:text-base">{{ \Carbon\Carbon::parse($selectedDate)->format('Y年n月j日') }}</span>
+                        <span class="text-xs sm:text-sm text-gray-600 block sm:inline">({{ ['日', '月', '火', '水', '木', '金', '土'][\Carbon\Carbon::parse($selectedDate)->dayOfWeek] }})</span>
                     </div>
                     <input
                         type="date"
@@ -739,42 +755,17 @@
                         style="left: 0; top: 0;">
                 </div>
 
-                <button wire:click="changeDate('next')" class="px-3 py-1 border rounded hover:bg-gray-100 transition-colors">
+                <button wire:click="changeDate('next')" class="p-2 sm:px-3 sm:py-1 border rounded hover:bg-gray-100 transition-colors text-base sm:text-sm">
                     ▶
                 </button>
 
-                <button wire:click="goToToday" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors text-sm font-medium">
+                <button wire:click="goToToday" class="px-2 sm:px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors text-xs sm:text-sm font-medium whitespace-nowrap">
                     今日
                 </button>
             </div>
         </div>
 
-        <!-- 更新通知バナー -->
-        @if($hasUpdates)
-            <div class="mb-4 bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg shadow-sm animate-pulse">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-3">
-                        <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <div>
-                            <p class="text-sm font-medium text-blue-800">
-                                新しい予約があります
-                            </p>
-                            <p class="text-xs text-blue-600">
-                                更新ボタンをクリックして最新の状態を表示してください
-                            </p>
-                        </div>
-                    </div>
-                    <button
-                        wire:click="applyUpdates"
-                        class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm shadow-sm"
-                    >
-                        更新する
-                    </button>
-                </div>
-            </div>
-        @endif
+        {{-- 更新通知バナー削除済み（リアルタイム自動更新に移行） --}}
 
         <!-- タイムライン -->
         <div class="overflow-x-auto" style="position: relative;">
@@ -913,16 +904,42 @@
 
                                             $endTime = \Carbon\Carbon::parse($slot)->addMinutes($actualDuration)->format('H:i');
 
-                                            // ライン種別を判定して渡す
+                                            // ライン種別と席番号を判定して渡す
                                             $checkLineType = null;
-                                            if (isset($seat['type'])) {
-                                                if ($seat['type'] === 'sub') {
-                                                    $checkLineType = 'sub';
-                                                } elseif ($seat['type'] === 'main' || in_array($seatKey, range(1, $mainSeats ?? 3))) {
+                                            $checkSeatNumber = null;
+                                            
+                                            // まず席キーから席番号を抽出
+                                            if (preg_match('/^seat_(\d+)$/', $seatKey, $matches)) {
+                                                $checkSeatNumber = (int)$matches[1];
+                                                // メインライン範囲内かチェック
+                                                if ($checkSeatNumber <= ($mainSeats ?? 3)) {
                                                     $checkLineType = 'main';
                                                 }
                                             }
-                                            $availabilityResult = $this->canReserveAtTimeSlot($slot, $endTime, $currentStore, \Carbon\Carbon::parse($selectedDate), $checkLineType);
+                                            
+                                            // タイプが明示的に指定されている場合は優先
+                                            if (isset($seat['type'])) {
+                                                if ($seat['type'] === 'sub') {
+                                                    $checkLineType = 'sub';
+                                                    $checkSeatNumber = null; // サブラインは席番号なし
+                                                } elseif ($seat['type'] === 'main') {
+                                                    $checkLineType = 'main';
+                                                    // 席番号は既に抽出済み
+                                                }
+                                            }
+                                            
+                                            // デバッグログ追加
+                                            if ($slot === '18:30:00' && $seatKey === 'seat_2') {
+                                                \Log::info('🔍 [18:30 seat_2 DEBUG]', [
+                                                    'seatKey' => $seatKey,
+                                                    'slot' => $slot,
+                                                    'checkLineType' => $checkLineType,
+                                                    'checkSeatNumber' => $checkSeatNumber,
+                                                    'seat_type' => $seat['type'] ?? 'not_set',
+                                                ]);
+                                            }
+                                            
+                                            $availabilityResult = $this->canReserveAtTimeSlot($slot, $endTime, $currentStore, \Carbon\Carbon::parse($selectedDate), $checkLineType, $checkSeatNumber);
 
                                             if (!$availabilityResult['can_reserve']) {
                                                 // ✅ 実所要時間では入らない → クリック不可 + 理由表示
@@ -1036,7 +1053,8 @@
                                                     <div class="booking-block
                                                         course-{{ $reservation['course_type'] }}
                                                         span-{{ ceil($reservation['span']) }}
-                                                        {{ $reservation['is_conflicting'] ?? false ? 'conflicting-reservation' : '' }}"
+                                                        {{ $reservation['is_conflicting'] ?? false ? 'conflicting-reservation' : '' }}
+                                                        {{ $reservation['is_recently_created'] ?? false ? 'recently-created' : '' }}"
                                                         style="width: calc(var(--cell-width) * {{ ceil($reservation['span']) }} - 2px);"
                                                         wire:click="openReservationDetail({{ $reservation['id'] }})">
                                                         <div class="booking-name">
@@ -2228,7 +2246,7 @@
                                 <div class="flex flex-wrap gap-2">
                                     @foreach($selectedReservation->getOptionMenusSafely() as $option)
                                         <span class="inline-block px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded text-sm">
-                                            {{ $option->option_name ?? '' }} <span class="text-blue-600 font-semibold">+¥{{ number_format($option->option_price ?? 0) }}</span>
+                                            {{ $option->name ?? '' }} <span class="text-blue-600 font-semibold">+¥{{ number_format($option->pivot->price ?? $option->price ?? 0) }}</span>
                                         </span>
                                     @endforeach
                                 </div>

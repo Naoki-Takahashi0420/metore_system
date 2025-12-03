@@ -18,9 +18,9 @@ class ReservationTimelineWidget extends Widget
 
     protected static ?int $sort = 10;
 
-    // リアルタイム更新のためのポーリング間隔（30秒）
-    protected static ?string $pollingInterval = '30s';
-    
+    // ポーリング無効化（リアルタイム通知で更新するため）
+    protected static ?string $pollingInterval = null;
+
     public $selectedStore = null;
     public $selectedDate = null;
     public $stores = [];
@@ -123,7 +123,17 @@ class ReservationTimelineWidget extends Widget
         $this->loadTimelineData();
         logger('🔧 mount() - loadTimelineData()完了');
     }
-    
+
+    /**
+     * リアルタイム通知からのタイムライン更新イベントを受け取る
+     */
+    #[On('refresh-timeline')]
+    public function refreshTimeline(): void
+    {
+        logger('🔄 リアルタイム通知によりタイムラインを更新');
+        $this->loadTimelineData();
+    }
+
     public function updatedSelectedStore(): void
     {
         // 店舗選択変更時のデバッグ情報
@@ -674,6 +684,22 @@ class ReservationTimelineWidget extends Widget
                 }
             }
 
+            // 6時間以内に作成または変更された予約かどうか
+            $isRecentlyCreated = false;
+            $now = now();
+
+            // 新規作成から6時間以内
+            if ($reservation->created_at && $reservation->created_at->diffInHours($now) < 6) {
+                $isRecentlyCreated = true;
+            }
+            // または変更から6時間以内（created_atとupdated_atが異なる場合=変更あり）
+            elseif ($reservation->updated_at &&
+                    $reservation->created_at &&
+                    $reservation->updated_at->gt($reservation->created_at) &&
+                    $reservation->updated_at->diffInHours($now) < 6) {
+                $isRecentlyCreated = true;
+            }
+
             $reservationData = [
                 'id' => $reservation->id,
                 'customer_name' => $reservation->customer ?
@@ -685,7 +711,8 @@ class ReservationTimelineWidget extends Widget
                 'course_type' => $this->getCourseType($reservation->menu->category_id ?? null),
                 'status' => $reservation->status,
                 'is_conflicting' => $isConflicting,
-                'is_new_customer' => $isNewCustomer
+                'is_new_customer' => $isNewCustomer,
+                'is_recently_created' => $isRecentlyCreated,
             ];
 
             \Log::info('📦 Reservation data created', [
@@ -2498,13 +2525,19 @@ class ReservationTimelineWidget extends Widget
                     return;
                 }
 
-                // 容量チェック
+                // 容量チェック（席番号も渡す）
+                $seatNumber = null;
+                if ($lineType === 'main' && isset($this->newReservation['line_number'])) {
+                    $seatNumber = $this->newReservation['line_number'];
+                }
+                
                 $availabilityCheck = $this->canReserveAtTimeSlot(
                     $this->newReservation['start_time'],
                     $endTime->format('H:i'),
                     $store,
                     \Carbon\Carbon::parse($this->newReservation['date']),
-                    $lineType
+                    $lineType,
+                    $seatNumber
                 );
 
                 if (!$availabilityCheck['can_reserve']) {
@@ -3040,7 +3073,7 @@ class ReservationTimelineWidget extends Widget
     /**
      * 特定の時間スロットで予約が可能かどうかを判定（両モード対応）
      */
-    public function canReserveAtTimeSlot($startTime, $endTime, $store = null, $date = null, $lineType = null): array
+    public function canReserveAtTimeSlot($startTime, $endTime, $store = null, $date = null, $lineType = null, $seatNumber = null): array
     {
         if (!$store) {
             $store = Store::find($this->selectedStore);
@@ -3105,7 +3138,7 @@ class ReservationTimelineWidget extends Widget
             return $this->checkStaffShiftModeAvailability($startTime, $endTime, $store, $date, $existingReservations, $result);
         } else {
             // 営業時間ベースモード
-            return $this->checkBusinessHoursModeAvailability($startTime, $endTime, $store, $date, $existingReservations, $result, $lineType);
+            return $this->checkBusinessHoursModeAvailability($startTime, $endTime, $store, $date, $existingReservations, $result, $lineType, $seatNumber);
         }
     }
 
@@ -3236,7 +3269,7 @@ class ReservationTimelineWidget extends Widget
     /**
      * 営業時間ベースモードでの予約可能性チェック
      */
-    private function checkBusinessHoursModeAvailability($startTime, $endTime, $store, $date, $existingReservations, $result, $lineType = null): array
+    private function checkBusinessHoursModeAvailability($startTime, $endTime, $store, $date, $existingReservations, $result, $lineType = null, $seatNumber = null): array
     {
         $mainSeats = $store->main_lines_count ?? 3;
         $subSeats = 1; // サブライン固定1
@@ -3263,24 +3296,71 @@ class ReservationTimelineWidget extends Widget
             }
         } elseif ($lineType === 'main') {
             // メインラインのみチェック
-            $result['total_capacity'] = $mainSeats;
-            $result['available_slots'] = $availableMainSeats;
-            $result['can_reserve'] = $availableMainSeats > 0;
+            
+            // 特定の席番号が指定されている場合
+            if ($seatNumber !== null) {
+                // 指定された席番号での重複をチェック
+                $seatConflict = $existingReservations
+                    ->filter(function ($res) use ($seatNumber) {
+                        return $res->seat_number == $seatNumber && 
+                               $res->line_type == 'main' && 
+                               !$res->is_sub;
+                    })
+                    ->count() > 0;
+                
+                if ($seatConflict) {
+                    $result['can_reserve'] = false;
+                    $result['reason'] = "席{$seatNumber}は既に予約済みです";
+                    $result['total_capacity'] = 1;
+                    $result['available_slots'] = 0;
+                } else {
+                    $result['can_reserve'] = true;
+                    $result['total_capacity'] = 1;
+                    $result['available_slots'] = 1;
+                }
+            } else {
+                // 席番号未指定の場合は全体で判定
+                $result['total_capacity'] = $mainSeats;
+                $result['available_slots'] = $availableMainSeats;
+                $result['can_reserve'] = $availableMainSeats > 0;
 
-            if (!$result['can_reserve']) {
-                $result['reason'] = "メインラインは満席です（メイン: {$mainSeats}席）";
+                if (!$result['can_reserve']) {
+                    $result['reason'] = "メインラインは満席です（メイン: {$mainSeats}席）";
+                }
             }
         } else {
-            // ライン種別未指定の場合は全体で判定（後方互換性）
-            $totalCapacity = $mainSeats + $subSeats;
-            $totalAvailable = $availableMainSeats + $availableSubSeats;
+            // ライン種別未指定の場合
+            
+            // 特定の席番号が指定されている場合は、その席の重複チェックのみ実行
+            if ($seatNumber !== null) {
+                // 指定された席番号での重複をチェック
+                $seatConflict = $existingReservations->where('seat_number', $seatNumber)
+                    ->where('is_sub', false)
+                    ->where('line_type', '!=', 'sub')
+                    ->exists();
+                
+                if ($seatConflict) {
+                    $result['can_reserve'] = false;
+                    $result['reason'] = "席{$seatNumber}は既に予約済みです";
+                    $result['total_capacity'] = 1;
+                    $result['available_slots'] = 0;
+                } else {
+                    $result['can_reserve'] = true;
+                    $result['total_capacity'] = 1;
+                    $result['available_slots'] = 1;
+                }
+            } else {
+                // 席番号未指定の場合は全体で判定（後方互換性）
+                $totalCapacity = $mainSeats + $subSeats;
+                $totalAvailable = $availableMainSeats + $availableSubSeats;
 
-            $result['total_capacity'] = $totalCapacity;
-            $result['available_slots'] = $totalAvailable;
-            $result['can_reserve'] = $totalAvailable > 0;
+                $result['total_capacity'] = $totalCapacity;
+                $result['available_slots'] = $totalAvailable;
+                $result['can_reserve'] = $totalAvailable > 0;
 
-            if (!$result['can_reserve']) {
-                $result['reason'] = "この時間帯の予約枠は満席です（メイン: {$mainSeats}席、サブ: {$subSeats}席）";
+                if (!$result['can_reserve']) {
+                    $result['reason'] = "この時間帯の予約枠は満席です（メイン: {$mainSeats}席、サブ: {$subSeats}席）";
+                }
             }
         }
 
@@ -3461,6 +3541,14 @@ class ReservationTimelineWidget extends Widget
                   ->orWhere('is_subscription', true)
                   ->orWhere('is_subscription_only', true);
             })
+            // オプションメニューを除外（show_in_upsell または is_option のもの）
+            ->where(function ($q) {
+                $q->where(function ($inner) {
+                    $inner->where('show_in_upsell', false)->orWhereNull('show_in_upsell');
+                })->where(function ($inner) {
+                    $inner->where('is_option', false)->orWhereNull('is_option');
+                });
+            })
             ->with('menuCategory')
             ->orderByDesc('is_subscription')   // サブスクを上に（任意）
             ->orderBy('category_id')
@@ -3484,11 +3572,17 @@ class ReservationTimelineWidget extends Widget
 
     /**
      * メニュー変更用：店舗のオプション一覧を取得
+     * show_in_upsell=true または is_option=true のメニューを取得
      */
     public function getOptionsForStore($storeId)
     {
-        $options = \App\Models\MenuOption::where('store_id', $storeId)
+        $options = \App\Models\Menu::where('store_id', $storeId)
             ->where('is_available', true)
+            ->where('is_subscription', false) // サブスクメニューを除外
+            ->where(function($q) {
+                $q->where('show_in_upsell', true)  // アップセル用メニュー = オプション
+                  ->orWhere('is_option', true);    // または明示的にオプション設定されたもの
+            })
             ->orderBy('name')
             ->get()
             ->map(function ($option) {
@@ -3625,9 +3719,9 @@ class ReservationTimelineWidget extends Widget
         // 合計時間を計算
         $totalMinutes = $newMenu->duration_minutes;
 
-        // オプションの時間を加算
+        // オプションの時間を加算（Menuテーブルから取得）
         if (!empty($optionIds)) {
-            $options = \App\Models\MenuOption::whereIn('id', $optionIds)->get();
+            $options = \App\Models\Menu::whereIn('id', $optionIds)->get();
             foreach ($options as $option) {
                 $totalMinutes += $option->duration_minutes ?? 0;
             }
@@ -3750,14 +3844,14 @@ class ReservationTimelineWidget extends Widget
         // トランザクション開始
         DB::beginTransaction();
         try {
-            // 既存のオプションを削除
-            $reservation->reservationOptions()->delete();
+            // 既存のオプションを削除（reservation_menu_optionsテーブル）
+            $reservation->optionMenus()->detach();
 
             // 新しいオプションを追加とオプション料金の合計計算
             $totalOptionPrice = 0;
             if (!empty($optionIds)) {
                 foreach ($optionIds as $optionId) {
-                    $option = \App\Models\MenuOption::find($optionId);
+                    $option = \App\Models\Menu::find($optionId);
                     if ($option) {
                         // サブスクリプション or 回数券予約の場合はオプション料金を0円にする
                         if (($isSubscription && $activeSubscription) || ($isTicket && $activeTicket)) {
@@ -3767,11 +3861,10 @@ class ReservationTimelineWidget extends Widget
                         }
                         $totalOptionPrice += $optionPrice;
 
-                        \App\Models\ReservationOption::create([
-                            'reservation_id' => $reservation->id,
-                            'menu_option_id' => $optionId,
-                            'option_name' => $option->name,
-                            'option_price' => $optionPrice,
+                        // optionMenusリレーション（reservation_menu_optionsテーブル）に保存
+                        $reservation->optionMenus()->attach($optionId, [
+                            'price' => $optionPrice,
+                            'duration' => $option->duration_minutes ?? 0,
                         ]);
                     }
                 }
