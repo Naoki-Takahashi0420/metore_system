@@ -21,6 +21,11 @@ class ReservationCreated implements ShouldBroadcast
     public function __construct(Reservation $reservation)
     {
         $this->reservation = $reservation;
+        \Log::info('🎉 ReservationCreated event fired', [
+            'reservation_id' => $reservation->id,
+            'store_id' => $reservation->store_id,
+            'channels' => ['reservations.' . $reservation->store_id, 'reservations'],
+        ]);
     }
 
     /**
@@ -31,10 +36,17 @@ class ReservationCreated implements ShouldBroadcast
     public function broadcastOn(): array
     {
         // 店舗ごとのチャンネルに配信
-        return [
+        $channels = [
             new Channel('reservations.' . $this->reservation->store_id),
             new Channel('reservations'),  // 全体チャンネル（本部用）
         ];
+
+        \Log::info('📡 ReservationCreated broadcastOn called', [
+            'reservation_id' => $this->reservation->id,
+            'store_id' => $this->reservation->store_id,
+        ]);
+
+        return $channels;
     }
 
     /**
