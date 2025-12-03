@@ -456,39 +456,6 @@
             .booking-block.span-7 { width: calc(var(--cell-width) * 7); }
             .booking-block.span-8 { width: calc(var(--cell-width) * 8); }
 
-            /* 6時間以内に作成・変更された予約の名前点滅 */
-            @keyframes name-blink {
-                0%, 100% {
-                    opacity: 1;
-                    transform: scale(1);
-                }
-                50% {
-                    opacity: 0.3;
-                    transform: scale(1.05);
-                }
-            }
-            .booking-block.recently-created .booking-name,
-            div.booking-block.recently-created div.booking-name {
-                animation: name-blink 0.8s ease-in-out infinite !important;
-                color: #2563eb !important;
-                font-weight: bold !important;
-            }
-            /* フォールバック：点滅が効かない場合のパルスエフェクト */
-            .booking-block.recently-created {
-                box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7);
-                animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite !important;
-            }
-            @keyframes pulse-ring {
-                0% {
-                    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7);
-                }
-                70% {
-                    box-shadow: 0 0 0 6px rgba(37, 99, 235, 0);
-                }
-                100% {
-                    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
-                }
-            }
 
             .booking-name {
                 font-weight: bold;
