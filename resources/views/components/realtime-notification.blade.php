@@ -165,11 +165,11 @@
         });
     }
 
-    // Reverb設定
-    var reverbKey = '{{ env("REVERB_APP_KEY", "metore-realtime-key") }}';
-    var reverbHost = '{{ env("REVERB_HOST", "localhost") }}';
-    var reverbPort = {{ env("REVERB_PORT", 8080) }};
-    var reverbScheme = '{{ env("REVERB_SCHEME", "http") }}';
+    // Reverb設定（クライアント側はVITE_*を使用）
+    var reverbKey = '{{ env("VITE_REVERB_APP_KEY", env("REVERB_APP_KEY", "metore-realtime-key")) }}';
+    var reverbHost = '{{ env("VITE_REVERB_HOST", "reservation.meno-training.com") }}';
+    var reverbPort = {{ env("VITE_REVERB_PORT", 443) }};
+    var reverbScheme = '{{ env("VITE_REVERB_SCHEME", "https") }}';
 
     // ユーザー権限と店舗情報
     @php
