@@ -304,6 +304,24 @@ jobs:
           ls -lah $APP_DIR/storage/logs/queue-worker.log
         fi
 
+        # Reverbサービス再起動（config:cache後に必須）
+        echo "=== Restarting Reverb WebSocket Server ==="
+        sudo systemctl restart reverb || echo "Reverb service not found, skipping"
+        sleep 2
+        if systemctl is-active --quiet reverb; then
+          echo "✅ Reverb service restarted successfully"
+        else
+          echo "⚠️ Reverb service may not be running"
+        fi
+
+        # 翌日のログファイルを事前作成（日付変更時の権限問題を防止）
+        echo "=== Pre-creating tomorrow's log file ==="
+        TOMORROW_LOG="$APP_DIR/storage/logs/laravel-$(date -d '+1 day' +%Y-%m-%d).log"
+        sudo touch "$TOMORROW_LOG"
+        sudo chown www-data:www-data "$TOMORROW_LOG"
+        sudo chmod 664 "$TOMORROW_LOG"
+        echo "✅ Created: $TOMORROW_LOG"
+
         # サービス再起動
         sudo systemctl restart nginx php8.3-fpm
 
