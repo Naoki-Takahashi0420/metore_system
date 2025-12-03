@@ -232,6 +232,10 @@ class AdminPanelProvider extends PanelProvider
                 'panels::body.end',
                 fn () => view('components.help-button')
             )
+            ->renderHook(
+                'panels::body.end',
+                fn () => view('components.realtime-notification')
+            )
             ->theme(asset('css/filament/admin/theme.css'));
     }
 }
