@@ -156,22 +156,48 @@ class AvailabilityController extends Controller
             
             // 店舗設定に応じてキャパシティを決定
             $storeCapacity = $this->getSlotCapacity($store, $slotStart, $date);
-            
-            // 店舗の席数に応じて計算方法を変更
-            if ($storeCapacity > 1) {
-                // 複数席店舗: ユニーク席番号をカウント（重複予約防止）
-                $overlappingCount = $overlappingReservations->pluck('line_number')
-                    ->filter() // nullを除去
-                    ->unique()
-                    ->count();
-            } else {
-                // 1席店舗: 従来通り予約件数をカウント
-                $overlappingCount = $overlappingReservations->count();
-            }
 
-            // ブロック数 + 予約数 >= 総席数 の場合は予約不可
-            if ($blockedMainLinesCount + $overlappingCount >= $storeCapacity) {
-                return false;
+            // 各席ごとに空き状況をチェック（2025-12-04修正: unique()バグを修正）
+            // 以前のロジックは unique() を使っていたため、すべての予約が line_number=1 の場合に
+            // 「1席使用中」としかカウントされず、ダブルブッキングを許可してしまっていた
+            if ($storeCapacity > 1) {
+                // 各席が空いているかをチェック
+                $availableSeats = 0;
+                for ($seatNum = 1; $seatNum <= $storeCapacity; $seatNum++) {
+                    // この席に予約があるか
+                    $seatOccupied = $overlappingReservations->filter(function ($r) use ($seatNum) {
+                        return $r->line_number == $seatNum;
+                    })->isNotEmpty();
+
+                    // この席がブロックされているか
+                    $seatBlocked = false;
+                    foreach ($blockedPeriods as $blocked) {
+                        if ($blocked->line_type === 'main' && $blocked->line_number == $seatNum) {
+                            $blockStart = Carbon::parse($date->format('Y-m-d') . ' ' . $blocked->start_time);
+                            $blockEnd = Carbon::parse($date->format('Y-m-d') . ' ' . $blocked->end_time);
+                            if ($slotStart->lt($blockEnd) && $slotEnd->gt($blockStart)) {
+                                $seatBlocked = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    // 予約もブロックもされていなければ空き
+                    if (!$seatOccupied && !$seatBlocked) {
+                        $availableSeats++;
+                    }
+                }
+
+                // 空き席がなければ予約不可
+                if ($availableSeats <= 0) {
+                    return false;
+                }
+            } else {
+                // 1席店舗: 従来通り予約件数とブロック数でチェック
+                $overlappingCount = $overlappingReservations->count();
+                if ($blockedMainLinesCount + $overlappingCount >= $storeCapacity) {
+                    return false;
+                }
             }
             
             // 現在時刻より過去の時間は除外

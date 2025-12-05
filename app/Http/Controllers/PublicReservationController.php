@@ -1698,29 +1698,10 @@ class PublicReservationController extends Controller
                     return $slotTime->lt($reservationEnd) && $slotEnd->gt($reservationStart);
                 });
                 
-                // 店舗の席数に応じて計算方法を変更
-                if ($maxConcurrent > 1) {
-                    // 複数席店舗: ユニーク席番号をカウント（重複予約防止）
-                    $overlappingCount = $overlappingReservations->pluck('line_number')
-                        ->filter() // nullを除去
-                        ->unique()
-                        ->count();
-                    
-                    \Log::info('複数席店舗の重複チェック', [
-                        'date' => $dateStr,
-                        'slot' => $slot,
-                        'overlapping_reservations' => $overlappingReservations->map(function($r) {
-                            return ['id' => $r->id, 'line_number' => $r->line_number, 'time' => $r->start_time];
-                        })->toArray(),
-                        'overlapping_count' => $overlappingCount,
-                        'blocked_count' => $blockedMainLinesCount,
-                        'max_concurrent' => $maxConcurrent,
-                        'total_used' => $blockedMainLinesCount + $overlappingCount
-                    ]);
-                } else {
-                    // 1席店舗: 従来通り予約件数をカウント
-                    $overlappingCount = $overlappingReservations->count();
-                }
+                // 予約件数をカウント（2025-12-04修正: unique()バグを修正）
+                // 以前は unique() を使っていたが、すべての予約が line_number=1 の場合に
+                // 「1席使用中」としかカウントされずダブルブッキングを許可していた
+                $overlappingCount = $overlappingReservations->count();
 
                 // 最終的な予約可否を判定
                 // 座席管理がある場合は、座席ごとに空きを確認
