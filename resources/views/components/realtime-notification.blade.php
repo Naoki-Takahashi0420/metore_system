@@ -184,11 +184,11 @@
         });
     }
 
-    // Reverb設定（クライアント側はVITE_*を使用）
-    var reverbKey = '{{ env("VITE_REVERB_APP_KEY", env("REVERB_APP_KEY", "metore-realtime-key")) }}';
-    var reverbHost = '{{ env("VITE_REVERB_HOST", "reservation.meno-training.com") }}';
-    var reverbPort = {{ env("VITE_REVERB_PORT", 443) }};
-    var reverbScheme = '{{ env("VITE_REVERB_SCHEME", "https") }}';
+    // Reverb設定（config経由で取得 - 本番ではconfig:cacheが有効なためenv()は使えない）
+    var reverbKey = '{{ config("broadcasting.connections.reverb.client.key", "metore-realtime-key") }}';
+    var reverbHost = '{{ config("broadcasting.connections.reverb.client.host", "reservation.meno-training.com") }}';
+    var reverbPort = {{ config("broadcasting.connections.reverb.client.port", 443) }};
+    var reverbScheme = '{{ config("broadcasting.connections.reverb.client.scheme", "https") }}';
 
     // ユーザー権限と店舗情報
     @php

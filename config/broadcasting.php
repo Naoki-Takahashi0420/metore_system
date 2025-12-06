@@ -44,6 +44,13 @@ return [
             'client_options' => [
                 // Guzzle client options: https://docs.guzzlephp.org/en/stable/request-options.html
             ],
+            // クライアント用設定（Bladeテンプレートで使用）
+            'client' => [
+                'key' => env('VITE_REVERB_APP_KEY', env('REVERB_APP_KEY')),
+                'host' => env('VITE_REVERB_HOST', 'localhost'),
+                'port' => env('VITE_REVERB_PORT', 443),
+                'scheme' => env('VITE_REVERB_SCHEME', 'https'),
+            ],
         ],
 
         'pusher' => [
