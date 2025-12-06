@@ -1,7 +1,7 @@
-{{-- リアルタイム予約通知コンポーネント --}}
+{{-- リアルタイム予約通知コンポーネント（トースト通知＋WebSocket接続のみ） --}}
 <div id="realtime-notification-container">
-    {{-- 通知ベル（ヘッダー右上） --}}
-    <div id="notification-bell" class="cursor-pointer hidden md:block" style="position: fixed; top: 16px; right: 16px; z-index: 9999;">
+    {{-- フローティングベルは削除（ヘッダーに統合） --}}
+    <div id="notification-bell" class="hidden" style="display: none !important;">
         <div class="relative">
             <button
                 onclick="toggleNotificationPanel()"

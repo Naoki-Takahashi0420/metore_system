@@ -229,8 +229,8 @@ class AdminPanelProvider extends PanelProvider
                 fn () => view('components.version-footer')
             )
             ->renderHook(
-                'panels::body.end',
-                fn () => view('components.help-button')
+                'panels::topbar.end',
+                fn () => view('components.header-actions')
             )
             ->renderHook(
                 'panels::body.end',
