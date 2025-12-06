@@ -528,26 +528,10 @@
     }
 
     // グローバル関数として公開
-    window.toggleNotificationPanel = function() {
-        // ベルをクリックしたときに音を有効化
-        enableAudio();
+    window.addToNotificationList = addToNotificationList;
 
-        var panel = document.getElementById('notification-panel');
-        if (panel) {
-            panel.classList.toggle('hidden');
-        }
-
-        // パネルを開いたときにバッジをリセット
-        var badge = document.getElementById('notification-badge');
-        var button = document.getElementById('bell-button');
-        if (badge && panel && !panel.classList.contains('hidden')) {
-            badge.textContent = '0';
-            badge.classList.add('hidden');
-            if (button) {
-                button.classList.remove('bell-glowing');
-            }
-        }
-    };
+    // toggleNotificationPanel はヘッダー版（header-actions.blade.php）で定義されるため、
+    // ここでは定義しない（上書き防止）
 
     // ページ上のどこかをクリックしたら音を有効化
     document.addEventListener('click', function() {

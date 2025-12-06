@@ -16,7 +16,7 @@
     <div class="relative">
         <button
             type="button"
-            onclick="toggleNotificationPanel()"
+            onclick="window.toggleNotificationPanel && window.toggleNotificationPanel(); return false;"
             class="relative flex items-center justify-center w-10 h-10 text-gray-500 transition rounded-lg hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
             id="header-bell-button"
             aria-label="通知"
@@ -35,8 +35,8 @@
         {{-- 通知パネル --}}
         <div
             id="header-notification-panel"
-            class="absolute right-0 z-50 hidden bg-white border rounded-lg shadow-2xl top-12"
-            style="width: 320px; max-height: 400px;"
+            class="fixed z-50 hidden bg-white border rounded-lg shadow-2xl"
+            style="width: 320px; max-height: 400px; top: 60px; right: 16px;"
         >
             <div class="flex items-center justify-between p-3 border-b bg-blue-50">
                 <span class="font-bold text-blue-800">新規予約通知</span>
@@ -85,14 +85,67 @@
 </style>
 
 <script>
+// 即時実行（Filamentのrender hookで挿入されるため、DOMは既に準備済み）
 (function() {
     if (!window.location.pathname.startsWith('/admin')) return;
 
-    // 通知パネルのトグル
+    // ヘッダー通知リストに追加する関数
+    function addToHeaderNotificationList(data, type) {
+        const headerList = document.getElementById('header-notification-list');
+        if (!headerList) return;
+
+        const emptyMsg = headerList.querySelector('p.text-gray-400');
+        if (emptyMsg) emptyMsg.remove();
+
+        let timeAgo = 'たった今';
+        if (data.timestamp) {
+            const diff = Date.now() - data.timestamp;
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            if (hours > 0) timeAgo = hours + '時間前';
+            else if (minutes > 0) timeAgo = minutes + '分前';
+        }
+
+        const notificationType = type || data.type || 'created';
+        const config = {
+            created: { bgColor: 'bg-green-100', iconColor: 'text-green-600', label: '新規' },
+            changed: { bgColor: 'bg-amber-100', iconColor: 'text-amber-600', label: '変更' },
+            cancelled: { bgColor: 'bg-red-100', iconColor: 'text-red-600', label: 'キャンセル' }
+        };
+        const c = config[notificationType] || config.created;
+
+        const item = document.createElement('div');
+        item.className = 'p-3 border-b hover:bg-gray-50 cursor-pointer';
+        item.innerHTML =
+            '<div class="flex items-start">' +
+                '<div class="flex-shrink-0 ' + c.bgColor + ' rounded-full p-2">' +
+                    '<svg class="h-4 w-4 ' + c.iconColor + '" fill="none" viewBox="0 0 24 24" stroke="currentColor">' +
+                        '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />' +
+                    '</svg>' +
+                '</div>' +
+                '<div class="ml-3">' +
+                    '<p class="text-sm font-medium text-gray-900">' +
+                        '<span class="inline-block px-1.5 py-0.5 text-xs rounded mr-1 ' + c.bgColor + ' ' + c.iconColor + '">' + c.label + '</span>' +
+                        (data.customer_name || '顧客名') + ' 様' +
+                    '</p>' +
+                    '<p class="text-xs text-gray-500">' + (data.reservation_date || '') + ' ' + (data.start_time || '') + '</p>' +
+                    '<p class="text-xs text-gray-400">' + (data.menu_name || '') + '</p>' +
+                    '<p class="text-xs text-gray-300 mt-1">' + timeAgo + '</p>' +
+                '</div>' +
+            '</div>';
+
+        headerList.insertBefore(item, headerList.firstChild);
+    }
+
+    // 通知パネルのトグル（グローバル関数を定義）
     window.toggleNotificationPanel = function() {
+        console.log('[HeaderNotification] toggleNotificationPanel called');
+
         const panel = document.getElementById('header-notification-panel');
         const badge = document.getElementById('header-notification-badge');
         const button = document.getElementById('header-bell-button');
+
+        console.log('[HeaderNotification] panel:', panel, 'hidden:', panel?.classList.contains('hidden'));
 
         if (panel) {
             panel.classList.toggle('hidden');
@@ -172,57 +225,45 @@
         }
     };
 
-    // 通知リストに追加
-    if (window.addToNotificationList) {
-        const originalAddToNotificationList = window.addToNotificationList;
-        window.addToNotificationList = function(data, skipSave, type) {
+    // 既存のaddToNotificationList関数を拡張
+    const originalAddToNotificationList = window.addToNotificationList;
+    window.addToNotificationList = function(data, skipSave, type) {
+        // 元の関数を呼ぶ（存在する場合）
+        if (originalAddToNotificationList) {
             originalAddToNotificationList(data, skipSave, type);
+        }
+        // ヘッダーの通知リストにも追加
+        addToHeaderNotificationList(data, type);
+    };
 
-            const headerList = document.getElementById('header-notification-list');
-            if (!headerList) return;
+    // 保存された通知をヘッダーリストにも復元
+    try {
+        const stored = localStorage.getItem('reservation_notifications');
+        if (stored) {
+            const notifications = JSON.parse(stored);
+            const now = Date.now();
+            const validNotifications = notifications.filter(function(n) {
+                return (now - n.timestamp) < 24 * 60 * 60 * 1000;
+            });
 
-            const emptyMsg = headerList.querySelector('p.text-gray-400');
-            if (emptyMsg) emptyMsg.remove();
+            if (validNotifications.length > 0) {
+                // バッジを更新
+                const headerBadge = document.getElementById('header-notification-badge');
+                if (headerBadge) {
+                    headerBadge.textContent = validNotifications.length;
+                    headerBadge.classList.remove('hidden');
+                }
 
-            let timeAgo = 'たった今';
-            if (data.timestamp) {
-                const diff = Date.now() - data.timestamp;
-                const minutes = Math.floor(diff / 60000);
-                const hours = Math.floor(diff / 3600000);
-                if (hours > 0) timeAgo = hours + '時間前';
-                else if (minutes > 0) timeAgo = minutes + '分前';
+                // リストに追加（古い順に追加して、新しいものが上に来るように）
+                validNotifications.reverse().forEach(function(n) {
+                    addToHeaderNotificationList(n, n.type);
+                });
             }
-
-            const notificationType = type || data.type || 'created';
-            const config = {
-                created: { bgColor: 'bg-green-100', iconColor: 'text-green-600', label: '新規' },
-                changed: { bgColor: 'bg-amber-100', iconColor: 'text-amber-600', label: '変更' },
-                cancelled: { bgColor: 'bg-red-100', iconColor: 'text-red-600', label: 'キャンセル' }
-            };
-            const c = config[notificationType] || config.created;
-
-            const item = document.createElement('div');
-            item.className = 'p-3 border-b hover:bg-gray-50 cursor-pointer';
-            item.innerHTML =
-                '<div class="flex items-start">' +
-                    '<div class="flex-shrink-0 ' + c.bgColor + ' rounded-full p-2">' +
-                        '<svg class="h-4 w-4 ' + c.iconColor + '" fill="none" viewBox="0 0 24 24" stroke="currentColor">' +
-                            '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />' +
-                        '</svg>' +
-                    '</div>' +
-                    '<div class="ml-3">' +
-                        '<p class="text-sm font-medium text-gray-900">' +
-                            '<span class="inline-block px-1.5 py-0.5 text-xs rounded mr-1 ' + c.bgColor + ' ' + c.iconColor + '">' + c.label + '</span>' +
-                            (data.customer_name || '顧客名') + ' 様' +
-                        '</p>' +
-                        '<p class="text-xs text-gray-500">' + (data.reservation_date || '') + ' ' + (data.start_time || '') + '</p>' +
-                        '<p class="text-xs text-gray-400">' + (data.menu_name || '') + '</p>' +
-                        '<p class="text-xs text-gray-300 mt-1">' + timeAgo + '</p>' +
-                    '</div>' +
-                '</div>';
-
-            headerList.insertBefore(item, headerList.firstChild);
-        };
+        }
+    } catch (e) {
+        // ストレージエラーは無視
     }
+
+    console.log('[HeaderNotification] Initialized. toggleNotificationPanel:', typeof window.toggleNotificationPanel);
 })();
 </script>
