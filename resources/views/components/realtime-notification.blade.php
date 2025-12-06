@@ -1,7 +1,7 @@
 {{-- リアルタイム予約通知コンポーネント --}}
 <div id="realtime-notification-container">
     {{-- 通知ベル（ヘッダー右上） --}}
-    <div id="notification-bell" class="cursor-pointer hidden" style="position: fixed; top: 16px; right: 16px; z-index: 9999;">
+    <div id="notification-bell" class="cursor-pointer hidden md:block" style="position: fixed; top: 16px; right: 16px; z-index: 9999;">
         <div class="relative">
             <button
                 onclick="toggleNotificationPanel()"
@@ -44,6 +44,13 @@
 <audio id="notification-sound" preload="auto"></audio>
 
 <style>
+/* スマホでは通知ベルを非表示 */
+@media (max-width: 767px) {
+    #notification-bell {
+        display: none !important;
+    }
+}
+
 /* 通知ベルの点滅アニメーション */
 @keyframes bell-ring {
     0%, 100% { transform: rotate(0deg); }
@@ -150,10 +157,22 @@
         } catch (e) {}
     }
 
-    // 通知ベルを表示
+    // 通知ベルを表示（タブレット以上のみ）
     var bellContainer = document.getElementById('notification-bell');
     if (bellContainer) {
-        bellContainer.classList.remove('hidden');
+        // モバイル（768px未満）では非表示のまま
+        if (window.innerWidth >= 768) {
+            bellContainer.classList.remove('hidden');
+        }
+
+        // ウィンドウサイズ変更時にも対応
+        window.addEventListener('resize', function() {
+            if (window.innerWidth >= 768) {
+                bellContainer.classList.remove('hidden');
+            } else {
+                bellContainer.classList.add('hidden');
+            }
+        });
     }
 
     // 起動時に保存された通知を読み込んで表示

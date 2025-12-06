@@ -619,8 +619,12 @@ class ReservationTimelineWidget extends Widget
 
             // 実際の予約終了時刻を使用（end_timeがある場合）
             if (!empty($reservation->end_time)) {
-                // 日付を明示的に指定してパース
-                $endTime = Carbon::parse($date->format('Y-m-d') . ' ' . $reservation->end_time);
+                // まず一度パースしてから時刻部分を取得
+                $endTime = Carbon::parse($reservation->end_time);
+                // 日付がおかしい場合は時刻のみ再パース
+                if ($endTime->format('Y-m-d') !== $date->format('Y-m-d')) {
+                    $endTime = Carbon::parse($date->format('Y-m-d') . ' ' . $endTime->format('H:i:s'));
+                }
                 $duration = $startTime->diffInMinutes($endTime);
 
                 // デバッグログ（全予約）

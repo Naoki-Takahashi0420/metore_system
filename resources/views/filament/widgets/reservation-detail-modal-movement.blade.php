@@ -1,7 +1,8 @@
 {{-- 座席変更セクション --}}
 <div class="border-t pt-4">
     @php
-        $reservationDateTime = \Carbon\Carbon::parse($selectedReservation->reservation_date->format('Y-m-d') . ' ' . $selectedReservation->start_time);
+        $startTime = \Carbon\Carbon::parse($selectedReservation->start_time);
+        $reservationDateTime = \Carbon\Carbon::parse($selectedReservation->reservation_date->format('Y-m-d') . ' ' . $startTime->format('H:i:s'));
         $isPastReservation = $reservationDateTime->isPast();
     @endphp
 
