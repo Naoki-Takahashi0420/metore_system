@@ -193,10 +193,10 @@
     // ユーザー権限と店舗情報
     @php
         $user = auth()->user();
-        $isSuperAdminOrOwner = $user && ($user->hasRole('super_admin') || $user->hasRole('owner'));
+        $isSuperAdmin = $user && $user->hasRole('super_admin');
         $userStoreId = $user?->store_id;
     @endphp
-    var isSuperAdminOrOwner = {{ $isSuperAdminOrOwner ? 'true' : 'false' }};
+    var isSuperAdmin = {{ $isSuperAdmin ? 'true' : 'false' }};
     var userStoreId = {{ $userStoreId ?? 'null' }};
 
     // Pusher直接接続（Echoを使わない）
@@ -217,31 +217,37 @@
 
     // チャンネル購読（権限に応じて）
     var channel;
-    if (isSuperAdminOrOwner) {
-        // super_admin/owner: 全店舗の通知を受信
+    if (isSuperAdmin) {
+        // super_adminのみ: 全店舗の通知を受信
         channel = pusher.subscribe('reservations');
+        console.log('[Notification] Subscribed to: reservations (all stores)');
     } else if (userStoreId) {
-        // 店長・スタッフ: 自分の店舗のみ
+        // owner/店長/スタッフ: 自分の店舗のみ
         channel = pusher.subscribe('reservations.' + userStoreId);
+        console.log('[Notification] Subscribed to: reservations.' + userStoreId);
     } else {
-        // 店舗未設定の場合は全体チャンネル（フォールバック）
-        channel = pusher.subscribe('reservations');
+        // 店舗未設定の場合は通知を受信しない（セキュリティ対策）
+        console.warn('[Notification] No store_id set, notifications disabled');
+        channel = null;
     }
 
-    // 新規予約
-    channel.bind('reservation.created', function(e) {
-        handleNewReservation(e);
-    });
+    // チャンネルが設定されている場合のみイベントをバインド
+    if (channel) {
+        // 新規予約
+        channel.bind('reservation.created', function(e) {
+            handleNewReservation(e);
+        });
 
-    // 予約変更
-    channel.bind('reservation.changed', function(e) {
-        handleReservationChanged(e);
-    });
+        // 予約変更
+        channel.bind('reservation.changed', function(e) {
+            handleReservationChanged(e);
+        });
 
-    // 予約キャンセル
-    channel.bind('reservation.cancelled', function(e) {
-        handleReservationCancelled(e);
-    });
+        // 予約キャンセル
+        channel.bind('reservation.cancelled', function(e) {
+            handleReservationCancelled(e);
+        });
+    }
 
     // 新規予約の処理
     function handleNewReservation(data) {
