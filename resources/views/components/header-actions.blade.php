@@ -35,7 +35,7 @@
         {{-- 通知パネル --}}
         <div
             id="header-notification-panel"
-            class="fixed z-50 hidden bg-white border rounded-lg shadow-2xl"
+            class="fixed z-50 hidden bg-white border rounded-lg shadow-2xl overflow-hidden"
             style="width: 320px; max-height: 400px; top: 60px; right: 16px;"
         >
             <div class="flex items-center justify-between p-3 border-b bg-blue-50">
@@ -44,7 +44,7 @@
                     すべて消去
                 </button>
             </div>
-            <div id="header-notification-list" class="overflow-y-auto max-h-72">
+            <div id="header-notification-list" class="overflow-y-auto bg-white" style="max-height: 320px;">
                 <p class="p-4 text-sm text-center text-gray-400">通知はありません</p>
             </div>
         </div>
