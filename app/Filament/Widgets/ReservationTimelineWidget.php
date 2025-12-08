@@ -27,6 +27,7 @@ class ReservationTimelineWidget extends Widget
     public $timelineData = [];
     public $categories = [];
     public $selectedReservation = null;
+    public $selectedBlock = null;
 
     // 更新通知用のプロパティ
     public $lastDataHash = null;
@@ -35,6 +36,7 @@ class ReservationTimelineWidget extends Widget
     // モーダル表示フラグ
     public $showMedicalHistoryModal = false;
     public $showReservationHistoryModal = false;
+    public $showBlockDetailModal = false;
 
     // 新規予約作成用のプロパティ
     public $showNewReservationModal = false;
@@ -562,6 +564,7 @@ class ReservationTimelineWidget extends Widget
         // ブロック時間帯をタイムラインに配置
         $blockedSlots = []; // 後方互換のため残す（全体ブロック用）
         $lineBlockedSlots = []; // ライン別ブロック情報
+        $blockIdsMap = []; // ブロックIDのマップ（seatKey => [slot_index => block_id]）
 
         foreach ($blockedPeriods as $blocked) {
             // 終日休みの場合は全スロットをブロック
@@ -570,13 +573,16 @@ class ReservationTimelineWidget extends Widget
                     // line_typeがnullの場合は全ラインブロック
                     if ($blocked->line_type === null) {
                         $blockedSlots[] = $i;
+                        $blockIdsMap['global'][$i] = $blocked->id;
                     } else {
                         // 特定ラインのブロック
                         $seatKey = $this->getSeatKeyFromBlock($blocked);
                         if (!isset($lineBlockedSlots[$seatKey])) {
                             $lineBlockedSlots[$seatKey] = [];
+                            $blockIdsMap[$seatKey] = [];
                         }
                         $lineBlockedSlots[$seatKey][] = $i;
+                        $blockIdsMap[$seatKey][$i] = $blocked->id;
                     }
                 }
             } else {
@@ -593,13 +599,16 @@ class ReservationTimelineWidget extends Widget
                     // line_typeがnullの場合は全ラインブロック
                     if ($blocked->line_type === null) {
                         $blockedSlots[] = $i;
+                        $blockIdsMap['global'][$i] = $blocked->id;
                     } else {
                         // 特定ラインのブロック
                         $seatKey = $this->getSeatKeyFromBlock($blocked);
                         if (!isset($lineBlockedSlots[$seatKey])) {
                             $lineBlockedSlots[$seatKey] = [];
+                            $blockIdsMap[$seatKey] = [];
                         }
                         $lineBlockedSlots[$seatKey][] = $i;
+                        $blockIdsMap[$seatKey][$i] = $blocked->id;
                     }
                 }
             }
@@ -795,6 +804,7 @@ class ReservationTimelineWidget extends Widget
             'timeline' => $timeline,
             'blockedSlots' => $blockedSlots,
             'lineBlockedSlots' => $lineBlockedSlots,
+            'blockIdsMap' => $blockIdsMap,
             'conflictingReservations' => $conflictingReservations,
             'blockedPeriods' => $blockedPeriods->toArray(),
             'useStaffAssignment' => $useStaffAssignment,
@@ -3938,6 +3948,94 @@ class ReservationTimelineWidget extends Widget
                 'success' => false,
                 'message' => 'メニュー変更中にエラーが発生しました: ' . $e->getMessage()
             ];
+        }
+    }
+
+    /**
+     * ブロックを選択して詳細モーダルを開く
+     */
+    public function selectBlock($blockId)
+    {
+        try {
+            $this->selectedBlock = \App\Models\BlockedTimePeriod::find($blockId);
+
+            if ($this->selectedBlock) {
+                $this->showBlockDetailModal = true;
+            } else {
+                \Filament\Notifications\Notification::make()
+                    ->danger()
+                    ->title('エラー')
+                    ->body('ブロックが見つかりません')
+                    ->send();
+            }
+        } catch (\Exception $e) {
+            \Log::error('Failed to select block:', [
+                'error' => $e->getMessage(),
+                'block_id' => $blockId
+            ]);
+
+            \Filament\Notifications\Notification::make()
+                ->danger()
+                ->title('エラー')
+                ->body('ブロックの取得に失敗しました')
+                ->send();
+        }
+    }
+
+    /**
+     * ブロック詳細モーダルを閉じる
+     */
+    public function closeBlockDetailModal()
+    {
+        $this->showBlockDetailModal = false;
+        $this->selectedBlock = null;
+    }
+
+    /**
+     * ブロックを削除
+     */
+    public function deleteBlock()
+    {
+        try {
+            if (!$this->selectedBlock) {
+                throw new \Exception('削除するブロックが選択されていません');
+            }
+
+            $blockId = $this->selectedBlock->id;
+            $this->selectedBlock->delete();
+
+            // モーダルを閉じてデータをリロード
+            $this->closeBlockDetailModal();
+            $this->loadTimelineData();
+
+            // 他のユーザーのタイムラインも更新
+            $this->dispatch('timeline-updated', [
+                'store_id' => $this->selectedStore,
+                'date' => $this->selectedDate
+            ]);
+
+            \Filament\Notifications\Notification::make()
+                ->success()
+                ->title('削除完了')
+                ->body('予約ブロックを削除しました')
+                ->send();
+
+            \Log::info('Block deleted', [
+                'block_id' => $blockId,
+                'user_id' => auth()->id()
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to delete block:', [
+                'error' => $e->getMessage(),
+                'block_id' => $this->selectedBlock?->id
+            ]);
+
+            \Filament\Notifications\Notification::make()
+                ->danger()
+                ->title('削除失敗')
+                ->body('予約ブロックの削除に失敗しました')
+                ->send();
         }
     }
 

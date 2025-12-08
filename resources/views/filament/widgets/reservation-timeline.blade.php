@@ -1030,7 +1030,18 @@
                                             title="{{ $tooltipMessage ?: ($hasNoStaff ? 'スタッフのシフトがありません' : '予約不可') }}"
                                         @endif>
                                         @if($isBlocked)
-                                            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #9e9e9e; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; pointer-events: none;">
+                                            @php
+                                                $blockId = $timelineData['blockIdsMap'][$key][$index] ?? $timelineData['blockIdsMap']['global'][$index] ?? null;
+                                            @endphp
+                                            <div
+                                                @if($blockId) wire:click="selectBlock({{ $blockId }})" @endif
+                                                style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #9e9e9e; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; {{ $blockId ? 'cursor: pointer;' : '' }}"
+                                                @if($blockId)
+                                                    onmouseover="this.style.background='#757575'"
+                                                    onmouseout="this.style.background='#9e9e9e'"
+                                                    title="クリックして詳細表示・削除"
+                                                @endif
+                                            >
                                                 BRK
                                             </div>
                                         @else
@@ -4657,4 +4668,72 @@
         });
         modalObserver.observe(document.body, { childList: true, subtree: true });
     </script>
+
+    {{-- ブロック詳細モーダル --}}
+    @if($showBlockDetailModal && $selectedBlock)
+        <x-filament::modal id="block-detail-modal" width="md">
+            <x-slot name="heading">
+                予約ブロック詳細
+            </x-slot>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="text-sm font-medium text-gray-700">日付</label>
+                    <p class="text-sm text-gray-900">{{ $selectedBlock->blocked_date->format('Y年m月d日') }}</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-sm font-medium text-gray-700">開始時刻</label>
+                        <p class="text-sm text-gray-900">{{ substr($selectedBlock->start_time, 0, 5) }}</p>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-700">終了時刻</label>
+                        <p class="text-sm text-gray-900">{{ substr($selectedBlock->end_time, 0, 5) }}</p>
+                    </div>
+                </div>
+
+                @if($selectedBlock->line_type)
+                    <div>
+                        <label class="text-sm font-medium text-gray-700">対象ライン</label>
+                        <p class="text-sm text-gray-900">
+                            {{ $selectedBlock->line_type === 'main' ? 'メイン' : 'サブ' }}
+                            {{ $selectedBlock->line_number }}
+                        </p>
+                    </div>
+                @endif
+
+                @if($selectedBlock->staff_id)
+                    <div>
+                        <label class="text-sm font-medium text-gray-700">対象スタッフ</label>
+                        <p class="text-sm text-gray-900">
+                            {{ $selectedBlock->staff->name ?? 'スタッフ情報なし' }}
+                        </p>
+                    </div>
+                @endif
+
+                <div>
+                    <label class="text-sm font-medium text-gray-700">理由</label>
+                    <p class="text-sm text-gray-900">{{ $selectedBlock->reason ?? '理由なし' }}</p>
+                </div>
+            </div>
+
+            <x-slot name="footerActions">
+                <x-filament::button
+                    color="danger"
+                    wire:click="deleteBlock"
+                    wire:confirm="このブロックを削除してもよろしいですか？"
+                >
+                    削除
+                </x-filament::button>
+
+                <x-filament::button
+                    color="gray"
+                    wire:click="closeBlockDetailModal"
+                >
+                    閉じる
+                </x-filament::button>
+            </x-slot>
+        </x-filament::modal>
+    @endif
 </x-filament-widgets::widget>

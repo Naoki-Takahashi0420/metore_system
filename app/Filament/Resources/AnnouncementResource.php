@@ -200,13 +200,6 @@ class AnnouncementResource extends Resource
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('公開状態'),
             ])
-            ->tabs([
-                'all' => Tables\Filters\Tab::make('全て'),
-                'general' => Tables\Filters\Tab::make('一般お知らせ')
-                    ->modifyQueryUsing(fn (Builder $query) => $query->general()),
-                'order_notification' => Tables\Filters\Tab::make('発注通知')
-                    ->modifyQueryUsing(fn (Builder $query) => $query->orderNotifications()),
-            ])
             ->actions([
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
