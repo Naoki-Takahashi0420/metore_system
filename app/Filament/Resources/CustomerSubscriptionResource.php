@@ -486,14 +486,6 @@ class CustomerSubscriptionResource extends Resource
                             // 店長・スタッフは自店舗のみ
                             return $user->store ? collect([$user->store->id => $user->store->name]) : collect();
                         }
-                    })
-                    ->query(function ($query, $data) {
-                        if (isset($data['value'])) {
-                            return $query->whereHas('menu', function($q) use ($data) {
-                                $q->where('store_id', $data['value']);
-                            });
-                        }
-                        return $query;
                     }),
             ])
             ->actions([
