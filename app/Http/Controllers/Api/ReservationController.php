@@ -672,8 +672,14 @@ class ReservationController extends Controller
             ], 400);
         }
 
-        // 変更前の情報を保存（イベント用）
-        $oldReservation = $reservation->replicate();
+        // 変更前の情報を配列として保存（キュー用 - モデルはシリアライズエラーを起こす）
+        $oldReservationData = [
+            'id' => $reservation->id,
+            'reservation_date' => $reservation->reservation_date,
+            'start_time' => $reservation->start_time,
+            'menu_id' => $reservation->menu_id,
+            'total_amount' => $reservation->total_amount,
+        ];
 
         // 変更を保存
         $reservation->update([
@@ -685,8 +691,8 @@ class ReservationController extends Controller
         // 顧客の変更回数を更新
         $customer->increment('change_count');
 
-        // 変更通知を送信（正しい形式で）
-        event(new ReservationChanged($oldReservation, $reservation));
+        // 変更通知を送信（配列形式で渡す）
+        event(new ReservationChanged($oldReservationData, $reservation));
 
         return response()->json([
             'success' => true,
@@ -741,8 +747,16 @@ class ReservationController extends Controller
             'menu_id' => 'sometimes|exists:menus,id'
         ]);
 
-        // 変更前の予約情報を保存
-        $oldReservation = $reservation->replicate();
+        // 変更前の予約情報を配列として保存（キュー用 - モデルはシリアライズエラーを起こす）
+        $oldReservationData = [
+            'id' => $reservation->id,
+            'reservation_date' => $reservation->reservation_date,
+            'start_time' => $reservation->start_time,
+            'menu_id' => $reservation->menu_id,
+            'total_amount' => $reservation->total_amount,
+            'is_sub' => $reservation->is_sub,
+            'line_type' => $reservation->line_type,
+        ];
 
         // 変更実行
         if (isset($validated['reservation_date'])) {
@@ -786,7 +800,7 @@ class ReservationController extends Controller
                 ->get();
 
             // 元の予約と同じline_type（メイン/サブ）の予約のみをフィルタ
-            $originalIsSub = $oldReservation->is_sub || $oldReservation->line_type === 'sub';
+            $originalIsSub = $oldReservationData['is_sub'] || $oldReservationData['line_type'] === 'sub';
             $conflictingReservations = $conflictingReservations->filter(function($r) use ($originalIsSub) {
                 $reservationIsSub = $r->is_sub || $r->line_type === 'sub';
                 return $originalIsSub === $reservationIsSub;
@@ -801,12 +815,12 @@ class ReservationController extends Controller
         }
 
         $reservation->save();
-        
+
         // 顧客の変更回数を更新
         $customer->increment('change_count');
-        
-        // 予約変更通知を送信
-        event(new ReservationChanged($oldReservation, $reservation));
+
+        // 予約変更通知を送信（配列形式で渡す）
+        event(new ReservationChanged($oldReservationData, $reservation));
 
         return response()->json([
             'success' => true,
@@ -962,10 +976,15 @@ class ReservationController extends Controller
 
             \DB::commit();
 
-            // 変更通知イベントを発火
-            $oldReservation = $reservation->replicate();
-            $oldReservation->menu_id = $oldMenu->id;
-            event(new ReservationChanged($oldReservation, $reservation->fresh()));
+            // 変更通知イベントを発火（配列形式で渡す - モデルはシリアライズエラーを起こす）
+            $oldReservationData = [
+                'id' => $reservation->id,
+                'reservation_date' => $reservation->reservation_date,
+                'start_time' => $reservation->start_time,
+                'menu_id' => $oldMenu->id,
+                'total_amount' => $oldMenu->price ?? $reservation->total_amount,
+            ];
+            event(new ReservationChanged($oldReservationData, $reservation->fresh()));
 
             return response()->json([
                 'success' => true,

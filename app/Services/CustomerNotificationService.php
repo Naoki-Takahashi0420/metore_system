@@ -26,7 +26,8 @@ class CustomerNotificationService
     }
 
     /**
-     * 顧客に通知を送信（LINE優先、SMS代替、メールフォールバック）
+     * 顧客に通知を送信（LINE優先、メール代替、SMSフォールバック）
+     * ※SMSはコスト高のため最終手段
      */
     public function sendNotification(
         Customer $customer,
@@ -73,7 +74,9 @@ class CustomerNotificationService
             'has_email' => !empty($customer->email)
         ]);
 
-        // LINE連携済みの場合は LINE > SMS の順で試行
+        // 優先順位: LINE → メール → SMS（SMSはコスト高のため最終手段）
+
+        // 1. LINE連携済みの場合はLINEを試行
         if ($customer->canReceiveLineNotifications()) {
             $lineResult = $this->sendLineNotification(
                 $customer,
@@ -86,26 +89,63 @@ class CustomerNotificationService
             $results['line'] = $lineResult;
 
             if ($lineResult) {
-                Log::info('✅ 顧客通知成功 (LINE) - SMS送信をスキップ', [
+                Log::info('✅ 顧客通知成功 (LINE) - メール/SMS送信をスキップ', [
                     'customer_id' => $customer->id,
                     'store_id' => $store->id,
                     'type' => $notificationType
                 ]);
-                // LINE送信成功時はSMSを送信しない
-                $results['sms'] = false;
+                // LINE送信成功時は他を送信しない
                 $results['email'] = false;
+                $results['sms'] = false;
                 return $results;
             }
 
-            Log::warning('⚠️ LINE通知失敗、SMSにフォールバック', [
+            Log::warning('⚠️ LINE通知失敗、メールにフォールバック', [
                 'customer_id' => $customer->id,
                 'store_id' => $store->id
             ]);
         }
 
-        // LINE送信失敗またはLINE未連携の場合はSMSを試行
+        // 2. LINE送信失敗またはLINE未連携の場合はメールを試行
+        if ($customer->email) {
+            Log::info('📧 メール送信を試行', [
+                'customer_id' => $customer->id,
+                'email' => $customer->email
+            ]);
+            $emailResult = $this->sendEmailNotification(
+                $customer,
+                $store,
+                $message,
+                $notificationType,
+                $reservationId,
+                $idempotencyKey
+            );
+            $results['email'] = $emailResult;
+
+            if ($emailResult) {
+                Log::info('✅ 顧客通知成功 (メール) - SMS送信をスキップ', [
+                    'customer_id' => $customer->id,
+                    'store_id' => $store->id,
+                    'type' => $notificationType
+                ]);
+                $results['sms'] = false;
+                return $results;
+            }
+
+            Log::warning('⚠️ メール通知失敗、SMSにフォールバック', [
+                'customer_id' => $customer->id,
+                'store_id' => $store->id
+            ]);
+        } else {
+            Log::warning('メール通知スキップ (メールアドレスなし)', [
+                'customer_id' => $customer->id
+            ]);
+            $results['email'] = false;
+        }
+
+        // 3. メール送信失敗またはメール利用不可の場合はSMSを試行（最終手段）
         if ($customer->phone && $customer->sms_notifications_enabled) {
-            Log::info('📱 SMS送信を試行', [
+            Log::info('📱 SMS送信を試行（フォールバック）', [
                 'customer_id' => $customer->id,
                 'phone' => $customer->phone
             ]);
@@ -125,14 +165,12 @@ class CustomerNotificationService
                     'store_id' => $store->id,
                     'type' => $notificationType
                 ]);
-                $results['email'] = false;
-                return $results;
+            } else {
+                Log::error('❌ SMS通知も失敗 - 全通知手段が失敗', [
+                    'customer_id' => $customer->id,
+                    'store_id' => $store->id
+                ]);
             }
-
-            Log::warning('⚠️ SMS通知失敗、メールにフォールバック', [
-                'customer_id' => $customer->id,
-                'store_id' => $store->id
-            ]);
         } else {
             Log::warning('SMS通知スキップ (電話番号なし or SMS通知無効)', [
                 'customer_id' => $customer->id,
@@ -140,41 +178,6 @@ class CustomerNotificationService
                 'sms_enabled' => $customer->sms_notifications_enabled
             ]);
             $results['sms'] = false;
-        }
-
-        // SMS送信失敗またはSMS利用不可の場合はメールを試行
-        if ($customer->email) {
-            Log::info('📧 メール送信を試行', [
-                'customer_id' => $customer->id,
-                'email' => $customer->email
-            ]);
-            $emailResult = $this->sendEmailNotification(
-                $customer,
-                $store,
-                $message,
-                $notificationType,
-                $reservationId,
-                $idempotencyKey
-            );
-            $results['email'] = $emailResult;
-
-            if ($emailResult) {
-                Log::info('✅ 顧客通知成功 (メール)', [
-                    'customer_id' => $customer->id,
-                    'store_id' => $store->id,
-                    'type' => $notificationType
-                ]);
-            } else {
-                Log::error('❌ メール通知も失敗', [
-                    'customer_id' => $customer->id,
-                    'store_id' => $store->id
-                ]);
-            }
-        } else {
-            Log::warning('メール通知スキップ (メールアドレスなし)', [
-                'customer_id' => $customer->id
-            ]);
-            $results['email'] = false;
         }
 
         return $results;
@@ -191,7 +194,12 @@ class CustomerNotificationService
         $date = Carbon::parse($reservation->reservation_date)->format('Y年n月j日');
         $time = Carbon::parse($reservation->start_time)->format('H:i');
 
-        $message = "【予約リマインダー】\n{$customer->last_name} {$customer->first_name}様\n\n明日のご予約をお忘れなく！\n\n店舗: {$store->name}\n日時: {$date} {$time}〜\nメニュー: {$reservation->menu->name}\n\nご質問がございましたらお気軽にお電話ください。\n{$store->phone}";
+        // 店舗カスタムメッセージがあれば使用、なければデフォルト
+        if (!empty($store->line_reminder_message)) {
+            $message = $this->replaceTemplateVariables($store->line_reminder_message, $reservation);
+        } else {
+            $message = "【予約リマインダー】\n{$customer->last_name} {$customer->first_name}様\n\n明日のご予約をお忘れなく！\n\n店舗: {$store->name}\n日時: {$date} {$time}〜\nメニュー: {$reservation->menu->name}\n\nご質問がございましたらお気軽にお電話ください。\n{$store->phone}";
+        }
 
         return $this->sendNotification($customer, $store, $message, 'reservation_reminder', $reservation->id);
     }
@@ -532,5 +540,33 @@ HTML;
             'email' => $canSendEmail,
             'any' => $canSendLine || $canSendSms || $canSendEmail
         ];
+    }
+
+    /**
+     * テンプレート変数を置換
+     */
+    private function replaceTemplateVariables(string $template, Reservation $reservation): string
+    {
+        $customer = $reservation->customer;
+        $store = $reservation->store;
+        $menu = $reservation->menu;
+
+        $date = Carbon::parse($reservation->reservation_date)->format('Y年n月j日');
+        $time = Carbon::parse($reservation->start_time)->format('H:i');
+
+        $replacements = [
+            '{{customer_name}}' => "{$customer->last_name} {$customer->first_name}",
+            '{{customer_last_name}}' => $customer->last_name,
+            '{{customer_first_name}}' => $customer->first_name,
+            '{{store_name}}' => $store->name,
+            '{{store_phone}}' => $store->phone ?? '',
+            '{{reservation_date}}' => $date,
+            '{{reservation_time}}' => $time,
+            '{{menu_name}}' => $menu->name ?? '',
+            '{{reservation_number}}' => $reservation->reservation_number,
+            '{{total_amount}}' => number_format($reservation->total_amount),
+        ];
+
+        return str_replace(array_keys($replacements), array_values($replacements), $template);
     }
 }

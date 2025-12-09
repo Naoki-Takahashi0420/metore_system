@@ -4,6 +4,8 @@ namespace App\Observers;
 
 use App\Models\Reservation;
 use App\Models\MedicalRecord;
+use App\Events\ReservationChanged;
+use App\Events\ReservationCancelled;
 use Carbon\Carbon;
 
 class ReservationObserver
@@ -39,6 +41,13 @@ class ReservationObserver
 
             // キャンセルに変更された場合
             if ($oldStatus !== 'cancelled' && $newStatus === 'cancelled') {
+                // キャンセル通知イベントを発火（顧客への通知用）
+                ReservationCancelled::dispatch($reservation);
+                \Log::info('[ReservationObserver] ReservationCancelled event dispatched', [
+                    'reservation_id' => $reservation->id,
+                    'customer_id' => $customer->id,
+                ]);
+
                 if (!$shouldExclude) {
                     $customer->increment('cancellation_count');
                     $customer->update(['last_cancelled_at' => now()]);
@@ -179,6 +188,24 @@ class ReservationObserver
                 }
                 // ========== 5日ルール再チェック終了 ==========
                 
+                // 変更通知イベントを発火（顧客への通知用）
+                $oldReservationData = [
+                    'id' => $reservation->id,
+                    'reservation_date' => $oldDate,
+                    'start_time' => $oldTime,
+                    'menu_id' => $reservation->getOriginal('menu_id'),
+                    'total_amount' => $reservation->getOriginal('total_amount'),
+                ];
+                ReservationChanged::dispatch($oldReservationData, $reservation);
+                \Log::info('[ReservationObserver] ReservationChanged event dispatched', [
+                    'reservation_id' => $reservation->id,
+                    'customer_id' => $customer->id,
+                    'old_date' => $oldDate,
+                    'new_date' => $newDate,
+                    'old_time' => $oldTime,
+                    'new_time' => $newTime,
+                ]);
+
                 $customer->increment('change_count');
                 $countChanged = true;
 

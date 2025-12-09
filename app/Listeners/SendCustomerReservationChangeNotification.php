@@ -3,7 +3,6 @@
 namespace App\Listeners;
 
 use App\Events\ReservationChanged;
-use App\Services\SimpleLineService;
 use App\Services\CustomerNotificationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
@@ -30,20 +29,21 @@ class SendCustomerReservationChangeNotification implements ShouldQueue
      */
     public $backoff = [30, 60, 120];
 
-    private $lineService;
-    private $customerNotificationService;
+    private CustomerNotificationService $customerNotificationService;
 
     /**
      * Create the event listener.
      */
-    public function __construct(SimpleLineService $lineService, CustomerNotificationService $customerNotificationService)
+    public function __construct(CustomerNotificationService $customerNotificationService)
     {
-        $this->lineService = $lineService;
         $this->customerNotificationService = $customerNotificationService;
     }
 
     /**
      * Handle the event.
+     *
+     * 通知優先順位: LINE → メール → SMS（成功したら終了）
+     * CustomerNotificationService.sendReservationChange() に統一
      */
     public function handle(ReservationChanged $event): void
     {
@@ -74,130 +74,88 @@ class SendCustomerReservationChangeNotification implements ShouldQueue
         Log::info('📱 予約変更通知開始', [
             'customer_id' => $customer->id,
             'reservation_id' => $newReservation->id,
-            'has_line' => !empty($customer->line_user_id),
+            'has_line' => $customer->canReceiveLineNotifications(),
+            'has_email' => !empty($customer->email),
             'has_phone' => !empty($customer->phone),
             'sms_enabled' => $customer->sms_notifications_enabled
         ]);
 
-        // LINE通知を送信（LINE連携済みの場合）
-        if ($customer->line_user_id && $store->line_enabled) {
-            try {
-                $message = $this->buildLineMessage($oldReservationData, $newReservation);
-                $this->lineService->sendMessage($store, $customer->line_user_id, $message);
+        // 変更内容を構築
+        $changes = $this->buildChanges($oldReservationData, $newReservation);
 
-                Log::info('✅ 予約変更LINE通知送信成功', [
-                    'customer_id' => $customer->id,
-                    'reservation_id' => $newReservation->id
-                ]);
-            } catch (\Exception $e) {
-                Log::error('❌ 予約変更LINE通知送信失敗', [
-                    'customer_id' => $customer->id,
-                    'error' => $e->getMessage()
-                ]);
-            }
-        }
+        // CustomerNotificationServiceを使用して通知送信
+        // 優先順位: LINE → メール → SMS（成功したら終了）
+        try {
+            $result = $this->customerNotificationService->sendReservationChange($newReservation, $changes);
 
-        // SMS通知を送信（電話番号があり、SMS通知が有効な場合）
-        if ($customer->phone && $customer->sms_notifications_enabled) {
-            try {
-                $smsMessage = $this->buildSmsMessage($oldReservationData, $newReservation, $customer, $store);
-
-                // CustomerNotificationServiceを使用してSMS送信
-                $result = $this->customerNotificationService->sendNotification(
-                    $customer,
-                    $store,
-                    $smsMessage,
-                    'reservation_change',
-                    $newReservation->id
-                );
-
-                if ($result['sms'] ?? false) {
-                    Log::info('✅ 予約変更SMS通知送信成功', [
-                        'customer_id' => $customer->id,
-                        'phone' => $customer->phone,
-                        'reservation_id' => $newReservation->id
-                    ]);
-                } else {
-                    Log::warning('⚠️ 予約変更SMS通知送信失敗', [
-                        'customer_id' => $customer->id,
-                        'phone' => $customer->phone,
-                        'result' => $result
-                    ]);
-                }
-            } catch (\Exception $e) {
-                Log::error('❌ 予約変更SMS通知エラー', [
-                    'customer_id' => $customer->id,
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString()
-                ]);
-            }
-        } else {
-            Log::info('ℹ️ SMS通知スキップ', [
+            Log::info('✅ 予約変更通知送信完了', [
                 'customer_id' => $customer->id,
-                'has_phone' => !empty($customer->phone),
-                'sms_enabled' => $customer->sms_notifications_enabled
+                'reservation_id' => $newReservation->id,
+                'result' => $result
+            ]);
+        } catch (\Exception $e) {
+            Log::error('❌ 予約変更通知エラー', [
+                'customer_id' => $customer->id,
+                'reservation_id' => $newReservation->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
         }
     }
 
     /**
-     * LINE通知メッセージを構築
+     * 変更内容を構築
      *
      * @param array $oldReservationData 変更前の予約情報（配列）
      * @param \App\Models\Reservation $newReservation 変更後の予約（モデル）
+     * @return array
      */
-    private function buildLineMessage(array $oldReservationData, $newReservation): string
+    private function buildChanges(array $oldReservationData, $newReservation): array
     {
-        $storeName = $newReservation->store->name ?? '店舗';
-        $menuName = $newReservation->menu->name ?? 'メニュー';
+        $changes = [];
 
-        $oldDate = Carbon::parse($oldReservationData['reservation_date'])->format('Y年m月d日');
-        $oldTime = Carbon::parse($oldReservationData['start_time'])->format('H:i');
+        // 日付の変更
+        $oldDate = $oldReservationData['reservation_date'] ?? null;
+        $newDate = $newReservation->reservation_date;
+        if ($oldDate && $oldDate != $newDate) {
+            $changes['reservation_date'] = [
+                'old' => Carbon::parse($oldDate)->format('Y年m月d日'),
+                'new' => Carbon::parse($newDate)->format('Y年m月d日'),
+            ];
+        }
 
-        $newDate = Carbon::parse($newReservation->reservation_date)->format('Y年m月d日');
-        $newTime = Carbon::parse($newReservation->start_time)->format('H:i');
+        // 時間の変更
+        $oldTime = $oldReservationData['start_time'] ?? null;
+        $newTime = $newReservation->start_time;
+        if ($oldTime && $oldTime != $newTime) {
+            $changes['start_time'] = [
+                'old' => Carbon::parse($oldTime)->format('H:i'),
+                'new' => Carbon::parse($newTime)->format('H:i'),
+            ];
+        }
 
-        $message = "【予約変更完了】\n";
-        $message .= "予約の日程変更が完了しました。\n\n";
-        $message .= "■変更前\n";
-        $message .= "日時：{$oldDate} {$oldTime}\n\n";
-        $message .= "■変更後\n";
-        $message .= "日時：{$newDate} {$newTime}\n";
-        $message .= "店舗：{$storeName}\n";
-        $message .= "メニュー：{$menuName}\n";
-        $message .= "予約番号：{$newReservation->reservation_number}\n\n";
-        $message .= "ご来店をお待ちしております。";
+        // メニューの変更
+        $oldMenuId = $oldReservationData['menu_id'] ?? null;
+        $newMenuId = $newReservation->menu_id;
+        if ($oldMenuId && $oldMenuId != $newMenuId) {
+            $oldMenuName = \App\Models\Menu::find($oldMenuId)?->name ?? '不明';
+            $newMenuName = $newReservation->menu?->name ?? '不明';
+            $changes['menu'] = [
+                'old' => $oldMenuName,
+                'new' => $newMenuName,
+            ];
+        }
 
-        return $message;
-    }
+        // 金額の変更
+        $oldAmount = $oldReservationData['total_amount'] ?? null;
+        $newAmount = $newReservation->total_amount;
+        if ($oldAmount !== null && $oldAmount != $newAmount) {
+            $changes['total_amount'] = [
+                'old' => $oldAmount,
+                'new' => $newAmount,
+            ];
+        }
 
-    /**
-     * SMS通知メッセージを構築
-     *
-     * @param array $oldReservationData 変更前の予約情報（配列）
-     * @param \App\Models\Reservation $newReservation 変更後の予約（モデル）
-     * @param \App\Models\Customer $customer 顧客
-     * @param \App\Models\Store $store 店舗
-     */
-    private function buildSmsMessage(array $oldReservationData, $newReservation, $customer, $store): string
-    {
-        $storeName = $store->name ?? '店舗';
-        $menuName = $newReservation->menu->name ?? 'メニュー';
-
-        $oldDate = Carbon::parse($oldReservationData['reservation_date'])->format('m/d');
-        $oldTime = Carbon::parse($oldReservationData['start_time'])->format('H:i');
-
-        $newDate = Carbon::parse($newReservation->reservation_date)->format('m/d');
-        $newTime = Carbon::parse($newReservation->start_time)->format('H:i');
-
-        $message = "【予約変更完了】\n";
-        $message .= "{$customer->last_name}様\n\n";
-        $message .= "変更前: {$oldDate} {$oldTime}\n";
-        $message .= "変更後: {$newDate} {$newTime}\n";
-        $message .= "店舗: {$storeName}\n";
-        $message .= "メニュー: {$menuName}\n\n";
-        $message .= "予約番号: {$newReservation->reservation_number}";
-
-        return $message;
+        return $changes;
     }
 }
