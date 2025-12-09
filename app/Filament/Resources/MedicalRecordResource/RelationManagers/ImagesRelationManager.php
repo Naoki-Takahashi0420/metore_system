@@ -120,16 +120,14 @@ class ImagesRelationManager extends RelationManager
                         'progress' => '経過',
                         'reference' => '参考',
                         'other' => 'その他',
-                    ])
-                    ->disabled(fn ($record) => $record->medical_record_id !== $this->getOwnerRecord()->id),
+                    ]),
 
                 Tables\Columns\TextColumn::make('display_order')
                     ->label('表示順')
                     ->sortable(),
 
                 Tables\Columns\ToggleColumn::make('is_visible_to_customer')
-                    ->label('顧客表示')
-                    ->disabled(fn ($record) => $record->medical_record_id !== $this->getOwnerRecord()->id),
+                    ->label('顧客表示'),
             ])
             ->defaultSort('medicalRecord.treatment_date', 'desc')
             ->filters([
@@ -154,27 +152,18 @@ class ImagesRelationManager extends RelationManager
                         ]);
                     }),
                 Tables\Actions\EditAction::make()
-                    ->visible(fn ($record) => $record->medical_record_id === $this->getOwnerRecord()->id)
                     ->using(function (\App\Models\MedicalRecordImage $record, array $data): \App\Models\MedicalRecordImage {
                         $record->update($data);
                         return $record;
                     }),
                 Tables\Actions\DeleteAction::make()
-                    ->visible(fn ($record) => $record->medical_record_id === $this->getOwnerRecord()->id)
                     ->using(function (\App\Models\MedicalRecordImage $record): void {
                         $record->delete();
                     }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make()
-                        ->using(function ($records) {
-                            // 現在のカルテの画像のみ削除
-                            $currentMedicalRecordId = $this->getOwnerRecord()->id;
-                            $records->filter(function ($record) use ($currentMedicalRecordId) {
-                                return $record->medical_record_id === $currentMedicalRecordId;
-                            })->each->delete();
-                        }),
+                    Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
     }

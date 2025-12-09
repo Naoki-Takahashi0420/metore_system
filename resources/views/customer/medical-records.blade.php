@@ -80,6 +80,17 @@
             </div>
         </div>
 
+        <!-- 顧客画像ギャラリー（カルテ画像+顧客画像を統合） -->
+        <div id="all-images-container" class="hidden py-6">
+            <div class="bg-white rounded-lg border border-gray-200 p-6">
+                <h2 class="text-lg font-semibold mb-4 text-gray-900">あなたの画像</h2>
+                <p class="text-sm text-gray-500 mb-4">カルテや顧客管理から登録された画像を確認できます</p>
+                <div id="all-images-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <!-- 画像がここに表示される -->
+                </div>
+            </div>
+        </div>
+
         <!-- Medical Records List -->
         <div id="medical-records-container" class="py-4">
             <div class="text-center py-12">
@@ -242,6 +253,40 @@ document.addEventListener('DOMContentLoaded', async function() {
         const records = data.data || [];
         displayMedicalRecords(records);
         renderVisionCharts(records);
+
+        // カルテから全ての表示可能画像を収集
+        let allImages = [];
+        records.forEach(record => {
+            const visibleImages = record.visible_images || record.visibleImages || [];
+            visibleImages.forEach(img => {
+                allImages.push({
+                    ...img,
+                    source: 'medical_record',
+                    record_date: record.treatment_date || record.record_date || record.created_at
+                });
+            });
+        });
+
+        // 顧客画像も取得して統合
+        try {
+            const imagesResponse = await fetch('/api/customer/images', { headers });
+            if (imagesResponse.ok) {
+                const imagesData = await imagesResponse.json();
+                const customerImages = imagesData.data || [];
+                customerImages.forEach(img => {
+                    allImages.push({
+                        ...img,
+                        source: 'customer',
+                        record_date: img.created_at
+                    });
+                });
+            }
+        } catch (imgError) {
+            console.error('Error fetching customer images:', imgError);
+        }
+
+        // 全画像を表示
+        displayAllImages(allImages);
 
     } catch (error) {
         console.error('Error fetching medical records:', error);
@@ -1262,6 +1307,105 @@ function closeImageModalGallery() {
         // bodyのスクロールを有効化
         document.body.style.overflow = '';
     }, 300);
+}
+
+// 全画像を統合表示する関数
+function displayAllImages(images) {
+    const container = document.getElementById('all-images-container');
+    const grid = document.getElementById('all-images-grid');
+
+    if (!images || images.length === 0) {
+        container.classList.add('hidden');
+        return;
+    }
+
+    // 画像を日付の新しい順にソート
+    images.sort((a, b) => new Date(b.record_date) - new Date(a.record_date));
+
+    // グローバル変数に画像リストを保存（モーダルナビゲーション用）
+    imagesList = images;
+
+    const imageTypeLabels = {
+        'vision_test': '視力検査',
+        'before': '施術前',
+        'after': '施術後',
+        'progress': '経過',
+        'reference': '参考資料',
+        'other': 'その他'
+    };
+
+    grid.innerHTML = images.map((image, index) => {
+        const sourceLabel = image.source === 'medical_record' ? 'カルテ' : '顧客画像';
+        const typeLabel = imageTypeLabels[image.image_type] || 'その他';
+        const dateStr = image.record_date ? new Date(image.record_date).toLocaleDateString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+
+        return `
+            <div class="relative group cursor-pointer" onclick="openAllImagesModal(${index})">
+                <img src="/storage/${image.file_path}"
+                     alt="${escapeHtml(image.title || '画像')}"
+                     class="w-full h-32 object-cover rounded-lg shadow-sm">
+                <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity rounded-lg flex items-center justify-center">
+                    <svg class="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                    </svg>
+                </div>
+                <div class="absolute top-2 left-2 flex gap-1">
+                    <span class="bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
+                        ${sourceLabel}
+                    </span>
+                    ${image.image_type ? `
+                        <span class="bg-blue-600 bg-opacity-80 text-white text-xs px-2 py-1 rounded">
+                            ${typeLabel}
+                        </span>
+                    ` : ''}
+                </div>
+                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-2 rounded-b-lg">
+                    ${image.title ? `<p class="text-white text-xs truncate">${escapeHtml(image.title)}</p>` : ''}
+                    <p class="text-gray-300 text-xs">${dateStr}</p>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    container.classList.remove('hidden');
+}
+
+// 統合画像ギャラリーからモーダルを開く
+function openAllImagesModal(index) {
+    currentImageIndex = index;
+    const image = imagesList[index];
+
+    const imageTypeLabels = {
+        'vision_test': '視力検査',
+        'before': '施術前',
+        'after': '施術後',
+        'progress': '経過',
+        'reference': '参考資料',
+        'other': 'その他'
+    };
+
+    const modal = document.getElementById('imageModal');
+    const modalContent = document.getElementById('imageModalContent');
+
+    // 画像データを設定
+    updateModalContent(image, imageTypeLabels);
+
+    // ナビゲーションボタンの表示/非表示
+    updateNavigationButtons();
+
+    // モーダルを表示
+    modal.classList.remove('hidden');
+
+    // アニメーション開始（次のフレームで実行）
+    requestAnimationFrame(() => {
+        modal.classList.remove('opacity-0');
+        modal.classList.add('bg-opacity-75');
+        modalContent.classList.remove('scale-95', 'opacity-0');
+        modalContent.classList.add('scale-100', 'opacity-100');
+    });
+
+    // bodyのスクロールを無効化
+    document.body.style.overflow = 'hidden';
 }
 </script>
 

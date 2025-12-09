@@ -20,17 +20,17 @@ use Carbon\Carbon;
 
 class NotificationSystemE2ETest extends TestCase
 {
-    private Customer $lineCustomer;
-    private Customer $emailOnlyCustomer;
-    private Store $store;
-    private Menu $menu;
+    private ?Customer $lineCustomer = null;
+    private ?Customer $emailOnlyCustomer = null;
+    private ?Store $store = null;
+    private ?Menu $menu = null;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        // LINE連携済み顧客（高橋直希）
-        $this->lineCustomer = Customer::find(3469);
+        // LINE連携済み顧客（高橋直希）または任意のLINE連携顧客
+        $this->lineCustomer = Customer::find(3469) ?? Customer::whereNotNull('line_user_id')->first();
 
         // LINE未連携でメールありの顧客を取得
         $this->emailOnlyCustomer = Customer::whereNull('line_user_id')
@@ -40,7 +40,11 @@ class NotificationSystemE2ETest extends TestCase
 
         // 店舗とメニューを取得
         $this->store = Store::where('line_enabled', true)->first() ?? Store::first();
-        $this->menu = Menu::where('store_id', $this->store->id)->first() ?? Menu::first();
+        if ($this->store) {
+            $this->menu = Menu::where('store_id', $this->store->id)->first() ?? Menu::first();
+        } else {
+            $this->menu = Menu::first();
+        }
     }
 
     /**
