@@ -5,7 +5,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Models\Reservation;
 use App\Models\Customer;
-use App\Models\LineReminderRule;
+// use App\Models\LineReminderRule; // 未実装のため一時無効化
 use App\Models\CustomerLabel;
 use App\Services\LineMessageService;
 use Carbon\Carbon;
@@ -92,22 +92,29 @@ class ProcessLineReminders extends Command
     
     /**
      * ラベルベースの自動リマインダー
+     * ※ LineReminderRuleモデルが未実装のため一時無効化
      */
     protected function processLabelBasedReminders()
     {
+        // LineReminderRuleモデルが未実装のためスキップ
+        $this->info('ラベルベースリマインダー: 機能未実装のためスキップ');
+        return;
+
+        /*
         $rules = LineReminderRule::where('is_active', true)
             ->orderBy('priority')
             ->get();
-            
+
         foreach ($rules as $rule) {
             $customers = $rule->getTargetCustomers();
-            
+
             foreach ($customers as $customer) {
                 if ($this->lineService->sendRuleBasedMessage($customer, $rule)) {
                     $this->info("ルールベースメッセージ送信: {$rule->name} → 顧客ID {$customer->id}");
                 }
             }
         }
+        */
     }
     
     /**
