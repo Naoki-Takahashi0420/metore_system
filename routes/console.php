@@ -18,7 +18,7 @@ Schedule::command('reminders:send --days=1')
     ->description('翌日の予約リマインダーSMS送信');
 
 // 店舗別LINE処理
-Schedule::command('line:send-reminders')
+Schedule::command('line:process-reminders')
     ->everyMinute() // 毎分実行（各店舗の設定時刻をチェック）
     ->between('8:00', '21:00') // 8時〜21時の間のみ
     ->description('店舗別LINEリマインダー送信');
