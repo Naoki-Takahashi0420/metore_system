@@ -254,17 +254,20 @@ class NewCustomerTrackingTable extends Component
 
     public function runAiAnalysis(): void
     {
-        if (!$this->aiAvailable) {
-            $this->aiAnalysisError = 'AI分析機能は現在利用できません。APIキーが設定されていません。';
-            return;
-        }
-
         $this->isAnalyzing = true;
         $this->aiAnalysisResult = null;
         $this->aiAnalysisError = null;
 
         try {
             $aiService = new MarketingAIAnalysisService();
+
+            // APIキーの確認を実行時に行う
+            if (!$aiService->isAvailable()) {
+                $this->aiAnalysisError = 'AI分析機能は現在利用できません。管理画面の「Claude設定」でAPIキーを設定してください。';
+                $this->isAnalyzing = false;
+                return;
+            }
+
             $result = $aiService->analyzeMarketingData(
                 $this->startDate,
                 $this->endDate,
