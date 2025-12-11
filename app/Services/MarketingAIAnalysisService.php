@@ -15,7 +15,7 @@ class MarketingAIAnalysisService
 {
     private ?string $apiKey = null;
     private string $model = 'claude-sonnet-4-5-20250929';
-    private int $maxTokens = 2048;
+    private int $maxTokens = 4096;
 
     public function __construct()
     {
@@ -65,7 +65,10 @@ class MarketingAIAnalysisService
         $prompt = $this->buildAnalysisPrompt($analysisData, $startDate, $endDate);
 
         try {
-            $response = Http::timeout(60)->withHeaders([
+            // PHPの実行時間制限を120秒に延長（AI分析は時間がかかる）
+            set_time_limit(120);
+
+            $response = Http::timeout(90)->withHeaders([
                 'x-api-key' => $this->apiKey,
                 'anthropic-version' => '2023-06-01',
                 'content-type' => 'application/json',

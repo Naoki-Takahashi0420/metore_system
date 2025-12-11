@@ -384,8 +384,8 @@
                 @endif
             </x-filament::card>
 
-            {{-- AI分析セクション --}}
-            <x-filament::card>
+            {{-- AI分析セクション（一番下に配置） --}}
+            <x-filament::card class="border-2 border-purple-200 dark:border-purple-800">
                 <div class="mb-4">
                     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div>
@@ -400,21 +400,41 @@
                         <button wire:click="runAiAnalysis"
                                 wire:loading.attr="disabled"
                                 wire:loading.class="opacity-50 cursor-not-allowed"
-                                class="inline-flex items-center justify-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors shrink-0">
+                                style="background-color: #9333ea !important; color: #ffffff !important;"
+                                class="inline-flex items-center justify-center px-6 py-3 font-medium rounded-lg transition-colors shadow-lg hover:shadow-xl">
                             <span wire:loading.remove wire:target="runAiAnalysis">
-                                <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg class="w-5 h-5 mr-2 inline" style="color: #ffffff !important;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                                 </svg>
                                 分析を実行
                             </span>
                             <span wire:loading wire:target="runAiAnalysis" class="flex items-center">
-                                <svg class="animate-spin w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <svg class="animate-spin w-5 h-5 mr-2" style="color: #ffffff !important;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
                                 分析中...
                             </span>
                         </button>
+                    </div>
+                </div>
+
+                {{-- ローディング表示 --}}
+                <div wire:loading wire:target="runAiAnalysis" class="py-12">
+                    <div class="flex flex-col items-center justify-center space-y-4">
+                        <div class="relative">
+                            <div class="w-16 h-16 border-4 border-purple-200 rounded-full"></div>
+                            <div class="absolute top-0 left-0 w-16 h-16 border-4 border-purple-600 rounded-full animate-spin" style="border-top-color: transparent;"></div>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-lg font-medium text-gray-700 dark:text-gray-300">AIが分析中です</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">30秒〜1分程度お待ちください</p>
+                        </div>
+                        <div class="flex space-x-1">
+                            <div class="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style="animation-delay: 0ms;"></div>
+                            <div class="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style="animation-delay: 150ms;"></div>
+                            <div class="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style="animation-delay: 300ms;"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -434,22 +454,15 @@
                 @if($aiAnalysisResult)
                     <div class="prose prose-sm dark:prose-invert max-w-none">
                         <div class="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
-                            <div class="whitespace-pre-wrap text-gray-800 dark:text-gray-200">{{ $aiAnalysisResult }}</div>
+                            <div class="text-gray-800 dark:text-gray-200">{!! \Illuminate\Support\Str::markdown($aiAnalysisResult) !!}</div>
                         </div>
                         <p class="text-xs text-gray-500 mt-2 text-right">
                             分析日時: {{ now()->format('Y/m/d H:i') }}
                         </p>
                     </div>
-                @else
-                    <div class="text-center py-8 text-gray-500">
-                        <svg class="w-12 h-12 mx-auto mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
-                        </svg>
-                        <p>「分析を実行」ボタンをクリックすると、AIが現在のデータを分析します</p>
-                        <p class="text-xs mt-1">分析には30秒〜1分程度かかります</p>
-                    </div>
                 @endif
             </x-filament::card>
+
         </div>
     @endif
 
