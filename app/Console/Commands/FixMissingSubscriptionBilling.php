@@ -176,6 +176,7 @@ class FixMissingSubscriptionBilling extends Command
                 'menu_id' => $subscription->menu_id,
                 'unit_price' => $subscription->monthly_price,
                 'quantity' => 1,
+                'amount' => $subscription->monthly_price,
                 'subtotal' => $subscription->monthly_price,
                 'tax_rate' => 0,
                 'tax_amount' => 0,
