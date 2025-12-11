@@ -1903,13 +1903,26 @@ class DailyClosing extends Page implements HasForms
         try {
             DB::beginTransaction();
 
-            $sale = Sale::with(['customerTicket'])->findOrFail($saleId);
+            $sale = Sale::with(['customerTicket', 'customerSubscription'])->findOrFail($saleId);
 
             // 回数券の場合は返却
             if ($sale->customer_ticket_id) {
                 $ticket = CustomerTicket::find($sale->customer_ticket_id);
                 if ($ticket) {
                     $ticket->refund($sale->reservation_id, 1);
+                }
+            }
+
+            // サブスク月額売上の場合はnext_billing_dateを売上日に戻す
+            if ($sale->customer_subscription_id && $sale->payment_source === 'subscription' && $sale->total_amount > 0) {
+                $subscription = $sale->customerSubscription;
+                if ($subscription) {
+                    // 売上日をnext_billing_dateに戻す（再計上可能にする）
+                    $subscription->update(['next_billing_date' => $sale->sale_date]);
+                    \Log::info('サブスク売上取消: next_billing_dateを戻しました', [
+                        'subscription_id' => $subscription->id,
+                        'next_billing_date' => $sale->sale_date,
+                    ]);
                 }
             }
 

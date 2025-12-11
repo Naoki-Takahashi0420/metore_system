@@ -8,6 +8,7 @@ use App\Models\Reservation;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\CustomerTicket;
+use App\Models\CustomerSubscription;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -199,6 +200,18 @@ class SalePostingService
                 $ticket = CustomerTicket::find($sale->customer_ticket_id);
                 if ($ticket) {
                     $ticket->refund($sale->reservation_id, 1); // 1回分返金
+                }
+            }
+
+            // サブスク月額売上の場合はnext_billing_dateを売上日に戻す（再計上可能にする）
+            if ($sale->customer_subscription_id && $sale->payment_source === 'subscription' && $sale->total_amount > 0) {
+                $subscription = CustomerSubscription::find($sale->customer_subscription_id);
+                if ($subscription) {
+                    $subscription->update(['next_billing_date' => $sale->sale_date]);
+                    Log::info("サブスク売上取消: next_billing_dateを戻しました", [
+                        'subscription_id' => $subscription->id,
+                        'next_billing_date' => $sale->sale_date,
+                    ]);
                 }
             }
 
