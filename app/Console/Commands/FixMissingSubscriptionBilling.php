@@ -120,15 +120,19 @@ class FixMissingSubscriptionBilling extends Command
         $startOfMonth = Carbon::create($year, $month, 1)->startOfDay();
         $endOfMonth = Carbon::create($year, $month, 1)->endOfMonth()->endOfDay();
 
+        // 今月すでに月額計上されたサブスクIDを取得
+        $billedSubscriptionIds = Sale::whereBetween('sale_date', [$startOfMonth, $endOfMonth])
+            ->whereNotNull('customer_subscription_id')
+            ->where('total_amount', '>', 0)
+            ->where('notes', 'like', '%サブスク決済%')
+            ->pluck('customer_subscription_id')
+            ->toArray();
+
         return CustomerSubscription::with('customer')
             ->where('status', 'active')
             ->where('billing_start_date', '<=', $startOfMonth)
             ->whereRaw("CAST(strftime('%d', billing_start_date) AS INTEGER) <= ?", [$maxDay])
-            ->whereDoesntHave('sales', function ($query) use ($startOfMonth, $endOfMonth) {
-                $query->whereBetween('sale_date', [$startOfMonth, $endOfMonth])
-                    ->where('total_amount', '>', 0)
-                    ->where('notes', 'like', '%サブスク決済%');
-            })
+            ->whereNotIn('id', $billedSubscriptionIds)
             ->orderByRaw("CAST(strftime('%d', billing_start_date) AS INTEGER)")
             ->get();
     }
