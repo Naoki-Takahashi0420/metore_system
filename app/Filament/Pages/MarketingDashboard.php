@@ -22,8 +22,8 @@ class MarketingDashboard extends Page
 
     public function mount(): void
     {
-        // デフォルトで今月の1日から今日までを設定
-        $this->startDateA = now()->startOfMonth()->format('Y-m-d');
+        // デフォルトで過去6ヶ月を設定（月別トレンド表示のため）
+        $this->startDateA = now()->subMonths(6)->format('Y-m-d');
         $this->endDateA = now()->format('Y-m-d');
     }
 
@@ -94,6 +94,14 @@ class MarketingDashboard extends Page
     public function setLast30Days(): void
     {
         $this->startDateA = now()->subDays(30)->format('Y-m-d');
+        $this->endDateA = now()->format('Y-m-d');
+        $this->period = 'custom';
+        $this->refreshData();
+    }
+
+    public function setLast6Months(): void
+    {
+        $this->startDateA = now()->subMonths(6)->format('Y-m-d');
         $this->endDateA = now()->format('Y-m-d');
         $this->period = 'custom';
         $this->refreshData();

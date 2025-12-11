@@ -1,4 +1,31 @@
 <x-filament-panels::page>
+    {{-- メインタブナビゲーション --}}
+    @php
+        $mainTab = request()->get('tab', 'new-tracking');
+    @endphp
+    <div class="mb-6 border-b border-gray-200 dark:border-gray-700">
+        <ul class="flex flex-wrap -mb-px text-sm font-medium text-center">
+            <li class="mr-2">
+                <a href="?tab=new-tracking"
+                   class="inline-flex items-center p-4 border-b-2 rounded-t-lg {{ $mainTab === 'new-tracking' ? 'border-blue-600 text-blue-600' : 'border-transparent hover:text-gray-600 hover:border-gray-300' }}">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                    新規顧客追跡
+                </a>
+            </li>
+            <li class="mr-2">
+                <a href="?tab=kpi"
+                   class="inline-flex items-center p-4 border-b-2 rounded-t-lg {{ $mainTab === 'kpi' ? 'border-blue-600 text-blue-600' : 'border-transparent hover:text-gray-600 hover:border-gray-300' }}">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                    KPI分析
+                </a>
+            </li>
+        </ul>
+    </div>
+
     {{-- フィルタセクション --}}
     <div class="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow p-6">
         @if(!$compareMode)
@@ -36,7 +63,7 @@
             {{-- クイックボタン --}}
             <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">クイック選択</label>
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem;">
+                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem;">
                     <button wire:click="setToday" style="background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%); color: #ffffff !important;" class="px-4 py-2.5 text-sm font-bold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 flex items-center gap-2 border-2 border-blue-900">
                         <x-heroicon-o-calendar-days class="w-5 h-5" style="color: #ffffff !important;" />
                         <span style="color: #ffffff !important; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">今日</span>
@@ -51,6 +78,9 @@
                     <button wire:click="setLast30Days" style="background: #ea580c; color: #ffffff !important;" class="px-4 py-2 text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-1 border-2 border-orange-800 hover:bg-orange-700">
                         <span style="color: #ffffff !important;">30日</span>
                     </button>
+                    <button wire:click="setLast6Months" style="background: #0891b2; color: #ffffff !important;" class="px-4 py-2 text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-1 border-2 border-cyan-800 hover:bg-cyan-700">
+                        <span style="color: #ffffff !important;">6ヶ月</span>
+                    </button>
                 </div>
             </div>
 
@@ -62,13 +92,15 @@
                 </div>
             @endif
 
-            {{-- 期間比較モード切り替え --}}
+            {{-- 期間比較モード切り替え（KPIタブのみ） --}}
+            @if($mainTab === 'kpi')
             <div class="mt-4">
                 <button wire:click="$set('compareMode', true)" type="button"
                         class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium">
                     + 期間比較モードに切り替え
                 </button>
             </div>
+            @endif
         @else
             <!-- 比較モード -->
             <div class="space-y-4">
@@ -132,70 +164,80 @@
     </div>
 
     <div class="grid grid-cols-1 gap-6">
-        @if(!$compareMode)
-            <!-- 通常モード -->
-            @livewire('marketing.monthly-kpi-stats', ['period' => $period, 'store_id' => $store_id, 'startDate' => $startDateA, 'endDate' => $endDateA])
-            @livewire('marketing.complete-funnel-stats', ['period' => $period, 'store_id' => $store_id, 'startDate' => $startDateA, 'endDate' => $endDateA])
-            @livewire('marketing.medical-record-conversion-stats', ['period' => $period, 'store_id' => $store_id, 'startDate' => $startDateA, 'endDate' => $endDateA])
-            @livewire('marketing.staff-performance-stats', ['period' => $period, 'store_id' => $store_id, 'startDate' => $startDateA, 'endDate' => $endDateA])
-            @livewire('marketing.customer-analysis-stats', ['period' => $period, 'store_id' => $store_id, 'startDate' => $startDateA, 'endDate' => $endDateA])
-            @livewire('marketing.conversion-funnel-stats', ['period' => $period, 'store_id' => $store_id, 'startDate' => $startDateA, 'endDate' => $endDateA])
-        @else
-            <!-- 比較モード -->
-            @if($startDateA && $endDateA && $startDateB && $endDateB)
-                <!-- KPI比較 -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <div class="border-2 border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                        <h3 class="text-lg font-semibold text-blue-600 dark:text-blue-400 mb-3">
-                            期間A: {{ \Carbon\Carbon::parse($startDateA)->format('Y/m/d') }} 〜 {{ \Carbon\Carbon::parse($endDateA)->format('m/d') }}
-                        </h3>
-                        <livewire:marketing.monthly-kpi-stats
-                            :period="'custom'"
-                            :store_id="$store_id"
-                            :startDate="$startDateA"
-                            :endDate="$endDateA"
-                            :key="'kpi-a-'.$startDateA.'-'.$endDateA" />
-                    </div>
-                    <div class="border-2 border-green-200 dark:border-green-800 rounded-lg p-4">
-                        <h3 class="text-lg font-semibold text-green-600 dark:text-green-400 mb-3">
-                            期間B: {{ \Carbon\Carbon::parse($startDateB)->format('Y/m/d') }} 〜 {{ \Carbon\Carbon::parse($endDateB)->format('m/d') }}
-                        </h3>
-                        <livewire:marketing.monthly-kpi-stats
-                            :period="'custom'"
-                            :store_id="$store_id"
-                            :startDate="$startDateB"
-                            :endDate="$endDateB"
-                            :key="'kpi-b-'.$startDateB.'-'.$endDateB" />
-                    </div>
-                </div>
-
-                <!-- スタッフパフォーマンス比較 -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <div class="border-2 border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                        <livewire:marketing.staff-performance-stats
-                            :period="'custom'"
-                            :store_id="$store_id"
-                            :startDate="$startDateA"
-                            :endDate="$endDateA"
-                            :key="'staff-a-'.$startDateA.'-'.$endDateA" />
-                    </div>
-                    <div class="border-2 border-green-200 dark:border-green-800 rounded-lg p-4">
-                        <livewire:marketing.staff-performance-stats
-                            :period="'custom'"
-                            :store_id="$store_id"
-                            :startDate="$startDateB"
-                            :endDate="$endDateB"
-                            :key="'staff-b-'.$startDateB.'-'.$endDateB" />
-                    </div>
-                </div>
+        @if($mainTab === 'new-tracking')
+            {{-- 新規顧客追跡タブ --}}
+            @livewire('marketing.new-customer-tracking-table', [
+                'startDate' => $startDateA,
+                'endDate' => $endDateA,
+                'store_id' => $store_id
+            ], key('new-tracking-' . $startDateA . '-' . $endDateA . '-' . $store_id))
+        @elseif($mainTab === 'kpi')
+            {{-- KPI分析タブ --}}
+            @if(!$compareMode)
+                {{-- 通常モード --}}
+                @livewire('marketing.monthly-kpi-stats', ['period' => $period, 'store_id' => $store_id, 'startDate' => $startDateA, 'endDate' => $endDateA])
+                @livewire('marketing.complete-funnel-stats', ['period' => $period, 'store_id' => $store_id, 'startDate' => $startDateA, 'endDate' => $endDateA])
+                @livewire('marketing.medical-record-conversion-stats', ['period' => $period, 'store_id' => $store_id, 'startDate' => $startDateA, 'endDate' => $endDateA])
+                @livewire('marketing.staff-performance-stats', ['period' => $period, 'store_id' => $store_id, 'startDate' => $startDateA, 'endDate' => $endDateA])
+                @livewire('marketing.customer-analysis-stats', ['period' => $period, 'store_id' => $store_id, 'startDate' => $startDateA, 'endDate' => $endDateA])
+                @livewire('marketing.conversion-funnel-stats', ['period' => $period, 'store_id' => $store_id, 'startDate' => $startDateA, 'endDate' => $endDateA])
             @else
-                <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-8 text-center">
-                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                    </svg>
-                    <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">比較する期間を選択してください</h3>
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">期間AとBの開始日と終了日を選択すると、データが表示されます</p>
-                </div>
+                {{-- 比較モード --}}
+                @if($startDateA && $endDateA && $startDateB && $endDateB)
+                    <!-- KPI比較 -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div class="border-2 border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                            <h3 class="text-lg font-semibold text-blue-600 dark:text-blue-400 mb-3">
+                                期間A: {{ \Carbon\Carbon::parse($startDateA)->format('Y/m/d') }} 〜 {{ \Carbon\Carbon::parse($endDateA)->format('m/d') }}
+                            </h3>
+                            <livewire:marketing.monthly-kpi-stats
+                                :period="'custom'"
+                                :store_id="$store_id"
+                                :startDate="$startDateA"
+                                :endDate="$endDateA"
+                                :key="'kpi-a-'.$startDateA.'-'.$endDateA" />
+                        </div>
+                        <div class="border-2 border-green-200 dark:border-green-800 rounded-lg p-4">
+                            <h3 class="text-lg font-semibold text-green-600 dark:text-green-400 mb-3">
+                                期間B: {{ \Carbon\Carbon::parse($startDateB)->format('Y/m/d') }} 〜 {{ \Carbon\Carbon::parse($endDateB)->format('m/d') }}
+                            </h3>
+                            <livewire:marketing.monthly-kpi-stats
+                                :period="'custom'"
+                                :store_id="$store_id"
+                                :startDate="$startDateB"
+                                :endDate="$endDateB"
+                                :key="'kpi-b-'.$startDateB.'-'.$endDateB" />
+                        </div>
+                    </div>
+
+                    <!-- スタッフパフォーマンス比較 -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div class="border-2 border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                            <livewire:marketing.staff-performance-stats
+                                :period="'custom'"
+                                :store_id="$store_id"
+                                :startDate="$startDateA"
+                                :endDate="$endDateA"
+                                :key="'staff-a-'.$startDateA.'-'.$endDateA" />
+                        </div>
+                        <div class="border-2 border-green-200 dark:border-green-800 rounded-lg p-4">
+                            <livewire:marketing.staff-performance-stats
+                                :period="'custom'"
+                                :store_id="$store_id"
+                                :startDate="$startDateB"
+                                :endDate="$endDateB"
+                                :key="'staff-b-'.$startDateB.'-'.$endDateB" />
+                        </div>
+                    </div>
+                @else
+                    <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-8 text-center">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">比較する期間を選択してください</h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">期間AとBの開始日と終了日を選択すると、データが表示されます</p>
+                    </div>
+                @endif
             @endif
         @endif
     </div>
