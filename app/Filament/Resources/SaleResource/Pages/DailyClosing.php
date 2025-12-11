@@ -375,12 +375,23 @@ class DailyClosing extends Page implements HasForms
             'selected_store_id' => $this->selectedStoreId,
         ]);
 
-        // その日が決済日（初回 or 継続）のアクティブなサブスク契約を取得
-        $subscriptions = \App\Models\CustomerSubscription::where(function($query) {
+        // その日が決済日のサブスク契約を取得（未計上 + 計上済み両方）
+        // 1. 未計上: billing_start_date または next_billing_date が今日
+        // 2. 計上済み: 今日のサブスク売上がある契約
+        $postedSubscriptionIds = Sale::whereDate('sale_date', $this->closingDate)
+            ->where('payment_source', 'subscription')
+            ->whereNotNull('customer_subscription_id')
+            ->where('total_amount', '>', 0)
+            ->pluck('customer_subscription_id')
+            ->toArray();
+
+        $subscriptions = \App\Models\CustomerSubscription::where(function($query) use ($postedSubscriptionIds) {
                 // 初回決済: billing_start_date が今日
                 $query->whereDate('billing_start_date', $this->closingDate)
                     // または 継続決済: next_billing_date が今日
-                    ->orWhereDate('next_billing_date', $this->closingDate);
+                    ->orWhereDate('next_billing_date', $this->closingDate)
+                    // または 計上済み: 今日の売上がある
+                    ->orWhereIn('id', $postedSubscriptionIds);
             })
             ->when($this->selectedStoreId, fn($q) => $q->where('store_id', $this->selectedStoreId))
             ->where('status', 'active')
