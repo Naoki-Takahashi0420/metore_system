@@ -535,6 +535,181 @@ class NewCustomerTrackingService
     }
 
     /**
+     * サブスク契約の対応者別詳細リスト（インセンティブ計算用）
+     *
+     * カルテのhandled_byを元に、誰がどのサブスク契約を獲得したかを表示
+     */
+    public function getSubscriptionHandlerDetails(
+        ?string $startDate = null,
+        ?string $endDate = null,
+        ?int $storeId = null
+    ): array {
+        $tracking = $this->getNewCustomerTracking($startDate, $endDate, $storeId);
+
+        // サブスク契約者のみ
+        $subscribers = $tracking->whereNotNull('subscription_plan');
+
+        // 対応者別に集計
+        $handlerSummary = [];
+        $detailList = [];
+
+        foreach ($subscribers as $row) {
+            $handler = $row['visit1_handler'] ?? '不明';
+            $plan = $row['subscription_plan'] ?? '不明';
+
+            // 集計
+            if (!isset($handlerSummary[$handler])) {
+                $handlerSummary[$handler] = [
+                    'handler' => $handler,
+                    'total' => 0,
+                    'plans' => [],
+                ];
+            }
+            $handlerSummary[$handler]['total']++;
+            $handlerSummary[$handler]['plans'][$plan] = ($handlerSummary[$handler]['plans'][$plan] ?? 0) + 1;
+
+            // 詳細リスト
+            $detailList[] = [
+                'customer_name' => $row['customer_name'] ?? '',
+                'handler' => $handler,
+                'plan' => $plan,
+                'source' => $row['source'] ?? '',
+                'visit1_date' => $row['visit1_date'] ?? '',
+                'subscription_start' => $row['subscription_start'] ?? '',
+            ];
+        }
+
+        // 対応者別サマリーをソート（件数順）
+        $handlerSummary = collect($handlerSummary)
+            ->sortByDesc('total')
+            ->values()
+            ->toArray();
+
+        // 詳細リストを契約日順にソート
+        $detailList = collect($detailList)
+            ->sortByDesc('subscription_start')
+            ->values()
+            ->toArray();
+
+        return [
+            'summary' => $handlerSummary,
+            'details' => $detailList,
+            'total_count' => count($detailList),
+        ];
+    }
+
+    /**
+     * 回数券購入の対応者別詳細リスト（インセンティブ計算用）
+     */
+    public function getTicketHandlerDetails(
+        ?string $startDate = null,
+        ?string $endDate = null,
+        ?int $storeId = null
+    ): array {
+        $tracking = $this->getNewCustomerTracking($startDate, $endDate, $storeId);
+
+        // 回数券購入者のみ
+        $ticketBuyers = $tracking->whereNotNull('ticket_plan');
+
+        $handlerSummary = [];
+        $detailList = [];
+
+        foreach ($ticketBuyers as $row) {
+            $handler = $row['visit1_handler'] ?? '不明';
+            $plan = $row['ticket_plan'] ?? '不明';
+
+            if (!isset($handlerSummary[$handler])) {
+                $handlerSummary[$handler] = [
+                    'handler' => $handler,
+                    'total' => 0,
+                    'plans' => [],
+                ];
+            }
+            $handlerSummary[$handler]['total']++;
+            $handlerSummary[$handler]['plans'][$plan] = ($handlerSummary[$handler]['plans'][$plan] ?? 0) + 1;
+
+            $detailList[] = [
+                'customer_name' => $row['customer_name'] ?? '',
+                'handler' => $handler,
+                'plan' => $plan,
+                'source' => $row['source'] ?? '',
+                'visit1_date' => $row['visit1_date'] ?? '',
+            ];
+        }
+
+        $handlerSummary = collect($handlerSummary)
+            ->sortByDesc('total')
+            ->values()
+            ->toArray();
+
+        $detailList = collect($detailList)
+            ->sortByDesc('visit1_date')
+            ->values()
+            ->toArray();
+
+        return [
+            'summary' => $handlerSummary,
+            'details' => $detailList,
+            'total_count' => count($detailList),
+        ];
+    }
+
+    /**
+     * 次回予約獲得の対応者別詳細リスト（インセンティブ計算用）
+     */
+    public function getNextReservationHandlerDetails(
+        ?string $startDate = null,
+        ?string $endDate = null,
+        ?int $storeId = null
+    ): array {
+        $tracking = $this->getNewCustomerTracking($startDate, $endDate, $storeId);
+
+        // 次回予約ありの顧客のみ（サブスク・回数券以外で次回予約がある）
+        $nextReservations = $tracking->filter(function ($row) {
+            return $row['visit1_result'] === self::RESULT_NEXT_RESERVATION;
+        });
+
+        $handlerSummary = [];
+        $detailList = [];
+
+        foreach ($nextReservations as $row) {
+            $handler = $row['visit1_handler'] ?? '不明';
+
+            if (!isset($handlerSummary[$handler])) {
+                $handlerSummary[$handler] = [
+                    'handler' => $handler,
+                    'total' => 0,
+                ];
+            }
+            $handlerSummary[$handler]['total']++;
+
+            $detailList[] = [
+                'customer_name' => $row['customer_name'] ?? '',
+                'handler' => $handler,
+                'source' => $row['source'] ?? '',
+                'visit1_date' => $row['visit1_date'] ?? '',
+                'visit2_date' => $row['visit2_date'] ?? '',
+            ];
+        }
+
+        $handlerSummary = collect($handlerSummary)
+            ->sortByDesc('total')
+            ->values()
+            ->toArray();
+
+        $detailList = collect($detailList)
+            ->sortByDesc('visit1_date')
+            ->values()
+            ->toArray();
+
+        return [
+            'summary' => $handlerSummary,
+            'details' => $detailList,
+            'total_count' => count($detailList),
+        ];
+    }
+
+    /**
      * 月別集計
      */
     public function getMonthlyHandlerStats(

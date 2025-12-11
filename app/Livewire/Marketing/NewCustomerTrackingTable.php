@@ -18,6 +18,9 @@ class NewCustomerTrackingTable extends Component
     public array $sourceData = [];
     public array $handlerData = [];
     public array $subscriptionData = [];
+    public array $subscriptionHandlerDetails = [];
+    public array $ticketHandlerDetails = [];
+    public array $nextReservationHandlerDetails = [];
     public array $monthlyData = [];
 
     // チャート用データ
@@ -137,6 +140,27 @@ class NewCustomerTrackingTable extends Component
             $this->storeId
         );
         $this->subscriptionData = $this->transformSubscriptionData($rawSubscription);
+
+        // サブスク契約の対応者別詳細（インセンティブ用）
+        $this->subscriptionHandlerDetails = $service->getSubscriptionHandlerDetails(
+            $this->startDate,
+            $this->endDate,
+            $this->storeId
+        );
+
+        // 回数券購入の対応者別詳細（インセンティブ用）
+        $this->ticketHandlerDetails = $service->getTicketHandlerDetails(
+            $this->startDate,
+            $this->endDate,
+            $this->storeId
+        );
+
+        // 次回予約獲得の対応者別詳細（インセンティブ用）
+        $this->nextReservationHandlerDetails = $service->getNextReservationHandlerDetails(
+            $this->startDate,
+            $this->endDate,
+            $this->storeId
+        );
 
         // 月別集計
         $rawMonthly = $service->getMonthlyHandlerStats(

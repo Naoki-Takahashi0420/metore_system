@@ -831,40 +831,212 @@
                 </div>
 
                 {{-- 対応者別サブスク --}}
+                @if(!empty($subscriptionHandlerDetails['summary']))
                 <div>
                     <h3 class="text-md font-bold text-gray-700 dark:text-gray-300 mb-2">対応者別サブスク契約数</h3>
                     @php
-                        $handlerSubscriptions = collect($subscriptionData)->where('group_type', 'handler');
+                        // プラン名一覧を取得
+                        $handlerPlanNames = collect($subscriptionHandlerDetails['summary'])
+                            ->flatMap(fn($r) => array_keys($r['plans'] ?? []))
+                            ->unique()
+                            ->sort()
+                            ->values();
+
+                        // 総計行を計算
+                        $handlerPlanTotals = [];
+                        $grandTotal = 0;
+                        foreach ($subscriptionHandlerDetails['summary'] as $handler) {
+                            foreach ($handler['plans'] ?? [] as $plan => $count) {
+                                $handlerPlanTotals[$plan] = ($handlerPlanTotals[$plan] ?? 0) + $count;
+                            }
+                            $grandTotal += $handler['total'] ?? 0;
+                        }
                     @endphp
                     <div class="overflow-x-auto">
                         <table class="text-xs border-collapse border border-gray-300 dark:border-gray-600">
                             <thead class="bg-gray-100 dark:bg-gray-800">
                                 <tr>
                                     <th class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-left">対応者</th>
-                                    @foreach($planNames as $plan)
+                                    @foreach($handlerPlanNames as $plan)
                                         <th class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-center whitespace-nowrap">{{ $plan }}</th>
                                     @endforeach
                                     <th class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-center bg-yellow-50 dark:bg-yellow-900/20">総計</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white dark:bg-gray-900">
-                                @foreach($handlerSubscriptions as $row)
-                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-800 {{ $row['name'] === '総計' ? 'font-bold bg-gray-100 dark:bg-gray-800' : '' }}">
-                                        <td class="border border-gray-300 dark:border-gray-600 px-3 py-2">{{ $row['name'] }}</td>
-                                        @foreach($planNames as $plan)
+                                @foreach($subscriptionHandlerDetails['summary'] as $handler)
+                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
+                                        <td class="border border-gray-300 dark:border-gray-600 px-3 py-2 font-medium whitespace-nowrap">{{ $handler['handler'] }}</td>
+                                        @foreach($handlerPlanNames as $plan)
                                             <td class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-center">
-                                                {{ $row['plans'][$plan] ?? 0 }}
+                                                {{ $handler['plans'][$plan] ?? 0 }}
                                             </td>
                                         @endforeach
-                                        <td class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-center bg-yellow-50 dark:bg-yellow-900/20">
-                                            {{ $row['total'] }}
+                                        <td class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-center bg-yellow-50 dark:bg-yellow-900/20 font-medium">
+                                            {{ $handler['total'] }}
                                         </td>
                                     </tr>
                                 @endforeach
+                                {{-- 総計行 --}}
+                                <tr class="font-bold bg-gray-100 dark:bg-gray-800">
+                                    <td class="border border-gray-300 dark:border-gray-600 px-3 py-2">総計</td>
+                                    @foreach($handlerPlanNames as $plan)
+                                        <td class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-center">
+                                            {{ $handlerPlanTotals[$plan] ?? 0 }}
+                                        </td>
+                                    @endforeach
+                                    <td class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-center bg-yellow-100 dark:bg-yellow-900/30">
+                                        {{ $grandTotal }}
+                                    </td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
+                @endif
+
+                {{-- 対応者別サブスク契約詳細（インセンティブ用） --}}
+                @if(!empty($subscriptionHandlerDetails['details']))
+                    <div class="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+                        <h3 class="text-md font-bold text-gray-700 dark:text-gray-300 mb-2">
+                            サブスク契約詳細リスト（インセンティブ計算用）
+                            <span class="text-sm font-normal text-gray-500 ml-2">全{{ $subscriptionHandlerDetails['total_count'] ?? 0 }}件</span>
+                        </h3>
+                        <p class="text-xs text-gray-500 mb-4">カルテの対応者(handled_by)を元に、誰がどの顧客のサブスク契約を獲得したかを表示</p>
+
+                        {{-- 対応者別サマリー --}}
+                        <div class="mb-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                            @foreach($subscriptionHandlerDetails['summary'] ?? [] as $summary)
+                                <div class="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 text-center">
+                                    <div class="text-lg font-bold text-purple-700 dark:text-purple-300">{{ $summary['total'] }}</div>
+                                    <div class="text-xs text-gray-600 dark:text-gray-400">{{ $summary['handler'] }}</div>
+                                </div>
+                            @endforeach
+                        </div>
+
+                        {{-- 詳細テーブル --}}
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs border-collapse border border-gray-300 dark:border-gray-600">
+                                <thead class="bg-purple-100 dark:bg-purple-900/30">
+                                    <tr>
+                                        <th class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-left">対応者</th>
+                                        <th class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-left">顧客名</th>
+                                        <th class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-left">プラン</th>
+                                        <th class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-left">媒体</th>
+                                        <th class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-center">初来店日</th>
+                                        <th class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-center">契約開始日</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white dark:bg-gray-900">
+                                    @foreach($subscriptionHandlerDetails['details'] ?? [] as $detail)
+                                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
+                                            <td class="border border-gray-300 dark:border-gray-600 px-3 py-2 font-medium whitespace-nowrap">{{ $detail['handler'] }}</td>
+                                            <td class="border border-gray-300 dark:border-gray-600 px-3 py-2 whitespace-nowrap">{{ $detail['customer_name'] }}</td>
+                                            <td class="border border-gray-300 dark:border-gray-600 px-3 py-2">{{ $detail['plan'] }}</td>
+                                            <td class="border border-gray-300 dark:border-gray-600 px-3 py-2">{{ $detail['source'] }}</td>
+                                            <td class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-center">{{ $detail['visit1_date'] }}</td>
+                                            <td class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-center">{{ $detail['subscription_start'] }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                @endif
+
+                {{-- 対応者別回数券購入詳細（インセンティブ用） --}}
+                @if(!empty($ticketHandlerDetails['details']))
+                    <div class="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+                        <h3 class="text-md font-bold text-gray-700 dark:text-gray-300 mb-2">
+                            回数券購入詳細リスト（インセンティブ計算用）
+                            <span class="text-sm font-normal text-gray-500 ml-2">全{{ $ticketHandlerDetails['total_count'] ?? 0 }}件</span>
+                        </h3>
+                        <p class="text-xs text-gray-500 mb-4">カルテの対応者(handled_by)を元に、誰がどの顧客の回数券購入を獲得したかを表示</p>
+
+                        {{-- 対応者別サマリー --}}
+                        <div class="mb-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                            @foreach($ticketHandlerDetails['summary'] ?? [] as $summary)
+                                <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center">
+                                    <div class="text-lg font-bold text-green-700 dark:text-green-300">{{ $summary['total'] }}</div>
+                                    <div class="text-xs text-gray-600 dark:text-gray-400">{{ $summary['handler'] }}</div>
+                                </div>
+                            @endforeach
+                        </div>
+
+                        {{-- 詳細テーブル --}}
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs border-collapse border border-gray-300 dark:border-gray-600">
+                                <thead class="bg-green-100 dark:bg-green-900/30">
+                                    <tr>
+                                        <th class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-left">対応者</th>
+                                        <th class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-left">顧客名</th>
+                                        <th class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-left">回数券プラン</th>
+                                        <th class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-left">媒体</th>
+                                        <th class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-center">初来店日</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white dark:bg-gray-900">
+                                    @foreach($ticketHandlerDetails['details'] ?? [] as $detail)
+                                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
+                                            <td class="border border-gray-300 dark:border-gray-600 px-3 py-2 font-medium whitespace-nowrap">{{ $detail['handler'] }}</td>
+                                            <td class="border border-gray-300 dark:border-gray-600 px-3 py-2 whitespace-nowrap">{{ $detail['customer_name'] }}</td>
+                                            <td class="border border-gray-300 dark:border-gray-600 px-3 py-2">{{ $detail['plan'] }}</td>
+                                            <td class="border border-gray-300 dark:border-gray-600 px-3 py-2">{{ $detail['source'] }}</td>
+                                            <td class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-center">{{ $detail['visit1_date'] }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                @endif
+
+                {{-- 対応者別次回予約獲得詳細（インセンティブ用） --}}
+                @if(!empty($nextReservationHandlerDetails['details']))
+                    <div class="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+                        <h3 class="text-md font-bold text-gray-700 dark:text-gray-300 mb-2">
+                            次回予約獲得詳細リスト（インセンティブ計算用）
+                            <span class="text-sm font-normal text-gray-500 ml-2">全{{ $nextReservationHandlerDetails['total_count'] ?? 0 }}件</span>
+                        </h3>
+                        <p class="text-xs text-gray-500 mb-4">カルテの対応者(handled_by)を元に、誰がどの顧客の次回予約を獲得したかを表示（サブスク・回数券以外）</p>
+
+                        {{-- 対応者別サマリー --}}
+                        <div class="mb-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                            @foreach($nextReservationHandlerDetails['summary'] ?? [] as $summary)
+                                <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center">
+                                    <div class="text-lg font-bold text-blue-700 dark:text-blue-300">{{ $summary['total'] }}</div>
+                                    <div class="text-xs text-gray-600 dark:text-gray-400">{{ $summary['handler'] }}</div>
+                                </div>
+                            @endforeach
+                        </div>
+
+                        {{-- 詳細テーブル --}}
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs border-collapse border border-gray-300 dark:border-gray-600">
+                                <thead class="bg-blue-100 dark:bg-blue-900/30">
+                                    <tr>
+                                        <th class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-left">対応者</th>
+                                        <th class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-left">顧客名</th>
+                                        <th class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-left">媒体</th>
+                                        <th class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-center">1回目来店日</th>
+                                        <th class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-center">2回目来店日</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white dark:bg-gray-900">
+                                    @foreach($nextReservationHandlerDetails['details'] ?? [] as $detail)
+                                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
+                                            <td class="border border-gray-300 dark:border-gray-600 px-3 py-2 font-medium whitespace-nowrap">{{ $detail['handler'] }}</td>
+                                            <td class="border border-gray-300 dark:border-gray-600 px-3 py-2 whitespace-nowrap">{{ $detail['customer_name'] }}</td>
+                                            <td class="border border-gray-300 dark:border-gray-600 px-3 py-2">{{ $detail['source'] }}</td>
+                                            <td class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-center">{{ $detail['visit1_date'] }}</td>
+                                            <td class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-center">{{ $detail['visit2_date'] ?: '-' }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                @endif
             @else
                 <div class="text-center py-8 text-gray-500">データがありません</div>
             @endif
