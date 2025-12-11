@@ -67,6 +67,22 @@
                         <li>新規予約 → 1回目来店 → 2回目来店 → 3回目来店 → サブスク契約の流れを可視化</li>
                         <li>各段階での離脱率を確認できます</li>
                     </ul>
+                    <details class="mt-2">
+                        <summary class="cursor-pointer text-blue-600 dark:text-blue-400 font-medium">[詳細] データの取得元と計算方法</summary>
+                        <div class="mt-2 p-2 bg-white dark:bg-gray-800 rounded text-xs space-y-1">
+                            <p><strong>データソース:</strong> reservations（予約）テーブル</p>
+                            <p><strong>新規顧客の定義:</strong> 期間内に「初めて予約した」顧客（その顧客の最初の予約が期間内にある）</p>
+                            <p><strong>各段階の計算:</strong></p>
+                            <ul class="list-disc list-inside ml-2">
+                                <li>新規予約: 期間内に初めて予約した顧客数</li>
+                                <li>1回目来店: キャンセル・ノーショー以外の顧客数</li>
+                                <li>2回目来店: 2回目の予約日が存在する顧客数</li>
+                                <li>3回目来店: 3回目の予約日が存在する顧客数</li>
+                                <li>サブスク契約: customer_subscriptionsに契約がある顧客数</li>
+                            </ul>
+                            <p><strong>離脱率:</strong> (前段階の人数 - 次段階の人数) / 前段階の人数 × 100</p>
+                        </div>
+                    </details>
                 </div>
                 <div class="flex flex-col items-center space-y-2" id="funnel-container">
                     @foreach($funnelData['labels'] ?? [] as $index => $label)
@@ -108,6 +124,22 @@
                     <div class="mb-4">
                         <h2 class="text-lg font-bold text-gray-900 dark:text-white">{{ $visitNumber }}回目 結果内訳</h2>
                     </div>
+                    <div class="mb-3 p-2 bg-gray-50 dark:bg-gray-800 rounded text-xs text-gray-600 dark:text-gray-400">
+                        <details>
+                            <summary class="cursor-pointer text-blue-600 dark:text-blue-400 font-medium">[詳細] 結果の判定ロジック</summary>
+                            <div class="mt-2 space-y-1">
+                                <p><strong>判定順序:</strong> 予約ステータス → サブスク契約 → 回数券購入 → 次回予約の有無</p>
+                                <ul class="list-disc list-inside ml-2">
+                                    <li><strong>キャンセル:</strong> 予約status='cancelled'</li>
+                                    <li><strong>飛び:</strong> 予約status='no_show'（無断キャンセル）</li>
+                                    <li><strong>サブスク:</strong> 予約日から30日以内にcustomer_subscriptionsに契約作成</li>
+                                    <li><strong>回数券:</strong> 予約日から30日以内にcustomer_ticketsに購入記録</li>
+                                    <li><strong>次回予約:</strong> 次の予約（N+1回目）が存在、または将来の予約（status=booked/confirmed）あり</li>
+                                    <li><strong>予約なし:</strong> 上記いずれにも該当しない</li>
+                                </ul>
+                            </div>
+                        </details>
+                    </div>
                     <div class="flex flex-wrap justify-center gap-4">
                         @php
                             $totalPie = collect($resultPieData)->sum('value');
@@ -132,7 +164,20 @@
                 <x-filament::card>
                     <div class="mb-4">
                         <h2 class="text-lg font-bold text-gray-900 dark:text-white">対応者 打率ランキング</h2>
-                        <p class="text-xs text-gray-500">打率 = (サブスク+回数券+次回予約) / 総数</p>
+                    </div>
+                    <div class="mb-3 p-2 bg-gray-50 dark:bg-gray-800 rounded text-xs text-gray-600 dark:text-gray-400">
+                        <details>
+                            <summary class="cursor-pointer text-blue-600 dark:text-blue-400 font-medium">[詳細] 計算方法</summary>
+                            <div class="mt-2 space-y-1">
+                                <p><strong>対応者:</strong> カルテ（medical_records）の「handled_by」欄に入力された名前</p>
+                                <p><strong>打率の計算式:</strong></p>
+                                <p class="ml-2 bg-yellow-50 dark:bg-yellow-900/30 p-1 rounded">
+                                    打率 = (サブスク契約 + 回数券購入 + 次回予約あり) ÷ 対応した新規顧客数 × 100
+                                </p>
+                                <p class="mt-1">例: 10人対応 → 3人サブスク, 2人回数券, 3人次回予約 → 打率80%</p>
+                                <p class="text-gray-500">※ 3件以上対応したスタッフのみ表示</p>
+                            </div>
+                        </details>
                     </div>
                     <div class="space-y-3">
                         @foreach(array_slice($handlerRankingData, 0, 8) as $index => $item)
@@ -165,7 +210,21 @@
             <x-filament::card>
                 <div class="mb-4">
                     <h2 class="text-lg font-bold text-gray-900 dark:text-white">媒体別 打率ランキング</h2>
-                    <p class="text-xs text-gray-500">どの媒体からの顧客が契約しやすいか</p>
+                </div>
+                <div class="mb-3 p-2 bg-gray-50 dark:bg-gray-800 rounded text-xs text-gray-600 dark:text-gray-400">
+                    <details>
+                        <summary class="cursor-pointer text-blue-600 dark:text-blue-400 font-medium">[詳細] 計算方法</summary>
+                        <div class="mt-2 space-y-1">
+                            <p><strong>媒体:</strong> カルテ（medical_records）の「reservation_source（予約媒体）」欄</p>
+                            <p>例: ホットペッパー、紹介、Instagram、Google など</p>
+                            <p><strong>打率の計算式:</strong></p>
+                            <p class="ml-2 bg-yellow-50 dark:bg-yellow-900/30 p-1 rounded">
+                                打率 = (サブスク契約 + 回数券購入 + 次回予約あり) ÷ その媒体からの新規顧客数 × 100
+                            </p>
+                            <p class="mt-1">打率が高い媒体 = <strong>効果的な集客チャネル</strong>（広告費をかける価値あり）</p>
+                            <p class="text-gray-500">※ 3件以上の媒体のみ表示</p>
+                        </div>
+                    </details>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     @foreach($sourceRankingData as $index => $item)
@@ -200,8 +259,19 @@
                 <div class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded text-sm text-gray-700 dark:text-gray-300">
                     <p class="font-medium mb-1">この図の見方:</p>
                     <ul class="list-disc list-inside space-y-1 text-xs">
-                        <li>青: 新規顧客数 / 緑: サブスク契約数 / オレンジ: 打率(%)</li>
+                        <li><span class="inline-block w-3 h-3 bg-blue-500 rounded mr-1"></span>青線: 新規顧客数（左軸）</li>
+                        <li><span class="inline-block w-3 h-3 bg-green-500 rounded mr-1"></span>緑線: サブスク契約数（左軸）</li>
+                        <li><span class="inline-block w-3 h-3 bg-orange-500 rounded mr-1"></span>オレンジ線: 打率 %（右軸）</li>
                     </ul>
+                    <details class="mt-2">
+                        <summary class="cursor-pointer text-blue-600 dark:text-blue-400 font-medium">[詳細] 計算方法</summary>
+                        <div class="mt-2 p-2 bg-white dark:bg-gray-800 rounded text-xs space-y-1">
+                            <p><strong>新規顧客数:</strong> その月に「初めて来店した」顧客数</p>
+                            <p><strong>サブスク契約数:</strong> その月の新規顧客のうち、サブスク契約した人数</p>
+                            <p><strong>打率:</strong> (サブスク + 回数券 + 次回予約) ÷ 新規顧客数 × 100</p>
+                            <p class="mt-1 text-gray-500">※ 顧客の「初来店月」で集計（予約月ではない）</p>
+                        </div>
+                    </details>
                 </div>
                 @if(count($monthlyTrendData['labels'] ?? []) > 0)
                     <div class="relative" style="height: 300px;"
@@ -256,7 +326,22 @@
             <x-filament::card>
                 <div class="mb-4">
                     <h2 class="text-lg font-bold text-gray-900 dark:text-white">対応者 × 結果 ヒートマップ</h2>
-                    <p class="text-xs text-gray-500">色が濃いほど件数が多い（上位10名）</p>
+                </div>
+                <div class="mb-3 p-2 bg-gray-50 dark:bg-gray-800 rounded text-xs text-gray-600 dark:text-gray-400">
+                    <details>
+                        <summary class="cursor-pointer text-blue-600 dark:text-blue-400 font-medium">[詳細] この表の見方</summary>
+                        <div class="mt-2 space-y-1">
+                            <p><strong>表の構成:</strong> 縦軸=対応者（上位10名）、横軸=結果の種類</p>
+                            <p><strong>色の意味:</strong> 青色が濃いほど件数が多い</p>
+                            <p><strong>分析ポイント:</strong></p>
+                            <ul class="list-disc list-inside ml-2">
+                                <li>「サブスク」列が濃いスタッフ = 契約獲得が得意</li>
+                                <li>「予約なし」列が濃いスタッフ = フォローアップが必要</li>
+                                <li>「キャンセル」列が濃いスタッフ = 事前確認が必要かも</li>
+                            </ul>
+                            <p class="text-gray-500">※ 対応件数が多い上位10名のみ表示</p>
+                        </div>
+                    </details>
                 </div>
                 @if(count($heatmapData['handlers'] ?? []) > 0)
                     <div class="overflow-x-auto">
@@ -388,6 +473,23 @@
                         <li>各顧客の1回目・2回目・3回目の来店結果を追跡</li>
                         <li>結果: サブスク契約/回数券購入/次回予約あり/予約なし/キャンセル/飛び（ノーショー）</li>
                     </ul>
+                    <details class="mt-2">
+                        <summary class="cursor-pointer text-blue-600 dark:text-blue-400 font-medium">[詳細] データの取得元</summary>
+                        <div class="mt-2 p-2 bg-white dark:bg-gray-800 rounded text-xs space-y-1">
+                            <p><strong>新規顧客の定義:</strong></p>
+                            <p class="ml-2">reservations（予約）テーブルで、その顧客の「最初の予約日」が期間内にある顧客</p>
+                            <p class="mt-2"><strong>各列のデータ元:</strong></p>
+                            <ul class="list-disc list-inside ml-2 space-y-1">
+                                <li><strong>顧客名/電話:</strong> customers テーブル</li>
+                                <li><strong>店舗:</strong> reservations.store_id → stores.name</li>
+                                <li><strong>媒体:</strong> medical_records.reservation_source（カルテの「予約媒体」欄）</li>
+                                <li><strong>日付:</strong> reservations.reservation_date（N回目の予約日）</li>
+                                <li><strong>対応者:</strong> medical_records.handled_by（カルテの「対応者」欄）</li>
+                                <li><strong>結果:</strong> 予約ステータス + サブスク/回数券/次回予約の有無で自動判定</li>
+                            </ul>
+                            <p class="mt-2 text-gray-500">※ カルテ未作成の場合、媒体・対応者は「不明」となります</p>
+                        </div>
+                    </details>
                 </div>
             </div>
 
@@ -470,6 +572,26 @@
                     <li>「打率」= (サブスク + 回数券 + 次回予約) ÷ 総計 × 100%</li>
                     <li>打率が高い媒体 = 効果的な集客チャネル</li>
                 </ul>
+                <details class="mt-2">
+                    <summary class="cursor-pointer text-blue-600 dark:text-blue-400 font-medium">[詳細] データの取得元と計算方法</summary>
+                    <div class="mt-2 p-2 bg-white dark:bg-gray-800 rounded text-xs space-y-1">
+                        <p><strong>媒体の取得:</strong> medical_records.reservation_source（カルテの「予約媒体」欄）</p>
+                        <p class="ml-2 text-gray-500">カルテ未作成の顧客は「不明」にカウント</p>
+                        <p class="mt-2"><strong>各結果の判定:</strong></p>
+                        <ul class="list-disc list-inside ml-2 space-y-1">
+                            <li>キャンセル: reservations.status = 'cancelled'</li>
+                            <li>飛び: reservations.status = 'no_show'</li>
+                            <li>サブスク: 予約日から30日以内に customer_subscriptions に契約あり</li>
+                            <li>回数券: 予約日から30日以内に customer_tickets に購入あり</li>
+                            <li>次回予約: N+1回目の予約が存在する</li>
+                            <li>予約なし: 上記のいずれにも該当しない</li>
+                        </ul>
+                        <p class="mt-2"><strong>打率の計算:</strong></p>
+                        <p class="ml-2 bg-yellow-50 dark:bg-yellow-900/30 p-1 rounded">
+                            打率 = (サブスク + 回数券 + 次回予約) ÷ (キャンセル・飛び含む全員) × 100
+                        </p>
+                    </div>
+                </details>
             </div>
 
             @if(count($sourceData) > 0)
@@ -534,12 +656,27 @@
             <div class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded text-sm text-gray-700 dark:text-gray-300">
                 <p class="font-medium mb-1">この表の見方:</p>
                 <ul class="list-disc list-inside space-y-1 text-xs">
-                    <li>「対応者」= カルテに記録された施術担当者（staff_id または handled_by）</li>
+                    <li>「対応者」= カルテに記録された施術担当者</li>
                     <li>各対応者ごとに、N回目の来店結果を集計</li>
                     <li>「打率」= (サブスク + 回数券 + 次回予約) ÷ 総計 × 100%</li>
                     <li>打率が高い対応者 = 新規顧客獲得に貢献しているスタッフ</li>
-                    <li>「不明」= カルテ未作成またはカルテに対応者未記入の顧客</li>
                 </ul>
+                <details class="mt-2">
+                    <summary class="cursor-pointer text-blue-600 dark:text-blue-400 font-medium">[詳細] データの取得元</summary>
+                    <div class="mt-2 p-2 bg-white dark:bg-gray-800 rounded text-xs space-y-1">
+                        <p><strong>対応者の取得（優先順位）:</strong></p>
+                        <ol class="list-decimal list-inside ml-2 space-y-1">
+                            <li>medical_records.handled_by（カルテの「対応者」テキスト欄）</li>
+                            <li>medical_records.staff_id → users.name（カルテのスタッフ選択）</li>
+                        </ol>
+                        <p class="mt-2"><strong>「不明」の場合:</strong></p>
+                        <ul class="list-disc list-inside ml-2">
+                            <li>カルテが作成されていない</li>
+                            <li>カルテの「対応者」欄が空欄</li>
+                        </ul>
+                        <p class="mt-2 text-orange-600 dark:text-orange-400"><strong>重要:</strong> カルテの「対応者」欄を正確に入力することで、スタッフ別の成績が正しく集計されます</p>
+                    </div>
+                </details>
             </div>
 
             @if(count($handlerData) > 0)
@@ -634,6 +771,19 @@
                     <li>「対応者別」= どのスタッフがどのプランを契約させたか</li>
                     <li>高単価プランへの誘導が上手いスタッフの分析に活用</li>
                 </ul>
+                <details class="mt-2">
+                    <summary class="cursor-pointer text-blue-600 dark:text-blue-400 font-medium">[詳細] データの取得元</summary>
+                    <div class="mt-2 p-2 bg-white dark:bg-gray-800 rounded text-xs space-y-1">
+                        <p><strong>対象者:</strong> 新規顧客のうち、「サブスク」結果となった顧客のみ</p>
+                        <p><strong>プラン名:</strong> customer_subscriptions.plan_name</p>
+                        <p><strong>契約判定:</strong> 予約日から30日以内に customer_subscriptions に登録がある</p>
+                        <p class="mt-2"><strong>活用例:</strong></p>
+                        <ul class="list-disc list-inside ml-2">
+                            <li>「紹介」経由は高単価プランが多い → 紹介強化施策</li>
+                            <li>Aさんはプレミアムプラン契約が多い → 営業トーク共有</li>
+                        </ul>
+                    </div>
+                </details>
             </div>
 
             @if(count($subscriptionData) > 0)
@@ -728,6 +878,19 @@
                     <li>各スタッフが毎月何人の新規顧客を対応したかを確認</li>
                     <li>新規対応の偏りや、スタッフ配置の最適化に活用</li>
                 </ul>
+                <details class="mt-2">
+                    <summary class="cursor-pointer text-blue-600 dark:text-blue-400 font-medium">[詳細] データの取得元</summary>
+                    <div class="mt-2 p-2 bg-white dark:bg-gray-800 rounded text-xs space-y-1">
+                        <p><strong>月の判定:</strong> 顧客の「初来店日」の年月（reservations.reservation_date）</p>
+                        <p><strong>対応者:</strong> 1回目来店時のカルテに記録された対応者</p>
+                        <p class="mt-2"><strong>活用例:</strong></p>
+                        <ul class="list-disc list-inside ml-2">
+                            <li>特定のスタッフに新規対応が集中 → 負荷分散検討</li>
+                            <li>月ごとの新規数の増減 → 集客施策の効果確認</li>
+                            <li>スタッフごとの新規対応経験 → 教育・OJT計画</li>
+                        </ul>
+                    </div>
+                </details>
             </div>
 
             @if(count($monthlyData) > 0)
