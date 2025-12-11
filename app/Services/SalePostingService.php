@@ -153,32 +153,9 @@ class SalePostingService
                 }
             }
 
-            // サブスクリプションの次回請求日を翌月に更新（2025-12-04追加: 予約経由計上時も更新）
-            if ($paymentSource === PaymentSource::SUBSCRIPTION->value && $reservation->customer_subscription_id) {
-                $subscription = \App\Models\CustomerSubscription::find($reservation->customer_subscription_id);
-                if ($subscription && $subscription->billing_start_date) {
-                    $originalDay = \Carbon\Carbon::parse($subscription->billing_start_date)->day;
-                    // 売上日から翌月を計算
-                    $saleDate = \Carbon\Carbon::parse($saleData['sale_date']);
-                    $nextMonth = $saleDate->copy()->addMonthNoOverflow();
-                    $lastDayOfNextMonth = $nextMonth->daysInMonth;
-
-                    if ($originalDay > $lastDayOfNextMonth) {
-                        // 元の日が翌月に存在しない場合は月末に設定
-                        $nextBillingDate = $nextMonth->endOfMonth();
-                    } else {
-                        $nextBillingDate = $nextMonth->startOfMonth()->day($originalDay);
-                    }
-                    $subscription->update(['next_billing_date' => $nextBillingDate]);
-
-                    Log::info("サブスク次回請求日更新", [
-                        'subscription_id' => $subscription->id,
-                        'customer_id' => $reservation->customer_id,
-                        'sale_date' => $saleData['sale_date'],
-                        'next_billing_date' => $nextBillingDate->format('Y-m-d'),
-                    ]);
-                }
-            }
+            // 注意: 予約経由のサブスク利用計上では next_billing_date を更新しない
+            // next_billing_date は月額料金の計上時のみ更新される（DailyClosing等）
+            // 2025-12-11修正: 予約計上時の更新ロジックを削除（月額スキップバグの原因だった）
 
             // 監査ログ
             Log::info("売上計上完了", [
