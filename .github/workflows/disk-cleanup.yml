@@ -1,0 +1,127 @@
+name: Disk Cleanup
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'check'
+        type: choice
+        options:
+          - check
+          - cleanup
+
+jobs:
+  disk-cleanup:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Disk Cleanup
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+        ACTION: ${{ github.event.inputs.action }}
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'CLEANUP'
+
+        echo "=========================================="
+        echo "=== ディスククリーンアップ: $ACTION ==="
+        echo "=========================================="
+
+        echo ""
+        echo "=== 現在のディスク使用状況 ==="
+        df -h /
+
+        if [ "$ACTION" = "check" ]; then
+          echo ""
+          echo "=== ログファイル一覧（サイズ順）==="
+          sudo ls -lhS /var/www/html/storage/logs/ 2>/dev/null | head -20
+
+          echo ""
+          echo "=== 削除対象: 古いログファイル（11月以前）==="
+          sudo find /var/www/html/storage/logs -name "laravel-2025-0*.log" -o -name "laravel-2025-10-*.log" -o -name "laravel-2025-11-*.log" 2>/dev/null | xargs ls -lh 2>/dev/null || echo "なし"
+
+          echo ""
+          echo "=== キャッシュディレクトリサイズ ==="
+          sudo du -sh /var/www/html/storage/framework/cache/ 2>/dev/null || echo "cache: 0"
+          sudo du -sh /var/www/html/storage/framework/views/ 2>/dev/null || echo "views: 0"
+          sudo du -sh /var/www/html/storage/framework/sessions/ 2>/dev/null || echo "sessions: 0"
+
+          echo ""
+          echo "=== APTキャッシュサイズ ==="
+          sudo du -sh /var/cache/apt/archives/ 2>/dev/null || echo "apt: 0"
+
+          echo ""
+          echo "=== ジャーナルログサイズ ==="
+          sudo journalctl --disk-usage 2>/dev/null || echo "不明"
+
+          echo ""
+          echo "=== ディレクトリ別使用量TOP10 ==="
+          sudo du -h /var/www/html --max-depth=2 2>/dev/null | sort -rh | head -10
+
+        elif [ "$ACTION" = "cleanup" ]; then
+          echo ""
+          echo "🧹 クリーンアップ開始..."
+
+          # 1. 古いログファイル削除（12月は残す）
+          echo ""
+          echo "📋 古いログファイルを削除中..."
+          sudo find /var/www/html/storage/logs -name "laravel-2025-0*.log" -delete 2>/dev/null
+          sudo find /var/www/html/storage/logs -name "laravel-2025-10-*.log" -delete 2>/dev/null
+          sudo find /var/www/html/storage/logs -name "laravel-2025-11-*.log" -delete 2>/dev/null
+          echo "✅ 古いログファイル削除完了"
+
+          # 2. Laravelキャッシュクリア
+          echo ""
+          echo "⚡ Laravelキャッシュをクリア中..."
+          cd /var/www/html
+          sudo php artisan cache:clear
+          sudo php artisan view:clear
+          sudo php artisan config:clear
+          echo "✅ Laravelキャッシュクリア完了"
+
+          # 3. 期限切れセッション削除（7日以上前）
+          echo ""
+          echo "🔐 古いセッションファイルを削除中..."
+          sudo find /var/www/html/storage/framework/sessions -type f -mtime +7 -delete 2>/dev/null
+          echo "✅ 古いセッション削除完了"
+
+          # 4. APTキャッシュクリア
+          echo ""
+          echo "🖥️ APTキャッシュをクリア中..."
+          sudo apt-get clean
+          echo "✅ APTキャッシュクリア完了"
+
+          # 5. ジャーナルログ削除（7日以上前）
+          echo ""
+          echo "📰 古いジャーナルログを削除中..."
+          sudo journalctl --vacuum-time=7d 2>/dev/null
+          echo "✅ ジャーナルログクリア完了"
+
+          # 6. キャッシュ再生成
+          echo ""
+          echo "🔄 キャッシュを再生成中..."
+          sudo php artisan config:cache
+          sudo php artisan route:cache
+          sudo php artisan view:cache 2>/dev/null || echo "(view:cacheスキップ)"
+          echo "✅ キャッシュ再生成完了"
+
+          echo ""
+          echo "=========================================="
+          echo "=== クリーンアップ後のディスク使用状況 ==="
+          echo "=========================================="
+          df -h /
+
+          echo ""
+          echo "🎉 クリーンアップ完了！"
+        fi
+
+        CLEANUP
+
+        rm deploy_key.pem
+        echo "✅ Workflow completed!"
