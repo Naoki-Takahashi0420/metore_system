@@ -85,11 +85,9 @@ jobs:
           sudo php artisan config:clear
           echo "✅ Laravelキャッシュクリア完了"
 
-          # 3. 期限切れセッション削除（7日以上前）
+          # 3. セッション削除はスキップ（顧客のログイン状態を維持）
           echo ""
-          echo "🔐 古いセッションファイルを削除中..."
-          sudo find /var/www/html/storage/framework/sessions -type f -mtime +7 -delete 2>/dev/null
-          echo "✅ 古いセッション削除完了"
+          echo "🔐 セッションファイルはスキップ（顧客ログイン維持のため）"
 
           # 4. APTキャッシュクリア
           echo ""
