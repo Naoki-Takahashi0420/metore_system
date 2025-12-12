@@ -69,12 +69,20 @@ jobs:
           echo ""
           echo "🧹 クリーンアップ開始..."
 
-          # 1. 古いログファイル削除（12月は残す）
+          # 0. testディレクトリ削除（テストファイル）
+          echo ""
+          echo "🗑️ testディレクトリを削除中..."
+          sudo rm -rf /var/www/html/test 2>/dev/null
+          echo "✅ testディレクトリ削除完了"
+
+          # 1. 古いログファイル削除（12/11以降のみ残す）
           echo ""
           echo "📋 古いログファイルを削除中..."
           sudo find /var/www/html/storage/logs -name "laravel-2025-0*.log" -delete 2>/dev/null
           sudo find /var/www/html/storage/logs -name "laravel-2025-10-*.log" -delete 2>/dev/null
           sudo find /var/www/html/storage/logs -name "laravel-2025-11-*.log" -delete 2>/dev/null
+          sudo rm -f /var/www/html/storage/logs/laravel-2025-12-0*.log 2>/dev/null
+          sudo rm -f /var/www/html/storage/logs/laravel-2025-12-10.log 2>/dev/null
           echo "✅ 古いログファイル削除完了"
 
           # 2. Laravelキャッシュクリア
