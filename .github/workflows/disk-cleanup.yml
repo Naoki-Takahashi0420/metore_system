@@ -27,17 +27,18 @@ jobs:
         echo "$EC2_KEY" > deploy_key.pem
         chmod 600 deploy_key.pem
 
-        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'CLEANUP'
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} "bash -s" << EOF
 
+        ACTION="${ACTION}"
         echo "=========================================="
-        echo "=== ディスククリーンアップ: $ACTION ==="
+        echo "=== ディスククリーンアップ: \$ACTION ==="
         echo "=========================================="
 
         echo ""
         echo "=== 現在のディスク使用状況 ==="
         df -h /
 
-        if [ "$ACTION" = "check" ]; then
+        if [ "\$ACTION" = "check" ]; then
           echo ""
           echo "=== ログファイル一覧（サイズ順）==="
           sudo ls -lhS /var/www/html/storage/logs/ 2>/dev/null | head -20
@@ -64,7 +65,7 @@ jobs:
           echo "=== ディレクトリ別使用量TOP10 ==="
           sudo du -h /var/www/html --max-depth=2 2>/dev/null | sort -rh | head -10
 
-        elif [ "$ACTION" = "cleanup" ]; then
+        elif [ "\$ACTION" = "cleanup" ]; then
           echo ""
           echo "🧹 クリーンアップ開始..."
 
@@ -119,7 +120,7 @@ jobs:
           echo "🎉 クリーンアップ完了！"
         fi
 
-        CLEANUP
+        EOF
 
         rm deploy_key.pem
         echo "✅ Workflow completed!"
