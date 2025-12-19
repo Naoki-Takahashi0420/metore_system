@@ -1882,6 +1882,12 @@
                                                     -
                                                 @endif
                                             </p>
+                                            @if($activeSubscription->notes)
+                                                <div class="mt-3 p-2 bg-yellow-100 border border-yellow-300 rounded text-xs">
+                                                    <span class="font-semibold text-yellow-800">📝 備考:</span>
+                                                    <span class="text-yellow-900">{{ $activeSubscription->notes }}</span>
+                                                </div>
+                                            @endif
                                         </div>
                                     </div>
                                 @endif

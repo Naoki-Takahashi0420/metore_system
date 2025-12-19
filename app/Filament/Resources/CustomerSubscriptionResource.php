@@ -338,7 +338,16 @@ class CustomerSubscriptionResource extends Resource
                             ->helperText('外部決済サービスの参照番号'),
                     ])
                     ->columns(2),
-                
+
+                Forms\Components\Section::make('備考・特典')
+                    ->schema([
+                        Forms\Components\Textarea::make('notes')
+                            ->label('備考')
+                            ->rows(3)
+                            ->placeholder('長期特典：オプション無料、アップコース対象 など')
+                            ->helperText('顧客への特典や注意事項を記載（予約詳細に表示されます）'),
+                    ]),
+
             ]);
     }
 
