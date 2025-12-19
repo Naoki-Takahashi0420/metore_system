@@ -432,24 +432,6 @@ class Reservation extends Model
 
         // スタッフシフトモードの場合
         if ($store->use_staff_assignment) {
-            // 席番号が指定されている場合は、その席の重複チェックのみ
-            if ($reservation->seat_number && !$reservation->is_sub) {
-                \Log::info('checkAvailability: 席番号指定あり、席の重複チェックのみ', [
-                    'seat_number' => $reservation->seat_number
-                ]);
-                $seatQuery = clone $overlappingReservations;
-                $overlapping = $seatQuery->where('seat_number', $reservation->seat_number)
-                    ->where(function($q) {
-                        $q->where('is_sub', false);
-                        $q->orWhere('line_type', 'main');
-                        $q->orWhereNull('line_type');
-                    })
-                    ->exists();
-
-                return !$overlapping;
-            }
-
-            // 席番号未指定の場合は容量チェック
             // スタッフ勤務時間をチェック
             $hasAvailableStaff = self::checkStaffAvailability($store, $reservation);
             if (!$hasAvailableStaff) {
@@ -482,7 +464,8 @@ class Reservation extends Model
                         'id' => $r->id,
                         'time' => $r->start_time . '-' . $r->end_time,
                         'staff_id' => $r->staff_id,
-                        'status' => $r->status
+                        'status' => $r->status,
+                        'seat_number' => $r->seat_number
                     ];
                 })->toArray(),
                 'available' => $existingCount < $capacity
@@ -491,6 +474,55 @@ class Reservation extends Model
             if ($existingCount >= $capacity) {
                 throw new \Exception("この時間帯の予約枠は満席です。（予約可能数: {$capacity}）");
             }
+
+            // 席番号が指定されている場合、競合チェック
+            if ($reservation->seat_number && !$reservation->is_sub) {
+                $seatQuery = clone $overlappingReservations;
+                $overlapping = $seatQuery->where('seat_number', $reservation->seat_number)
+                    ->where(function($q) {
+                        $q->where('is_sub', false);
+                        $q->orWhere('line_type', 'main');
+                        $q->orWhereNull('line_type');
+                    })
+                    ->exists();
+
+                if (!$overlapping) {
+                    // 競合なし - そのまま使用
+                    \Log::info('checkAvailability: 席番号指定あり、競合なし', [
+                        'seat_number' => $reservation->seat_number
+                    ]);
+                    return true;
+                }
+
+                // 競合あり - 空いている席を自動割り振り
+                \Log::info('Staff mode: Seat conflict detected, auto-reassigning:', [
+                    'reservation_id' => $reservation->id ?? 'new',
+                    'original_seat' => $reservation->seat_number,
+                ]);
+            }
+
+            // 空いている席を自動割り振り（席番号未指定または競合時）
+            $usedSeats = $existingReservations->pluck('seat_number')->filter()->toArray();
+            for ($seatNum = 1; $seatNum <= $capacity; $seatNum++) {
+                if (!in_array($seatNum, $usedSeats)) {
+                    $reservation->seat_number = $seatNum;
+                    $reservation->line_number = $seatNum;
+                    \Log::info('Staff mode: Auto-assigned seat:', [
+                        'reservation_id' => $reservation->id ?? 'new',
+                        'assigned_seat' => $seatNum,
+                        'used_seats' => $usedSeats
+                    ]);
+                    return true;
+                }
+            }
+
+            // 全席使用中だが容量内なら次の番号を割り当て
+            $reservation->seat_number = $existingCount + 1;
+            $reservation->line_number = $existingCount + 1;
+            \Log::info('Staff mode: Assigned next available seat:', [
+                'reservation_id' => $reservation->id ?? 'new',
+                'assigned_seat' => $reservation->seat_number
+            ]);
 
             return true;
         }
@@ -509,10 +541,19 @@ class Reservation extends Model
                     $q->orWhereNull('line_type');                })
                 ->exists();
 
-            return !$overlapping;
+            if (!$overlapping) {
+                // 競合なし - そのまま使用
+                return true;
+            }
+
+            // 競合あり - 空いている席を自動割り振り
+            \Log::info('Seat conflict detected, auto-reassigning:', [
+                'reservation_id' => $reservation->id ?? 'new',
+                'original_seat' => $reservation->seat_number,
+            ]);
         }
 
-        // 席番号が未指定の場合は空いている席を探す
+        // 席番号が未指定、または競合で再割り振りが必要な場合は空いている席を探す
         for ($seatNum = 1; $seatNum <= $maxSeats; $seatNum++) {
             $seatCheckQuery = clone $overlappingReservations;
             $seatTaken = $seatCheckQuery->where('seat_number', $seatNum)
