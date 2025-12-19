@@ -188,7 +188,8 @@ class CustomerSubscriptionResource extends Resource
                             ->label('月間利用上限')
                             ->numeric()
                             ->suffix('回')
-                            ->helperText('個別の契約で上限を変更できます'),
+                            ->disabled()
+                            ->helperText('プランで決定される上限（変更不可）'),
                         
                         Forms\Components\TextInput::make('current_month_visits')
                             ->label('今月の利用回数')
