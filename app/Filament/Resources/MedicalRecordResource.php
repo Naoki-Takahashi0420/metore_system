@@ -733,18 +733,20 @@ class MedicalRecordResource extends Resource
                                                     ->options([
                                                         30 => '30分',
                                                         50 => '50分',
+                                                        60 => '60分',
                                                         80 => '80分'
                                                     ])
-                                                    ->default(function ($get) {
-                                                        // 予約からメニュー情報を取得して時間を自動設定
-                                                        $reservationId = $get('../../reservation_id');
+                                                    ->default(function () {
+                                                        // URLパラメータから予約IDを取得
+                                                        $reservationId = request()->query('reservation_id');
                                                         if ($reservationId) {
                                                             $reservation = Reservation::with(['menu'])->find($reservationId);
                                                             if ($reservation && $reservation->menu && $reservation->menu->duration_minutes) {
                                                                 $duration = $reservation->menu->duration_minutes;
                                                                 // 最も近い選択肢を選ぶ
                                                                 if ($duration <= 30) return 30;
-                                                                if ($duration <= 50) return 50;
+                                                                if ($duration <= 55) return 50;
+                                                                if ($duration <= 70) return 60;
                                                                 return 80;
                                                             }
                                                         }
