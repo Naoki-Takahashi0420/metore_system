@@ -814,7 +814,13 @@
                         type="date"
                         x-ref="datePicker"
                         value="{{ $selectedDate }}"
-                        @change="$wire.set('selectedDate', $event.target.value); $refs.datePicker.blur();"
+                        @change="
+                            $wire.set('selectedDate', $event.target.value);
+                            setTimeout(() => {
+                                $refs.datePicker.blur();
+                                document.body.focus();
+                            }, 50);
+                        "
                         @blur="showPicker = false"
                         class="absolute opacity-0 pointer-events-none w-1 h-1"
                         style="left: 0; top: 0;">
