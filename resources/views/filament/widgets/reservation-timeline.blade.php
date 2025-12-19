@@ -1782,6 +1782,39 @@
                         </div>
                     </div>
 
+                    <!-- 過去の接客メモ（サービスメモ） -->
+                    @php
+                        $pastServiceMemos = \App\Models\MedicalRecord::where('customer_id', $selectedReservation->customer_id)
+                            ->whereNotNull('service_memo')
+                            ->where('service_memo', '!=', '')
+                            ->orderBy('treatment_date', 'desc')
+                            ->limit(5)
+                            ->get(['treatment_date', 'service_memo', 'handled_by']);
+                    @endphp
+                    @if($pastServiceMemos->count() > 0)
+                        <div>
+                            <h4 class="text-sm font-bold text-gray-900 mb-3 pb-2 border-b border-gray-200">
+                                過去の接客メモ
+                                <span class="text-xs font-normal text-gray-500 ml-2">（直近5件）</span>
+                            </h4>
+                            <div class="space-y-3 max-h-48 overflow-y-auto">
+                                @foreach($pastServiceMemos as $memo)
+                                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                                        <div class="flex items-center justify-between mb-1">
+                                            <span class="text-xs text-gray-500">
+                                                {{ $memo->treatment_date ? \Carbon\Carbon::parse($memo->treatment_date)->format('Y/m/d') : '-' }}
+                                            </span>
+                                            @if($memo->handled_by)
+                                                <span class="text-xs text-gray-500">担当: {{ $memo->handled_by }}</span>
+                                            @endif
+                                        </div>
+                                        <p class="text-sm text-gray-700 whitespace-pre-line">{{ $memo->service_memo }}</p>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+
                     <!-- 契約状況 -->
                     @php
                         // 予約に紐づくサブスクID優先 → 同店舗のアクティブ契約
