@@ -314,19 +314,54 @@ class DailyClosing extends Page implements HasForms
                     'payment_method' => $paymentMethod,
                 ]);
             } else {
-                // 未計上：予約の金額を使用
-                $amount = ($source === 'spot') ? (int)($reservation->total_amount ?? 0) : 0;
+                // 未計上の場合
 
-                // カルテから支払方法を取得（優先）
-                $paymentMethod = null;
-                $latestMedicalRecord = $reservation->medicalRecords->sortByDesc('created_at')->first();
-                if ($latestMedicalRecord && $latestMedicalRecord->payment_method) {
-                    $paymentMethod = $latestMedicalRecord->payment_method;
-                }
+                // ★ サブスク予約は自動計上（手動ボタン不要）
+                if ($source === 'subscription') {
+                    try {
+                        // カルテから支払方法を取得（優先）
+                        $latestMedicalRecord = $reservation->medicalRecords->sortByDesc('created_at')->first();
+                        $autoPaymentMethod = $latestMedicalRecord?->payment_method ?? $defaultPaymentMethod;
 
-                // カルテにない場合は、店舗のデフォルト支払方法
-                if (!$paymentMethod) {
-                    $paymentMethod = $defaultPaymentMethod;
+                        // 自動で売上計上
+                        $reservation->completeAndCreateSale($autoPaymentMethod, 'subscription');
+
+                        // 売上を再取得
+                        $freshSale = Sale::where('reservation_id', $reservation->id)->orderByDesc('id')->first();
+
+                        $amount = (int)($freshSale->total_amount ?? 0);
+                        $paymentMethod = $freshSale->payment_method ?? $autoPaymentMethod;
+
+                        \Log::info('🔄 サブスク予約を自動計上', [
+                            'reservation_id' => $reservation->id,
+                            'customer' => $reservation->customer?->full_name,
+                            'sale_id' => $freshSale?->id,
+                        ]);
+                    } catch (\Exception $e) {
+                        \Log::error('❌ サブスク予約の自動計上失敗', [
+                            'reservation_id' => $reservation->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                        // エラー時は通常の未計上処理にフォールバック
+                        $amount = 0;
+                        $latestMedicalRecord = $reservation->medicalRecords->sortByDesc('created_at')->first();
+                        $paymentMethod = $latestMedicalRecord?->payment_method ?? $defaultPaymentMethod;
+                    }
+                } else {
+                    // 通常の未計上処理（スポット・回数券）
+                    $amount = ($source === 'spot') ? (int)($reservation->total_amount ?? 0) : 0;
+
+                    // カルテから支払方法を取得（優先）
+                    $paymentMethod = null;
+                    $latestMedicalRecord = $reservation->medicalRecords->sortByDesc('created_at')->first();
+                    if ($latestMedicalRecord && $latestMedicalRecord->payment_method) {
+                        $paymentMethod = $latestMedicalRecord->payment_method;
+                    }
+
+                    // カルテにない場合は、店舗のデフォルト支払方法
+                    if (!$paymentMethod) {
+                        $paymentMethod = $defaultPaymentMethod;
+                    }
                 }
             }
 
