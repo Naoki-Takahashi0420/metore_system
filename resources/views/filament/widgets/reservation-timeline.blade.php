@@ -60,6 +60,67 @@
         if (typeof window.handleSlotClick === 'undefined') {
             console.log('⚠️ handleSlotClick was not defined, defining now');
         }
+
+        // BRKセルのクリックハンドラー
+        window.handleBlockClick = function(blockId) {
+            alert('handleBlockClick called with blockId: ' + blockId);
+            console.log('🔒 Block clicked:', blockId);
+
+            try {
+                // Livewire 3のコンポーネントを取得
+                const wireElements = document.querySelectorAll('[wire\\:id]');
+                console.log('📊 Found wire:id elements:', wireElements.length);
+
+                for (const wireElement of wireElements) {
+                    const wireId = wireElement.getAttribute('wire:id');
+                    console.log('📍 Trying wire:id:', wireId);
+
+                    if (window.Livewire && window.Livewire.find) {
+                        const component = window.Livewire.find(wireId);
+                        if (component && component.selectBlock) {
+                            console.log('✅ Found component with selectBlock, calling method');
+                            component.selectBlock(blockId);
+                            return;
+                        } else if (component) {
+                            // selectBlockがなくてもcallを試す
+                            console.log('🔄 Trying component.call for selectBlock');
+                            component.call('selectBlock', blockId);
+                            return;
+                        }
+                    }
+                }
+
+                console.error('❌ Could not find a way to call selectBlock');
+
+            } catch (error) {
+                console.error('❌ Error in handleBlockClick:', error);
+            }
+        }
+    </script>
+
+    <!-- 日付ピッカー自動閉じ用JavaScript -->
+    <script>
+        // 一部の端末でネイティブ日付ピッカーが閉じない問題への対策
+        document.addEventListener('click', function(e) {
+            // 日付ピッカー以外の場所をクリックしたら、アクティブな日付入力からフォーカスを外す
+            const dateInputs = document.querySelectorAll('input[type="date"]');
+            dateInputs.forEach(function(input) {
+                if (document.activeElement === input && !input.contains(e.target)) {
+                    input.blur();
+                }
+            });
+        }, true);
+
+        // 日付選択後に自動でフォーカスを外す
+        document.addEventListener('change', function(e) {
+            if (e.target && e.target.type === 'date') {
+                setTimeout(function() {
+                    e.target.blur();
+                    // Safari/iOS対策: body要素にフォーカスを移す
+                    document.body.focus();
+                }, 100);
+            }
+        });
     </script>
 
     <!-- メニュー変更用JavaScript -->
@@ -532,7 +593,7 @@
             
             .blocked-cell {
                 background: #f5f5f5 !important;
-                cursor: not-allowed !important;
+                cursor: pointer !important;
             }
             
             .no-staff-cell {
@@ -753,7 +814,8 @@
                         type="date"
                         x-ref="datePicker"
                         value="{{ $selectedDate }}"
-                        @change="$wire.set('selectedDate', $event.target.value)"
+                        @change="$wire.set('selectedDate', $event.target.value); $refs.datePicker.blur();"
+                        @blur="showPicker = false"
                         class="absolute opacity-0 pointer-events-none w-1 h-1"
                         style="left: 0; top: 0;">
                 </div>
@@ -1013,8 +1075,22 @@
                                         }
                                         $isPastClickable = !$hasReservation && !$isBlocked && $isPast && !$hasNoStaff;
                                     @endphp
+                                    @php
+                                        $blockIdForTd = $isBlocked ? ($timelineData['blockIdsMap'][$key][$index] ?? $timelineData['blockIdsMap']['global'][$index] ?? null) : null;
+                                        if ($isBlocked) {
+                                            \Log::info('🔴 BLOCK CELL DEBUG', [
+                                                'key' => $key,
+                                                'index' => $index,
+                                                'isBlocked' => $isBlocked,
+                                                'blockIdForTd' => $blockIdForTd,
+                                                'blockIdsMap_keys' => array_keys($timelineData['blockIdsMap'] ?? []),
+                                            ]);
+                                        }
+                                    @endphp
                                     <td class="time-cell {{ $isBlocked ? 'blocked-cell' : '' }} {{ $hasNoStaff ? 'no-staff-cell' : '' }} {{ $isPast ? 'past-time-cell' : '' }} {{ $isClickable ? 'empty-slot clickable-slot' : ($isPastClickable ? 'past-clickable' : '') }}"
-                                        @if($isClickable)
+                                        @if($isBlocked && $blockIdForTd)
+                                            style="position: relative;"
+                                        @elseif($isClickable)
                                             wire:click="openNewReservationFromSlot('{{ $key }}', '{{ $slot }}')"
                                             style="cursor: pointer; position: relative;"
                                             onmouseover="this.style.backgroundColor='{{ $seat['type'] === 'unassigned' ? '#fef3c7' : ($seat['type'] === 'staff' ? '#d1fae5' : '#e3f2fd') }}'"
@@ -1030,19 +1106,12 @@
                                             title="{{ $tooltipMessage ?: ($hasNoStaff ? 'スタッフのシフトがありません' : '予約不可') }}"
                                         @endif>
                                         @if($isBlocked)
-                                            @php
-                                                $blockId = $timelineData['blockIdsMap'][$key][$index] ?? $timelineData['blockIdsMap']['global'][$index] ?? null;
-                                            @endphp
-                                            <div
-                                                @if($blockId) wire:click="selectBlock({{ $blockId }})" @endif
-                                                style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #9e9e9e; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; {{ $blockId ? 'cursor: pointer;' : '' }}"
-                                                @if($blockId)
-                                                    onmouseover="this.style.background='#757575'"
-                                                    onmouseout="this.style.background='#9e9e9e'"
-                                                    title="クリックして詳細表示・削除"
-                                                @endif
-                                            >
-                                                BRK
+                                            {{-- BRKセルをクリックでブロック詳細モーダルを表示 --}}
+                                            <div class="booking-block blocked-block block-cell-clickable"
+                                                wire:click="selectBlock({{ $blockIdForTd }})"
+                                                style="width: 100%; left: 0; background: #f3f4f6; border: 2px dashed #9ca3af; cursor: pointer;"
+                                                title="クリックしてブロック詳細を表示">
+                                                <span style="color: #666; font-weight: bold; font-size: 12px; text-align: center; display: block;">BRK</span>
                                             </div>
                                         @else
                                             @foreach($seat['reservations'] as $reservation)
@@ -4670,12 +4739,12 @@
     </script>
 
     {{-- ブロック詳細モーダル --}}
-    @if($showBlockDetailModal && $selectedBlock)
-        <x-filament::modal id="block-detail-modal" width="md">
-            <x-slot name="heading">
-                予約ブロック詳細
-            </x-slot>
+    <x-filament::modal id="block-detail-modal" width="md" :close-by-clicking-away="true" wire:model="showBlockDetailModal">
+        <x-slot name="heading">
+            予約ブロック詳細
+        </x-slot>
 
+        @if($selectedBlock)
             <div class="space-y-4">
                 <div>
                     <label class="text-sm font-medium text-gray-700">日付</label>
@@ -4717,23 +4786,25 @@
                     <p class="text-sm text-gray-900">{{ $selectedBlock->reason ?? '理由なし' }}</p>
                 </div>
             </div>
+        @else
+            <div class="p-4 text-gray-500">ブロック情報を読み込み中...</div>
+        @endif
 
-            <x-slot name="footerActions">
-                <x-filament::button
-                    color="danger"
-                    wire:click="deleteBlock"
-                    wire:confirm="このブロックを削除してもよろしいですか？"
-                >
-                    削除
-                </x-filament::button>
+        <x-slot name="footerActions">
+            <x-filament::button
+                color="danger"
+                wire:click="deleteBlock"
+                wire:confirm="このブロックを削除してもよろしいですか？"
+            >
+                削除
+            </x-filament::button>
 
-                <x-filament::button
-                    color="gray"
-                    wire:click="closeBlockDetailModal"
-                >
-                    閉じる
-                </x-filament::button>
-            </x-slot>
-        </x-filament::modal>
-    @endif
+            <x-filament::button
+                color="gray"
+                wire:click="closeBlockDetailModal"
+            >
+                閉じる
+            </x-filament::button>
+        </x-slot>
+    </x-filament::modal>
 </x-filament-widgets::widget>

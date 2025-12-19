@@ -38,6 +38,9 @@ class ReservationTimelineWidget extends Widget
     public $showReservationHistoryModal = false;
     public $showBlockDetailModal = false;
 
+    // イベントリスナー
+    protected $listeners = ['selectBlock'];
+
     // 新規予約作成用のプロパティ
     public $showNewReservationModal = false;
     public $modalMode = 'reservation'; // 'reservation' or 'block'
@@ -3961,6 +3964,9 @@ class ReservationTimelineWidget extends Widget
 
             if ($this->selectedBlock) {
                 $this->showBlockDetailModal = true;
+
+                // Filament 3モーダルをJavaScriptで開く（window.dispatchEvent）
+                $this->js("window.dispatchEvent(new CustomEvent('open-modal', { detail: { id: 'block-detail-modal' } }))");
             } else {
                 \Filament\Notifications\Notification::make()
                     ->danger()
@@ -3969,11 +3975,6 @@ class ReservationTimelineWidget extends Widget
                     ->send();
             }
         } catch (\Exception $e) {
-            \Log::error('Failed to select block:', [
-                'error' => $e->getMessage(),
-                'block_id' => $blockId
-            ]);
-
             \Filament\Notifications\Notification::make()
                 ->danger()
                 ->title('エラー')
@@ -3989,6 +3990,9 @@ class ReservationTimelineWidget extends Widget
     {
         $this->showBlockDetailModal = false;
         $this->selectedBlock = null;
+
+        // Filament 3モーダルをJavaScriptで閉じる
+        $this->js("window.dispatchEvent(new CustomEvent('close-modal', { detail: { id: 'block-detail-modal' } }))");
     }
 
     /**
