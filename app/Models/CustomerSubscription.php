@@ -174,6 +174,38 @@ class CustomerSubscription extends Model
     }
 
     /**
+     * プラン名を取得（マスタから取得、なければDB保存値）
+     * SubscriptionPlanまたはMenuの名前を優先して返す
+     */
+    public function getPlanNameAttribute($value): ?string
+    {
+        // 1. plan_id があれば SubscriptionPlan から取得
+        if ($this->plan_id && $this->relationLoaded('plan') && $this->plan) {
+            return $this->plan->name;
+        }
+        if ($this->plan_id) {
+            $plan = SubscriptionPlan::find($this->plan_id);
+            if ($plan) {
+                return $plan->name;
+            }
+        }
+
+        // 2. menu_id があれば Menu から取得
+        if ($this->menu_id && $this->relationLoaded('menu') && $this->menu) {
+            return $this->menu->name;
+        }
+        if ($this->menu_id) {
+            $menu = Menu::find($this->menu_id);
+            if ($menu) {
+                return $menu->name;
+            }
+        }
+
+        // 3. フォールバック: DB保存値を返す
+        return $value;
+    }
+
+    /**
      * スコープ: アクティブなサブスクリプション（ステータスのみ）
      */
     public function scopeActive($query)
