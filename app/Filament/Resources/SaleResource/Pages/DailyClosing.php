@@ -401,7 +401,7 @@ class DailyClosing extends Page implements HasForms
     }
 
     /**
-     * 本日が決済予定日のサブスク契約を取得
+     * 本日が決済予定日のサブスク契約を取得（未計上は自動計上）
      */
     public function loadUnpostedSubscriptions(): void
     {
@@ -437,6 +437,81 @@ class DailyClosing extends Page implements HasForms
         \Log::info('📊 取得したサブスク契約数', [
             'count' => $subscriptions->count(),
         ]);
+
+        // ★ 未計上のサブスク決済を自動計上
+        $autoPostedCount = 0;
+        foreach ($subscriptions as $subscription) {
+            // 既に計上済みかチェック
+            if (in_array($subscription->id, $postedSubscriptionIds)) {
+                continue; // 計上済みはスキップ
+            }
+
+            // 決済失敗フラグが立っている場合はスキップ
+            if ($subscription->payment_failed) {
+                \Log::info('⏭️ 決済失敗のためスキップ', ['subscription_id' => $subscription->id]);
+                continue;
+            }
+
+            try {
+                // サブスク契約の決済方法を使用
+                $paymentMethod = $subscription->payment_method ?? '現金';
+
+                // 売上計上
+                Sale::create([
+                    'sale_number' => Sale::generateSaleNumber(),
+                    'customer_id' => $subscription->customer_id,
+                    'customer_subscription_id' => $subscription->id,
+                    'store_id' => $subscription->store_id,
+                    'sale_date' => $this->closingDate,
+                    'sale_time' => now()->format('H:i:s'),
+                    'payment_source' => 'subscription',
+                    'payment_method' => $paymentMethod,
+                    'total_amount' => $subscription->monthly_price ?? 0,
+                    'tax_rate' => 0,
+                    'tax_amount' => 0,
+                    'status' => 'completed',
+                    'notes' => 'サブスク決済（' . $subscription->plan_name . '）- 自動計上',
+                    'handled_by' => auth()->user()->name ?? '管理者',
+                    'staff_id' => auth()->id(),
+                ]);
+
+                // 次回請求日を翌月に更新
+                $billingStartDate = $subscription->billing_start_date;
+                if ($billingStartDate) {
+                    $originalDay = \Carbon\Carbon::parse($billingStartDate)->day;
+                    $currentDate = \Carbon\Carbon::parse($this->closingDate);
+                    $nextMonth = $currentDate->copy()->addMonthNoOverflow();
+                    $lastDayOfNextMonth = $nextMonth->daysInMonth;
+
+                    if ($originalDay > $lastDayOfNextMonth) {
+                        $nextBillingDate = $nextMonth->endOfMonth();
+                    } else {
+                        $nextBillingDate = $nextMonth->startOfMonth()->day($originalDay);
+                    }
+                    $subscription->update(['next_billing_date' => $nextBillingDate]);
+                }
+
+                // 計上済みリストに追加
+                $postedSubscriptionIds[] = $subscription->id;
+                $autoPostedCount++;
+
+                \Log::info('✅ サブスク決済を自動計上', [
+                    'subscription_id' => $subscription->id,
+                    'customer' => $subscription->customer?->full_name,
+                    'amount' => $subscription->monthly_price,
+                ]);
+
+            } catch (\Exception $e) {
+                \Log::error('❌ サブスク決済の自動計上失敗', [
+                    'subscription_id' => $subscription->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        if ($autoPostedCount > 0) {
+            \Log::info("🎉 サブスク決済 {$autoPostedCount}件を自動計上しました");
+        }
 
         // 店舗のデフォルト支払方法を取得
         $store = $subscriptions->first()?->store;
