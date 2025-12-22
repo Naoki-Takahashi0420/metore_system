@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\StoreResource\Pages;
+use App\Filament\Resources\StoreResource\RelationManagers;
 use App\Models\Store;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -757,7 +758,7 @@ class StoreResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            RelationManagers\BroadcastMessagesRelationManager::class,
         ];
     }
 

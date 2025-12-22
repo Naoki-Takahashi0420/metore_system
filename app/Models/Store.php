@@ -294,4 +294,12 @@ class Store extends Model
             }
         });
     }
+
+    /**
+     * リレーション: 一斉送信メッセージ
+     */
+    public function broadcastMessages()
+    {
+        return $this->hasMany(BroadcastMessage::class);
+    }
 }

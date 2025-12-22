@@ -215,7 +215,12 @@ class CustomerNotificationService
         $date = Carbon::parse($reservation->reservation_date)->format('Y年n月j日');
         $time = Carbon::parse($reservation->start_time)->format('H:i');
 
-        $message = "【予約確認】\n{$customer->last_name} {$customer->first_name}様\n\nご予約ありがとうございます！\n\n予約番号: {$reservation->reservation_number}\n店舗: {$store->name}\n日時: {$date} {$time}〜\nメニュー: {$reservation->menu->name}\n料金: ¥" . number_format($reservation->total_amount) . "\n\n当日は5分前にお越しください。\n{$store->phone}";
+        // 店舗カスタムメッセージがあれば使用、なければデフォルト
+        if (!empty($store->line_reservation_message)) {
+            $message = $this->replaceTemplateVariables($store->line_reservation_message, $reservation);
+        } else {
+            $message = "【予約確認】\n{$customer->last_name} {$customer->first_name}様\n\nご予約ありがとうございます！\n\n予約番号: {$reservation->reservation_number}\n店舗: {$store->name}\n日時: {$date} {$time}〜\nメニュー: {$reservation->menu->name}\n料金: ¥" . number_format($reservation->total_amount) . "\n\n当日は5分前にお越しください。\n{$store->phone}";
+        }
 
         return $this->sendNotification($customer, $store, $message, 'reservation_confirmation', $reservation->id);
     }

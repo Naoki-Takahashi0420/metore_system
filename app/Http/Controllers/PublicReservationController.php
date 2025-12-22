@@ -2807,37 +2807,12 @@ class PublicReservationController extends Controller
             ]);
             
             DB::commit();
-            
-            // 新規予約通知を送信
-            event(new ReservationCreated($reservation));
-            
-            // LINE連携チェックと通知送信
-            if ($customer->line_user_id) {
-                // LINE連携済みの場合は即時確認通知を試行
-                \Log::info('LINE連携済み顧客：即時確認通知を試行', [
-                    'reservation_id' => $reservation->id,
-                    'customer_id' => $customer->id,
-                    'line_user_id' => $customer->line_user_id
-                ]);
-                
-                // 即時LINE送信を試行
-                $confirmationService = app(\App\Services\ReservationConfirmationService::class);
-                if ($confirmationService->sendLineConfirmation($reservation)) {
-                    // 統一的なフラグ設定（ReservationConfirmationService::markConfirmationSentを使用）
-                    $confirmationService->markConfirmationSent($reservation, 'line');
 
-                    \Log::info('即時LINE確認通知送信成功', [
-                        'reservation_id' => $reservation->id,
-                        'customer_id' => $customer->id
-                    ]);
-                } else {
-                    \Log::warning('即時LINE確認通知送信失敗、フォールバック予約', [
-                        'reservation_id' => $reservation->id,
-                        'customer_id' => $customer->id
-                    ]);
-                }
-            } else if ($store->line_enabled && $store->line_liff_id) {
-                // LINE未連携だが、店舗のLINE設定が有効な場合は連携案内を送信
+            // 新規予約通知を送信（イベントリスナーが店舗テンプレートを使用して送信）
+            event(new ReservationCreated($reservation));
+
+            // LINE未連携の場合は連携案内を送信
+            if (!$customer->line_user_id && $store->line_enabled && $store->line_liff_id) {
                 \Log::info('LINE未連携顧客：連携案内を送信予定', [
                     'reservation_id' => $reservation->id,
                     'customer_id' => $customer->id,
