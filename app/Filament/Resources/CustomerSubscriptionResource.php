@@ -250,9 +250,16 @@ class CustomerSubscriptionResource extends Resource
 
                         Forms\Components\Select::make('billing_day')
                             ->label('請求日（毎月）')
-                            ->options(array_combine(range(1, 28), array_map(fn($d) => "{$d}日", range(1, 28))))
+                            ->options(array_combine(range(1, 31), array_map(fn($d) => "{$d}日", range(1, 31))))
                             ->reactive()
-                            ->helperText('毎月何日に請求するか（変更可能）')
+                            ->default(fn ($get) => $get('billing_start_date') ? \Carbon\Carbon::parse($get('billing_start_date'))->day : null)
+                            ->afterStateHydrated(function ($state, $set, $record) {
+                                // 編集時にbilling_dayがnullなら、billing_start_dateの日をセット
+                                if ($record && !$state && $record->billing_start_date) {
+                                    $set('billing_day', \Carbon\Carbon::parse($record->billing_start_date)->day);
+                                }
+                            })
+                            ->helperText('毎月何日に請求するか（29-31日は月末自動調整）')
                             ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                 if ($state) {
                                     // 次回請求日を再計算
