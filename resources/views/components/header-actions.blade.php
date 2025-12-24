@@ -50,6 +50,9 @@
         </div>
     </div>
 
+    {{-- 店舗メモボタン --}}
+    @livewire('store-memo')
+
     @if($claudeEnabled)
     {{-- AIヘルプボタン --}}
     @livewire('help-chat-modal')

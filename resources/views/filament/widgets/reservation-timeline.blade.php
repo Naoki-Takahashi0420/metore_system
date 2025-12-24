@@ -803,27 +803,32 @@
                     ◀
                 </button>
 
-                <div class="relative flex-1 lg:flex-none" x-data="{ showPicker: false }">
-                    <div class="font-bold px-2 sm:px-4 py-1 bg-gray-50 rounded cursor-pointer hover:bg-blue-50 hover:shadow-md transition-all select-none border-b-2 border-transparent hover:border-blue-500 text-center lg:text-left"
-                         @click="$refs.datePicker.showPicker ? $refs.datePicker.showPicker() : $refs.datePicker.click()"
-                         title="クリックして日付を選択">
+                <div class="relative flex-1 lg:flex-none">
+                    {{-- 日付表示（装飾用、タップを透過） --}}
+                    <div class="font-bold px-2 sm:px-4 py-1 bg-gray-50 rounded select-none border-b-2 border-transparent text-center lg:text-left pointer-events-none">
                         <span class="text-sm sm:text-base">{{ \Carbon\Carbon::parse($selectedDate)->format('Y年n月j日') }}</span>
                         <span class="text-xs sm:text-sm text-gray-600 block sm:inline">({{ ['日', '月', '火', '水', '木', '金', '土'][\Carbon\Carbon::parse($selectedDate)->dayOfWeek] }})</span>
                     </div>
+                    {{-- 透明なinput（タップを受け取る） --}}
                     <input
                         type="date"
-                        x-ref="datePicker"
                         value="{{ $selectedDate }}"
-                        @change="
-                            $wire.set('selectedDate', $event.target.value);
-                            setTimeout(() => {
-                                $refs.datePicker.blur();
-                                document.body.focus();
-                            }, 50);
-                        "
-                        @blur="showPicker = false"
-                        class="absolute opacity-0 pointer-events-none w-1 h-1"
-                        style="left: 0; top: 0;">
+                        @change="$wire.set('selectedDate', $event.target.value)"
+                        class="absolute inset-0 w-full h-full cursor-pointer date-picker-fullclick"
+                        style="opacity: 0;">
+                    <style>
+                        .date-picker-fullclick::-webkit-calendar-picker-indicator {
+                            position: absolute;
+                            left: 0;
+                            top: 0;
+                            width: 100%;
+                            height: 100%;
+                            margin: 0;
+                            padding: 0;
+                            cursor: pointer;
+                            background: transparent;
+                        }
+                    </style>
                 </div>
 
                 <button wire:click="changeDate('next')" class="p-2 sm:px-3 sm:py-1 border rounded hover:bg-gray-100 transition-colors text-base sm:text-sm">

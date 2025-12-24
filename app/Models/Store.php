@@ -78,6 +78,8 @@ class Store extends Model
         'bank_account_number',
         'bank_account_name',
         'bank_transfer_note',
+        // 店舗メモ
+        'memo',
     ];
 
     protected $casts = [
