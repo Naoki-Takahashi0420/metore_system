@@ -224,11 +224,18 @@ class CustomerSubscriptionResource extends Resource
                             ->reactive()
                             ->disabled(fn ($operation) => $operation === 'edit')
                             ->helperText(fn ($operation) => $operation === 'edit' ? '契約時に決定（変更不可）' : '課金を開始する日を選択')
-                            ->afterStateUpdated(function ($state, callable $set) {
+                            ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                 if ($state) {
+                                    // billing_dayが未設定の場合、課金開始日の日を設定
+                                    $billingDay = $get('billing_day');
+                                    if (!$billingDay) {
+                                        $billingStart = \Carbon\Carbon::parse($state);
+                                        $set('billing_day', min($billingStart->day, 28));
+                                    }
+
                                     // 次回請求日を計算（月末処理を考慮）
                                     $billingStart = \Carbon\Carbon::parse($state);
-                                    $originalDay = $billingStart->day;
+                                    $originalDay = $billingDay ?: $billingStart->day;
                                     $nextMonth = $billingStart->copy()->addMonthNoOverflow();
                                     $lastDayOfNextMonth = $nextMonth->daysInMonth;
 
@@ -236,6 +243,33 @@ class CustomerSubscriptionResource extends Resource
                                         $nextBilling = $nextMonth->endOfMonth();
                                     } else {
                                         $nextBilling = $nextMonth->startOfMonth()->day($originalDay);
+                                    }
+                                    $set('next_billing_date', $nextBilling->format('Y-m-d'));
+                                }
+                            }),
+
+                        Forms\Components\Select::make('billing_day')
+                            ->label('請求日（毎月）')
+                            ->options(array_combine(range(1, 28), array_map(fn($d) => "{$d}日", range(1, 28))))
+                            ->reactive()
+                            ->helperText('毎月何日に請求するか（変更可能）')
+                            ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                                if ($state) {
+                                    // 次回請求日を再計算
+                                    $now = \Carbon\Carbon::now();
+                                    $billingDay = (int) $state;
+
+                                    // 今月の請求日がまだ来ていなければ今月、過ぎていれば来月
+                                    if ($now->day < $billingDay) {
+                                        $nextBilling = $now->copy()->day($billingDay);
+                                    } else {
+                                        $nextMonth = $now->copy()->addMonthNoOverflow();
+                                        $lastDayOfNextMonth = $nextMonth->daysInMonth;
+                                        if ($billingDay > $lastDayOfNextMonth) {
+                                            $nextBilling = $nextMonth->endOfMonth();
+                                        } else {
+                                            $nextBilling = $nextMonth->startOfMonth()->day($billingDay);
+                                        }
                                     }
                                     $set('next_billing_date', $nextBilling->format('Y-m-d'));
                                 }

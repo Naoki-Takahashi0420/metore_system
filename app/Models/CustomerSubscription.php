@@ -22,6 +22,7 @@ class CustomerSubscription extends Model
         'monthly_price',
         'billing_date',
         'billing_start_date',
+        'billing_day',
         'service_start_date',
         'start_date',
         'contract_months',
@@ -52,6 +53,7 @@ class CustomerSubscription extends Model
         'monthly_price' => 'integer',
         'billing_date' => 'date',
         'billing_start_date' => 'date',
+        'billing_day' => 'integer',
         'service_start_date' => 'date',
         'start_date' => 'date',
         'contract_months' => 'integer',
@@ -473,9 +475,10 @@ class CustomerSubscription extends Model
     {
         // 月末処理を考慮した次回請求日の計算
         $currentDate = Carbon::now();
-        $originalDay = $this->billing_start_date
-            ? Carbon::parse($this->billing_start_date)->day
-            : $this->reset_day;
+
+        // billing_dayがあればそれを使用、なければbilling_start_dateの日、それもなければreset_day
+        $originalDay = $this->billing_day
+            ?? ($this->billing_start_date ? Carbon::parse($this->billing_start_date)->day : $this->reset_day);
 
         $nextMonth = $currentDate->copy()->addMonthNoOverflow();
         $lastDayOfNextMonth = $nextMonth->daysInMonth;
