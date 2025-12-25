@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Models\FcOrder;
 use App\Models\FcInvoice;
 use App\Models\Store;
+use App\Services\FcNotificationService;
 use Filament\Pages\Page;
 use Filament\Notifications\Notification;
 use Illuminate\Contracts\Support\Htmlable;
@@ -211,6 +212,18 @@ class FcStoreDashboard extends Page
             'status' => $status,
             $status . '_at' => now(),
         ]);
+
+        // FC店舗へ通知を送信
+        try {
+            $notificationService = app(FcNotificationService::class);
+            if ($status === 'shipped') {
+                $notificationService->notifyOrderShipped($order);
+            } elseif ($status === 'delivered') {
+                $notificationService->notifyOrderDelivered($order);
+            }
+        } catch (\Exception $e) {
+            \Log::error("FC発注ステータス通知エラー: " . $e->getMessage());
+        }
 
         Notification::make()
             ->success()
