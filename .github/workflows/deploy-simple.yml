@@ -231,6 +231,10 @@ jobs:
         echo "=== Assigning colors to categories ==="
         sudo php artisan categories:assign-colors || echo "Category color assignment completed"
 
+        # FC請求書アイテム再生成（空の請求書を修復）
+        echo "=== Regenerating FC Invoice Items ==="
+        sudo php artisan fc:regenerate-invoice-items || echo "FC invoice items regeneration completed"
+
         # 権限設定
         sudo chown -R www-data:www-data $APP_DIR
         sudo chmod -R 755 $APP_DIR
