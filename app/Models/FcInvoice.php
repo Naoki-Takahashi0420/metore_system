@@ -157,28 +157,48 @@ class FcInvoice extends Model
             return $existingInvoice;
         }
 
-        // 注文の合計金額を使用（税込み）
-        $subtotal = floatval($order->subtotal ?? 0);
-        $taxAmount = floatval($order->tax_amount ?? 0);
-        $totalAmount = floatval($order->total_amount ?? 0);
-
-        // 請求書を作成
+        // 請求書を作成（金額は明細から再計算するので0で初期化）
         $invoice = self::create([
             'invoice_number' => self::generateInvoiceNumber(),
             'fc_store_id' => $order->fc_store_id,
             'headquarters_store_id' => $order->headquarters_store_id,
             'status' => self::STATUS_ISSUED,
-            'billing_period_start' => $order->delivered_at->startOfDay(),
-            'billing_period_end' => $order->delivered_at->endOfDay(),
+            'billing_period_start' => $order->delivered_at ? $order->delivered_at->startOfDay() : now()->startOfDay(),
+            'billing_period_end' => $order->delivered_at ? $order->delivered_at->endOfDay() : now()->endOfDay(),
             'issue_date' => now(),
             'due_date' => now()->addDays(30), // 30日後が支払期限
-            'subtotal' => $subtotal,
-            'tax_amount' => $taxAmount,
-            'total_amount' => $totalAmount,
+            'subtotal' => 0,
+            'tax_amount' => 0,
+            'total_amount' => 0,
             'paid_amount' => 0,
-            'outstanding_amount' => $totalAmount,
-            'notes' => "発注番号: {$order->order_number}\n納品日: {$order->delivered_at->format('Y年m月d日')}",
+            'outstanding_amount' => 0,
+            'notes' => "発注番号: {$order->order_number}\n納品日: " . ($order->delivered_at ? $order->delivered_at->format('Y年m月d日') : '未定'),
         ]);
+
+        // 発注明細から請求明細を作成
+        $order->load('items.product');
+        $sortOrder = 0;
+        foreach ($order->items as $item) {
+            FcInvoiceItem::create([
+                'fc_invoice_id' => $invoice->id,
+                'type' => FcInvoiceItem::TYPE_PRODUCT,
+                'fc_product_id' => $item->fc_product_id,
+                'description' => $item->product_name,
+                'quantity' => $item->quantity,
+                'unit_price' => $item->unit_price,
+                'discount_amount' => 0,
+                'subtotal' => $item->subtotal,
+                'tax_rate' => $item->tax_rate ?? 10,
+                'tax_amount' => $item->tax_amount,
+                'total_amount' => $item->total,
+                'notes' => null,
+                'sort_order' => $sortOrder++,
+            ]);
+        }
+
+        // 請求書合計を明細から再計算
+        $invoice->recalculateTotals();
+        $invoice->refresh();
 
         return $invoice;
     }
@@ -263,6 +283,60 @@ class FcInvoice extends Model
         $invoice->refresh();
 
         return $invoice;
+    }
+
+    /**
+     * 発注番号からアイテムを再生成（空の請求書修正用）
+     */
+    public function regenerateItemsFromOrders(): bool
+    {
+        // 既にアイテムがある場合はスキップ
+        if ($this->items()->count() > 0) {
+            return false;
+        }
+
+        // notesから発注番号を抽出 (ORD-YYYYMMDD-XXXX形式)
+        preg_match_all('/ORD-\d{8}-\d{4}/', $this->notes ?? '', $matches);
+        $orderNumbers = $matches[0] ?? [];
+
+        if (empty($orderNumbers)) {
+            return false;
+        }
+
+        $sortOrder = 0;
+        foreach ($orderNumbers as $orderNumber) {
+            $order = FcOrder::where('order_number', $orderNumber)
+                ->with('items.product')
+                ->first();
+
+            if (!$order) {
+                continue;
+            }
+
+            foreach ($order->items as $item) {
+                FcInvoiceItem::create([
+                    'fc_invoice_id' => $this->id,
+                    'type' => FcInvoiceItem::TYPE_PRODUCT,
+                    'fc_product_id' => $item->fc_product_id,
+                    'description' => $item->product_name,
+                    'quantity' => $item->quantity,
+                    'unit_price' => $item->unit_price,
+                    'discount_amount' => 0,
+                    'subtotal' => $item->subtotal,
+                    'tax_rate' => $item->tax_rate ?? 10,
+                    'tax_amount' => $item->tax_amount,
+                    'total_amount' => $item->total,
+                    'notes' => "発注: {$orderNumber}",
+                    'sort_order' => $sortOrder++,
+                ]);
+            }
+        }
+
+        // 合計を再計算
+        $this->recalculateTotals();
+        $this->refresh();
+
+        return $sortOrder > 0;
     }
 
     /**

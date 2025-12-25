@@ -38,6 +38,9 @@ class FcInvoicePdfController extends Controller
             abort(403);
         }
 
+        // itemsをeager load
+        $fcInvoice->load(['items', 'fcStore', 'headquartersStore']);
+
         // PDF生成
         $pdf = Pdf::loadView('pdf.fc-invoice', [
             'invoice' => $fcInvoice,
@@ -77,6 +80,9 @@ class FcInvoicePdfController extends Controller
         else {
             abort(403);
         }
+
+        // itemsをeager load
+        $fcInvoice->load(['items', 'fcStore', 'headquartersStore']);
 
         // PDF生成
         $pdf = Pdf::loadView('pdf.fc-invoice', [
