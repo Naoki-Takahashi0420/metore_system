@@ -32,6 +32,56 @@ class FcInvoiceResource extends Resource
 
     protected static ?int $navigationSort = 4;
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return false;
+        }
+
+        // super_adminは常に表示
+        if ($user->hasRole('super_admin')) {
+            return true;
+        }
+
+        // 本部またはFC加盟店のユーザーに表示
+        if ($user->store) {
+            return $user->store->isHeadquarters() || $user->store->isFcStore();
+        }
+
+        return false;
+    }
+
+    public static function canCreate(): bool
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return false;
+        }
+
+        // super_adminと本部のみ作成可能（FC加盟店は閲覧のみ）
+        if ($user->hasRole('super_admin')) {
+            return true;
+        }
+
+        return $user->store?->isHeadquarters() ?? false;
+    }
+
+    public static function canEdit($record): bool
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return false;
+        }
+
+        // super_adminと本部のみ編集可能（FC加盟店は閲覧のみ）
+        if ($user->hasRole('super_admin')) {
+            return true;
+        }
+
+        return $user->store?->isHeadquarters() ?? false;
+    }
+
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery();
@@ -63,131 +113,71 @@ class FcInvoiceResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('請求書情報')
+                // 請求書ヘッダー（表形式）
+                Forms\Components\Section::make()
                     ->schema([
-                        Forms\Components\TextInput::make('invoice_number')
-                            ->label('請求書番号')
-                            ->disabled()
-                            ->dehydrated(false)
-                            ->visible(fn ($record) => $record !== null),
-                        Forms\Components\Select::make('headquarters_store_id')
-                            ->label('請求元本部')
-                            ->options(
-                                Store::where('fc_type', 'headquarters')
-                                    ->pluck('name', 'id')
-                            )
-                            ->required()
-                            ->reactive()
-                            ->searchable(),
-                        Forms\Components\Select::make('fc_store_id')
-                            ->label('請求先FC店舗')
-                            ->options(function (Forms\Get $get) {
-                                $headquartersId = $get('headquarters_store_id');
-                                if (!$headquartersId) {
-                                    return Store::where('fc_type', 'fc_store')
-                                        ->pluck('name', 'id');
-                                }
-                                return Store::where('fc_type', 'fc_store')
-                                    ->where('headquarters_store_id', $headquartersId)
-                                    ->pluck('name', 'id');
-                            })
-                            ->required()
-                            ->searchable(),
-                        Forms\Components\Select::make('status')
-                            ->label('ステータス')
-                            ->options([
-                                'draft' => '下書き',
-                                'issued' => '発行済み',
-                                'sent' => '送付済み',
-                                'paid' => '入金完了',
-                                'cancelled' => 'キャンセル',
-                            ])
-                            ->disabled()
-                            ->visible(fn ($record) => $record !== null),
+                        Forms\Components\Grid::make(4)
+                            ->schema([
+                                Forms\Components\Placeholder::make('invoice_number_display')
+                                    ->label('請求書番号')
+                                    ->content(fn ($record) => $record?->invoice_number ?? '（新規）'),
+                                Forms\Components\Placeholder::make('status_display')
+                                    ->label('ステータス')
+                                    ->content(fn ($record) => $record?->status_label ?? '下書き'),
+                                Forms\Components\Placeholder::make('total_display')
+                                    ->label('請求金額')
+                                    ->content(fn ($record) => $record ? '¥' . number_format($record->total_amount) : '¥0'),
+                                Forms\Components\Placeholder::make('due_display')
+                                    ->label('支払期限')
+                                    ->content(fn ($record) => $record?->due_date?->format('Y/m/d') ?? '未設定'),
+                            ]),
                     ])
-                    ->columns(2),
+                    ->visible(fn ($record) => $record !== null),
 
-                Forms\Components\Section::make('請求期間・日付')
+                // 基本情報（新規作成時のみ編集可能）
+                Forms\Components\Section::make('基本情報')
                     ->schema([
-                        Forms\Components\DatePicker::make('billing_period_start')
-                            ->label('請求対象期間（開始）')
-                            ->required(),
-                        Forms\Components\DatePicker::make('billing_period_end')
-                            ->label('請求対象期間（終了）')
-                            ->required(),
-                        Forms\Components\DatePicker::make('issue_date')
-                            ->label('発行日'),
-                        Forms\Components\DatePicker::make('due_date')
-                            ->label('支払期限'),
+                        Forms\Components\Grid::make(2)
+                            ->schema([
+                                Forms\Components\Select::make('headquarters_store_id')
+                                    ->label('請求元')
+                                    ->options(Store::where('fc_type', 'headquarters')->pluck('name', 'id'))
+                                    ->required()
+                                    ->disabled(fn ($record) => $record !== null),
+                                Forms\Components\Select::make('fc_store_id')
+                                    ->label('請求先')
+                                    ->options(Store::where('fc_type', 'fc_store')->pluck('name', 'id'))
+                                    ->required()
+                                    ->disabled(fn ($record) => $record !== null),
+                                Forms\Components\DatePicker::make('billing_period_start')
+                                    ->label('対象期間（開始）')
+                                    ->required(),
+                                Forms\Components\DatePicker::make('billing_period_end')
+                                    ->label('対象期間（終了）')
+                                    ->required(),
+                                Forms\Components\DatePicker::make('due_date')
+                                    ->label('支払期限'),
+                                Forms\Components\Textarea::make('notes')
+                                    ->label('備考')
+                                    ->rows(2),
+                            ]),
                     ])
-                    ->columns(2),
+                    ->collapsible()
+                    ->collapsed(fn ($record) => $record !== null),
 
-                // 明細編集セクション（編集画面のみ表示）
+                // 明細テーブル
                 Forms\Components\Section::make('請求明細')
                     ->schema([
                         Forms\Components\ViewField::make('invoice_items')
                             ->label('')
                             ->view('livewire.fc-invoice-item-editor-form')
-                            ->viewData(function ($record) {
-                                return [
-                                    'invoice' => $record,
-                                    'readonly' => !$record || $record->status !== 'draft'
-                                ];
-                            })
-                            ->visible(fn ($record) => $record !== null)
+                            ->viewData(fn ($record) => [
+                                'invoice' => $record,
+                                'readonly' => !$record || $record->status !== 'draft'
+                            ])
                             ->columnSpanFull(),
                     ])
                     ->visible(fn ($record) => $record !== null),
-
-                Forms\Components\Section::make('金額サマリー')
-                    ->schema([
-                        Forms\Components\TextInput::make('subtotal')
-                            ->label('小計（税抜）')
-                            ->numeric()
-                            ->prefix('¥')
-                            ->disabled()
-                            ->dehydrated(false),
-                        Forms\Components\TextInput::make('tax_amount')
-                            ->label('消費税')
-                            ->numeric()
-                            ->prefix('¥')
-                            ->disabled()
-                            ->dehydrated(false),
-                        Forms\Components\TextInput::make('total_amount')
-                            ->label('合計（税込）')
-                            ->numeric()
-                            ->prefix('¥')
-                            ->disabled()
-                            ->dehydrated(false),
-                        Forms\Components\TextInput::make('paid_amount')
-                            ->label('入金済み金額')
-                            ->numeric()
-                            ->prefix('¥')
-                            ->disabled()
-                            ->dehydrated(false),
-                        Forms\Components\TextInput::make('outstanding_amount')
-                            ->label('未払い金額')
-                            ->numeric()
-                            ->prefix('¥')
-                            ->disabled()
-                            ->dehydrated(false),
-                    ])
-                    ->columns(3)
-                    ->description('※ 金額は明細から自動計算されます'),
-
-                Forms\Components\Section::make('その他')
-                    ->schema([
-                        Forms\Components\Textarea::make('notes')
-                            ->label('備考')
-                            ->rows(3)
-                            ->maxLength(1000),
-                        Forms\Components\FileUpload::make('pdf_path')
-                            ->label('PDF請求書')
-                            ->acceptedFileTypes(['application/pdf'])
-                            ->directory('fc-invoices')
-                            ->disk('public')
-                            ->visibility('private'),
-                    ]),
             ]);
     }
 
@@ -282,11 +272,19 @@ class FcInvoiceResource extends Resource
                     ->options(
                         Store::where('fc_type', 'fc_store')
                             ->pluck('name', 'id')
-                    ),
+                    )
+                    ->visible(function () {
+                        $user = auth()->user();
+                        return $user?->hasRole('super_admin') || $user?->store?->isHeadquarters();
+                    }),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(function () {
+                        $user = auth()->user();
+                        return $user?->hasRole('super_admin') || $user?->store?->isHeadquarters();
+                    }),
                 Tables\Actions\Action::make('download_pdf')
                     ->label('PDF表示')
                     ->icon('heroicon-o-document-text')
@@ -395,6 +393,76 @@ class FcInvoiceResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     //
                 ]),
+            ])
+            ->headerActions([
+                Tables\Actions\Action::make('generate_monthly_invoices')
+                    ->label('月次請求書を一括生成')
+                    ->icon('heroicon-o-document-duplicate')
+                    ->color('success')
+                    ->visible(function (): bool {
+                        $user = auth()->user();
+                        return $user->hasRole('super_admin') ||
+                               ($user->store && $user->store->isHeadquarters());
+                    })
+                    ->form([
+                        Forms\Components\Select::make('target_month')
+                            ->label('対象月')
+                            ->options(function () {
+                                $options = [];
+                                for ($i = 0; $i < 6; $i++) {
+                                    $month = now()->subMonths($i);
+                                    $options[$month->format('Y-m')] = $month->format('Y年m月');
+                                }
+                                return $options;
+                            })
+                            ->default(now()->subMonth()->format('Y-m'))
+                            ->required()
+                            ->helperText('選択した月の納品済み発注から請求書を生成します'),
+                        Forms\Components\Toggle::make('include_custom_items')
+                            ->label('カスタム項目を追加するため下書きで作成')
+                            ->default(true)
+                            ->helperText('ONの場合、下書き状態で作成されます。明細編集後に「発行」してください。'),
+                    ])
+                    ->action(function (array $data) {
+                        $targetMonth = \Carbon\Carbon::createFromFormat('Y-m', $data['target_month'])->startOfMonth();
+
+                        $result = FcInvoice::generateMonthlyInvoicesForAllStores($targetMonth);
+
+                        if (count($result['created']) > 0) {
+                            $createdList = collect($result['created'])->map(function ($item) {
+                                return "• {$item['store_name']}: {$item['invoice_number']} (¥" . number_format($item['total_amount']) . ")";
+                            })->join("\n");
+
+                            Notification::make()
+                                ->title('月次請求書を生成しました')
+                                ->body("作成: " . count($result['created']) . "件\n\n{$createdList}")
+                                ->success()
+                                ->duration(10000)
+                                ->send();
+                        } else {
+                            Notification::make()
+                                ->title('生成対象がありませんでした')
+                                ->body('選択した月に未請求の納品済み発注がありません。')
+                                ->warning()
+                                ->send();
+                        }
+
+                        if (count($result['skipped']) > 0) {
+                            $skippedList = collect($result['skipped'])->map(function ($item) {
+                                return "• {$item['store_name']}: {$item['reason']}";
+                            })->join("\n");
+
+                            Notification::make()
+                                ->title('スキップした店舗')
+                                ->body($skippedList)
+                                ->info()
+                                ->duration(8000)
+                                ->send();
+                        }
+                    })
+                    ->modalHeading('月次請求書の一括生成')
+                    ->modalDescription('前月の納品済み発注から、FC店舗ごとに請求書を生成します。カスタム項目（ロイヤリティ等）は生成後に追加してください。')
+                    ->modalSubmitActionLabel('生成する'),
             ])
             ->defaultSort('created_at', 'desc');
     }

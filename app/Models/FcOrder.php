@@ -273,26 +273,24 @@ class FcOrder extends Model
     }
 
     /**
-     * 納品完了記録（請求書自動生成）
+     * 納品完了記録（請求書は月次発行に変更）
+     *
+     * @param string|null $notes 備考
+     * @return void
      */
-    public function recordDelivery(?string $notes = null): FcInvoice
+    public function recordDelivery(?string $notes = null): void
     {
         $this->update([
             'status' => self::STATUS_DELIVERED,
             'delivered_at' => now(),
         ]);
 
-        // 請求書自動生成
-        $invoice = FcInvoice::createFromOrder($this);
-
-        // FC店舗に納品完了 & 請求書発行通知
+        // 納品完了通知（請求書は月次発行なので通知しない）
         try {
-            app(FcNotificationService::class)->notifyDeliveryCompleted($this, $invoice);
+            app(FcNotificationService::class)->notifyOrderDeliveredWithoutInvoice($this);
         } catch (\Exception $e) {
             \Log::error("FC納品完了通知エラー: " . $e->getMessage());
         }
-
-        return $invoice;
     }
 
     /**

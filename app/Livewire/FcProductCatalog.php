@@ -53,14 +53,6 @@ class FcProductCatalog extends Component
             return;
         }
 
-        if ($product->stock_quantity < $quantity) {
-            Notification::make()
-                ->danger()
-                ->title('在庫が不足しています。')
-                ->send();
-            return;
-        }
-
         if ($quantity < $product->min_order_quantity) {
             Notification::make()
                 ->danger()
@@ -170,10 +162,6 @@ class FcProductCatalog extends Component
 
                 if (!$product || !$product->is_active) {
                     throw new \Exception("商品「{$item['name']}」は現在購入できません。");
-                }
-
-                if ($product->stock_quantity < $item['quantity']) {
-                    throw new \Exception("商品「{$item['name']}」の在庫が不足しています。");
                 }
 
                 $subtotal = $product->unit_price * $item['quantity'];

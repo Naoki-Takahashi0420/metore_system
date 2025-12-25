@@ -256,14 +256,25 @@ class FcNotificationService
      */
     public function notifyMonthlyInvoiceGenerated(FcInvoice $invoice): void
     {
+        // 請求書をリフレッシュして日付キャストを確実にする
+        $invoice->refresh();
+
         $fcStore = $invoice->fcStore;
+        if (!$fcStore) {
+            Log::warning("月次請求書通知: FC店舗が見つかりません", ['invoice_id' => $invoice->id]);
+            return;
+        }
+
         $storeManagers = $fcStore->managers;
+        $periodLabel = $invoice->billing_period_start
+            ? $invoice->billing_period_start->format('Y年m月')
+            : '（期間未設定）';
 
         // メール通知
         foreach ($storeManagers as $manager) {
             $this->sendEmail(
                 $manager->email,
-                "【月次請求書発行】{$invoice->billing_period_start->format('Y年m月')}分の請求書を発行しました",
+                "【月次請求書発行】{$periodLabel}分の請求書を発行しました",
                 $this->buildMonthlyInvoiceMessage($invoice)
             );
         }
@@ -274,7 +285,7 @@ class FcNotificationService
         Log::info("FC月次請求書発行通知送信", [
             'invoice_number' => $invoice->invoice_number,
             'fc_store' => $fcStore->name,
-            'billing_period' => $invoice->billing_period_start->format('Y-m'),
+            'billing_period' => $invoice->billing_period_start?->format('Y-m') ?? 'N/A',
             'total_amount' => $invoice->total_amount,
         ]);
     }
@@ -285,6 +296,69 @@ class FcNotificationService
     public function notifyDeliveryCompleted(FcOrder $order, FcInvoice $invoice): void
     {
         $this->notifyOrderDelivered($order, $invoice);
+    }
+
+    /**
+     * 納品完了通知（請求書なし版 - 月次発行用）
+     */
+    public function notifyOrderDeliveredWithoutInvoice(FcOrder $order): void
+    {
+        $fcStore = $order->fcStore;
+        $storeManagers = $fcStore->managers;
+
+        // メール通知
+        foreach ($storeManagers as $manager) {
+            $this->sendEmail(
+                $manager->email,
+                "【納品完了】発注番号 {$order->order_number} の納品が完了しました",
+                $this->buildOrderDeliveredWithoutInvoiceMessage($order)
+            );
+        }
+
+        // お知らせ作成（FC店舗向け）
+        $this->createAnnouncement(
+            "【納品完了】発注番号 {$order->order_number}",
+            "ご注文の商品の納品が完了いたしました。\n\n請求書は月末締め翌月1日に発行いたします。\n\nご確認をお願いいたします。",
+            'normal',
+            [$fcStore->id]
+        );
+
+        Log::info("FC納品完了通知送信（請求書なし）", [
+            'order_number' => $order->order_number,
+            'fc_store' => $fcStore->name,
+        ]);
+    }
+
+    protected function buildOrderDeliveredWithoutInvoiceMessage(FcOrder $order): string
+    {
+        $itemsList = $order->items->map(function ($item) {
+            return "  - {$item->product_name} x {$item->quantity} = ¥" . number_format($item->total);
+        })->join("\n");
+
+        $totalFormatted = number_format($order->total_amount);
+
+        return <<<MESSAGE
+発注いただいた商品の納品が完了いたしました
+
+■ 発注情報
+発注番号: {$order->order_number}
+発注元: {$order->fcStore->name}
+発注日時: {$order->ordered_at->format('Y/m/d H:i')}
+納品日時: {$order->delivered_at->format('Y/m/d H:i')}
+
+■ 納品内容
+{$itemsList}
+
+■ 合計金額
+¥{$totalFormatted}
+
+■ 請求について
+請求書は月末締め、翌月1日に発行いたします。
+発行後、改めてご連絡いたします。
+
+商品の確認をお願いいたします。
+何かご不明な点がございましたら、お気軽にお問い合わせください。
+MESSAGE;
     }
 
     /**
@@ -357,35 +431,40 @@ class FcNotificationService
         $itemsList = $order->items->map(function ($item) {
             $unitPrice = number_format($item->unit_price);
             $itemTotal = number_format($item->total);
-            return "  ◆ {$item->product_name}\n    　数量: {$item->quantity}個　単価: ¥{$unitPrice}　小計: ¥{$itemTotal}";
+            return "  - {$item->product_name}\n    数量: {$item->quantity}個 / 単価: ¥{$unitPrice} / 小計: ¥{$itemTotal}";
         })->join("\n");
 
         $itemCount = $order->items->count();
         $totalQuantity = $order->items->sum('quantity');
 
-        return <<<MESSAGE
-🏪 FC加盟店より新規発注申請がございました
+        // HEREDOC内では関数呼び出しができないため事前に変数化
+        $subtotalFormatted = number_format($order->subtotal);
+        $taxFormatted = number_format($order->tax_amount);
+        $totalFormatted = number_format($order->total_amount);
 
-【📋 発注概要】
+        return <<<MESSAGE
+FC加盟店より新規発注申請がございました
+
+■ 発注概要
 発注番号: {$order->order_number}
 発注店舗: {$fcStore->name}
 発注日時: {$order->ordered_at->format('Y年m月d日 H:i')}
-商品種類: {$itemCount}種類　総数量: {$totalQuantity}個
+商品種類: {$itemCount}種類 / 総数量: {$totalQuantity}個
 
-【📦 発注明細】
+■ 発注明細
 {$itemsList}
 
-【💰 金額内訳】
-小計（税抜）: ¥{number_format($order->subtotal)}
-消費税（10%）: ¥{number_format($order->tax_amount)}
-━━━━━━━━━━━━━━━━━━
-合計（税込）: ¥{number_format($order->total_amount)}
+■ 金額内訳
+小計（税抜）: ¥{$subtotalFormatted}
+消費税（10%）: ¥{$taxFormatted}
+--------------------
+合計（税込）: ¥{$totalFormatted}
 
-【📝 連絡事項】
+■ 連絡事項
 {$order->notes}
 
-【⚡ 次のステップ】
-管理画面にログインして「承認」処理を行い、発送準備を開始してください。
+■ 次のステップ
+管理画面にログインして発送準備を開始してください。
 MESSAGE;
     }
 
@@ -393,17 +472,18 @@ MESSAGE;
     {
         $itemCount = $order->items->count();
         $totalQuantity = $order->items->sum('quantity');
-        
-        return <<<MESSAGE
-✅ ご発注が承認されました
+        $totalFormatted = number_format($order->total_amount);
 
-【📋 発注概要】
+        return <<<MESSAGE
+ご発注が承認されました
+
+■ 発注概要
 発注番号: {$order->order_number}
 承認日時: {$order->approved_at->format('Y年m月d日 H:i')}
-商品種類: {$itemCount}種類　総数量: {$totalQuantity}個
-合計金額: ¥{number_format($order->total_amount)}
+商品種類: {$itemCount}種類 / 総数量: {$totalQuantity}個
+合計金額: ¥{$totalFormatted}
 
-【📦 次のステップ】
+■ 次のステップ
 発送準備を開始いたします。
 発送完了次第、追跡番号と共にご連絡いたします。
 
@@ -414,25 +494,26 @@ MESSAGE;
     protected function buildOrderShippedMessage(FcOrder $order): string
     {
         $trackingInfo = $order->shipping_tracking_number
-            ? "🔍 追跡番号: {$order->shipping_tracking_number}"
-            : "📦 追跡番号: 設定なし";
-            
+            ? "追跡番号: {$order->shipping_tracking_number}"
+            : "追跡番号: 設定なし";
+
         $itemCount = $order->items->count();
         $totalQuantity = $order->items->sum('quantity');
+        $totalFormatted = number_format($order->total_amount);
 
         return <<<MESSAGE
-🚚 ご注文商品を発送いたしました
+ご注文商品を発送いたしました
 
-【📋 発注情報】
+■ 発注情報
 発注番号: {$order->order_number}
-商品種類: {$itemCount}種類　総数量: {$totalQuantity}個
-合計金額: ¥{number_format($order->total_amount)}
+商品種類: {$itemCount}種類 / 総数量: {$totalQuantity}個
+合計金額: ¥{$totalFormatted}
 
-【🚛 発送詳細】
+■ 発送詳細
 発送日時: {$order->shipped_at->format('Y年m月d日 H:i')}
 {$trackingInfo}
 
-【📅 お届け予定】
+■ お届け予定
 通常1-2営業日でお届け予定です。
 到着まで今しばらくお待ちください。
 
@@ -443,26 +524,29 @@ MESSAGE;
 
     protected function buildInvoiceIssuedMessage(FcInvoice $invoice): string
     {
-        $daysUntilDue = now()->diffInDays($invoice->due_date, false);
-        
-        return <<<MESSAGE
-📄 請求書を発行いたしました
+        $daysUntilDue = intval(now()->diffInDays($invoice->due_date, false));
+        $subtotalFormatted = number_format($invoice->subtotal);
+        $taxFormatted = number_format($invoice->tax_amount);
+        $totalFormatted = number_format($invoice->total_amount);
 
-【📋 請求書情報】
+        return <<<MESSAGE
+請求書を発行いたしました
+
+■ 請求書情報
 請求書番号: {$invoice->invoice_number}
 発行日: {$invoice->issue_date->format('Y年m月d日')}
 支払期限: {$invoice->due_date->format('Y年m月d日')}（{$daysUntilDue}日後）
 
-【💰 請求金額】
-小計（税抜）: ¥{number_format($invoice->subtotal)}
-消費税（10%）: ¥{number_format($invoice->tax_amount)}
-━━━━━━━━━━━━━━━━━━
-合計（税込）: ¥{number_format($invoice->total_amount)}
+■ 請求金額
+小計（税抜）: ¥{$subtotalFormatted}
+消費税（10%）: ¥{$taxFormatted}
+--------------------
+合計（税込）: ¥{$totalFormatted}
 
-【📅 請求対象期間】
+■ 請求対象期間
 {$invoice->billing_period_start->format('Y年m月d日')} ～ {$invoice->billing_period_end->format('Y年m月d日')}
 
-【🏦 お支払いについて】
+■ お支払いについて
 お支払期限までに指定口座へのお振込みをお願いいたします。
 ご不明な点がございましたらお気軽にお問い合わせください。
 MESSAGE;
@@ -470,20 +554,21 @@ MESSAGE;
 
     protected function buildPaymentReminderMessage(FcInvoice $invoice): string
     {
-        $daysUntilDue = now()->diffInDays($invoice->due_date, false);
-        $urgencyIcon = $daysUntilDue <= 3 ? '🔥' : '⏰';
-        
-        return <<<MESSAGE
-{$urgencyIcon} お支払期限のリマインダー
+        $daysUntilDue = intval(now()->diffInDays($invoice->due_date, false));
+        $urgencyLabel = $daysUntilDue <= 3 ? '【緊急】' : '';
+        $outstandingFormatted = number_format($invoice->outstanding_amount);
 
-【📋 請求書情報】
+        return <<<MESSAGE
+{$urgencyLabel}お支払期限のリマインダー
+
+■ 請求書情報
 請求書番号: {$invoice->invoice_number}
 支払期限: {$invoice->due_date->format('Y年m月d日')}（あと{$daysUntilDue}日）
 
-【💰 未払い金額】
-¥{number_format($invoice->outstanding_amount)}
+■ 未払い金額
+¥{$outstandingFormatted}
 
-【⚡ お願い】
+■ お願い
 お支払期限が近づいております。
 期限内のお振込みをお願いいたします。
 
@@ -494,20 +579,21 @@ MESSAGE;
 
     protected function buildPaymentOverdueMessage(FcInvoice $invoice): string
     {
-        $overdueDays = now()->diffInDays($invoice->due_date);
+        $overdueDays = intval(now()->diffInDays($invoice->due_date));
+        $outstandingFormatted = number_format($invoice->outstanding_amount);
 
         return <<<MESSAGE
-🚨 【緊急】支払期限超過のお知らせ
+【緊急】支払期限超過のお知らせ
 
-【⚠️ 請求書情報】
+■ 請求書情報
 請求書番号: {$invoice->invoice_number}
 請求先FC店舗: {$invoice->fcStore->name}
 支払期限: {$invoice->due_date->format('Y年m月d日')}（{$overdueDays}日超過）
 
-【💰 未払い金額】
-¥{number_format($invoice->outstanding_amount)}
+■ 未払い金額
+¥{$outstandingFormatted}
 
-【🔥 対応が必要】
+■ 対応が必要
 支払期限を{$overdueDays}日超過しています。
 加盟店への確認と早急な対応をお願いします。
 
@@ -525,24 +611,26 @@ MESSAGE;
             return "  - {$item->product_name} x {$item->quantity} = ¥" . number_format($item->total);
         })->join("\n");
 
+        $totalFormatted = number_format($order->total_amount);
+
         $invoiceSection = $invoice
-            ? "\n【請求書情報】\n請求書番号: {$invoice->invoice_number}\n請求金額: ¥" . number_format($invoice->total_amount) . "\n支払期限: {$invoice->due_date->format('Y/m/d')}"
-            : "\n【請求書】\n請求書は別途発行いたします。";
+            ? "\n■ 請求書情報\n請求書番号: {$invoice->invoice_number}\n請求金額: ¥" . number_format($invoice->total_amount) . "\n支払期限: {$invoice->due_date->format('Y/m/d')}"
+            : "\n■ 請求書\n請求書は別途発行いたします。";
 
         return <<<MESSAGE
 発注いただいた商品の納品が完了いたしました。
 
-【発注情報】
+■ 発注情報
 発注番号: {$order->order_number}
 発注元: {$order->fcStore->name}
 発注日時: {$order->ordered_at->format('Y/m/d H:i')}
 納品日時: {$order->delivered_at->format('Y/m/d H:i')}
 
-【納品内容】
+■ 納品内容
 {$itemsList}
 
-【合計金額】
-¥{number_format($order->total_amount)}{$invoiceSection}
+■ 合計金額
+¥{$totalFormatted}{$invoiceSection}
 
 商品の確認をお願いいたします。
 何かご不明な点がございましたら、お気軽にお問い合わせください。
@@ -551,23 +639,25 @@ MESSAGE;
 
     protected function buildPaymentReceivedMessage(FcInvoice $invoice, float $amount): string
     {
-        $status = $invoice->status === 'paid' ? '✅ 入金完了' : '🔄 一部入金';
+        $status = $invoice->status === 'paid' ? '入金完了' : '一部入金';
         $completionMessage = $invoice->status === 'paid'
-            ? "\n🎉 請求書の入金が完了いたしました。\nありがとうございました。"
-            : "\n📝 残金のお支払いをお待ちしております。";
+            ? "\n請求書の入金が完了いたしました。\nありがとうございました。"
+            : "\n残金のお支払いをお待ちしております。";
+        $amountFormatted = number_format($amount);
+        $outstandingFormatted = number_format($invoice->outstanding_amount);
 
         return <<<MESSAGE
-💰 入金を確認いたしました
+入金を確認いたしました
 
-【📋 請求書情報】
+■ 請求書情報
 請求書番号: {$invoice->invoice_number}
 ステータス: {$status}
 
-【💵 今回の入金】
-¥{number_format($amount)}
+■ 今回の入金
+¥{$amountFormatted}
 
-【📊 残高状況】
-¥{number_format($invoice->outstanding_amount)}{$completionMessage}
+■ 残高状況
+¥{$outstandingFormatted}{$completionMessage}
 
 今後ともよろしくお願いいたします。
 MESSAGE;
@@ -575,29 +665,39 @@ MESSAGE;
 
     protected function buildMonthlyInvoiceMessage(FcInvoice $invoice): string
     {
-        $daysUntilDue = now()->diffInDays($invoice->due_date, false);
+        $daysUntilDue = $invoice->due_date ? intval(now()->diffInDays($invoice->due_date, false)) : 30;
         $itemsCount = $invoice->items->count();
-        
+
+        $periodStart = $invoice->billing_period_start?->format('Y年m月d日') ?? '未設定';
+        $periodEnd = $invoice->billing_period_end?->format('Y年m月d日') ?? '未設定';
+        $issueDate = $invoice->issue_date?->format('Y年m月d日') ?? '未発行';
+        $dueDate = $invoice->due_date?->format('Y年m月d日') ?? '未設定';
+
+        // HEREDOC内では関数呼び出しができないため事前に変数化
+        $subtotalFormatted = number_format($invoice->subtotal);
+        $taxFormatted = number_format($invoice->tax_amount);
+        $totalFormatted = number_format($invoice->total_amount);
+
         return <<<MESSAGE
-📅 月次請求書を発行いたしました
+月次請求書を発行いたしました
 
-【📋 請求書情報】
+■ 請求書情報
 請求書番号: {$invoice->invoice_number}
-対象期間: {$invoice->billing_period_start->format('Y年m月d日')} ～ {$invoice->billing_period_end->format('Y年m月d日')}
-発行日: {$invoice->issue_date->format('Y年m月d日')}
-支払期限: {$invoice->due_date->format('Y年m月d日')}（{$daysUntilDue}日後）
+対象期間: {$periodStart} ～ {$periodEnd}
+発行日: {$issueDate}
+支払期限: {$dueDate}（{$daysUntilDue}日後）
 
-【📦 請求内容】
+■ 請求内容
 商品・サービス: {$itemsCount}件
 前月納品分の商品代金をまとめて請求いたします。
 
-【💰 請求金額】
-小計（税抜）: ¥{number_format($invoice->subtotal)}
-消費税（10%）: ¥{number_format($invoice->tax_amount)}
-━━━━━━━━━━━━━━━━━━
-合計（税込）: ¥{number_format($invoice->total_amount)}
+■ 請求金額
+小計（税抜）: ¥{$subtotalFormatted}
+消費税（10%）: ¥{$taxFormatted}
+--------------------
+合計（税込）: ¥{$totalFormatted}
 
-【🏦 お支払いについて】
+■ お支払いについて
 お支払期限までに指定口座へのお振込みをお願いいたします。
 詳細は管理画面よりPDF請求書をダウンロードしてご確認ください。
 
@@ -617,19 +717,25 @@ MESSAGE;
                 return null;
             }
 
+            $periodLabel = $invoice->billing_period_start?->format('Y年m月') ?? '月次';
+            $periodStart = $invoice->billing_period_start?->format('Y年m月d日') ?? '未設定';
+            $periodEnd = $invoice->billing_period_end?->format('Y年m月d日') ?? '未設定';
+            $dueDate = $invoice->due_date?->format('Y年m月d日') ?? '未設定';
+            $expiresAt = $invoice->due_date?->addDays(7) ?? now()->addDays(37);
+
             $announcement = Announcement::create([
                 'type' => Announcement::TYPE_ORDER_NOTIFICATION, // 発注通知として分類
-                'title' => "【月次請求書】{$invoice->billing_period_start->format('Y年m月')}分の請求書発行",
+                'title' => "【月次請求書】{$periodLabel}分の請求書発行",
                 'content' => "請求書番号: {$invoice->invoice_number}\n" .
-                           "請求期間: {$invoice->billing_period_start->format('Y年m月d日')} ～ {$invoice->billing_period_end->format('Y年m月d日')}\n" .
+                           "請求期間: {$periodStart} ～ {$periodEnd}\n" .
                            "請求金額: ¥" . number_format($invoice->total_amount) . "\n" .
-                           "支払期限: {$invoice->due_date->format('Y年m月d日')}\n\n" .
+                           "支払期限: {$dueDate}\n\n" .
                            "前月にご注文いただいた商品の請求書を発行いたしました。\n" .
                            "管理画面よりPDFをダウンロードしてご確認ください。",
                 'priority' => 'important',
                 'target_type' => 'specific_stores',
                 'published_at' => now(),
-                'expires_at' => $invoice->due_date->addDays(7), // 支払期限の1週間後まで表示
+                'expires_at' => $expiresAt, // 支払期限の1週間後まで表示
                 'is_active' => true,
                 'created_by' => $systemUser->id,
             ]);

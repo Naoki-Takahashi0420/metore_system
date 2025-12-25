@@ -32,6 +32,41 @@ class FcOrderResource extends Resource
 
     protected static ?int $navigationSort = 3;
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return false;
+        }
+
+        // super_adminは常に表示
+        if ($user->hasRole('super_admin')) {
+            return true;
+        }
+
+        // 本部またはFC加盟店のユーザーに表示
+        if ($user->store) {
+            return $user->store->isHeadquarters() || $user->store->isFcStore();
+        }
+
+        return false;
+    }
+
+    public static function canCreate(): bool
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return false;
+        }
+
+        // super_adminと本部のみ手動作成可能（FC加盟店はカタログから発注）
+        if ($user->hasRole('super_admin')) {
+            return true;
+        }
+
+        return $user->store?->isHeadquarters() ?? false;
+    }
+
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery();
@@ -271,7 +306,11 @@ class FcOrderResource extends Resource
                     ->options(
                         Store::where('fc_type', 'fc_store')
                             ->pluck('name', 'id')
-                    ),
+                    )
+                    ->visible(function () {
+                        $user = auth()->user();
+                        return $user?->hasRole('super_admin') || $user?->store?->isHeadquarters();
+                    }),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
@@ -351,42 +390,24 @@ class FcOrderResource extends Resource
                         if (!$record->isDeliverable()) {
                             return false;
                         }
-                        
+
                         // 本部ユーザーまたはsuper_adminのみ納品完了ボタンを表示
                         $user = auth()->user();
-                        return $user->hasRole('super_admin') || 
+                        return $user->hasRole('super_admin') ||
                                ($user->store && $user->store->isHeadquarters());
                     })
                     ->requiresConfirmation()
+                    ->modalHeading('納品完了を記録しますか？')
+                    ->modalDescription('納品完了を記録します。請求書は月末締め、翌月1日に月次発行されます。')
                     ->action(function (FcOrder $record) {
-                        $record->update([
-                            'status' => 'delivered',
-                            'delivered_at' => now(),
-                        ]);
+                        // 納品完了記録（請求書は月次発行）
+                        $record->recordDelivery();
 
-                        // 請求書を自動発行
-                        try {
-                            $invoice = \App\Models\FcInvoice::createFromOrder($record);
-                            
-                            // FC店舗に納品完了通知
-                            try {
-                                app(FcNotificationService::class)->notifyOrderDelivered($record, $invoice);
-                            } catch (\Exception $e) {
-                                \Log::error("FC納品完了通知エラー: " . $e->getMessage());
-                            }
-                            
-                            Notification::make()
-                                ->title('納品を確認し、請求書を自動発行しました')
-                                ->body("請求書番号: {$invoice->invoice_number}")
-                                ->success()
-                                ->send();
-                        } catch (\Exception $e) {
-                            Notification::make()
-                                ->title('納品を確認しました（請求書発行でエラーが発生）')
-                                ->body("エラー: {$e->getMessage()}")
-                                ->warning()
-                                ->send();
-                        }
+                        Notification::make()
+                            ->title('納品完了を記録しました')
+                            ->body('請求書は月末締め、翌月1日に発行されます。')
+                            ->success()
+                            ->send();
                     }),
                 Tables\Actions\Action::make('create_invoice')
                     ->label('請求書発行')

@@ -6,6 +6,7 @@ use Livewire\Component;
 use App\Models\FcInvoice;
 use App\Models\FcInvoiceItem;
 use App\Models\FcProduct;
+use App\Models\FcInvoiceItemTemplate;
 
 class FcInvoiceItemEditor extends Component
 {
@@ -234,10 +235,53 @@ class FcInvoiceItemEditor extends Component
         return FcProduct::where('is_active', true)->orderBy('name')->get();
     }
 
+    public function getAvailableTemplates()
+    {
+        return FcInvoiceItemTemplate::active()->orderBy('sort_order')->get();
+    }
+
+    public function addFromTemplate($templateId)
+    {
+        if ($this->readonly) return;
+
+        $template = FcInvoiceItemTemplate::find($templateId);
+        if (!$template) return;
+
+        // 空の行を探すか、新しい行を追加
+        $emptyIndex = null;
+        foreach ($this->items as $index => $item) {
+            if (!$item['id'] && empty($item['description'])) {
+                $emptyIndex = $index;
+                break;
+            }
+        }
+
+        if ($emptyIndex === null) {
+            $this->addEmptyRow();
+            $emptyIndex = count($this->items) - 1;
+        }
+
+        // テンプレートの値を設定
+        $this->items[$emptyIndex]['type'] = $template->type;
+        $this->items[$emptyIndex]['description'] = $template->description;
+        $this->items[$emptyIndex]['quantity'] = floatval($template->quantity);
+        $this->items[$emptyIndex]['unit_price'] = floatval($template->unit_price);
+        $this->items[$emptyIndex]['tax_rate'] = floatval($template->tax_rate);
+
+        // 計算して保存
+        $this->calculateItemAmounts($emptyIndex);
+        $this->saveItem($emptyIndex);
+        $this->recalculateInvoiceTotals();
+
+        // 新しい空行を追加
+        $this->addEmptyRow();
+    }
+
     public function render()
     {
         return view('livewire.fc-invoice-item-editor', [
             'products' => $this->getAvailableProducts(),
+            'templates' => $this->getAvailableTemplates(),
         ]);
     }
 }

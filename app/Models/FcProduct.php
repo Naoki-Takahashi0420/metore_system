@@ -18,7 +18,6 @@ class FcProduct extends Model
         'unit_price',
         'tax_rate',
         'unit',
-        'stock_quantity',
         'min_order_quantity',
         'sort_order',
         'is_active',
@@ -68,30 +67,6 @@ class FcProduct extends Model
     public function getTaxIncludedPriceAttribute(): float
     {
         return floatval($this->unit_price) * (1 + floatval($this->tax_rate) / 100);
-    }
-
-    /**
-     * 在庫があるか
-     */
-    public function hasStock(int $quantity = 1): bool
-    {
-        return $this->stock_quantity >= $quantity;
-    }
-
-    /**
-     * 在庫を減らす
-     */
-    public function decrementStock(int $quantity): void
-    {
-        $this->decrement('stock_quantity', $quantity);
-    }
-
-    /**
-     * 在庫を増やす
-     */
-    public function incrementStock(int $quantity): void
-    {
-        $this->increment('stock_quantity', $quantity);
     }
 
     /**

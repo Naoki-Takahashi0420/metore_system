@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Carbon\Carbon;
+use App\Models\Store;
+use App\Models\FcOrder;
+use App\Models\FcInvoiceItem;
 
 class FcInvoice extends Model
 {
@@ -143,7 +146,7 @@ class FcInvoice extends Model
     }
 
     /**
-     * 注文から請求書を自動作成
+     * 注文から請求書を自動作成（単一注文用 - レガシー）
      */
     public static function createFromOrder(FcOrder $order): self
     {
@@ -178,6 +181,159 @@ class FcInvoice extends Model
         ]);
 
         return $invoice;
+    }
+
+    /**
+     * FC店舗の月次請求書を生成
+     *
+     * @param Store $fcStore FC店舗
+     * @param Carbon|null $targetMonth 対象月（nullの場合は前月）
+     * @return self|null 生成された請求書（該当注文がない場合はnull）
+     */
+    public static function createMonthlyInvoice(Store $fcStore, ?Carbon $targetMonth = null): ?self
+    {
+        $targetMonth = $targetMonth ?? Carbon::now()->subMonth();
+        $startOfMonth = $targetMonth->copy()->startOfMonth();
+        $endOfMonth = $targetMonth->copy()->endOfMonth();
+
+        // 対象期間の納品済み発注を取得（まだ請求書が発行されていないもの）
+        $orders = FcOrder::where('fc_store_id', $fcStore->id)
+            ->where('status', FcOrder::STATUS_DELIVERED)
+            ->whereBetween('delivered_at', [$startOfMonth, $endOfMonth])
+            ->with(['items.product'])
+            ->get();
+
+        // 既に請求済みの発注を除外
+        $unbilledOrders = $orders->filter(function ($order) {
+            // 発注番号がnotesに含まれている請求書があるかチェック
+            return !self::where('notes', 'like', '%' . $order->order_number . '%')->exists();
+        });
+
+        if ($unbilledOrders->isEmpty()) {
+            return null;
+        }
+
+        // 本部店舗ID取得
+        $headquartersStoreId = $unbilledOrders->first()->headquarters_store_id;
+
+        // 請求書作成
+        $invoice = self::create([
+            'invoice_number' => self::generateInvoiceNumber(),
+            'fc_store_id' => $fcStore->id,
+            'headquarters_store_id' => $headquartersStoreId,
+            'status' => self::STATUS_DRAFT,
+            'billing_period_start' => $startOfMonth,
+            'billing_period_end' => $endOfMonth,
+            'issue_date' => null, // 発行時に設定
+            'due_date' => Carbon::now()->addMonth()->endOfMonth(), // 翌月末
+            'subtotal' => 0,
+            'tax_amount' => 0,
+            'total_amount' => 0,
+            'paid_amount' => 0,
+            'outstanding_amount' => 0,
+            'notes' => "対象期間: {$startOfMonth->format('Y年m月d日')} ～ {$endOfMonth->format('Y年m月d日')}\n対象発注: " . $unbilledOrders->pluck('order_number')->join(', '),
+        ]);
+
+        // 各発注の商品を明細に追加
+        $sortOrder = 0;
+        foreach ($unbilledOrders as $order) {
+            foreach ($order->items as $item) {
+                FcInvoiceItem::create([
+                    'fc_invoice_id' => $invoice->id,
+                    'type' => FcInvoiceItem::TYPE_PRODUCT,
+                    'fc_product_id' => $item->fc_product_id,
+                    'description' => $item->product_name . " (発注: {$order->order_number})",
+                    'quantity' => $item->quantity,
+                    'unit_price' => $item->unit_price,
+                    'discount_amount' => 0,
+                    'subtotal' => $item->subtotal,
+                    'tax_rate' => $item->tax_rate,
+                    'tax_amount' => $item->tax_amount,
+                    'total_amount' => $item->total,
+                    'notes' => "納品日: {$order->delivered_at->format('Y/m/d')}",
+                    'sort_order' => $sortOrder++,
+                ]);
+            }
+        }
+
+        // 請求書合計を再計算
+        $invoice->recalculateTotals();
+
+        // 日付のキャストを正しくするためリフレッシュ
+        $invoice->refresh();
+
+        return $invoice;
+    }
+
+    /**
+     * 請求書合計を明細から再計算
+     */
+    public function recalculateTotals(): void
+    {
+        $subtotal = 0;
+        $taxAmount = 0;
+        $totalAmount = 0;
+
+        foreach ($this->items as $item) {
+            $subtotal += floatval($item->subtotal);
+            $taxAmount += floatval($item->tax_amount);
+            $totalAmount += floatval($item->total_amount);
+        }
+
+        $paidAmount = floatval($this->paid_amount);
+        $outstandingAmount = $totalAmount - $paidAmount;
+
+        $this->update([
+            'subtotal' => $subtotal,
+            'tax_amount' => $taxAmount,
+            'total_amount' => $totalAmount,
+            'outstanding_amount' => $outstandingAmount,
+        ]);
+    }
+
+    /**
+     * 全FC店舗の月次請求書を一括生成
+     *
+     * @param Carbon|null $targetMonth 対象月
+     * @return array 生成結果 ['created' => [...], 'skipped' => [...]]
+     */
+    public static function generateMonthlyInvoicesForAllStores(?Carbon $targetMonth = null): array
+    {
+        $targetMonth = $targetMonth ?? Carbon::now()->subMonth();
+
+        // 全FC店舗を取得
+        $fcStores = Store::where('fc_type', 'fc_store')
+            ->where('is_active', true)
+            ->get();
+
+        $created = [];
+        $skipped = [];
+
+        foreach ($fcStores as $fcStore) {
+            $invoice = self::createMonthlyInvoice($fcStore, $targetMonth);
+
+            if ($invoice) {
+                $created[] = [
+                    'store_name' => $fcStore->name,
+                    'invoice_number' => $invoice->invoice_number,
+                    'total_amount' => $invoice->total_amount,
+                ];
+
+                // 通知
+                try {
+                    app(\App\Services\FcNotificationService::class)->notifyMonthlyInvoiceGenerated($invoice);
+                } catch (\Exception $e) {
+                    \Log::error("月次請求書通知エラー: " . $e->getMessage());
+                }
+            } else {
+                $skipped[] = [
+                    'store_name' => $fcStore->name,
+                    'reason' => '対象期間に未請求の納品がありません',
+                ];
+            }
+        }
+
+        return ['created' => $created, 'skipped' => $skipped];
     }
 
     /**

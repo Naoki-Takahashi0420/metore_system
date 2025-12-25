@@ -158,15 +158,9 @@ class FcProductResource extends Resource
                     ])
                     ->columns(3),
 
-                Forms\Components\Section::make('在庫・発注設定')
-                    ->description('本部の在庫数とFC加盟店からの最小発注数を設定します。')
+                Forms\Components\Section::make('発注設定')
+                    ->description('FC加盟店からの発注設定を行います。')
                     ->schema([
-                        Forms\Components\TextInput::make('stock_quantity')
-                            ->label('本部在庫数')
-                            ->numeric()
-                            ->default(0)
-                            ->minValue(0)
-                            ->helperText('現在、本部に何個在庫があるか'),
                         Forms\Components\TextInput::make('min_order_quantity')
                             ->label('最小発注数')
                             ->numeric()
@@ -178,7 +172,7 @@ class FcProductResource extends Resource
                             ->default(true)
                             ->helperText('OFFにするとFC加盟店から発注できなくなります'),
                     ])
-                    ->columns(3),
+                    ->columns(2),
             ]);
     }
 
@@ -210,13 +204,6 @@ class FcProductResource extends Resource
                     ->label('税率')
                     ->suffix('%')
                     ->sortable(),
-                Tables\Columns\TextColumn::make('stock_quantity')
-                    ->label('在庫')
-                    ->sortable()
-                    ->color(fn (FcProduct $record): string =>
-                        $record->stock_quantity <= 0 ? 'danger' :
-                        ($record->stock_quantity < 10 ? 'warning' : 'success')
-                    ),
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('販売中')
                     ->boolean(),

@@ -23,7 +23,7 @@
                     <p class="text-sm text-gray-600 mb-4">{{ $product->description }}</p>
                 @endif
 
-                <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="grid grid-cols-3 gap-4 mb-4">
                     <div>
                         <p class="text-xs text-gray-500">税抜価格</p>
                         <p class="text-sm font-medium text-gray-900">¥{{ number_format($product->unit_price) }}</p>
@@ -31,12 +31,6 @@
                     <div>
                         <p class="text-xs text-gray-500">税率</p>
                         <p class="text-sm font-medium text-gray-900">{{ $product->tax_rate }}%</p>
-                    </div>
-                    <div>
-                        <p class="text-xs text-gray-500">在庫</p>
-                        <p class="text-sm font-medium {{ $product->stock_quantity > 10 ? 'text-green-600' : ($product->stock_quantity > 0 ? 'text-yellow-600' : 'text-red-600') }}">
-                            {{ $product->stock_quantity }}{{ $product->unit }}
-                        </p>
                     </div>
                     <div>
                         <p class="text-xs text-gray-500">最小発注数</p>
@@ -67,16 +61,11 @@
                     <button
                         wire:click="addToCart({{ $product->id }}, document.getElementById('quantity-{{ $product->id }}').value)"
                         class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition flex items-center justify-center gap-2"
-                        {{ $product->stock_quantity <= 0 ? 'disabled' : '' }}
                     >
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                         </svg>
-                        @if($product->stock_quantity > 0)
-                            <span>カートに追加</span>
-                        @else
-                            <span>在庫なし</span>
-                        @endif
+                        <span>カートに追加</span>
                     </button>
                 </div>
             </div>
