@@ -62,17 +62,17 @@
         @forelse($storesData ?? [] as $storeData)
             <div class="mb-8 border-2 border-gray-200 rounded-xl overflow-hidden">
                 {{-- 店舗ヘッダー --}}
-                <div class="bg-gradient-to-r from-purple-500 to-purple-600 px-6 py-4 text-white">
+                <div class="bg-gray-100 border-b-2 border-purple-500 px-6 py-4">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
-                            <x-heroicon-o-building-storefront class="w-6 h-6" />
-                            <h2 class="text-xl font-bold">{{ $storeData['store']->name }}</h2>
+                            <x-heroicon-o-building-storefront class="w-6 h-6 text-purple-600" />
+                            <h2 class="text-xl font-bold text-gray-900">{{ $storeData['store']->name }}</h2>
                         </div>
                         <div class="flex gap-4 text-sm">
-                            <span class="bg-white/20 px-3 py-1 rounded-full">
+                            <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-medium">
                                 発注 {{ $storeData['pendingOrders'] }}件
                             </span>
-                            <span class="bg-white/20 px-3 py-1 rounded-full">
+                            <span class="bg-amber-100 text-amber-700 px-3 py-1 rounded-full font-medium">
                                 未払 ¥{{ number_format($storeData['unpaidTotal']) }}
                             </span>
                         </div>
