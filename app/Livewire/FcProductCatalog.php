@@ -210,7 +210,7 @@ class FcProductCatalog extends Component
                 ->body("注文番号: {$order->order_number}")
                 ->send();
 
-            $this->redirect(route('filament.admin.resources.fc-orders.index'));
+            $this->redirect(route('filament.admin.pages.fc-store-dashboard'));
 
         } catch (\Exception $e) {
             \DB::rollBack();

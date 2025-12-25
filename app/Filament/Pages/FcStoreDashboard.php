@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\FcOrder;
 use App\Models\FcInvoice;
+use App\Models\Store;
 use Filament\Pages\Page;
 use Illuminate\Contracts\Support\Htmlable;
 
@@ -28,7 +29,11 @@ class FcStoreDashboard extends Page
             return false;
         }
 
-        // FC加盟店のユーザーのみ表示
+        // super_adminまたはFC加盟店のユーザーに表示
+        if ($user->hasRole('super_admin')) {
+            return true;
+        }
+
         return $user->store?->isFcStore() ?? false;
     }
 
@@ -49,14 +54,76 @@ class FcStoreDashboard extends Page
 
     public function getHeading(): string|Htmlable
     {
-        $storeName = auth()->user()->store?->name ?? 'FC店舗';
+        $user = auth()->user();
+        if ($user->hasRole('super_admin')) {
+            return 'FC全店舗ダッシュボード';
+        }
+        $storeName = $user->store?->name ?? 'FC店舗';
         return $storeName . ' ダッシュボード';
     }
 
     protected function getViewData(): array
     {
         $user = auth()->user();
-        $storeId = $user->store_id;
+        $isSuperAdmin = $user->hasRole('super_admin');
+
+        if ($isSuperAdmin) {
+            // super_adminは全FC店舗のデータを取得
+            return $this->getAllStoresData();
+        }
+
+        // 通常のFC店舗ユーザー
+        return $this->getSingleStoreData($user->store_id);
+    }
+
+    /**
+     * 全FC店舗のデータを取得（super_admin用）
+     */
+    protected function getAllStoresData(): array
+    {
+        // 全FC店舗を取得
+        $fcStores = Store::where('is_fc_store', true)
+            ->orderBy('name')
+            ->get();
+
+        $storesData = [];
+        $totalUnpaid = 0;
+        $totalPendingOrders = 0;
+
+        foreach ($fcStores as $store) {
+            $storeData = $this->getSingleStoreData($store->id);
+            $storeData['store'] = $store;
+
+            $storesData[] = $storeData;
+            $totalUnpaid += $storeData['unpaidTotal'];
+            $totalPendingOrders += $storeData['pendingOrders'];
+        }
+
+        return [
+            'isSuperAdmin' => true,
+            'storesData' => $storesData,
+            'unpaidTotal' => $totalUnpaid,
+            'pendingOrders' => $totalPendingOrders,
+            // 互換性のため（空のコレクション）
+            'orders' => collect([]),
+            'invoices' => collect([]),
+        ];
+    }
+
+    /**
+     * 単一店舗のデータを取得
+     */
+    protected function getSingleStoreData(?int $storeId): array
+    {
+        if (!$storeId) {
+            return [
+                'isSuperAdmin' => false,
+                'orders' => collect([]),
+                'invoices' => collect([]),
+                'unpaidTotal' => 0,
+                'pendingOrders' => 0,
+            ];
+        }
 
         // 発注データ（最新10件）
         $orders = FcOrder::where('fc_store_id', $storeId)
@@ -83,6 +150,7 @@ class FcStoreDashboard extends Page
             ->count();
 
         return [
+            'isSuperAdmin' => false,
             'orders' => $orders,
             'invoices' => $invoices,
             'unpaidTotal' => $unpaidTotal,
