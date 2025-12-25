@@ -169,89 +169,46 @@
                         </div>
                     </div>
 
-                    {{-- ステータス進捗バー --}}
-                    <div class="flex items-center gap-2 mb-4">
-                        @php
-                            $invoiceStatuses = ['issued' => '請求書発行', 'paid' => '入金完了'];
-                            $currentInvIndex = array_search($invoice->status, array_keys($invoiceStatuses));
-                            if ($invoice->status === 'draft') $currentInvIndex = -1;
-                            if ($invoice->status === 'sent') $currentInvIndex = 0; // sent is same as issued for display
-                            if ($invoice->status === 'cancelled') $currentInvIndex = -2;
-                        @endphp
-
-                        @if($invoice->status === 'cancelled')
-                            <div class="flex items-center gap-2 px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm">
-                                <x-heroicon-o-x-circle class="w-4 h-4" />
-                                キャンセル
-                            </div>
-                        @elseif($invoice->status === 'draft')
-                            <div class="flex items-center gap-2 px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm">
-                                <x-heroicon-o-pencil class="w-4 h-4" />
-                                作成中
-                            </div>
-                            <div class="flex-1 h-1 bg-gray-200 rounded"></div>
-                            <div class="flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-400">
-                                <x-heroicon-o-clock class="w-4 h-4" />
-                                請求書発行
-                            </div>
-                            <div class="flex-1 h-1 bg-gray-200 rounded"></div>
-                            <div class="flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-400">
-                                <x-heroicon-o-clock class="w-4 h-4" />
-                                入金完了
-                            </div>
-                        @else
-                            @foreach($invoiceStatuses as $status => $label)
-                                @php
-                                    $stepIndex = array_search($status, array_keys($invoiceStatuses));
-                                    $isActive = $stepIndex <= $currentInvIndex;
-                                    $isCurrent = $stepIndex === $currentInvIndex;
-                                @endphp
-
-                                @if($stepIndex > 0)
-                                    <div class="flex-1 h-1 {{ $isActive ? 'bg-green-500' : 'bg-gray-200' }} rounded"></div>
-                                @endif
-
-                                <div class="flex items-center gap-1 px-3 py-1 rounded-full text-sm
-                                    {{ $isCurrent ? 'bg-amber-100 text-amber-700 font-medium' : ($isActive ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400') }}">
-                                    @if($isActive && !$isCurrent)
-                                        <x-heroicon-o-check-circle class="w-4 h-4" />
-                                    @elseif($isCurrent)
-                                        @if($status === 'issued')
-                                            <x-heroicon-o-banknotes class="w-4 h-4" />
-                                        @else
-                                            <x-heroicon-o-check-circle class="w-4 h-4" />
-                                        @endif
-                                    @else
-                                        <x-heroicon-o-clock class="w-4 h-4" />
-                                    @endif
-                                    {{ $label }}
+                    {{-- ステータスとアクション --}}
+                    @if($invoice->status === 'paid')
+                        {{-- 入金完了 --}}
+                        <div class="flex items-center justify-between p-4 bg-green-50 rounded-lg">
+                            <div class="flex items-center gap-3">
+                                <div class="p-2 bg-green-100 rounded-full">
+                                    <x-heroicon-o-check-circle class="w-6 h-6 text-green-600" />
                                 </div>
-                            @endforeach
-                        @endif
-                    </div>
-
-                    {{-- アクションボタン --}}
-                    <div class="flex items-center gap-3">
-                        @if(in_array($invoice->status, ['issued', 'sent', 'paid']))
+                                <div>
+                                    <p class="font-medium text-green-800">お支払い完了</p>
+                                    <p class="text-sm text-green-600">ありがとうございました</p>
+                                </div>
+                            </div>
                             <a href="{{ route('fc-invoice.pdf', $invoice) }}"
                                target="_blank"
-                               class="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-sm transition">
+                               class="inline-flex items-center gap-1 px-4 py-2 bg-white border border-green-300 hover:bg-green-50 text-green-700 rounded-lg text-sm transition">
                                 <x-heroicon-o-document-arrow-down class="w-4 h-4" />
                                 PDF表示
                             </a>
-                        @endif
-
-                        @if($invoice->status === 'issued' || $invoice->status === 'sent')
-                            <span class="text-sm text-amber-600">
-                                お支払いをお願いします（未払い: ¥{{ number_format($invoice->outstanding_amount) }}）
-                            </span>
-                        @elseif($invoice->status === 'paid')
-                            <span class="text-sm text-green-600 flex items-center gap-1">
-                                <x-heroicon-o-check-circle class="w-4 h-4" />
-                                お支払い完了
-                            </span>
-                        @endif
-                    </div>
+                        </div>
+                    @else
+                        {{-- 未払い（issued/sent） --}}
+                        <div class="flex items-center justify-between p-4 bg-amber-50 rounded-lg">
+                            <div class="flex items-center gap-3">
+                                <div class="p-2 bg-amber-100 rounded-full">
+                                    <x-heroicon-o-banknotes class="w-6 h-6 text-amber-600" />
+                                </div>
+                                <div>
+                                    <p class="font-medium text-amber-800">お支払いをお願いします</p>
+                                    <p class="text-sm text-amber-600">未払い額: ¥{{ number_format($invoice->outstanding_amount) }}</p>
+                                </div>
+                            </div>
+                            <a href="{{ route('fc-invoice.pdf', $invoice) }}"
+                               target="_blank"
+                               class="inline-flex items-center gap-1 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium transition">
+                                <x-heroicon-o-document-arrow-down class="w-4 h-4" />
+                                請求書を確認
+                            </a>
+                        </div>
+                    @endif
                 </div>
             @empty
                 <div class="p-12 text-center text-gray-500">

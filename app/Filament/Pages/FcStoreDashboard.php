@@ -65,8 +65,9 @@ class FcStoreDashboard extends Page
             ->limit(10)
             ->get();
 
-        // 請求書データ（最新10件）
+        // 請求書データ（発行済み以降のみ表示、最新10件）
         $invoices = FcInvoice::where('fc_store_id', $storeId)
+            ->whereIn('status', ['issued', 'sent', 'paid'])
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();
