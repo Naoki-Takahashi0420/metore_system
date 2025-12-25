@@ -58,6 +58,33 @@
     </div>
 
     @if($isSuperAdmin ?? false)
+    {{-- super_admin用：一括アクションバー --}}
+    <div class="bg-white rounded-xl shadow-sm border p-4 mb-6">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <x-heroicon-o-document-plus class="w-5 h-5 text-gray-500" />
+                <span class="font-medium text-gray-700">請求書管理</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <button wire:click="generateMonthlyInvoices"
+                        wire:loading.attr="disabled"
+                        wire:loading.class="opacity-50"
+                        class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition">
+                    <x-heroicon-o-document-plus class="w-4 h-4" />
+                    <span wire:loading.remove wire:target="generateMonthlyInvoices">全店舗の月次請求書を生成</span>
+                    <span wire:loading wire:target="generateMonthlyInvoices">生成中...</span>
+                </button>
+                <a href="{{ route('filament.admin.resources.fc-invoices.index') }}"
+                   class="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition">
+                    <x-heroicon-o-document-text class="w-4 h-4" />
+                    請求書一覧
+                </a>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    @if($isSuperAdmin ?? false)
         {{-- super_admin: 店舗ごとのデータ表示 --}}
         @forelse($storesData ?? [] as $storeData)
             <div class="mb-8 border-2 border-gray-200 rounded-xl overflow-hidden">
@@ -68,13 +95,19 @@
                             <x-heroicon-o-building-storefront class="w-6 h-6 text-purple-600" />
                             <h2 class="text-xl font-bold text-gray-900">{{ $storeData['store']->name }}</h2>
                         </div>
-                        <div class="flex gap-4 text-sm">
-                            <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-medium">
+                        <div class="flex items-center gap-3">
+                            <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
                                 発注 {{ $storeData['pendingOrders'] }}件
                             </span>
-                            <span class="bg-amber-100 text-amber-700 px-3 py-1 rounded-full font-medium">
+                            <span class="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-sm font-medium">
                                 未払 ¥{{ number_format($storeData['unpaidTotal']) }}
                             </span>
+                            <button wire:click="generateInvoiceForStore({{ $storeData['store']->id }})"
+                                    wire:loading.attr="disabled"
+                                    class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-sm font-medium transition inline-flex items-center gap-1">
+                                <x-heroicon-o-document-plus class="w-4 h-4" />
+                                請求書生成
+                            </button>
                         </div>
                     </div>
                 </div>

@@ -219,6 +219,86 @@ class FcStoreDashboard extends Page
     }
 
     /**
+     * 月次請求書を生成（全店舗）
+     */
+    public function generateMonthlyInvoices(): void
+    {
+        // super_adminのみ実行可能
+        if (!auth()->user()->hasRole('super_admin')) {
+            Notification::make()
+                ->danger()
+                ->title('権限がありません')
+                ->send();
+            return;
+        }
+
+        $result = FcInvoice::generateMonthlyInvoicesForAllStores();
+
+        $createdCount = count($result['created']);
+        $skippedCount = count($result['skipped']);
+
+        if ($createdCount > 0) {
+            $storeNames = collect($result['created'])->pluck('store_name')->join('、');
+            Notification::make()
+                ->success()
+                ->title("月次請求書を{$createdCount}件生成しました")
+                ->body("店舗: {$storeNames}")
+                ->send();
+        } else {
+            Notification::make()
+                ->warning()
+                ->title('生成対象がありませんでした')
+                ->body('未請求の納品済み発注がありません')
+                ->send();
+        }
+    }
+
+    /**
+     * 特定店舗の月次請求書を生成
+     */
+    public function generateInvoiceForStore(int $storeId): void
+    {
+        // super_adminのみ実行可能
+        if (!auth()->user()->hasRole('super_admin')) {
+            Notification::make()
+                ->danger()
+                ->title('権限がありません')
+                ->send();
+            return;
+        }
+
+        $store = Store::find($storeId);
+        if (!$store) {
+            Notification::make()
+                ->danger()
+                ->title('店舗が見つかりません')
+                ->send();
+            return;
+        }
+
+        $invoice = FcInvoice::createMonthlyInvoice($store);
+
+        if ($invoice) {
+            Notification::make()
+                ->success()
+                ->title("{$store->name}の請求書を生成しました")
+                ->body("請求書番号: {$invoice->invoice_number}")
+                ->actions([
+                    \Filament\Notifications\Actions\Action::make('edit')
+                        ->label('編集してロイヤリティを追加')
+                        ->url(route('filament.admin.resources.fc-invoices.edit', $invoice))
+                ])
+                ->send();
+        } else {
+            Notification::make()
+                ->warning()
+                ->title('生成対象がありません')
+                ->body("{$store->name}に未請求の納品済み発注がありません")
+                ->send();
+        }
+    }
+
+    /**
      * 請求書ステータスを変更
      */
     public function updateInvoiceStatus(int $invoiceId, string $status): void
