@@ -767,12 +767,14 @@ MESSAGE;
      * @param string $content 内容
      * @param string $priority 優先度 (normal, important, urgent)
      * @param array $storeIds 対象店舗ID配列
+     * @param string $type タイプ (general, order_notification)
      */
     protected function createAnnouncement(
         string $title,
         string $content,
         string $priority = 'normal',
-        array $storeIds = []
+        array $storeIds = [],
+        string $type = Announcement::TYPE_ORDER_NOTIFICATION // FC通知はデフォルトで発注通知
     ): ?Announcement {
         try {
             // システムユーザーIDを取得（super_adminの最初のユーザー、または最初のユーザー）
@@ -783,6 +785,7 @@ MESSAGE;
             }
 
             $announcement = Announcement::create([
+                'type' => $type,
                 'title' => $title,
                 'content' => $content,
                 'priority' => $priority,

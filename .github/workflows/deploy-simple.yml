@@ -235,6 +235,10 @@ jobs:
         echo "=== Regenerating FC Invoice Items ==="
         sudo php artisan fc:regenerate-invoice-items || echo "FC invoice items regeneration completed"
 
+        # お知らせタイプ修正（発注通知を正しく分類）
+        echo "=== Fixing Announcement Types ==="
+        sudo php artisan announcements:fix-types || echo "Announcement types fix completed"
+
         # 権限設定
         sudo chown -R www-data:www-data $APP_DIR
         sudo chmod -R 755 $APP_DIR
