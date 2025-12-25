@@ -88,18 +88,33 @@
             </div>
         </div>
 
-        {{-- 現在のステータスメッセージ --}}
+        {{-- 現在のステータスメッセージ & アクションボタン --}}
         @if($order->status === 'ordered')
             <div class="text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded-lg">
                 本部で発送準備中です。発送後にお知らせします。
             </div>
         @elseif($order->status === 'shipped')
-            <div class="text-sm text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">
-                商品を発送しました。到着までしばらくお待ちください。
+            <div class="flex items-center justify-between gap-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+                <div class="flex items-center gap-2">
+                    <x-heroicon-s-truck class="w-5 h-5 text-amber-500" />
+                    <span class="text-sm text-amber-700">商品を発送しました。届きましたら受取確認をお願いします。</span>
+                </div>
+                <button wire:click="confirmDelivery({{ $order->id }})"
+                        wire:loading.attr="disabled"
+                        wire:loading.class="opacity-50"
+                        class="inline-flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition whitespace-nowrap">
+                    <x-heroicon-s-check-circle class="w-4 h-4" />
+                    <span wire:loading.remove wire:target="confirmDelivery({{ $order->id }})">受取確認</span>
+                    <span wire:loading wire:target="confirmDelivery({{ $order->id }})">確認中...</span>
+                </button>
             </div>
         @elseif($order->status === 'delivered')
-            <div class="text-sm text-green-600 bg-green-50 px-3 py-2 rounded-lg">
-                納品完了しました。
+            <div class="flex items-center gap-2 text-sm text-green-600 bg-green-50 px-3 py-2 rounded-lg">
+                <x-heroicon-s-check-circle class="w-5 h-5" />
+                <span>納品完了しました。</span>
+                @if($order->delivered_at)
+                    <span class="text-green-500 text-xs">（{{ $order->delivered_at->format('Y/m/d H:i') }}）</span>
+                @endif
             </div>
         @endif
     @endif

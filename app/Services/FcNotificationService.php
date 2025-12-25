@@ -224,6 +224,50 @@ class FcNotificationService
     }
 
     /**
+     * FC店舗による受取確認通知（FC店舗→本部）
+     */
+    public function notifyDeliveryConfirmedByStore(FcOrder $order): void
+    {
+        $fcStore = $order->fcStore;
+        $headquarters = $order->headquartersStore;
+
+        // 本部のsuper_admin取得
+        $superAdmins = User::role('super_admin')->get();
+
+        // メール通知
+        foreach ($superAdmins as $admin) {
+            $this->sendEmail(
+                $admin->email,
+                "【受取確認】{$fcStore->name}が発注 {$order->order_number} を受け取りました",
+                $this->buildDeliveryConfirmedMessage($order, $fcStore)
+            );
+        }
+
+        // お知らせ作成（本部向け）
+        $itemsSummary = $this->buildOrderItemsSummary($order);
+        $totalFormatted = number_format($order->total_amount);
+        $deliveredDate = $order->delivered_at ? $order->delivered_at->format('Y/m/d H:i') : now()->format('Y/m/d H:i');
+
+        $this->createAnnouncement(
+            "【受取確認】{$fcStore->name}が発注を受け取りました",
+            "発注番号: {$order->order_number}\n" .
+            "FC店舗: {$fcStore->name}\n" .
+            "受取日時: {$deliveredDate}\n\n" .
+            "【受取内容】\n{$itemsSummary}\n" .
+            "合計: ¥{$totalFormatted}\n\n" .
+            "FC店舗が商品の受取を確認しました。",
+            'normal',
+            [$headquarters->id]
+        );
+
+        Log::info("FC受取確認通知送信（本部へ）", [
+            'order_number' => $order->order_number,
+            'fc_store' => $fcStore->name,
+            'headquarters' => $headquarters->name,
+        ]);
+    }
+
+    /**
      * 納品完了通知（本部→FC店舗）
      */
     public function notifyOrderDelivered(FcOrder $order, ?FcInvoice $invoice = null): void
@@ -671,6 +715,40 @@ MESSAGE;
 
 商品の確認をお願いいたします。
 何かご不明な点がございましたら、お気軽にお問い合わせください。
+MESSAGE;
+    }
+
+    protected function buildDeliveryConfirmedMessage(FcOrder $order, Store $fcStore): string
+    {
+        $itemsList = $order->items->map(function ($item) {
+            return "  - {$item->product_name} x {$item->quantity} = ¥" . number_format($item->total);
+        })->join("\n");
+
+        $totalFormatted = number_format($order->total_amount);
+        $orderedAt = $order->ordered_at?->format('Y/m/d H:i') ?? $order->created_at->format('Y/m/d H:i');
+        $shippedAt = $order->shipped_at?->format('Y/m/d H:i') ?? '未発送';
+        $deliveredAt = $order->delivered_at?->format('Y/m/d H:i') ?? now()->format('Y/m/d H:i');
+
+        return <<<MESSAGE
+FC加盟店が商品の受取を確認しました
+
+■ 発注情報
+発注番号: {$order->order_number}
+FC店舗: {$fcStore->name}
+発注日時: {$orderedAt}
+発送日時: {$shippedAt}
+受取確認: {$deliveredAt}
+
+■ 受取内容
+{$itemsList}
+
+■ 合計金額
+¥{$totalFormatted}
+
+■ ステータス
+発注→発送→【受取確認完了】
+
+この発注の請求処理を進めてください。
 MESSAGE;
     }
 

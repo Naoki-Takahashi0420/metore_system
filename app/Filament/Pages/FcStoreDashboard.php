@@ -312,6 +312,56 @@ class FcStoreDashboard extends Page
     }
 
     /**
+     * FC店舗による受取確認（発送済み→納品完了）
+     */
+    public function confirmDelivery(int $orderId): void
+    {
+        $user = auth()->user();
+
+        // FC店舗ユーザーのみ実行可能（自分の店舗の発注のみ）
+        if ($user->hasRole('super_admin')) {
+            // super_adminは updateOrderStatus を使用すべき
+            Notification::make()
+                ->warning()
+                ->title('本部は「納品完了にする」ボタンをご使用ください')
+                ->send();
+            return;
+        }
+
+        $order = FcOrder::where('id', $orderId)
+            ->where('fc_store_id', $user->store_id)
+            ->where('status', 'shipped')
+            ->first();
+
+        if (!$order) {
+            Notification::make()
+                ->danger()
+                ->title('発注が見つからないか、受取確認できる状態ではありません')
+                ->send();
+            return;
+        }
+
+        $order->update([
+            'status' => 'delivered',
+            'delivered_at' => now(),
+        ]);
+
+        // 本部へ通知を送信
+        try {
+            $notificationService = app(FcNotificationService::class);
+            $notificationService->notifyDeliveryConfirmedByStore($order);
+        } catch (\Exception $e) {
+            \Log::error("FC受取確認通知エラー: " . $e->getMessage());
+        }
+
+        Notification::make()
+            ->success()
+            ->title('受取確認が完了しました')
+            ->body($order->order_number . ' の納品を確認しました')
+            ->send();
+    }
+
+    /**
      * 請求書ステータスを変更
      */
     public function updateInvoiceStatus(int $invoiceId, string $status): void
