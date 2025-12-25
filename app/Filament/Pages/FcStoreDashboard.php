@@ -82,7 +82,7 @@ class FcStoreDashboard extends Page
     protected function getAllStoresData(): array
     {
         // 全FC店舗を取得
-        $fcStores = Store::where('is_fc_store', true)
+        $fcStores = Store::where('fc_type', 'fc_store')
             ->orderBy('name')
             ->get();
 
