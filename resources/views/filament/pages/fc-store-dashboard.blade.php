@@ -89,9 +89,9 @@
                                     発注状況
                                 </h3>
                             </div>
-                            <div class="divide-y max-h-64 overflow-y-auto">
+                            <div class="divide-y max-h-96 overflow-y-auto">
                                 @forelse($storeData['orders']->take(5) as $order)
-                                    @include('filament.pages.partials._order-row-compact', ['order' => $order])
+                                    @include('filament.pages.partials._order-row-compact', ['order' => $order, 'showActions' => true])
                                 @empty
                                     <div class="p-4 text-center text-gray-500 text-sm">発注なし</div>
                                 @endforelse
@@ -106,9 +106,9 @@
                                     請求書
                                 </h3>
                             </div>
-                            <div class="divide-y max-h-64 overflow-y-auto">
+                            <div class="divide-y max-h-96 overflow-y-auto">
                                 @forelse($storeData['invoices']->take(5) as $invoice)
-                                    @include('filament.pages.partials._invoice-row-compact', ['invoice' => $invoice])
+                                    @include('filament.pages.partials._invoice-row-compact', ['invoice' => $invoice, 'showActions' => true])
                                 @empty
                                     <div class="p-4 text-center text-gray-500 text-sm">請求書なし</div>
                                 @endforelse

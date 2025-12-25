@@ -86,16 +86,30 @@
             </div>
         </div>
 
-        {{-- ステータスメッセージ --}}
-        <div class="mt-3">
+        {{-- ステータスメッセージ & アクションボタン --}}
+        <div class="mt-3 flex items-center justify-between gap-2">
             @if($order->status === 'ordered')
-                <div class="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                <div class="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded flex-1">
                     本部で発送準備中
                 </div>
+                @if($showActions ?? false)
+                    <button wire:click="updateOrderStatus({{ $order->id }}, 'shipped')"
+                            wire:loading.attr="disabled"
+                            class="text-xs bg-amber-500 hover:bg-amber-600 text-white px-3 py-1 rounded font-medium transition">
+                        発送済みにする
+                    </button>
+                @endif
             @elseif($order->status === 'shipped')
-                <div class="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                <div class="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded flex-1">
                     商品を発送しました
                 </div>
+                @if($showActions ?? false)
+                    <button wire:click="updateOrderStatus({{ $order->id }}, 'delivered')"
+                            wire:loading.attr="disabled"
+                            class="text-xs bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded font-medium transition">
+                        納品完了にする
+                    </button>
+                @endif
             @elseif($order->status === 'delivered')
                 <div class="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
                     納品完了

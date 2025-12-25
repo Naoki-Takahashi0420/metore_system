@@ -6,10 +6,12 @@ use App\Models\FcOrder;
 use App\Models\FcInvoice;
 use App\Models\Store;
 use Filament\Pages\Page;
+use Filament\Notifications\Notification;
 use Illuminate\Contracts\Support\Htmlable;
 
 class FcStoreDashboard extends Page
 {
+    protected $listeners = ['refreshDashboard' => '$refresh'];
     protected static ?string $navigationIcon = 'heroicon-o-home';
 
     protected static ?string $navigationLabel = 'FC店舗ホーム';
@@ -175,5 +177,89 @@ class FcStoreDashboard extends Page
             'issued' => ['label' => '発行済み', 'icon' => 'document-text'],
             'paid' => ['label' => '入金完了', 'icon' => 'check-circle'],
         ];
+    }
+
+    /**
+     * 発注ステータスを変更
+     */
+    public function updateOrderStatus(int $orderId, string $status): void
+    {
+        // super_adminのみ実行可能
+        if (!auth()->user()->hasRole('super_admin')) {
+            Notification::make()
+                ->danger()
+                ->title('権限がありません')
+                ->send();
+            return;
+        }
+
+        $order = FcOrder::find($orderId);
+        if (!$order) {
+            Notification::make()
+                ->danger()
+                ->title('発注が見つかりません')
+                ->send();
+            return;
+        }
+
+        $statusLabels = [
+            'shipped' => '発送済み',
+            'delivered' => '納品完了',
+        ];
+
+        $order->update([
+            'status' => $status,
+            $status . '_at' => now(),
+        ]);
+
+        Notification::make()
+            ->success()
+            ->title($order->order_number . ' を「' . ($statusLabels[$status] ?? $status) . '」に更新しました')
+            ->send();
+    }
+
+    /**
+     * 請求書ステータスを変更
+     */
+    public function updateInvoiceStatus(int $invoiceId, string $status): void
+    {
+        // super_adminのみ実行可能
+        if (!auth()->user()->hasRole('super_admin')) {
+            Notification::make()
+                ->danger()
+                ->title('権限がありません')
+                ->send();
+            return;
+        }
+
+        $invoice = FcInvoice::find($invoiceId);
+        if (!$invoice) {
+            Notification::make()
+                ->danger()
+                ->title('請求書が見つかりません')
+                ->send();
+            return;
+        }
+
+        $statusLabels = [
+            'issued' => '発行済み',
+            'sent' => '送付済み',
+            'paid' => '入金完了',
+        ];
+
+        $updateData = ['status' => $status];
+
+        if ($status === 'paid') {
+            $updateData['paid_at'] = now();
+            $updateData['paid_amount'] = $invoice->total_amount;
+            $updateData['outstanding_amount'] = 0;
+        }
+
+        $invoice->update($updateData);
+
+        Notification::make()
+            ->success()
+            ->title($invoice->invoice_number . ' を「' . ($statusLabels[$status] ?? $status) . '」に更新しました')
+            ->send();
     }
 }

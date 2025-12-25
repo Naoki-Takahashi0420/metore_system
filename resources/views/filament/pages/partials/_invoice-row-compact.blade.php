@@ -112,11 +112,27 @@
                     <x-heroicon-s-banknotes class="w-4 h-4 text-amber-500" />
                     <span class="text-xs font-medium text-amber-800">未払 ¥{{ number_format($invoice->outstanding_amount) }}</span>
                 </div>
-                <a href="{{ route('fc-invoice.pdf', $invoice) }}"
-                   target="_blank"
-                   class="text-xs bg-amber-500 text-white px-2 py-1 rounded hover:bg-amber-600">
-                    確認
-                </a>
+                <div class="flex items-center gap-2">
+                    <a href="{{ route('fc-invoice.pdf', $invoice) }}"
+                       target="_blank"
+                       class="text-xs text-amber-600 hover:text-amber-800">
+                        PDF
+                    </a>
+                    @if($showActions ?? false)
+                        @if($invoice->status === 'issued')
+                            <button wire:click="updateInvoiceStatus({{ $invoice->id }}, 'sent')"
+                                    wire:loading.attr="disabled"
+                                    class="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded font-medium transition">
+                                送付済み
+                            </button>
+                        @endif
+                        <button wire:click="updateInvoiceStatus({{ $invoice->id }}, 'paid')"
+                                wire:loading.attr="disabled"
+                                class="text-xs bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded font-medium transition">
+                            入金完了
+                        </button>
+                    @endif
+                </div>
             </div>
         @endif
     </div>
