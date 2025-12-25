@@ -91,10 +91,18 @@ class FcNotificationService
         }
 
         // お知らせ作成（FC店舗向け）
-        $trackingInfo = $order->shipping_tracking_number ? "追跡番号: {$order->shipping_tracking_number}" : '';
+        $trackingInfo = $order->shipping_tracking_number ? "\n追跡番号: {$order->shipping_tracking_number}" : '';
+        $shippedDate = $order->shipped_at ? $order->shipped_at->format('Y/m/d H:i') : now()->format('Y/m/d H:i');
+        $itemsSummary = $this->buildOrderItemsSummary($order);
+        $totalFormatted = number_format($order->total_amount);
+
         $this->createAnnouncement(
             "【発送完了】発注番号 {$order->order_number}",
-            "ご注文の商品を発送いたしました。\n{$trackingInfo}\n\n到着まで今しばらくお待ちください。",
+            "ご注文の商品を発送いたしました。\n\n" .
+            "発送日時: {$shippedDate}{$trackingInfo}\n\n" .
+            "【発送内容】\n{$itemsSummary}\n" .
+            "合計: ¥{$totalFormatted}\n\n" .
+            "通常1-2営業日でお届け予定です。",
             'normal',
             [$fcStore->id]
         );
@@ -233,13 +241,24 @@ class FcNotificationService
         }
 
         // お知らせ作成（FC店舗向け）
-        $invoiceInfo = $invoice 
-            ? "請求書番号: {$invoice->invoice_number}\n請求金額: ¥" . number_format($invoice->total_amount)
-            : "請求書は別途発行いたします";
-            
+        $deliveredDate = $order->delivered_at ? $order->delivered_at->format('Y/m/d H:i') : now()->format('Y/m/d H:i');
+        $orderedDate = $order->ordered_at ? $order->ordered_at->format('Y/m/d') : $order->created_at->format('Y/m/d');
+        $itemsSummary = $this->buildOrderItemsSummary($order);
+        $totalFormatted = number_format($order->total_amount);
+
+        $invoiceInfo = $invoice
+            ? "\n\n【請求情報】\n請求書番号: {$invoice->invoice_number}\n請求金額: ¥" . number_format($invoice->total_amount)
+            : "\n\n請求書は別途発行いたします。";
+
         $this->createAnnouncement(
             "【納品完了】発注番号 {$order->order_number}",
-            "ご注文の商品の納品が完了いたしました。\n\n{$invoiceInfo}\n\nご確認をお願いいたします。",
+            "ご注文の商品の納品が完了いたしました。\n\n" .
+            "発注日: {$orderedDate}\n" .
+            "納品日: {$deliveredDate}\n\n" .
+            "【納品内容】\n{$itemsSummary}\n" .
+            "合計: ¥{$totalFormatted}" .
+            $invoiceInfo . "\n\n" .
+            "内容をご確認ください。",
             'normal',
             [$fcStore->id]
         );
@@ -422,6 +441,24 @@ MESSAGE;
 
             return false;
         }
+    }
+
+    // ========== ヘルパーメソッド ==========
+
+    /**
+     * 発注アイテムのサマリーを生成
+     */
+    protected function buildOrderItemsSummary(FcOrder $order): string
+    {
+        if (!$order->items || $order->items->isEmpty()) {
+            return "（商品なし）";
+        }
+
+        return $order->items->map(function ($item) {
+            $quantity = number_format($item->quantity);
+            $total = number_format($item->total);
+            return "・{$item->product_name} × {$quantity}個 → ¥{$total}";
+        })->join("\n");
     }
 
     // ========== メッセージテンプレート ==========
