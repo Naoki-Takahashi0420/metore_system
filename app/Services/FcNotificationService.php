@@ -522,6 +522,7 @@ MESSAGE;
         $subtotalFormatted = number_format($order->subtotal);
         $taxFormatted = number_format($order->tax_amount);
         $totalFormatted = number_format($order->total_amount);
+        $dashboardUrl = url('/admin/fc-store-dashboard');
 
         return <<<MESSAGE
 FC加盟店より新規発注申請がございました
@@ -546,6 +547,7 @@ FC加盟店より新規発注申請がございました
 
 ■ 次のステップ
 管理画面にログインして発送準備を開始してください。
+{$dashboardUrl}
 MESSAGE;
     }
 
@@ -554,6 +556,7 @@ MESSAGE;
         $itemCount = $order->items->count();
         $totalQuantity = $order->items->sum('quantity');
         $totalFormatted = number_format($order->total_amount);
+        $dashboardUrl = url('/admin/fc-store-dashboard');
 
         return <<<MESSAGE
 ご発注が承認されました
@@ -568,6 +571,9 @@ MESSAGE;
 発送準備を開始いたします。
 発送完了次第、追跡番号と共にご連絡いたします。
 
+■ 発注状況の確認
+{$dashboardUrl}
+
 引き続きよろしくお願いいたします。
 MESSAGE;
     }
@@ -581,6 +587,7 @@ MESSAGE;
         $itemCount = $order->items->count();
         $totalQuantity = $order->items->sum('quantity');
         $totalFormatted = number_format($order->total_amount);
+        $dashboardUrl = url('/admin/fc-store-dashboard');
 
         return <<<MESSAGE
 ご注文商品を発送いたしました
@@ -598,7 +605,10 @@ MESSAGE;
 通常1-2営業日でお届け予定です。
 到着まで今しばらくお待ちください。
 
-商品到着後は内容をご確認いただき、
+■ 受取確認
+商品到着後、管理画面から受取確認をお願いします。
+{$dashboardUrl}
+
 何かございましたらお気軽にお問い合わせください。
 MESSAGE;
     }
@@ -609,6 +619,7 @@ MESSAGE;
         $subtotalFormatted = number_format($invoice->subtotal);
         $taxFormatted = number_format($invoice->tax_amount);
         $totalFormatted = number_format($invoice->total_amount);
+        $invoicesUrl = url('/admin/fc-invoices');
 
         return <<<MESSAGE
 請求書を発行いたしました
@@ -627,6 +638,9 @@ MESSAGE;
 ■ 請求対象期間
 {$invoice->billing_period_start->format('Y年m月d日')} ～ {$invoice->billing_period_end->format('Y年m月d日')}
 
+■ 請求書の確認・PDFダウンロード
+{$invoicesUrl}
+
 ■ お支払いについて
 お支払期限までに指定口座へのお振込みをお願いいたします。
 ご不明な点がございましたらお気軽にお問い合わせください。
@@ -638,6 +652,7 @@ MESSAGE;
         $daysUntilDue = intval(now()->diffInDays($invoice->due_date, false));
         $urgencyLabel = $daysUntilDue <= 3 ? '【緊急】' : '';
         $outstandingFormatted = number_format($invoice->outstanding_amount);
+        $invoicesUrl = url('/admin/fc-invoices');
 
         return <<<MESSAGE
 {$urgencyLabel}お支払期限のリマインダー
@@ -648,6 +663,9 @@ MESSAGE;
 
 ■ 未払い金額
 ¥{$outstandingFormatted}
+
+■ 請求書の確認
+{$invoicesUrl}
 
 ■ お願い
 お支払期限が近づいております。
@@ -662,6 +680,7 @@ MESSAGE;
     {
         $overdueDays = intval(now()->diffInDays($invoice->due_date));
         $outstandingFormatted = number_format($invoice->outstanding_amount);
+        $dashboardUrl = url('/admin/fc-store-dashboard');
 
         return <<<MESSAGE
 【緊急】支払期限超過のお知らせ
@@ -673,6 +692,9 @@ MESSAGE;
 
 ■ 未払い金額
 ¥{$outstandingFormatted}
+
+■ 管理画面
+{$dashboardUrl}
 
 ■ 対応が必要
 支払期限を{$overdueDays}日超過しています。
@@ -693,6 +715,7 @@ MESSAGE;
         })->join("\n");
 
         $totalFormatted = number_format($order->total_amount);
+        $dashboardUrl = url('/admin/fc-store-dashboard');
 
         $invoiceSection = $invoice
             ? "\n■ 請求書情報\n請求書番号: {$invoice->invoice_number}\n請求金額: ¥" . number_format($invoice->total_amount) . "\n支払期限: {$invoice->due_date->format('Y/m/d')}"
@@ -713,6 +736,9 @@ MESSAGE;
 ■ 合計金額
 ¥{$totalFormatted}{$invoiceSection}
 
+■ 発注状況の確認
+{$dashboardUrl}
+
 商品の確認をお願いいたします。
 何かご不明な点がございましたら、お気軽にお問い合わせください。
 MESSAGE;
@@ -728,6 +754,7 @@ MESSAGE;
         $orderedAt = $order->ordered_at?->format('Y/m/d H:i') ?? $order->created_at->format('Y/m/d H:i');
         $shippedAt = $order->shipped_at?->format('Y/m/d H:i') ?? '未発送';
         $deliveredAt = $order->delivered_at?->format('Y/m/d H:i') ?? now()->format('Y/m/d H:i');
+        $dashboardUrl = url('/admin/fc-store-dashboard');
 
         return <<<MESSAGE
 FC加盟店が商品の受取を確認しました
@@ -747,6 +774,9 @@ FC店舗: {$fcStore->name}
 
 ■ ステータス
 発注→発送→【受取確認完了】
+
+■ 管理画面
+{$dashboardUrl}
 
 この発注の請求処理を進めてください。
 MESSAGE;
@@ -792,6 +822,7 @@ MESSAGE;
         $subtotalFormatted = number_format($invoice->subtotal);
         $taxFormatted = number_format($invoice->tax_amount);
         $totalFormatted = number_format($invoice->total_amount);
+        $invoicesUrl = url('/admin/fc-invoices');
 
         return <<<MESSAGE
 月次請求書を発行いたしました
@@ -812,9 +843,11 @@ MESSAGE;
 --------------------
 合計（税込）: ¥{$totalFormatted}
 
+■ 請求書の確認・PDFダウンロード
+{$invoicesUrl}
+
 ■ お支払いについて
 お支払期限までに指定口座へのお振込みをお願いいたします。
-詳細は管理画面よりPDF請求書をダウンロードしてご確認ください。
 
 今後ともよろしくお願いいたします。
 MESSAGE;
