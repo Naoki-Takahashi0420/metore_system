@@ -207,31 +207,36 @@ class FcInvoice extends Model
      * FC店舗の月次請求書を生成
      *
      * @param Store $fcStore FC店舗
-     * @param Carbon|null $targetMonth 対象月（nullの場合は前月）
+     * @param Carbon|null $targetMonth 対象月（nullの場合は全未請求を対象）
      * @return self|null 生成された請求書（該当注文がない場合はnull）
      */
     public static function createMonthlyInvoice(Store $fcStore, ?Carbon $targetMonth = null): ?self
     {
-        $targetMonth = $targetMonth ?? Carbon::now()->subMonth();
-        $startOfMonth = $targetMonth->copy()->startOfMonth();
-        $endOfMonth = $targetMonth->copy()->endOfMonth();
-
-        // 対象期間の納品済み発注を取得（まだ請求書が発行されていないもの）
-        $orders = FcOrder::where('fc_store_id', $fcStore->id)
+        // 未請求の納品済み発注を取得
+        $query = FcOrder::where('fc_store_id', $fcStore->id)
             ->where('status', FcOrder::STATUS_DELIVERED)
-            ->whereBetween('delivered_at', [$startOfMonth, $endOfMonth])
+            ->whereNull('fc_invoice_id')
             ->with(['items.product'])
-            ->get();
+            ->orderBy('delivered_at', 'asc');
 
-        // 既に請求済みの発注を除外
-        $unbilledOrders = $orders->filter(function ($order) {
-            // 発注番号がnotesに含まれている請求書があるかチェック
-            return !self::where('notes', 'like', '%' . $order->order_number . '%')->exists();
-        });
+        // 対象月が指定されている場合は期間で絞り込み
+        if ($targetMonth) {
+            $startOfMonth = $targetMonth->copy()->startOfMonth();
+            $endOfMonth = $targetMonth->copy()->endOfMonth();
+            $query->whereBetween('delivered_at', [$startOfMonth, $endOfMonth]);
+        }
+
+        $unbilledOrders = $query->get();
 
         if ($unbilledOrders->isEmpty()) {
             return null;
         }
+
+        // 請求期間を発注の納品日から算出
+        $firstDeliveredAt = $unbilledOrders->min('delivered_at');
+        $lastDeliveredAt = $unbilledOrders->max('delivered_at');
+        $billingStart = Carbon::parse($firstDeliveredAt)->startOfDay();
+        $billingEnd = Carbon::parse($lastDeliveredAt)->endOfDay();
 
         // 本部店舗ID取得
         $headquartersStoreId = $unbilledOrders->first()->headquarters_store_id;
@@ -242,8 +247,8 @@ class FcInvoice extends Model
             'fc_store_id' => $fcStore->id,
             'headquarters_store_id' => $headquartersStoreId,
             'status' => self::STATUS_DRAFT,
-            'billing_period_start' => $startOfMonth,
-            'billing_period_end' => $endOfMonth,
+            'billing_period_start' => $billingStart,
+            'billing_period_end' => $billingEnd,
             'issue_date' => null, // 発行時に設定
             'due_date' => Carbon::now()->addMonth()->endOfMonth(), // 翌月末
             'subtotal' => 0,
@@ -251,12 +256,15 @@ class FcInvoice extends Model
             'total_amount' => 0,
             'paid_amount' => 0,
             'outstanding_amount' => 0,
-            'notes' => "対象期間: {$startOfMonth->format('Y年m月d日')} ～ {$endOfMonth->format('Y年m月d日')}\n対象発注: " . $unbilledOrders->pluck('order_number')->join(', '),
+            'notes' => "対象発注: " . $unbilledOrders->pluck('order_number')->join(', '),
         ]);
 
-        // 各発注の商品を明細に追加
+        // 各発注の商品を明細に追加 & 発注に請求書IDを紐付け
         $sortOrder = 0;
         foreach ($unbilledOrders as $order) {
+            // 発注に請求書IDを紐付け
+            $order->update(['fc_invoice_id' => $invoice->id]);
+
             foreach ($order->items as $item) {
                 FcInvoiceItem::create([
                     'fc_invoice_id' => $invoice->id,

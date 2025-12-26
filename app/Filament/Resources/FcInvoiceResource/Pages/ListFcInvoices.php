@@ -21,6 +21,7 @@ class ListFcInvoices extends ListRecords
     protected function getHeaderWidgets(): array
     {
         return [
+            \App\Filament\Widgets\FcUnbilledOrdersWidget::class,
             \App\Filament\Widgets\FcStatsOverviewWidget::class,
         ];
     }

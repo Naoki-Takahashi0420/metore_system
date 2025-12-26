@@ -468,11 +468,16 @@ class FcOrderResource extends Resource
                             ->warning()
                             ->send();
                     }),
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn () => auth()->user()?->hasRole('super_admin'))
+                    ->requiresConfirmation()
+                    ->modalHeading('発注を削除')
+                    ->modalDescription('この発注データを完全に削除してもよろしいですか？この操作は取り消せません。'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
-                        ->visible(fn () => false), // Disable bulk delete for safety
+                        ->visible(fn () => auth()->user()?->hasRole('super_admin')),
                 ]),
             ])
             ->defaultSort('created_at', 'desc');

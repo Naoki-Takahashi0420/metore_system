@@ -14,6 +14,7 @@ class FcOrder extends Model
         'fc_store_id',
         'headquarters_store_id',
         'status',
+        'fc_invoice_id',
         'subtotal',
         'tax_amount',
         'total_amount',
@@ -58,6 +59,14 @@ class FcOrder extends Model
     public function fcStore(): BelongsTo
     {
         return $this->belongsTo(Store::class, 'fc_store_id');
+    }
+
+    /**
+     * 請求書
+     */
+    public function invoice(): BelongsTo
+    {
+        return $this->belongsTo(FcInvoice::class, 'fc_invoice_id');
     }
 
     /**

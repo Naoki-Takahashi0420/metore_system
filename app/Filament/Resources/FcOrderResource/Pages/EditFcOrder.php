@@ -15,7 +15,7 @@ class EditFcOrder extends EditRecord
         return [
             Actions\ViewAction::make(),
             Actions\DeleteAction::make()
-                ->visible(fn () => $this->record->isEditable()),
+                ->visible(fn () => auth()->user()?->hasRole('super_admin')),
         ];
     }
 

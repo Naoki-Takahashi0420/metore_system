@@ -388,10 +388,21 @@ class FcInvoiceResource extends Resource
                             ->success()
                             ->send();
                     }),
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn () => auth()->user()?->hasRole('super_admin'))
+                    ->requiresConfirmation()
+                    ->modalHeading('請求書を削除')
+                    ->modalDescription('この請求書を削除してもよろしいですか？紐付いている発注は未請求状態に戻ります。')
+                    ->before(function (FcInvoice $record) {
+                        // 紐付いている発注のfc_invoice_idをnullに戻す
+                        \App\Models\FcOrder::where('fc_invoice_id', $record->id)
+                            ->update(['fc_invoice_id' => null]);
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    //
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->visible(fn () => auth()->user()?->hasRole('super_admin')),
                 ]),
             ])
             ->headerActions([

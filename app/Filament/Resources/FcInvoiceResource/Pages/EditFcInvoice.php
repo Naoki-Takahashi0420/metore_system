@@ -15,7 +15,12 @@ class EditFcInvoice extends EditRecord
         return [
             Actions\ViewAction::make(),
             Actions\DeleteAction::make()
-                ->visible(fn () => $this->record->status === 'draft'),
+                ->visible(fn () => auth()->user()?->hasRole('super_admin'))
+                ->before(function () {
+                    // 紐付いている発注のfc_invoice_idをnullに戻す
+                    \App\Models\FcOrder::where('fc_invoice_id', $this->record->id)
+                        ->update(['fc_invoice_id' => null]);
+                }),
         ];
     }
 }

@@ -92,14 +92,20 @@ class FcStoreDashboard extends Page
         $storesData = [];
         $totalUnpaid = 0;
         $totalPendingOrders = 0;
+        $totalUnbilledOrders = 0;
 
         foreach ($fcStores as $store) {
             $storeData = $this->getSingleStoreData($store->id);
             $storeData['store'] = $store;
 
+            // 未請求の納品済み発注を取得
+            $storeData['unbilledOrders'] = $this->getUnbilledDeliveredOrders($store->id);
+            $storeData['unbilledTotal'] = $storeData['unbilledOrders']->sum('total_amount');
+
             $storesData[] = $storeData;
             $totalUnpaid += $storeData['unpaidTotal'];
             $totalPendingOrders += $storeData['pendingOrders'];
+            $totalUnbilledOrders += $storeData['unbilledOrders']->count();
         }
 
         return [
@@ -107,10 +113,28 @@ class FcStoreDashboard extends Page
             'storesData' => $storesData,
             'unpaidTotal' => $totalUnpaid,
             'pendingOrders' => $totalPendingOrders,
+            'totalUnbilledOrders' => $totalUnbilledOrders,
             // 互換性のため（空のコレクション）
             'orders' => collect([]),
             'invoices' => collect([]),
         ];
+    }
+
+    /**
+     * 未請求の納品済み発注を取得
+     */
+    protected function getUnbilledDeliveredOrders(?int $storeId): \Illuminate\Support\Collection
+    {
+        if (!$storeId) {
+            return collect([]);
+        }
+
+        return FcOrder::where('fc_store_id', $storeId)
+            ->where('status', FcOrder::STATUS_DELIVERED)
+            ->whereNull('fc_invoice_id')
+            ->with(['items'])
+            ->orderBy('delivered_at', 'asc')
+            ->get();
     }
 
     /**
