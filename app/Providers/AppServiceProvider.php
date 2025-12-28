@@ -46,6 +46,7 @@ class AppServiceProvider extends ServiceProvider
         Livewire::component('app.filament.widgets.fc-stats-overview-widget', \App\Filament\Widgets\FcStatsOverviewWidget::class);
         Livewire::component('app.filament.widgets.fc-unpaid-invoices-widget', \App\Filament\Widgets\FcUnpaidInvoicesWidget::class);
         Livewire::component('app.filament.widgets.fc-unshipped-orders-widget', \App\Filament\Widgets\FcUnshippedOrdersWidget::class);
+        Livewire::component('app.filament.widgets.fc-unbilled-orders-widget', \App\Filament\Widgets\FcUnbilledOrdersWidget::class);
 
         // デバッグ用: 予約INSERT時のログ（一時的）
         \DB::listen(function ($query) {
