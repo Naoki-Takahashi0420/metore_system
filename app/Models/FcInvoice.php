@@ -166,7 +166,7 @@ class FcInvoice extends Model
             'billing_period_start' => $order->delivered_at ? $order->delivered_at->startOfDay() : now()->startOfDay(),
             'billing_period_end' => $order->delivered_at ? $order->delivered_at->endOfDay() : now()->endOfDay(),
             'issue_date' => now(),
-            'due_date' => now()->addDays(30), // 30日後が支払期限
+            'due_date' => now()->addMonth()->setDay(25), // 翌月25日が支払期限
             'subtotal' => 0,
             'tax_amount' => 0,
             'total_amount' => 0,
@@ -250,7 +250,7 @@ class FcInvoice extends Model
             'billing_period_start' => $billingStart,
             'billing_period_end' => $billingEnd,
             'issue_date' => null, // 発行時に設定
-            'due_date' => Carbon::now()->addMonth()->endOfMonth(), // 翌月末
+            'due_date' => Carbon::now()->addMonth()->setDay(25), // 翌月25日
             'subtotal' => 0,
             'tax_amount' => 0,
             'total_amount' => 0,
@@ -282,6 +282,30 @@ class FcInvoice extends Model
                     'sort_order' => $sortOrder++,
                 ]);
             }
+        }
+
+        // デフォルトテンプレート項目を自動追加
+        $defaultTemplates = FcInvoiceItemTemplate::default()->orderBy('sort_order')->get();
+        foreach ($defaultTemplates as $template) {
+            $subtotal = floatval($template->unit_price) * floatval($template->quantity);
+            $taxAmount = $subtotal * floatval($template->tax_rate) / 100;
+            $totalAmount = $subtotal + $taxAmount;
+
+            FcInvoiceItem::create([
+                'fc_invoice_id' => $invoice->id,
+                'type' => $template->type,
+                'fc_product_id' => null,
+                'description' => $template->description,
+                'quantity' => $template->quantity,
+                'unit_price' => $template->unit_price,
+                'discount_amount' => 0,
+                'subtotal' => $subtotal,
+                'tax_rate' => $template->tax_rate,
+                'tax_amount' => $taxAmount,
+                'total_amount' => $totalAmount,
+                'notes' => null,
+                'sort_order' => $sortOrder++,
+            ]);
         }
 
         // 請求書合計を再計算

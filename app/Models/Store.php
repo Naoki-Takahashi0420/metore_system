@@ -11,6 +11,11 @@ class Store extends Model
 
     protected $fillable = [
         'name',
+        'company_name', // 法人名（請求書に表示）
+        'company_postal_code', // 法人郵便番号
+        'company_address', // 法人住所
+        'company_phone', // 法人電話番号
+        'company_contact_person', // 担当者名
         'fc_type', // headquarters=本部, fc_store=加盟店, regular=通常店舗
         'headquarters_store_id', // 本部店舗ID（加盟店の場合）
         'name_kana',

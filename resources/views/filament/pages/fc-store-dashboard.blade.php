@@ -331,8 +331,124 @@
         @endforelse
     @else
         {{-- 通常のFC店舗ユーザー用表示 --}}
+
+        {{-- アクションステータスサマリー --}}
+        @php
+            // 対応が必要なもの
+            $actionRequired = collect();
+
+            // 発送済み（受取確認が必要）
+            $shippedOrders = $orders->where('status', 'shipped');
+            foreach ($shippedOrders as $order) {
+                $actionRequired->push([
+                    'type' => 'order',
+                    'id' => $order->id,
+                    'label' => $order->order_number,
+                    'action' => '受取確認',
+                    'urgency' => 'warning',
+                    'detail' => '商品が届いたら確認',
+                    'amount' => $order->total_amount,
+                ]);
+            }
+
+            // 未払い請求書
+            $unpaidInvoices = $invoices->whereIn('status', ['issued', 'sent', 'overdue']);
+            foreach ($unpaidInvoices as $invoice) {
+                $isOverdue = $invoice->status === 'overdue' || ($invoice->due_date && $invoice->due_date->isPast());
+                $actionRequired->push([
+                    'type' => 'invoice',
+                    'id' => $invoice->id,
+                    'label' => $invoice->invoice_number,
+                    'action' => $isOverdue ? '期限超過' : '支払い',
+                    'urgency' => $isOverdue ? 'danger' : 'warning',
+                    'detail' => $isOverdue ? '至急お支払い' : '期限: ' . ($invoice->due_date ? $invoice->due_date->format('m/d') : '-'),
+                    'amount' => $invoice->outstanding_amount,
+                ]);
+            }
+
+            // 本部対応中
+            $waitingHQ = $orders->where('status', 'ordered');
+
+            // 完了
+            $completedCount = $orders->where('status', 'delivered')->count() + $invoices->where('status', 'paid')->count();
+        @endphp
+
+        @if($actionRequired->count() > 0 || $waitingHQ->count() > 0)
+        <div class="bg-white rounded-xl shadow-sm border mb-4 sm:mb-6 overflow-hidden">
+            <div class="px-4 sm:px-6 py-3 border-b bg-gray-50">
+                <h2 class="text-base font-bold text-gray-900">ステータス一覧</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-4 py-2 text-left font-medium text-gray-600">ステータス</th>
+                            <th class="px-4 py-2 text-left font-medium text-gray-600">番号</th>
+                            <th class="px-4 py-2 text-left font-medium text-gray-600">内容</th>
+                            <th class="px-4 py-2 text-right font-medium text-gray-600">金額</th>
+                            <th class="px-4 py-2 text-center font-medium text-gray-600">アクション</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y">
+                        @foreach($actionRequired->sortByDesc(fn($item) => $item['urgency'] === 'danger') as $item)
+                        <tr class="{{ $item['urgency'] === 'danger' ? 'bg-red-50' : 'bg-amber-50' }} hover:bg-opacity-75">
+                            <td class="px-4 py-3">
+                                <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold
+                                    {{ $item['urgency'] === 'danger' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700' }}">
+                                    <x-heroicon-s-exclamation-triangle class="w-3 h-3" />
+                                    対応必要
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 font-medium text-gray-900">{{ $item['label'] }}</td>
+                            <td class="px-4 py-3 text-gray-600">
+                                <span class="font-medium">{{ $item['action'] }}</span>
+                                <span class="text-gray-400 ml-1">{{ $item['detail'] }}</span>
+                            </td>
+                            <td class="px-4 py-3 text-right font-bold text-gray-900">¥{{ number_format($item['amount']) }}</td>
+                            <td class="px-4 py-3 text-center">
+                                @if($item['type'] === 'order')
+                                <button onclick="document.getElementById('order-section')?.scrollIntoView({behavior: 'smooth'})"
+                                        class="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-xs font-medium transition">
+                                    確認へ
+                                </button>
+                                @else
+                                <button onclick="document.getElementById('invoice-section')?.scrollIntoView({behavior: 'smooth'})"
+                                        class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs font-medium transition">
+                                    詳細へ
+                                </button>
+                                @endif
+                            </td>
+                        </tr>
+                        @endforeach
+
+                        @foreach($waitingHQ as $order)
+                        <tr class="bg-blue-50 hover:bg-blue-100">
+                            <td class="px-4 py-3">
+                                <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
+                                    <x-heroicon-s-clock class="w-3 h-3" />
+                                    本部対応中
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 font-medium text-gray-900">{{ $order->order_number }}</td>
+                            <td class="px-4 py-3 text-gray-600">発送準備中</td>
+                            <td class="px-4 py-3 text-right font-bold text-gray-900">¥{{ number_format($order->total_amount) }}</td>
+                            <td class="px-4 py-3 text-center text-gray-400 text-xs">待機中</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            @if($completedCount > 0)
+            <div class="px-4 py-2 bg-green-50 border-t text-sm text-green-700 flex items-center gap-2">
+                <x-heroicon-s-check-circle class="w-4 h-4" />
+                完了済み: {{ $completedCount }}件
+            </div>
+            @endif
+        </div>
+        @endif
+
         {{-- 発注一覧 --}}
-        <div class="bg-white rounded-xl shadow-sm border mb-4 sm:mb-6">
+        <div id="order-section" class="bg-white rounded-xl shadow-sm border mb-4 sm:mb-6">
             <div class="px-4 sm:px-6 py-3 sm:py-4 border-b flex items-center justify-between">
                 <h2 class="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
                     <x-heroicon-o-shopping-cart class="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
@@ -360,7 +476,7 @@
         </div>
 
         {{-- 請求書一覧 --}}
-        <div class="bg-white rounded-xl shadow-sm border">
+        <div id="invoice-section" class="bg-white rounded-xl shadow-sm border">
             <div class="px-4 sm:px-6 py-3 sm:py-4 border-b flex items-center justify-between">
                 <h2 class="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
                     <x-heroicon-o-document-text class="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />

@@ -81,6 +81,10 @@ class FcInvoiceItemTemplateResource extends Resource
                 Forms\Components\Toggle::make('is_active')
                     ->label('有効')
                     ->default(true),
+                Forms\Components\Toggle::make('is_default')
+                    ->label('デフォルトで追加')
+                    ->helperText('ONにすると請求書生成時に自動で追加されます')
+                    ->default(false),
             ]);
     }
 
@@ -100,6 +104,13 @@ class FcInvoiceItemTemplateResource extends Resource
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('有効')
                     ->boolean(),
+                Tables\Columns\IconColumn::make('is_default')
+                    ->label('デフォルト')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-circle')
+                    ->falseIcon('heroicon-o-minus-circle')
+                    ->trueColor('success')
+                    ->falseColor('gray'),
             ])
             ->reorderable('sort_order')
             ->defaultSort('sort_order')

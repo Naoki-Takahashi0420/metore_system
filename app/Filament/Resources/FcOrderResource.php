@@ -381,6 +381,15 @@ class FcOrderResource extends Resource
                             ->success()
                             ->send();
                     }),
+                Tables\Actions\Action::make('delivery_slip')
+                    ->label('納品書')
+                    ->icon('heroicon-o-document-text')
+                    ->color('gray')
+                    ->visible(fn (FcOrder $record): bool =>
+                        in_array($record->status, ['shipped', 'delivered'])
+                    )
+                    ->url(fn (FcOrder $record): string => route('fc-order.delivery-slip', $record))
+                    ->openUrlInNewTab(),
                 Tables\Actions\Action::make('deliver')
                     ->label('納品完了')
                     ->icon('heroicon-o-check-badge')

@@ -158,11 +158,11 @@
     <div class="invoice-info">
         <div class="invoice-info-left">
             <strong>請求書番号:</strong> {{ $invoice->invoice_number }}<br>
-            <strong>発行日:</strong> {{ $invoice->issue_date->format('Y年m月d日') }}<br>
-            <strong>支払期限:</strong> {{ $invoice->due_date->format('Y年m月d日') }}
+            <strong>発行日:</strong> {{ $invoice->issue_date ? $invoice->issue_date->format('Y年m月d日') : '未発行' }}<br>
+            <strong>支払期限:</strong> {{ $invoice->due_date ? $invoice->due_date->format('Y年m月d日') : '-' }}
         </div>
         <div class="invoice-info-right">
-            <strong>請求期間:</strong> {{ $invoice->billing_period_start->format('Y年m月d日') }} ～ {{ $invoice->billing_period_end->format('Y年m月d日') }}
+            <strong>請求期間:</strong> {{ $invoice->billing_period_start ? $invoice->billing_period_start->format('Y年m月d日') : '-' }} ～ {{ $invoice->billing_period_end ? $invoice->billing_period_end->format('Y年m月d日') : '-' }}
         </div>
     </div>
 
@@ -171,11 +171,23 @@
         <div style="width: 48%; float: left;">
             <div class="section-title">請求先</div>
             <div class="company-info">
-                <div class="company-name">{{ $invoice->fcStore->name }}</div>
-                @if($invoice->fcStore->address)
+                <div class="company-name">{{ $invoice->fcStore->company_name ?? $invoice->fcStore->name }}</div>
+                @if($invoice->fcStore->company_contact_person)
+                    {{ $invoice->fcStore->company_contact_person }} 様<br>
+                @endif
+                @if($invoice->fcStore->company_postal_code)
+                    〒{{ $invoice->fcStore->company_postal_code }}<br>
+                @elseif($invoice->fcStore->postal_code)
+                    〒{{ $invoice->fcStore->postal_code }}<br>
+                @endif
+                @if($invoice->fcStore->company_address)
+                    {{ $invoice->fcStore->company_address }}<br>
+                @elseif($invoice->fcStore->address)
                     {{ $invoice->fcStore->address }}<br>
                 @endif
-                @if($invoice->fcStore->phone)
+                @if($invoice->fcStore->company_phone)
+                    TEL: {{ $invoice->fcStore->company_phone }}<br>
+                @elseif($invoice->fcStore->phone)
                     TEL: {{ $invoice->fcStore->phone }}<br>
                 @endif
             </div>
@@ -184,11 +196,20 @@
         <div style="width: 48%; float: right;">
             <div class="section-title">請求元</div>
             <div class="company-info">
-                <div class="company-name">{{ $invoice->headquartersStore->name }}</div>
-                @if($invoice->headquartersStore->address)
+                <div class="company-name">{{ $invoice->headquartersStore->company_name ?? $invoice->headquartersStore->name }}</div>
+                @if($invoice->headquartersStore->company_postal_code)
+                    〒{{ $invoice->headquartersStore->company_postal_code }}<br>
+                @elseif($invoice->headquartersStore->postal_code)
+                    〒{{ $invoice->headquartersStore->postal_code }}<br>
+                @endif
+                @if($invoice->headquartersStore->company_address)
+                    {{ $invoice->headquartersStore->company_address }}<br>
+                @elseif($invoice->headquartersStore->address)
                     {{ $invoice->headquartersStore->address }}<br>
                 @endif
-                @if($invoice->headquartersStore->phone)
+                @if($invoice->headquartersStore->company_phone)
+                    TEL: {{ $invoice->headquartersStore->company_phone }}<br>
+                @elseif($invoice->headquartersStore->phone)
                     TEL: {{ $invoice->headquartersStore->phone }}<br>
                 @endif
             </div>

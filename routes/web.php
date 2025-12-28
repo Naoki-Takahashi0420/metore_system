@@ -399,6 +399,33 @@ Route::get('/admin/fc-invoices/{invoice}/pdf', function(App\Models\FcInvoice $in
     ]);
 })->name('fc-invoice.pdf')->middleware('auth');
 
+// FC納品書PDF出力用ルート
+Route::get('/admin/fc-orders/{order}/delivery-slip', function(App\Models\FcOrder $order) {
+    // mPDFで日本語対応
+    $mpdf = new \Mpdf\Mpdf([
+        'mode' => 'utf-8',
+        'format' => 'A4',
+        'orientation' => 'P',
+        'margin_left' => 15,
+        'margin_right' => 15,
+        'margin_top' => 16,
+        'margin_bottom' => 16,
+        'margin_header' => 9,
+        'margin_footer' => 9,
+        'autoScriptToLang' => true,
+        'autoLangToFont' => true,
+    ]);
+
+    $order->load(['fcStore', 'headquartersStore', 'items']);
+    $html = view('pdf.fc-delivery-slip', ['order' => $order])->render();
+    $mpdf->WriteHTML($html);
+
+    return response($mpdf->Output('', 'S'), 200, [
+        'Content-Type' => 'application/pdf',
+        'Content-Disposition' => 'inline; filename="delivery_slip_' . $order->order_number . '.pdf"',
+    ]);
+})->name('fc-order.delivery-slip')->middleware('auth');
+
 // パスワードリセット用ルート
 Route::get('/admin/password-reset', [PasswordResetController::class, 'showRequestForm'])->name('password.request');
 Route::post('/admin/password-reset', [PasswordResetController::class, 'sendResetLink'])->name('password.email');

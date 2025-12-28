@@ -626,8 +626,35 @@ class StoreResource extends Resource
                         Forms\Components\Tabs\Tab::make('振込先設定')
                             ->schema([
                                 Forms\Components\Section::make('振込先情報')
-                                    ->description('FC請求書に表示される振込先情報を設定します（FC本部のみ）')
+                                    ->description('FC請求書・納品書に表示される情報を設定します')
                                     ->schema([
+                                        Forms\Components\TextInput::make('company_name')
+                                            ->label('法人名')
+                                            ->helperText('請求書・納品書に表示される会社名（未入力の場合は店舗名が使用されます）')
+                                            ->maxLength(100)
+                                            ->placeholder('例: 株式会社○○'),
+
+                                        Forms\Components\TextInput::make('company_postal_code')
+                                            ->label('法人郵便番号')
+                                            ->maxLength(10)
+                                            ->placeholder('例: 100-0001'),
+
+                                        Forms\Components\TextInput::make('company_address')
+                                            ->label('法人住所')
+                                            ->maxLength(255)
+                                            ->placeholder('例: 東京都千代田区○○1-2-3'),
+
+                                        Forms\Components\TextInput::make('company_phone')
+                                            ->label('法人電話番号')
+                                            ->tel()
+                                            ->maxLength(20)
+                                            ->placeholder('例: 03-1234-5678'),
+
+                                        Forms\Components\TextInput::make('company_contact_person')
+                                            ->label('担当者名')
+                                            ->maxLength(100)
+                                            ->placeholder('例: 経理部 山田太郎'),
+
                                         Forms\Components\TextInput::make('bank_name')
                                             ->label('銀行名')
                                             ->maxLength(100)
@@ -665,7 +692,7 @@ class StoreResource extends Resource
                                             ->helperText('請求書に表示される注意事項を入力してください'),
                                     ])
                                     ->columns(2)
-                                    ->visible(fn ($get) => $get('fc_type') === 'headquarters'),
+                                    ->visible(fn ($get) => in_array($get('fc_type'), ['headquarters', 'fc_store'])),
                             ]),
                     ])
                     ->columnSpanFull(),
