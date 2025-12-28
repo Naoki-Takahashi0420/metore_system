@@ -150,6 +150,12 @@ class SimpleLineService
         }
 
         if (!$lineUserId || !$store->line_channel_access_token) {
+            Log::warning('LINE送信スキップ: 必須情報なし', [
+                'store_id' => $store->id,
+                'store_name' => $store->name,
+                'has_line_user_id' => !empty($lineUserId),
+                'has_token' => !empty($store->line_channel_access_token),
+            ]);
             return false;
         }
 
