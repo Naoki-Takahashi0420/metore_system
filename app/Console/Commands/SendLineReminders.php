@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 
 class SendLineReminders extends Command
 {
-    protected $signature = 'reminders:send {--force : 時刻チェックをスキップ}';
+    protected $signature = 'line:send-reminders {--force : 時刻チェックをスキップ}';
     protected $description = '各店舗の設定時刻に予約リマインダーを送信（LINE→メール→SMS優先順位）';
 
     private CustomerNotificationService $notificationService;
