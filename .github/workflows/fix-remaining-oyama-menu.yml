@@ -25,7 +25,7 @@ jobs:
 
         echo ""
         echo "=== 更新実行 ==="
-        sqlite3 database/database.sqlite "UPDATE menus SET max_monthly_usage = 5 WHERE store_id = 2 AND is_subscription = 1 AND max_monthly_usage = 6;"
+        sudo sqlite3 database/database.sqlite "UPDATE menus SET max_monthly_usage = 5 WHERE store_id = 2 AND is_subscription = 1 AND max_monthly_usage = 6;"
 
         echo ""
         echo "=== 更新後確認 ==="
