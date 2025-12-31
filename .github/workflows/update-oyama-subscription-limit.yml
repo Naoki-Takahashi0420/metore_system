@@ -1,0 +1,49 @@
+name: Update Oyama Subscription Limit
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update-limit:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Update Oyama subscription monthly limit 6→5
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=== 変更前の確認 ==="
+        sqlite3 database/database.sqlite "SELECT 'メニュー(max_monthly_usage=6): ' || COUNT(*) FROM menus WHERE store_id = 2 AND is_subscription = 1 AND max_monthly_usage = 6;"
+        sqlite3 database/database.sqlite "SELECT '契約(monthly_limit=6): ' || COUNT(*) FROM customer_subscriptions WHERE store_id = 2 AND monthly_limit = 6;"
+
+        echo ""
+        echo "=== 更新実行 ==="
+
+        # メニューの月間上限を5に
+        sqlite3 database/database.sqlite "UPDATE menus SET max_monthly_usage = 5 WHERE store_id = 2 AND is_subscription = 1 AND max_monthly_usage = 6;"
+        echo "✅ メニュー更新完了"
+
+        # 既存契約の月間上限を5に
+        sqlite3 database/database.sqlite "UPDATE customer_subscriptions SET monthly_limit = 5 WHERE store_id = 2 AND monthly_limit = 6;"
+        echo "✅ 契約更新完了"
+
+        echo ""
+        echo "=== 変更後の確認 ==="
+        sqlite3 database/database.sqlite "SELECT 'メニュー(max_monthly_usage=6): ' || COUNT(*) FROM menus WHERE store_id = 2 AND is_subscription = 1 AND max_monthly_usage = 6;"
+        sqlite3 database/database.sqlite "SELECT 'メニュー(max_monthly_usage=5): ' || COUNT(*) FROM menus WHERE store_id = 2 AND is_subscription = 1 AND max_monthly_usage = 5;"
+        sqlite3 database/database.sqlite "SELECT '契約(monthly_limit=6): ' || COUNT(*) FROM customer_subscriptions WHERE store_id = 2 AND monthly_limit = 6;"
+        sqlite3 database/database.sqlite "SELECT '契約(monthly_limit=5): ' || COUNT(*) FROM customer_subscriptions WHERE store_id = 2 AND monthly_limit = 5;"
+
+        echo ""
+        echo "🎉 小山店サブスク月間上限の変更完了（6→5）"
+        EOF
+
+        rm deploy_key.pem
