@@ -1,0 +1,125 @@
+name: Verify Reminder Fix
+
+on:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Verify reminder fix on production
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=============================================="
+        echo "=== リマインダー修正の検証 ==="
+        echo "=============================================="
+
+        echo ""
+        echo "【1】Reservation.phpの$fillable確認"
+        echo "-------------------------------------------"
+        php artisan tinker --execute="
+        \$r = new App\Models\Reservation();
+        \$fillable = \$r->getFillable();
+        echo 'reminder_sent_at: ' . (in_array('reminder_sent_at', \$fillable) ? '✅ OK' : '❌ NG') . PHP_EOL;
+        echo 'line_reminder_sent_at: ' . (in_array('line_reminder_sent_at', \$fillable) ? '✅ OK' : '❌ NG') . PHP_EOL;
+        "
+
+        echo ""
+        echo "【2】idempotency_key形式確認（日付ベースになっているか）"
+        echo "-------------------------------------------"
+        php artisan tinker --execute="
+        \$key = App\Models\NotificationLog::generateIdempotencyKey('reservation_reminder', 999, 100);
+        echo 'Generated key: ' . \$key . PHP_EOL;
+        \$expectedFormat = 'reservation_reminder:999:100:no-user:' . now()->format('Ymd');
+        echo 'Expected:      ' . \$expectedFormat . PHP_EOL;
+        echo 'Format correct: ' . (\$key === \$expectedFormat ? '✅ OK (日付ベース)' : '❌ NG') . PHP_EOL;
+        "
+
+        echo ""
+        echo "【3】update()が実際に動作するかテスト（ドライラン）"
+        echo "-------------------------------------------"
+        php artisan tinker --execute="
+        DB::beginTransaction();
+        try {
+            // 最新の予約を1件取得してテスト
+            \$reservation = App\Models\Reservation::whereNull('reminder_sent_at')->first();
+            if (\$reservation) {
+                \$beforeValue = \$reservation->reminder_sent_at;
+                \$reservation->update(['reminder_sent_at' => now()]);
+                \$reservation->refresh();
+                \$afterValue = \$reservation->reminder_sent_at;
+
+                if (\$afterValue !== null && \$beforeValue === null) {
+                    echo '✅ update()動作確認: OK（reminder_sent_atが正しく更新される）' . PHP_EOL;
+                } else {
+                    echo '❌ update()動作確認: NG（更新されない）' . PHP_EOL;
+                }
+            } else {
+                echo '⚠️ テスト対象の予約がありません' . PHP_EOL;
+            }
+        } finally {
+            DB::rollBack(); // テストなのでロールバック
+            echo '（テストデータはロールバック済み）' . PHP_EOL;
+        }
+        "
+
+        echo ""
+        echo "【4】重複チェック機能の動作確認"
+        echo "-------------------------------------------"
+        php artisan tinker --execute="
+        // 同じキーで2回チェック
+        \$key = 'test_duplicate_check:' . now()->format('Ymd');
+
+        // 1回目（重複なし）
+        \$isDup1 = App\Models\NotificationLog::isDuplicate(\$key);
+        echo '1回目チェック（ログなし）: ' . (\$isDup1 ? '重複あり' : '重複なし ✅') . PHP_EOL;
+
+        // テスト用ログを作成
+        DB::beginTransaction();
+        App\Models\NotificationLog::create([
+            'notification_type' => 'test',
+            'channel' => 'test',
+            'status' => 'sent',
+            'idempotency_key' => \$key,
+        ]);
+
+        // 2回目（重複あり）
+        \$isDup2 = App\Models\NotificationLog::isDuplicate(\$key);
+        echo '2回目チェック（ログあり）: ' . (\$isDup2 ? '重複あり ✅' : '重複なし ❌') . PHP_EOL;
+
+        DB::rollBack();
+        echo '（テストデータはロールバック済み）' . PHP_EOL;
+        "
+
+        echo ""
+        echo "【5】直近のnotification_logsのidempotency_key確認"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            id,
+            notification_type,
+            idempotency_key,
+            datetime(created_at, '+9 hours') as created_jst
+        FROM notification_logs
+        WHERE notification_type LIKE '%reminder%'
+        ORDER BY created_at DESC
+        LIMIT 5;
+        "
+
+        echo ""
+        echo "=============================================="
+        echo "=== 検証完了 ==="
+        echo "=============================================="
+        EOF
+
+        rm deploy_key.pem
