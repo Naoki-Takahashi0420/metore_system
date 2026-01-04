@@ -1,0 +1,44 @@
+name: Fix Log Permissions
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Fix log file permissions
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=== ログファイル権限修正 ==="
+
+        # 現在のログファイルの所有者確認
+        echo "修正前:"
+        ls -la storage/logs/laravel-$(date +%F).log 2>/dev/null || echo "ログファイルなし"
+
+        # 権限修正
+        sudo chown www-data:www-data storage/logs/laravel-$(date +%F).log 2>/dev/null || true
+        sudo chmod 664 storage/logs/laravel-$(date +%F).log 2>/dev/null || true
+
+        # 全ログファイルの権限も修正
+        sudo chown -R www-data:www-data storage/logs/
+        sudo chmod -R 664 storage/logs/*.log 2>/dev/null || true
+
+        echo "修正後:"
+        ls -la storage/logs/laravel-$(date +%F).log 2>/dev/null || echo "ログファイルなし"
+
+        echo ""
+        echo "✅ ログファイル権限修正完了"
+        EOF
+
+        rm deploy_key.pem
