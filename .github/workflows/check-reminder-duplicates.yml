@@ -1,0 +1,47 @@
+name: Check Reminder Duplicates
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check reminder notification duplicates
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=== リマインダー通知の重複調査 ==="
+        echo ""
+        echo "【過去7日間のリマインダー通知（タイプ別件数）】"
+        sqlite3 database/database.sqlite "SELECT type, COUNT(*) as count FROM notification_logs WHERE created_at >= datetime('now', '-7 days') AND (type LIKE '%reminder%' OR subject LIKE '%リマインダー%' OR subject LIKE '%明日%') GROUP BY type ORDER BY count DESC;"
+
+        echo ""
+        echo "【同じ予約IDに複数回送信されたリマインダー】"
+        sqlite3 -header -column database/database.sqlite "SELECT reservation_id, COUNT(*) as send_count, GROUP_CONCAT(id) as log_ids FROM notification_logs WHERE created_at >= datetime('now', '-7 days') AND (type LIKE '%reminder%' OR subject LIKE '%リマインダー%' OR subject LIKE '%明日%') GROUP BY reservation_id HAVING COUNT(*) > 1 ORDER BY send_count DESC LIMIT 20;"
+
+        echo ""
+        echo "【直近のリマインダー通知ログ（最新20件）】"
+        sqlite3 -header -column database/database.sqlite "SELECT id, reservation_id, customer_id, type, channel, substr(subject,1,30) as subject, created_at FROM notification_logs WHERE (type LIKE '%reminder%' OR subject LIKE '%リマインダー%' OR subject LIKE '%明日%') ORDER BY created_at DESC LIMIT 20;"
+
+        echo ""
+        echo "【cronジョブの確認】"
+        sudo crontab -l 2>/dev/null || echo "root crontab empty"
+        echo "---"
+        sudo crontab -u www-data -l 2>/dev/null || echo "www-data crontab empty"
+
+        echo ""
+        echo "【スケジューラーログ（直近）】"
+        grep -i "reminder\|schedule" /var/www/html/storage/logs/laravel-$(date +%F).log 2>/dev/null | tail -30 || echo "No scheduler logs found"
+        EOF
+
+        rm deploy_key.pem
