@@ -1,0 +1,43 @@
+name: Stop Reminders
+
+on:
+  workflow_dispatch:
+
+jobs:
+  stop:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Stop reminder notifications
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=== 緊急: リマインダー通知を一時停止 ==="
+
+        # キューワーカーを停止
+        sudo supervisorctl stop laravel-worker:* 2>/dev/null || true
+        echo "✅ キューワーカー停止"
+
+        # スケジューラーを一時停止（cronをコメントアウト）
+        sudo crontab -u www-data -l > /tmp/www-data-crontab.bak
+        sudo crontab -u www-data -l | sed 's/^\* \* \* \* \* cd \/var\/www\/html/#STOPPED# * * * * * cd \/var\/www\/html/' | sudo crontab -u www-data -
+        echo "✅ スケジューラー停止"
+
+        echo ""
+        echo "現在のwww-data crontab:"
+        sudo crontab -u www-data -l
+
+        echo ""
+        echo "🛑 リマインダー通知を停止しました"
+        echo "再開するには restart-reminders ワークフローを実行してください"
+        EOF
+
+        rm deploy_key.pem
