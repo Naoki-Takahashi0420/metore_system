@@ -1,0 +1,47 @@
+name: Check Crontab
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check crontab status
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        echo "=== crontab確認 ==="
+        echo ""
+        echo "【www-data crontab】"
+        sudo crontab -u www-data -l
+
+        echo ""
+        echo "【#STOPPED#が含まれているか】"
+        if sudo crontab -u www-data -l | grep -q "#STOPPED#"; then
+            echo "❌ まだ停止中！ #STOPPED# が残っています"
+        else
+            echo "✅ 正常（#STOPPED# なし）"
+        fi
+
+        echo ""
+        echo "【スケジューラー行が有効か】"
+        if sudo crontab -u www-data -l | grep -q "^\* \* \* \* \* cd /var/www/html"; then
+            echo "✅ スケジューラー有効"
+        else
+            echo "❌ スケジューラー無効または異常"
+        fi
+
+        echo ""
+        echo "【supervisorctl status】"
+        sudo supervisorctl status
+        EOF
+
+        rm deploy_key.pem
