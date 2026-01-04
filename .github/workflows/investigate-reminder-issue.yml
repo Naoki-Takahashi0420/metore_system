@@ -1,0 +1,160 @@
+name: Investigate Reminder Issue
+
+on:
+  workflow_dispatch:
+
+jobs:
+  investigate:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Deep investigation of reminder issue
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=============================================="
+        echo "=== リマインダー問題 徹底調査 ==="
+        echo "=============================================="
+
+        echo ""
+        echo "【1】重複送信された予約のreminder_sent_at状態"
+        echo "-------------------------------------------"
+        # 10回送信された予約IDを確認
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            r.id as reservation_id,
+            r.customer_id,
+            r.store_id,
+            r.reservation_date,
+            datetime(r.reminder_sent_at, '+9 hours') as reminder_sent_at_jst,
+            datetime(r.line_reminder_sent_at, '+9 hours') as line_reminder_sent_at_jst,
+            r.status,
+            (SELECT COUNT(*) FROM notification_logs nl WHERE nl.reservation_id = r.id AND nl.notification_type = 'reservation_reminder') as notification_count
+        FROM reservations r
+        WHERE r.id IN (1657, 1709, 2131, 2150, 2235, 2270)
+        ORDER BY r.id;
+        "
+
+        echo ""
+        echo "【2】昨日/今日の予約で10回以上送信されたもの"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            r.id as res_id,
+            r.customer_id,
+            r.store_id,
+            r.reservation_date,
+            datetime(r.reminder_sent_at, '+9 hours') as reminder_sent_jst,
+            datetime(r.line_reminder_sent_at, '+9 hours') as line_sent_jst,
+            r.status,
+            (SELECT COUNT(*) FROM notification_logs nl WHERE nl.reservation_id = r.id AND nl.notification_type = 'reservation_reminder') as notify_count
+        FROM reservations r
+        WHERE r.reservation_date >= date('now', '-1 day')
+        AND (SELECT COUNT(*) FROM notification_logs nl WHERE nl.reservation_id = r.id AND nl.notification_type = 'reservation_reminder') >= 5
+        ORDER BY notify_count DESC
+        LIMIT 20;
+        "
+
+        echo ""
+        echo "【3】notification_logsのidempotency_keyサンプル（重複予約）"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            id,
+            reservation_id,
+            customer_id,
+            idempotency_key,
+            datetime(created_at, '+9 hours') as created_jst
+        FROM notification_logs
+        WHERE reservation_id = 1657
+        ORDER BY created_at
+        LIMIT 15;
+        "
+
+        echo ""
+        echo "【4】店舗のリマインダー設定確認"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            id,
+            name,
+            line_send_reminder,
+            line_reminder_time,
+            line_reminder_days_before
+        FROM stores
+        WHERE line_send_reminder = 1;
+        "
+
+        echo ""
+        echo "【5】Laravelログからリマインダー関連エラー"
+        echo "-------------------------------------------"
+        grep -i "reminder\|重複\|スキップ" /var/www/html/storage/logs/laravel-$(date +%F).log 2>/dev/null | tail -50 || echo "No relevant logs"
+
+        echo ""
+        echo "【6】予約テーブルのreminder_sent_at更新状況"
+        echo "-------------------------------------------"
+        sqlite3 database/database.sqlite "
+        SELECT
+            'reminder_sent_at NOT NULL' as status,
+            COUNT(*) as count
+        FROM reservations
+        WHERE reminder_sent_at IS NOT NULL
+        AND reservation_date >= date('now', '-7 day')
+        UNION ALL
+        SELECT
+            'reminder_sent_at IS NULL',
+            COUNT(*)
+        FROM reservations
+        WHERE reminder_sent_at IS NULL
+        AND reservation_date >= date('now', '-7 day')
+        AND status IN ('booked', 'confirmed');
+        "
+
+        echo ""
+        echo "【7】line_reminder_sent_at更新状況"
+        echo "-------------------------------------------"
+        sqlite3 database/database.sqlite "
+        SELECT
+            'line_reminder_sent_at NOT NULL' as status,
+            COUNT(*) as count
+        FROM reservations
+        WHERE line_reminder_sent_at IS NOT NULL
+        AND reservation_date >= date('now', '-7 day')
+        UNION ALL
+        SELECT
+            'line_reminder_sent_at IS NULL',
+            COUNT(*)
+        FROM reservations
+        WHERE line_reminder_sent_at IS NULL
+        AND reservation_date >= date('now', '-7 day')
+        AND status IN ('booked', 'confirmed');
+        "
+
+        echo ""
+        echo "【8】SendLineRemindersのクエリ条件を再現"
+        echo "-------------------------------------------"
+        echo "明日の予約で、line_reminder_sent_at IS NULL AND reminder_sent_at IS NULLのもの:"
+        sqlite3 database/database.sqlite "
+        SELECT COUNT(*) as matching_reservations
+        FROM reservations
+        WHERE reservation_date = date('now', '+1 day')
+        AND status IN ('booked', 'confirmed')
+        AND line_reminder_sent_at IS NULL
+        AND reminder_sent_at IS NULL;
+        "
+
+        echo ""
+        echo "=============================================="
+        echo "=== 調査完了 ==="
+        echo "=============================================="
+        EOF
+
+        rm deploy_key.pem
