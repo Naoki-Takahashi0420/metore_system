@@ -1,0 +1,41 @@
+name: Restart Reminders
+
+on:
+  workflow_dispatch:
+
+jobs:
+  restart:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Restart reminder notifications
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=== リマインダー通知を再開 ==="
+
+        # crontabを復元（#STOPPED# を削除）
+        sudo crontab -u www-data -l | sed 's/#STOPPED# //' | sudo crontab -u www-data -
+        echo "✅ スケジューラー再開"
+
+        # キューワーカーを再起動
+        sudo supervisorctl start laravel-worker:* 2>/dev/null || true
+        echo "✅ キューワーカー再開"
+
+        echo ""
+        echo "現在のwww-data crontab:"
+        sudo crontab -u www-data -l
+
+        echo ""
+        echo "✅ リマインダー通知を再開しました"
+        EOF
+
+        rm deploy_key.pem
