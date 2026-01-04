@@ -1,0 +1,101 @@
+name: Verify Reminder Fix V2
+
+on:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Verify reminder fix on production
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=============================================="
+        echo "=== リマインダー修正の検証 V2 ==="
+        echo "=============================================="
+
+        echo ""
+        echo "【1】デプロイ済みコードのNotificationLog.php確認"
+        echo "-------------------------------------------"
+        grep -A5 "now()->format" app/Models/NotificationLog.php | head -10
+
+        echo ""
+        echo "【2】デプロイ済みコードのReservation.php $fillable確認"
+        echo "-------------------------------------------"
+        grep -n "reminder_sent_at" app/Models/Reservation.php || echo "見つかりません"
+
+        echo ""
+        echo "【3】www-dataユーザーでPHP実行テスト"
+        echo "-------------------------------------------"
+        sudo -u www-data php -r "
+        require '/var/www/html/vendor/autoload.php';
+        \$app = require_once '/var/www/html/bootstrap/app.php';
+        \$kernel = \$app->make(Illuminate\Contracts\Console\Kernel::class);
+        \$kernel->bootstrap();
+
+        // idempotency key テスト
+        \$key = App\Models\NotificationLog::generateIdempotencyKey('test', 123, 456);
+        echo 'Generated key: ' . \$key . PHP_EOL;
+
+        // 日付ベース（8桁）かどうか確認
+        preg_match('/(\d+)$/', \$key, \$matches);
+        \$dateStr = \$matches[1] ?? '';
+        echo 'Date part: ' . \$dateStr . PHP_EOL;
+        echo 'Length: ' . strlen(\$dateStr) . ' (expected: 8 for Ymd)' . PHP_EOL;
+
+        if (strlen(\$dateStr) === 8) {
+            echo '✅ 日付ベース（Ymd）：正しい形式' . PHP_EOL;
+        } else if (strlen(\$dateStr) === 12) {
+            echo '❌ 分ベース（YmdHi）：古い形式のまま' . PHP_EOL;
+        } else {
+            echo '⚠️ 予期しない形式' . PHP_EOL;
+        }
+
+        echo PHP_EOL;
+
+        // $fillable テスト
+        \$r = new App\Models\Reservation();
+        \$fillable = \$r->getFillable();
+        echo 'reminder_sent_at in fillable: ' . (in_array('reminder_sent_at', \$fillable) ? '✅ YES' : '❌ NO') . PHP_EOL;
+        echo 'line_reminder_sent_at in fillable: ' . (in_array('line_reminder_sent_at', \$fillable) ? '✅ YES' : '❌ NO') . PHP_EOL;
+        "
+
+        echo ""
+        echo "【4】過去の重複送信ログ（修正前のキー形式）"
+        echo "-------------------------------------------"
+        sqlite3 database/database.sqlite "
+        SELECT idempotency_key, datetime(created_at, '+9 hours') as jst
+        FROM notification_logs
+        WHERE notification_type = 'reservation_reminder'
+        ORDER BY created_at DESC
+        LIMIT 3;
+        "
+
+        echo ""
+        echo "【5】今後の送信では新形式（Ymd）が使われることを確認"
+        echo "-------------------------------------------"
+        echo "現在日時(JST): $(TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M:%S')"
+        echo "今日のYmd: $(TZ=Asia/Tokyo date '+%Y%m%d')"
+        echo ""
+        echo "次回リマインダー送信時に生成されるキーの形式例:"
+        echo "reservation_reminder:予約ID:顧客ID:no-user:$(TZ=Asia/Tokyo date '+%Y%m%d')"
+        echo ""
+        echo "これにより同一日に同一通知が送信されなくなります。"
+
+        echo ""
+        echo "=============================================="
+        echo "=== 検証完了 ==="
+        echo "=============================================="
+        EOF
+
+        rm deploy_key.pem
