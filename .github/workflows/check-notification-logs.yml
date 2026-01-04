@@ -1,0 +1,86 @@
+name: Check Notification Logs
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check notification logs
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=============================================="
+        echo "=== 通知ログ確認 ==="
+        echo "=============================================="
+
+        echo ""
+        echo "【1】本日のLaravelログから通知関連"
+        echo "-------------------------------------------"
+        grep -i "reminder\|notification\|line.*send\|送信" storage/logs/laravel-$(date +%F).log 2>/dev/null | tail -50 || echo "ログなし"
+
+        echo ""
+        echo "【2】notification_logs テーブル（直近20件）"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            id,
+            notification_type,
+            channel,
+            status,
+            customer_id,
+            reservation_id,
+            datetime(created_at, '+9 hours') as created_jst
+        FROM notification_logs
+        ORDER BY created_at DESC
+        LIMIT 20;
+        "
+
+        echo ""
+        echo "【3】本日のリマインダー送信状況"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            notification_type,
+            channel,
+            status,
+            COUNT(*) as count
+        FROM notification_logs
+        WHERE date(created_at) = date('now')
+        GROUP BY notification_type, channel, status
+        ORDER BY count DESC;
+        "
+
+        echo ""
+        echo "【4】重複送信検出（同一予約に3回以上）"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            reservation_id,
+            customer_id,
+            notification_type,
+            COUNT(*) as send_count
+        FROM notification_logs
+        WHERE date(created_at) >= date('now', '-1 day')
+        AND notification_type LIKE '%reminder%'
+        GROUP BY reservation_id, customer_id, notification_type
+        HAVING COUNT(*) >= 3
+        ORDER BY send_count DESC
+        LIMIT 10;
+        "
+
+        echo ""
+        echo "=============================================="
+        EOF
+
+        rm deploy_key.pem
