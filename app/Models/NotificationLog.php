@@ -91,6 +91,9 @@ class NotificationLog extends Model
 
     /**
      * Idempotency-keyの生成
+     *
+     * 注意: 2026-01-04修正 - 毎分変わるタイムスタンプ(YmdHi)を日付ベース(Ymd)に変更
+     * 以前の実装では毎分異なるキーが生成され、重複チェックが機能しなかった
      */
     public static function generateIdempotencyKey(
         string $notificationType,
@@ -103,7 +106,7 @@ class NotificationLog extends Model
             $reservationId ?? 'no-reservation',
             $customerId ?? 'no-customer',
             $userId ?? 'no-user',
-            now()->format('YmdHi'), // 分単位で同一キー（1分以内の重複を防止）
+            now()->format('Ymd'), // 日付ベース（1日1回まで同一通知を防止）
         ];
 
         return implode(':', $parts);

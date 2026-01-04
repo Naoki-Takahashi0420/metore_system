@@ -44,6 +44,13 @@ class Reservation extends Model
         'line_confirmation_sent_at',
         'customer_subscription_id',
         'customer_ticket_id',
+        // リマインダー関連（2026-01-04追加 - 重複送信バグ修正）
+        'reminder_sent_at',
+        'line_reminder_sent_at',
+        'reminder_method',
+        'reminder_count',
+        'followup_sent_at',
+        'thank_you_sent_at',
     ];
 
     protected $casts = [
@@ -59,6 +66,11 @@ class Reservation extends Model
         'line_number' => 'integer',
         'confirmation_sent_at' => 'datetime',
         'line_confirmation_sent_at' => 'datetime',
+        // リマインダー関連（2026-01-04追加）
+        'reminder_sent_at' => 'datetime',
+        'line_reminder_sent_at' => 'datetime',
+        'followup_sent_at' => 'datetime',
+        'thank_you_sent_at' => 'datetime',
     ];
 
     /**
