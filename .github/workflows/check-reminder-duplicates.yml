@@ -23,15 +23,19 @@ jobs:
         echo "=== リマインダー通知の重複調査 ==="
         echo ""
         echo "【過去7日間のリマインダー通知（タイプ別件数）】"
-        sqlite3 database/database.sqlite "SELECT type, COUNT(*) as count FROM notification_logs WHERE created_at >= datetime('now', '-7 days') AND (type LIKE '%reminder%' OR subject LIKE '%リマインダー%' OR subject LIKE '%明日%') GROUP BY type ORDER BY count DESC;"
+        sqlite3 database/database.sqlite "SELECT notification_type, COUNT(*) as count FROM notification_logs WHERE created_at >= datetime('now', '-7 days') AND notification_type LIKE '%reminder%' GROUP BY notification_type ORDER BY count DESC;"
 
         echo ""
-        echo "【同じ予約IDに複数回送信されたリマインダー】"
-        sqlite3 -header -column database/database.sqlite "SELECT reservation_id, COUNT(*) as send_count, GROUP_CONCAT(id) as log_ids FROM notification_logs WHERE created_at >= datetime('now', '-7 days') AND (type LIKE '%reminder%' OR subject LIKE '%リマインダー%' OR subject LIKE '%明日%') GROUP BY reservation_id HAVING COUNT(*) > 1 ORDER BY send_count DESC LIMIT 20;"
+        echo "【同じ予約IDに複数回送信されたリマインダー（重複検出）】"
+        sqlite3 -header -column database/database.sqlite "SELECT reservation_id, customer_id, COUNT(*) as send_count, GROUP_CONCAT(channel) as channels, GROUP_CONCAT(datetime(created_at, '+9 hours')) as sent_times FROM notification_logs WHERE created_at >= datetime('now', '-7 days') AND notification_type LIKE '%reminder%' GROUP BY reservation_id, customer_id HAVING COUNT(*) > 2 ORDER BY send_count DESC LIMIT 20;"
 
         echo ""
-        echo "【直近のリマインダー通知ログ（最新20件）】"
-        sqlite3 -header -column database/database.sqlite "SELECT id, reservation_id, customer_id, type, channel, substr(subject,1,30) as subject, created_at FROM notification_logs WHERE (type LIKE '%reminder%' OR subject LIKE '%リマインダー%' OR subject LIKE '%明日%') ORDER BY created_at DESC LIMIT 20;"
+        echo "【直近のリマインダー通知ログ（最新30件）】"
+        sqlite3 -header -column database/database.sqlite "SELECT id, reservation_id, customer_id, store_id, notification_type, channel, status, datetime(created_at, '+9 hours') as jst_time FROM notification_logs WHERE notification_type LIKE '%reminder%' ORDER BY created_at DESC LIMIT 30;"
+
+        echo ""
+        echo "【本日のリマインダー送信回数（顧客別）】"
+        sqlite3 -header -column database/database.sqlite "SELECT customer_id, COUNT(*) as count FROM notification_logs WHERE date(created_at) = date('now') AND notification_type LIKE '%reminder%' GROUP BY customer_id HAVING COUNT(*) > 2 ORDER BY count DESC LIMIT 20;"
 
         echo ""
         echo "【cronジョブの確認】"
