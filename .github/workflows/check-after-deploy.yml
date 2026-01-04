@@ -1,0 +1,106 @@
+name: Check After Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check notifications after deploy
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=============================================="
+        echo "=== デプロイ後の確認 ==="
+        echo "=============================================="
+
+        echo ""
+        echo "現在時刻: $(TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M:%S JST')"
+        echo "デプロイ時刻: 2026-01-04 12:24 JST頃"
+        echo ""
+
+        echo "【1】デプロイ後（12:24 JST以降）のリマインダー送信"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            id,
+            notification_type,
+            channel,
+            reservation_id,
+            customer_id,
+            idempotency_key,
+            datetime(created_at, '+9 hours') as created_jst
+        FROM notification_logs
+        WHERE notification_type LIKE '%reminder%'
+        AND datetime(created_at, '+9 hours') >= '2026-01-04 12:24:00'
+        ORDER BY created_at DESC
+        LIMIT 20;
+        "
+
+        echo ""
+        echo "【2】デプロイ前後のリマインダー送信時刻分布"
+        echo "-------------------------------------------"
+        sqlite3 database/database.sqlite "
+        SELECT
+            CASE
+                WHEN datetime(created_at, '+9 hours') < '2026-01-04 12:24:00' THEN 'デプロイ前'
+                ELSE 'デプロイ後'
+            END as timing,
+            COUNT(*) as count
+        FROM notification_logs
+        WHERE notification_type LIKE '%reminder%'
+        AND date(created_at) = date('now')
+        GROUP BY timing;
+        "
+
+        echo ""
+        echo "【3】次回リマインダー送信予定の予約"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            r.id as reservation_id,
+            r.customer_id,
+            r.store_id,
+            r.reservation_date,
+            datetime(r.reminder_sent_at, '+9 hours') as reminder_sent_jst,
+            datetime(r.line_reminder_sent_at, '+9 hours') as line_reminder_sent_jst
+        FROM reservations r
+        WHERE r.reservation_date = date('now', '+1 day')
+        AND r.status IN ('booked', 'confirmed')
+        AND r.reminder_sent_at IS NULL
+        AND r.line_reminder_sent_at IS NULL
+        LIMIT 10;
+        "
+
+        echo ""
+        echo "【4】reminder_sent_at が設定されている予約（修正後に更新されたもの）"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            r.id as reservation_id,
+            r.customer_id,
+            r.store_id,
+            r.reservation_date,
+            datetime(r.reminder_sent_at, '+9 hours') as reminder_sent_jst
+        FROM reservations r
+        WHERE r.reminder_sent_at IS NOT NULL
+        AND datetime(r.reminder_sent_at, '+9 hours') >= '2026-01-04 12:00:00'
+        ORDER BY r.reminder_sent_at DESC
+        LIMIT 10;
+        "
+
+        echo ""
+        echo "=============================================="
+        EOF
+
+        rm deploy_key.pem
