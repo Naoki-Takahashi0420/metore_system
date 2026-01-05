@@ -1,0 +1,94 @@
+name: Check Reminder Today Only
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check today's reminders for duplicates
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=============================================="
+        echo "=== 本日のリマインダー重複チェック ==="
+        echo "=============================================="
+        echo ""
+        echo "現在時刻(JST): $(TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M:%S')"
+        echo ""
+
+        echo "【1】本日(JST)のリマインダー送信 - 予約別カウント"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            reservation_id,
+            customer_id,
+            channel,
+            COUNT(*) as send_count,
+            MIN(datetime(created_at, '+9 hours')) as first_sent,
+            MAX(datetime(created_at, '+9 hours')) as last_sent
+        FROM notification_logs
+        WHERE notification_type = 'reservation_reminder'
+        AND datetime(created_at, '+9 hours') >= datetime('now', '+9 hours', 'start of day')
+        GROUP BY reservation_id, customer_id, channel
+        ORDER BY send_count DESC, reservation_id
+        LIMIT 30;
+        "
+
+        echo ""
+        echo "【2】本日のリマインダー重複検出（2回以上）"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            reservation_id,
+            customer_id,
+            channel,
+            COUNT(*) as send_count
+        FROM notification_logs
+        WHERE notification_type = 'reservation_reminder'
+        AND datetime(created_at, '+9 hours') >= datetime('now', '+9 hours', 'start of day')
+        GROUP BY reservation_id, customer_id, channel
+        HAVING COUNT(*) >= 2
+        ORDER BY send_count DESC;
+        "
+
+        echo ""
+        echo "【3】本日のリマインダー総数"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            channel,
+            COUNT(*) as total_sent,
+            COUNT(DISTINCT reservation_id) as unique_reservations
+        FROM notification_logs
+        WHERE notification_type = 'reservation_reminder'
+        AND datetime(created_at, '+9 hours') >= datetime('now', '+9 hours', 'start of day')
+        GROUP BY channel;
+        "
+
+        echo ""
+        echo "【4】idempotency_key の形式確認（新形式か旧形式か）"
+        echo "-------------------------------------------"
+        sqlite3 database/database.sqlite "
+        SELECT idempotency_key
+        FROM notification_logs
+        WHERE notification_type = 'reservation_reminder'
+        AND datetime(created_at, '+9 hours') >= datetime('now', '+9 hours', 'start of day')
+        LIMIT 5;
+        "
+
+        echo ""
+        echo "=============================================="
+        EOF
+
+        rm deploy_key.pem
