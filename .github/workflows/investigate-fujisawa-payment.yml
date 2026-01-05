@@ -1,0 +1,123 @@
+name: Investigate Fujisawa Payment
+
+on:
+  workflow_dispatch:
+
+jobs:
+  investigate:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Investigate Fujisawa subscription payment
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=============================================="
+        echo "=== 藤沢店 サブスク決済調査 ==="
+        echo "=============================================="
+
+        echo ""
+        echo "【1】藤沢店の店舗情報"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT id, name FROM stores WHERE name LIKE '%藤沢%';
+        "
+
+        echo ""
+        echo "【2】藤沢店のサブスク契約（アクティブ）"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            cs.id as subscription_id,
+            c.id as customer_id,
+            c.full_name,
+            cs.payment_method,
+            cs.status,
+            sp.name as plan_name,
+            datetime(cs.created_at, '+9 hours') as created_jst
+        FROM customer_subscriptions cs
+        JOIN customers c ON cs.customer_id = c.id
+        JOIN subscription_plans sp ON cs.subscription_plan_id = sp.id
+        WHERE cs.store_id = (SELECT id FROM stores WHERE name LIKE '%藤沢%' LIMIT 1)
+        AND cs.status = 'active'
+        ORDER BY cs.id DESC
+        LIMIT 20;
+        "
+
+        echo ""
+        echo "【3】本日の藤沢店の売上（サブスク関連）"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            s.id as sale_id,
+            c.full_name,
+            s.payment_method,
+            s.total_amount,
+            s.customer_subscription_id,
+            datetime(s.created_at, '+9 hours') as created_jst
+        FROM sales s
+        JOIN customers c ON s.customer_id = c.id
+        WHERE s.store_id = (SELECT id FROM stores WHERE name LIKE '%藤沢%' LIMIT 1)
+        AND date(s.created_at) = date('now')
+        ORDER BY s.created_at DESC;
+        "
+
+        echo ""
+        echo "【4】支払い方法別の集計（本日・藤沢店）"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            payment_method,
+            COUNT(*) as count,
+            SUM(total_amount) as total
+        FROM sales
+        WHERE store_id = (SELECT id FROM stores WHERE name LIKE '%藤沢%' LIMIT 1)
+        AND date(created_at) = date('now')
+        GROUP BY payment_method;
+        "
+
+        echo ""
+        echo "【5】サブスク契約の支払い方法分布（藤沢店）"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            payment_method,
+            COUNT(*) as count
+        FROM customer_subscriptions
+        WHERE store_id = (SELECT id FROM stores WHERE name LIKE '%藤沢%' LIMIT 1)
+        AND status = 'active'
+        GROUP BY payment_method;
+        "
+
+        echo ""
+        echo "【6】ロボットペイメント設定のサブスクなのに現金になっている売上"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            s.id as sale_id,
+            c.full_name,
+            cs.payment_method as subscription_payment_method,
+            s.payment_method as sale_payment_method,
+            s.total_amount,
+            datetime(s.created_at, '+9 hours') as created_jst
+        FROM sales s
+        JOIN customers c ON s.customer_id = c.id
+        JOIN customer_subscriptions cs ON s.customer_subscription_id = cs.id
+        WHERE s.store_id = (SELECT id FROM stores WHERE name LIKE '%藤沢%' LIMIT 1)
+        AND date(s.created_at) = date('now')
+        AND cs.payment_method != s.payment_method;
+        "
+
+        echo ""
+        echo "=============================================="
+        EOF
+
+        rm deploy_key.pem
