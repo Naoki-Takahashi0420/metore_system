@@ -1,0 +1,111 @@
+name: Investigate Fujisawa Payment V4
+
+on:
+  workflow_dispatch:
+
+jobs:
+  investigate:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Compare subscriptions with different behavior
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=============================================="
+        echo "=== 斉藤園巳 vs 問題の3顧客 比較調査 ==="
+        echo "=============================================="
+
+        echo ""
+        echo "【1】斉藤園巳のサブスク契約（正常に動作）"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            cs.id as sub_id,
+            c.last_name || c.first_name as customer,
+            cs.payment_method,
+            cs.billing_start_date,
+            cs.next_billing_date,
+            datetime(cs.updated_at, '+9 hours') as updated_jst
+        FROM customer_subscriptions cs
+        JOIN customers c ON cs.customer_id = c.id
+        WHERE c.last_name || c.first_name = '斉藤園巳'
+        AND cs.store_id = 8
+        AND cs.status = 'active';
+        "
+
+        echo ""
+        echo "【2】問題の3顧客のサブスク契約（詳細）"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            cs.id as sub_id,
+            c.last_name || c.first_name as customer,
+            cs.payment_method,
+            cs.billing_start_date,
+            cs.next_billing_date,
+            datetime(cs.updated_at, '+9 hours') as updated_jst
+        FROM customer_subscriptions cs
+        JOIN customers c ON cs.customer_id = c.id
+        WHERE c.last_name || c.first_name IN ('青木沙月', '岡田佐知子', '廣昌子')
+        AND cs.store_id = 8
+        AND cs.status = 'active';
+        "
+
+        echo ""
+        echo "【3】本日計上された売上のcustomer_subscription_id確認"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            s.id as sale_id,
+            c.last_name || c.first_name as customer,
+            s.customer_subscription_id as linked_sub_id,
+            s.payment_method,
+            substr(s.notes, 1, 50) as notes
+        FROM sales s
+        JOIN customers c ON s.customer_id = c.id
+        WHERE s.store_id = 8
+        AND date(s.created_at) = date('now')
+        AND s.customer_subscription_id IS NOT NULL
+        ORDER BY s.id;
+        "
+
+        echo ""
+        echo "【4】サブスクID別の payment_method 確認"
+        echo "-------------------------------------------"
+        echo "ID 65, 73, 75, 76 のサブスク契約:"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT id, payment_method, billing_start_date
+        FROM customer_subscriptions
+        WHERE id IN (65, 73, 75, 76);
+        "
+
+        echo ""
+        echo "【5】斉藤園巳の全売上（本日）"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            s.id,
+            s.customer_subscription_id,
+            s.payment_method,
+            s.payment_source,
+            substr(s.notes, 1, 60) as notes
+        FROM sales s
+        JOIN customers c ON s.customer_id = c.id
+        WHERE c.last_name || c.first_name = '斉藤園巳'
+        AND date(s.created_at) = date('now');
+        "
+
+        echo ""
+        echo "=============================================="
+        EOF
+
+        rm deploy_key.pem
