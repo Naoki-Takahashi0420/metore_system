@@ -49,21 +49,21 @@ jobs:
         echo ""
 
         echo "salesテーブル更新中..."
-        sqlite3 database/database.sqlite "
+        sudo -u www-data sqlite3 database/database.sqlite "
         UPDATE sales
         SET payment_method = 'ロボットペイメント'
         WHERE payment_method = 'robopay';
         "
-        echo "完了: $(sqlite3 database/database.sqlite "SELECT changes()") 件更新"
+        echo "完了"
 
         echo ""
         echo "customer_subscriptionsテーブル更新中..."
-        sqlite3 database/database.sqlite "
+        sudo -u www-data sqlite3 database/database.sqlite "
         UPDATE customer_subscriptions
         SET payment_method = 'ロボットペイメント'
         WHERE payment_method = 'robopay';
         "
-        echo "完了: $(sqlite3 database/database.sqlite "SELECT changes()") 件更新"
+        echo "完了"
 
         echo ""
         echo "【更新後】salesテーブルの payment_method 分布"
