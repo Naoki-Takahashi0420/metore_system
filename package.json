@@ -19,6 +19,7 @@
     },
     "dependencies": {
         "alpinejs": "^3.14.9",
+        "chart.js": "^4.5.1",
         "laravel-echo": "^2.2.6",
         "node-fetch": "^3.3.2",
         "playwright": "^1.55.0",

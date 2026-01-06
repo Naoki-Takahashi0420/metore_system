@@ -522,10 +522,12 @@ class DailyClosing extends Page implements HasForms
 
         $this->unpostedSubscriptions = $subscriptions->map(function ($subscription) use ($defaultPaymentMethod, $storePaymentMethods) {
             // その日のサブスク決済の売上がすでに計上されているかチェック
+            // ※ total_amount > 0 で実際の決済売上のみを取得（予約利用の¥0は除外）
             $existingSale = Sale::where('customer_id', $subscription->customer_id)
                 ->where('customer_subscription_id', $subscription->id)
                 ->whereDate('sale_date', $this->closingDate)
                 ->where('payment_source', 'subscription')
+                ->where('total_amount', '>', 0)
                 ->first();
 
             $isPosted = (bool)$existingSale;

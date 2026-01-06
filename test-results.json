@@ -41,7 +41,7 @@
       {
         "outputDir": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results",
         "repeatEach": 1,
-        "retries": 1,
+        "retries": 0,
         "metadata": {
           "actualWorkers": 1
         },
@@ -68,20 +68,20 @@
   },
   "suites": [
     {
-      "title": "daily-closing-edit-test.spec.js",
-      "file": "daily-closing-edit-test.spec.js",
+      "title": "playwright/broadcast-message.spec.js",
+      "file": "playwright/broadcast-message.spec.js",
       "column": 0,
       "line": 0,
       "specs": [],
       "suites": [
         {
-          "title": "日次精算 - モーダル編集テスト",
-          "file": "daily-closing-edit-test.spec.js",
-          "line": 3,
+          "title": "一斉送信機能",
+          "file": "playwright/broadcast-message.spec.js",
+          "line": 4,
           "column": 6,
           "specs": [
             {
-              "title": "計上済み予約を編集して一覧に反映されるか確認",
+              "title": "店舗管理から一斉送信タブが表示される",
               "ok": false,
               "tags": [],
               "tests": [
@@ -96,133 +96,141 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 14252,
+                      "duration": 2394,
                       "error": {
-                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m failed\n\nLocator:  locator('tr:has-text(\"計上済み\")').first()\nExpected: visible\nReceived: <element(s) not found>\nTimeout:  10000ms\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('tr:has-text(\"計上済み\")').first()\u001b[22m\n",
-                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m failed\n\nLocator:  locator('tr:has-text(\"計上済み\")').first()\nExpected: visible\nReceived: <element(s) not found>\nTimeout:  10000ms\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('tr:has-text(\"計上済み\")').first()\u001b[22m\n\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/daily-closing-edit-test.spec.js:27:29",
+                        "message": "Error: page.goto: net::ERR_ABORTED at http://localhost:8000/admin/stores\nCall log:\n\u001b[2m  - navigating to \"http://localhost:8000/admin/stores\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_ABORTED at http://localhost:8000/admin/stores\nCall log:\n\u001b[2m  - navigating to \"http://localhost:8000/admin/stores\", waiting until \"load\"\u001b[22m\n\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/playwright/broadcast-message.spec.js:19:20",
                         "location": {
-                          "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/daily-closing-edit-test.spec.js",
-                          "column": 29,
-                          "line": 27
+                          "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/playwright/broadcast-message.spec.js",
+                          "column": 20,
+                          "line": 19
                         },
-                        "snippet": "  25 |     // 1. 計上済みの予約を探す\n  26 |     const postedRow = page.locator('tr:has-text(\"計上済み\")').first();\n> 27 |     await expect(postedRow).toBeVisible({ timeout: 10000 });\n     |                             ^\n  28 |\n  29 |     // 計上済み予約の情報を取得\n  30 |     const customerName = await postedRow.locator('td').nth(1).innerText();"
+                        "snippet": "  17 |     test('店舗管理から一斉送信タブが表示される', async ({ page }) => {\n  18 |         // 店舗管理に移動\n> 19 |         await page.goto('http://localhost:8000/admin/stores');\n     |                    ^\n  20 |         await page.waitForLoadState('networkidle');\n  21 |\n  22 |         // 最初の店舗をクリック（View）"
                       },
                       "errors": [
                         {
                           "location": {
-                            "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/daily-closing-edit-test.spec.js",
-                            "column": 29,
-                            "line": 27
+                            "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/playwright/broadcast-message.spec.js",
+                            "column": 20,
+                            "line": 19
                           },
-                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m failed\n\nLocator:  locator('tr:has-text(\"計上済み\")').first()\nExpected: visible\nReceived: <element(s) not found>\nTimeout:  10000ms\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('tr:has-text(\"計上済み\")').first()\u001b[22m\n\n\n  25 |     // 1. 計上済みの予約を探す\n  26 |     const postedRow = page.locator('tr:has-text(\"計上済み\")').first();\n> 27 |     await expect(postedRow).toBeVisible({ timeout: 10000 });\n     |                             ^\n  28 |\n  29 |     // 計上済み予約の情報を取得\n  30 |     const customerName = await postedRow.locator('td').nth(1).innerText();\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/daily-closing-edit-test.spec.js:27:29"
+                          "message": "Error: page.goto: net::ERR_ABORTED at http://localhost:8000/admin/stores\nCall log:\n\u001b[2m  - navigating to \"http://localhost:8000/admin/stores\", waiting until \"load\"\u001b[22m\n\n\n  17 |     test('店舗管理から一斉送信タブが表示される', async ({ page }) => {\n  18 |         // 店舗管理に移動\n> 19 |         await page.goto('http://localhost:8000/admin/stores');\n     |                    ^\n  20 |         await page.waitForLoadState('networkidle');\n  21 |\n  22 |         // 最初の店舗をクリック（View）\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/playwright/broadcast-message.spec.js:19:20"
                         }
                       ],
-                      "stdout": [
-                        {
-                          "text": "=== テスト開始 ===\n"
-                        }
-                      ],
+                      "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-29T08:12:53.810Z",
+                      "startTime": "2025-12-20T20:10:09.944Z",
                       "annotations": [],
                       "attachments": [
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/daily-closing-edit-test-日次-a5e46-集テスト-計上済み予約を編集して一覧に反映されるか確認-chromium/test-failed-1.png"
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/playwright-broadcast-message-一斉送信機能-店舗管理から一斉送信タブが表示される-chromium/test-failed-1.png"
                         },
                         {
                           "name": "video",
                           "contentType": "video/webm",
-                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/daily-closing-edit-test-日次-a5e46-集テスト-計上済み予約を編集して一覧に反映されるか確認-chromium/video.webm"
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/playwright-broadcast-message-一斉送信機能-店舗管理から一斉送信タブが表示される-chromium/video.webm"
                         },
                         {
                           "name": "error-context",
                           "contentType": "text/markdown",
-                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/daily-closing-edit-test-日次-a5e46-集テスト-計上済み予約を編集して一覧に反映されるか確認-chromium/error-context.md"
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/playwright-broadcast-message-一斉送信機能-店舗管理から一斉送信タブが表示される-chromium/error-context.md"
                         }
                       ],
                       "errorLocation": {
-                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/daily-closing-edit-test.spec.js",
-                        "column": 29,
-                        "line": 27
-                      }
-                    },
-                    {
-                      "workerIndex": 1,
-                      "parallelIndex": 0,
-                      "status": "failed",
-                      "duration": 13381,
-                      "error": {
-                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m failed\n\nLocator:  locator('tr:has-text(\"計上済み\")').first()\nExpected: visible\nReceived: <element(s) not found>\nTimeout:  10000ms\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('tr:has-text(\"計上済み\")').first()\u001b[22m\n",
-                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m failed\n\nLocator:  locator('tr:has-text(\"計上済み\")').first()\nExpected: visible\nReceived: <element(s) not found>\nTimeout:  10000ms\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('tr:has-text(\"計上済み\")').first()\u001b[22m\n\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/daily-closing-edit-test.spec.js:27:29",
-                        "location": {
-                          "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/daily-closing-edit-test.spec.js",
-                          "column": 29,
-                          "line": 27
-                        },
-                        "snippet": "  25 |     // 1. 計上済みの予約を探す\n  26 |     const postedRow = page.locator('tr:has-text(\"計上済み\")').first();\n> 27 |     await expect(postedRow).toBeVisible({ timeout: 10000 });\n     |                             ^\n  28 |\n  29 |     // 計上済み予約の情報を取得\n  30 |     const customerName = await postedRow.locator('td').nth(1).innerText();"
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/daily-closing-edit-test.spec.js",
-                            "column": 29,
-                            "line": 27
-                          },
-                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m failed\n\nLocator:  locator('tr:has-text(\"計上済み\")').first()\nExpected: visible\nReceived: <element(s) not found>\nTimeout:  10000ms\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('tr:has-text(\"計上済み\")').first()\u001b[22m\n\n\n  25 |     // 1. 計上済みの予約を探す\n  26 |     const postedRow = page.locator('tr:has-text(\"計上済み\")').first();\n> 27 |     await expect(postedRow).toBeVisible({ timeout: 10000 });\n     |                             ^\n  28 |\n  29 |     // 計上済み予約の情報を取得\n  30 |     const customerName = await postedRow.locator('td').nth(1).innerText();\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/daily-closing-edit-test.spec.js:27:29"
-                        }
-                      ],
-                      "stdout": [
-                        {
-                          "text": "=== テスト開始 ===\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 1,
-                      "startTime": "2025-10-29T08:13:09.245Z",
-                      "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/daily-closing-edit-test-日次-a5e46-集テスト-計上済み予約を編集して一覧に反映されるか確認-chromium-retry1/test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/daily-closing-edit-test-日次-a5e46-集テスト-計上済み予約を編集して一覧に反映されるか確認-chromium-retry1/video.webm"
-                        },
-                        {
-                          "name": "error-context",
-                          "contentType": "text/markdown",
-                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/daily-closing-edit-test-日次-a5e46-集テスト-計上済み予約を編集して一覧に反映されるか確認-chromium-retry1/error-context.md"
-                        },
-                        {
-                          "name": "trace",
-                          "contentType": "application/zip",
-                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/daily-closing-edit-test-日次-a5e46-集テスト-計上済み予約を編集して一覧に反映されるか確認-chromium-retry1/trace.zip"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/daily-closing-edit-test.spec.js",
-                        "column": 29,
-                        "line": 27
+                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/playwright/broadcast-message.spec.js",
+                        "column": 20,
+                        "line": 19
                       }
                     }
                   ],
                   "status": "unexpected"
                 }
               ],
-              "id": "ffca0d461f5c1dbf9e3a-b1aa3c965ba14a5b7aab",
-              "file": "daily-closing-edit-test.spec.js",
-              "line": 22,
-              "column": 3
+              "id": "a335daa5fd37c1b4c29e-915c333d177c35df1658",
+              "file": "playwright/broadcast-message.spec.js",
+              "line": 17,
+              "column": 5
             },
             {
-              "title": "未計上→計上ボタンを押して数字が変わるか確認",
-              "ok": true,
+              "title": "一斉送信タブをクリックして新規一斉送信ボタンが表示される",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 1539,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_ABORTED at http://localhost:8000/admin/stores/1\nCall log:\n\u001b[2m  - navigating to \"http://localhost:8000/admin/stores/1\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_ABORTED at http://localhost:8000/admin/stores/1\nCall log:\n\u001b[2m  - navigating to \"http://localhost:8000/admin/stores/1\", waiting until \"load\"\u001b[22m\n\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/playwright/broadcast-message.spec.js:33:20",
+                        "location": {
+                          "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/playwright/broadcast-message.spec.js",
+                          "column": 20,
+                          "line": 33
+                        },
+                        "snippet": "  31 |     test('一斉送信タブをクリックして新規一斉送信ボタンが表示される', async ({ page }) => {\n  32 |         // 店舗管理の詳細に移動\n> 33 |         await page.goto('http://localhost:8000/admin/stores/1');\n     |                    ^\n  34 |         await page.waitForLoadState('networkidle');\n  35 |\n  36 |         // 一斉送信タブをクリック"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/playwright/broadcast-message.spec.js",
+                            "column": 20,
+                            "line": 33
+                          },
+                          "message": "Error: page.goto: net::ERR_ABORTED at http://localhost:8000/admin/stores/1\nCall log:\n\u001b[2m  - navigating to \"http://localhost:8000/admin/stores/1\", waiting until \"load\"\u001b[22m\n\n\n  31 |     test('一斉送信タブをクリックして新規一斉送信ボタンが表示される', async ({ page }) => {\n  32 |         // 店舗管理の詳細に移動\n> 33 |         await page.goto('http://localhost:8000/admin/stores/1');\n     |                    ^\n  34 |         await page.waitForLoadState('networkidle');\n  35 |\n  36 |         // 一斉送信タブをクリック\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/playwright/broadcast-message.spec.js:33:20"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-12-20T20:10:12.974Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/playwright-broadcast-messa-1f30a-斉送信タブをクリックして新規一斉送信ボタンが表示される-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/playwright-broadcast-messa-1f30a-斉送信タブをクリックして新規一斉送信ボタンが表示される-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/playwright-broadcast-messa-1f30a-斉送信タブをクリックして新規一斉送信ボタンが表示される-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/playwright/broadcast-message.spec.js",
+                        "column": 20,
+                        "line": 33
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "a335daa5fd37c1b4c29e-eaaeb077716954a52e17",
+              "file": "playwright/broadcast-message.spec.js",
+              "line": 31,
+              "column": 5
+            },
+            {
+              "title": "新規一斉送信モーダルが開く",
+              "ok": false,
               "tags": [],
               "tests": [
                 {
@@ -235,64 +243,64 @@
                     {
                       "workerIndex": 2,
                       "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 5050,
-                      "errors": [],
-                      "stdout": [
-                        {
-                          "text": "=== 未計上の計上テスト開始 ===\n"
+                      "status": "failed",
+                      "duration": 1533,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_ABORTED at http://localhost:8000/admin/stores/1\nCall log:\n\u001b[2m  - navigating to \"http://localhost:8000/admin/stores/1\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_ABORTED at http://localhost:8000/admin/stores/1\nCall log:\n\u001b[2m  - navigating to \"http://localhost:8000/admin/stores/1\", waiting until \"load\"\u001b[22m\n\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/playwright/broadcast-message.spec.js:46:20",
+                        "location": {
+                          "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/playwright/broadcast-message.spec.js",
+                          "column": 20,
+                          "line": 46
                         },
+                        "snippet": "  44 |\n  45 |     test('新規一斉送信モーダルが開く', async ({ page }) => {\n> 46 |         await page.goto('http://localhost:8000/admin/stores/1');\n     |                    ^\n  47 |         await page.waitForLoadState('networkidle');\n  48 |\n  49 |         // 一斉送信タブをクリック"
+                      },
+                      "errors": [
                         {
-                          "text": "📊 計上前:\n"
-                        },
-                        {
-                          "text": "  顧客: 榊原 洋\n"
-                        },
-                        {
-                          "text": "  金額: ¥0\n"
-                        },
-                        {
-                          "text": "✅ 計上ボタンをクリック\n"
-                        },
-                        {
-                          "text": "✅ 計上完了通知が表示されました\n"
-                        },
-                        {
-                          "text": "📊 計上後:\n"
-                        },
-                        {
-                          "text": "  顧客: 榊原 洋\n"
-                        },
-                        {
-                          "text": "  金額: ¥0\n"
-                        },
-                        {
-                          "text": "  計上済みフラグ: あり\n"
-                        },
-                        {
-                          "text": "\n=== 検証結果 ===\n"
-                        },
-                        {
-                          "text": "✅ 計上済みフラグが表示されています\n"
-                        },
-                        {
-                          "text": "✅ 計上前後で金額は同じです\n"
+                          "location": {
+                            "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/playwright/broadcast-message.spec.js",
+                            "column": 20,
+                            "line": 46
+                          },
+                          "message": "Error: page.goto: net::ERR_ABORTED at http://localhost:8000/admin/stores/1\nCall log:\n\u001b[2m  - navigating to \"http://localhost:8000/admin/stores/1\", waiting until \"load\"\u001b[22m\n\n\n  44 |\n  45 |     test('新規一斉送信モーダルが開く', async ({ page }) => {\n> 46 |         await page.goto('http://localhost:8000/admin/stores/1');\n     |                    ^\n  47 |         await page.waitForLoadState('networkidle');\n  48 |\n  49 |         // 一斉送信タブをクリック\n    at /Applications/MAMP/htdocs/Xsyumeno-main/tests/playwright/broadcast-message.spec.js:46:20"
                         }
                       ],
+                      "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-10-29T08:13:23.444Z",
+                      "startTime": "2025-12-20T20:10:14.946Z",
                       "annotations": [],
-                      "attachments": []
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/playwright-broadcast-message-一斉送信機能-新規一斉送信モーダルが開く-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/playwright-broadcast-message-一斉送信機能-新規一斉送信モーダルが開く-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Applications/MAMP/htdocs/Xsyumeno-main/test-results/playwright-broadcast-message-一斉送信機能-新規一斉送信モーダルが開く-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Applications/MAMP/htdocs/Xsyumeno-main/tests/playwright/broadcast-message.spec.js",
+                        "column": 20,
+                        "line": 46
+                      }
                     }
                   ],
-                  "status": "expected"
+                  "status": "unexpected"
                 }
               ],
-              "id": "ffca0d461f5c1dbf9e3a-72c58310917e8ca46220",
-              "file": "daily-closing-edit-test.spec.js",
-              "line": 125,
-              "column": 3
+              "id": "a335daa5fd37c1b4c29e-6613cf2670bfdfd68493",
+              "file": "playwright/broadcast-message.spec.js",
+              "line": 45,
+              "column": 5
             }
           ]
         }
@@ -301,11 +309,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-10-29T08:12:53.333Z",
-    "duration": 35596.784999999996,
-    "expected": 1,
+    "startTime": "2025-12-20T20:10:09.518Z",
+    "duration": 7082.364,
+    "expected": 0,
     "skipped": 0,
-    "unexpected": 1,
+    "unexpected": 3,
     "flaky": 0
   }
 }
