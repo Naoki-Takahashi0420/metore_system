@@ -1,0 +1,136 @@
+name: Investigate Saito Sale
+
+on:
+  workflow_dispatch:
+
+jobs:
+  investigate:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Investigate Saito Sonomi sale
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        cd /var/www/html
+
+        echo "=============================================="
+        echo "=== 斉藤園巳 売上調査 (1/5) ==="
+        echo "=============================================="
+
+        echo ""
+        echo "【1】斉藤園巳の1/5売上詳細"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            s.id as sale_id,
+            s.total_amount,
+            s.subtotal,
+            s.tax_amount,
+            s.discount_amount,
+            s.payment_method,
+            s.payment_source,
+            s.customer_subscription_id as sub_id,
+            datetime(s.created_at, '+9 hours') as created_jst
+        FROM sales s
+        JOIN customers c ON s.customer_id = c.id
+        WHERE c.last_name || c.first_name = '斉藤園巳'
+        AND date(datetime(s.created_at, '+9 hours')) = '2026-01-05';
+        "
+
+        echo ""
+        echo "【2】売上明細（sale_items）"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            si.id,
+            si.sale_id,
+            si.item_type,
+            si.item_name,
+            si.quantity,
+            si.unit_price,
+            si.subtotal,
+            si.tax_amount
+        FROM sale_items si
+        JOIN sales s ON si.sale_id = s.id
+        JOIN customers c ON s.customer_id = c.id
+        WHERE c.last_name || c.first_name = '斉藤園巳'
+        AND date(datetime(s.created_at, '+9 hours')) = '2026-01-05';
+        "
+
+        echo ""
+        echo "【3】サブスク契約情報"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            cs.id as sub_id,
+            cs.subscription_plan_id,
+            sp.name as plan_name,
+            sp.price as plan_price,
+            cs.payment_method,
+            cs.billing_start_date,
+            cs.next_billing_date
+        FROM customer_subscriptions cs
+        JOIN subscription_plans sp ON cs.subscription_plan_id = sp.id
+        JOIN customers c ON cs.customer_id = c.id
+        WHERE c.last_name || c.first_name = '斉藤園巳'
+        AND cs.status = 'active';
+        "
+
+        echo ""
+        echo "【4】予約情報（1/5-1/6）"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            r.id as res_id,
+            r.reservation_date,
+            r.start_time,
+            m.name as menu_name,
+            r.total_amount as res_amount,
+            r.status
+        FROM reservations r
+        JOIN menus m ON r.menu_id = m.id
+        JOIN customers c ON r.customer_id = c.id
+        WHERE c.last_name || c.first_name = '斉藤園巳'
+        AND r.reservation_date BETWEEN '2026-01-05' AND '2026-01-06';
+        "
+
+        echo ""
+        echo "【5】売上のnotes確認"
+        echo "-------------------------------------------"
+        sqlite3 database/database.sqlite "
+        SELECT s.notes
+        FROM sales s
+        JOIN customers c ON s.customer_id = c.id
+        WHERE c.last_name || c.first_name = '斉藤園巳'
+        AND date(datetime(s.created_at, '+9 hours')) = '2026-01-05';
+        "
+
+        echo ""
+        echo "【6】予約オプション確認"
+        echo "-------------------------------------------"
+        sqlite3 -header -column database/database.sqlite "
+        SELECT
+            ro.id,
+            ro.reservation_id,
+            mo.name as option_name,
+            mo.price as option_price
+        FROM reservation_options ro
+        JOIN menu_options mo ON ro.menu_option_id = mo.id
+        JOIN reservations r ON ro.reservation_id = r.id
+        JOIN customers c ON r.customer_id = c.id
+        WHERE c.last_name || c.first_name = '斉藤園巳'
+        AND r.reservation_date = '2026-01-05';
+        "
+
+        echo ""
+        echo "=============================================="
+        EOF
+
+        rm deploy_key.pem
