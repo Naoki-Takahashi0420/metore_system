@@ -1,0 +1,50 @@
+name: Check Server Status
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check server status
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 54.64.54.226
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        echo "=== サーバー状態確認 ==="
+        echo ""
+        echo "【1】Nginx ステータス"
+        sudo systemctl status nginx --no-pager | head -20
+
+        echo ""
+        echo "【2】PHP-FPM ステータス"
+        sudo systemctl status php8.3-fpm --no-pager | head -20
+
+        echo ""
+        echo "【3】ディスク使用量"
+        df -h /
+
+        echo ""
+        echo "【4】メモリ使用量"
+        free -h
+
+        echo ""
+        echo "【5】最新のエラーログ"
+        sudo tail -30 /var/www/html/storage/logs/laravel-$(date +%F).log 2>/dev/null || echo "ログファイルなし"
+
+        echo ""
+        echo "【6】Nginx エラーログ"
+        sudo tail -20 /var/log/nginx/error.log
+
+        echo ""
+        echo "==========================="
+        EOF
+
+        rm deploy_key.pem
