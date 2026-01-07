@@ -46,7 +46,8 @@ class NewCustomerTrackingTable extends Component
         ?string $endDate = null,
         ?int $store_id = null
     ): void {
-        $this->startDate = $startDate ?? now()->subMonths(6)->format('Y-m-d');
+        // デフォルトは今月（パフォーマンス考慮）
+        $this->startDate = $startDate ?? now()->startOfMonth()->format('Y-m-d');
         $this->endDate = $endDate ?? now()->format('Y-m-d');
         $this->storeId = $store_id;
 

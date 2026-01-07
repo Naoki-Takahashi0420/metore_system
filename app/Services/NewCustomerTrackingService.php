@@ -77,7 +77,8 @@ class NewCustomerTrackingService
         ?string $endDate = null,
         ?int $storeId = null
     ): Collection {
-        $start = $startDate ? Carbon::parse($startDate)->startOfDay() : Carbon::now()->subMonths(6)->startOfDay();
+        // デフォルトは今月（パフォーマンス考慮）
+        $start = $startDate ? Carbon::parse($startDate)->startOfDay() : Carbon::now()->startOfMonth()->startOfDay();
         $end = $endDate ? Carbon::parse($endDate)->endOfDay() : Carbon::now()->endOfDay();
 
         // 期間内に初めて来店した顧客を特定
