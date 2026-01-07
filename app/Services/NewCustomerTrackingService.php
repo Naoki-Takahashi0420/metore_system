@@ -82,15 +82,21 @@ class NewCustomerTrackingService
         $end = $endDate ? Carbon::parse($endDate)->endOfDay() : Carbon::now()->endOfDay();
 
         // 期間内に初めて来店した顧客を特定
-        // (completed な予約の最小日が期間内にある)
+        // 注意: 新規顧客の判定は「全店舗を通じて」行う（店舗フィルターは適用しない）
+        // 表示フィルターは後で適用（初回来店店舗が選択店舗の顧客のみ表示）
         $firstReservations = Reservation::query()
             ->select('customer_id', DB::raw('MIN(reservation_date) as first_reservation_date'))
+            ->selectRaw('(SELECT store_id FROM reservations r2 WHERE r2.customer_id = reservations.customer_id AND r2.status = \'completed\' ORDER BY reservation_date, start_time LIMIT 1) as first_store_id')
             ->whereNotNull('customer_id')
             ->where('status', 'completed')  // 実際に来店した予約のみ
-            ->when($storeId, fn($q) => $q->where('store_id', $storeId))
+            // 新規判定は全店舗で行う（店舗フィルターは表示時に適用）
             ->groupBy('customer_id')
             ->havingRaw('MIN(reservation_date) >= ?', [$start])
             ->havingRaw('MIN(reservation_date) <= ?', [$end])
+            // 店舗フィルター: 初回来店が選択店舗で行われた顧客のみ
+            ->when($storeId, function($q) use ($storeId) {
+                $q->havingRaw('(SELECT store_id FROM reservations r2 WHERE r2.customer_id = reservations.customer_id AND r2.status = \'completed\' ORDER BY reservation_date, start_time LIMIT 1) = ?', [$storeId]);
+            })
             ->get();
 
         $newCustomerIds = $firstReservations->pluck('customer_id')->toArray();
