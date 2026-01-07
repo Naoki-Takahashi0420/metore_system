@@ -23,7 +23,7 @@ jobs:
         echo ""
         echo "【1】井上孝史（09099676256）の予約履歴"
         sudo sqlite3 /var/www/html/database/database.sqlite "
-          SELECT c.id, c.name, r.reservation_date, r.status, r.store_id
+          SELECT c.id, c.last_name || c.first_name as name, r.reservation_date, r.status, r.store_id
           FROM customers c
           LEFT JOIN reservations r ON c.id = r.customer_id
           WHERE c.phone = '09099676256'
@@ -33,7 +33,7 @@ jobs:
         echo ""
         echo "【2】秋吉範隆（08043636790）の予約履歴"
         sudo sqlite3 /var/www/html/database/database.sqlite "
-          SELECT c.id, c.name, r.reservation_date, r.status, r.store_id
+          SELECT c.id, c.last_name || c.first_name as name, r.reservation_date, r.status, r.store_id
           FROM customers c
           LEFT JOIN reservations r ON c.id = r.customer_id
           WHERE c.phone = '08043636790'
@@ -64,11 +64,11 @@ jobs:
             HAVING MIN(reservation_date) >= date('now', 'start of month')
             LIMIT 5
           )
-          SELECT c.name, c.phone, r.reservation_date, r.status
+          SELECT c.last_name || c.first_name, c.phone, r.reservation_date, r.status
           FROM reservations r
           JOIN customers c ON r.customer_id = c.id
           WHERE r.customer_id IN (SELECT customer_id FROM new_customers)
-          ORDER BY c.name, r.reservation_date;
+          ORDER BY c.last_name, r.reservation_date;
         "
 
         echo ""
