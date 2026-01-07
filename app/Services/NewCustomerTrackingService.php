@@ -80,11 +80,12 @@ class NewCustomerTrackingService
         $start = $startDate ? Carbon::parse($startDate)->startOfDay() : Carbon::now()->subMonths(6)->startOfDay();
         $end = $endDate ? Carbon::parse($endDate)->endOfDay() : Carbon::now()->endOfDay();
 
-        // 期間内に初めて予約した顧客を特定
-        // (その顧客の最初の予約が期間内にある)
+        // 期間内に初めて来店した顧客を特定
+        // (completed な予約の最小日が期間内にある)
         $firstReservations = Reservation::query()
             ->select('customer_id', DB::raw('MIN(reservation_date) as first_reservation_date'))
             ->whereNotNull('customer_id')
+            ->where('status', 'completed')  // 実際に来店した予約のみ
             ->when($storeId, fn($q) => $q->where('store_id', $storeId))
             ->groupBy('customer_id')
             ->havingRaw('MIN(reservation_date) >= ?', [$start])
@@ -122,12 +123,15 @@ class NewCustomerTrackingService
         $result = collect();
 
         foreach ($customers as $customer) {
-            $reservations = $customer->reservations->values();
+            // 来店済み（completed）の予約のみを追跡対象とする
+            $completedReservations = $customer->reservations
+                ->filter(fn($r) => $r->status === 'completed')
+                ->values();
             $records = $customer->medicalRecords->values();
 
-            if ($reservations->isEmpty()) continue;
+            if ($completedReservations->isEmpty()) continue;
 
-            $firstReservation = $reservations->first();
+            $firstReservation = $completedReservations->first();
 
             // 予約日（created_at）と来店予定日（reservation_date）
             $bookingDate = $firstReservation->created_at;
@@ -144,7 +148,7 @@ class NewCustomerTrackingService
             $source = $this->getSourceFromRecord($firstRecord);
 
             // 1回目結果を判定
-            $visit1Result = $this->determineReservationResult($customer, $reservations, 0);
+            $visit1Result = $this->determineReservationResult($customer, $completedReservations, 0);
 
             // 1回目対応者: handled_by（テキスト）を優先、なければstaff.nameを使用
             // ※ handled_byには実際に対応した人の名前が手入力されることが多い
@@ -188,7 +192,7 @@ class NewCustomerTrackingService
 
             // 2回目, 3回目のデータ
             for ($i = 2; $i <= 3; $i++) {
-                $reservation = $reservations->get($i - 1);
+                $reservation = $completedReservations->get($i - 1);
                 if ($reservation) {
                     // カルテを取得（優先順位: 1.予約日マッチ → 2.i番目のカルテ）
                     $record = $this->findRecordForReservation($records, $reservation);
@@ -197,7 +201,7 @@ class NewCustomerTrackingService
                     }
 
                     $trackingData["visit{$i}_date"] = Carbon::parse($reservation->reservation_date)->format('Y/m/d');
-                    $trackingData["visit{$i}_result"] = $this->determineReservationResult($customer, $reservations, $i - 1);
+                    $trackingData["visit{$i}_result"] = $this->determineReservationResult($customer, $completedReservations, $i - 1);
 
                     // 対応者: handled_by（テキスト）を優先、なければstaff.nameを使用
                     $handler = null;
@@ -254,10 +258,10 @@ class NewCustomerTrackingService
     }
 
     /**
-     * 予約の結果を判定
+     * 来店の結果を判定
      *
      * @param Customer $customer 顧客
-     * @param Collection $reservations 全予約（時系列順）
+     * @param Collection $reservations 来店済み予約（completed、時系列順）
      * @param int $index 対象の予約インデックス（0始まり）
      */
     private function determineReservationResult(
@@ -315,7 +319,8 @@ class NewCustomerTrackingService
         }
 
         // 将来の予約（booked/confirmed）があるか確認
-        $futureReservation = $reservations
+        // ※ 顧客の全予約から確認（completedReservationsではなく）
+        $futureReservation = $customer->reservations
             ->filter(function ($r) use ($reservationDate) {
                 return Carbon::parse($r->reservation_date) > $reservationDate
                     && in_array($r->status, ['booked', 'confirmed']);
