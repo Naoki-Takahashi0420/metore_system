@@ -13,5 +13,5 @@ jobs:
       run: |
         echo "$EC2_KEY" > key.pem
         chmod 600 key.pem
-        ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@54.64.54.226 'cd /var/www/html && yes | sudo -u www-data HOME=/tmp php artisan reservations:fix-end-times'
+        ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@13.158.240.0 'cd /var/www/html && yes | sudo -u www-data HOME=/tmp php artisan reservations:fix-end-times'
         rm key.pem

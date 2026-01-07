@@ -11,7 +11,7 @@ jobs:
     - name: Clear All Caches
       env:
         EC2_KEY: ${{ secrets.EC2_KEY }}
-        EC2_HOST: 54.64.54.226
+        EC2_HOST: 13.158.240.0
         EC2_USER: ubuntu
       run: |
         echo "$EC2_KEY" > deploy_key.pem

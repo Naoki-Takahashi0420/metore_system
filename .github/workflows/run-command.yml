@@ -17,7 +17,7 @@ jobs:
     - name: Execute Command
       env:
         EC2_KEY: ${{ secrets.EC2_KEY }}
-        EC2_HOST: 54.64.54.226
+        EC2_HOST: 13.158.240.0
         EC2_USER: ubuntu
         COMMAND: ${{ github.event.inputs.command }}
       run: |

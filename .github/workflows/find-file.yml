@@ -29,7 +29,7 @@ jobs:
 
         chmod 600 deploy_key.pem
 
-        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ubuntu@54.64.54.226 "sudo find /var/www/html -name AdminNotificationService.php"
+        ssh -o StrictHostKeyChecking=no -i deploy_key.pem ubuntu@13.158.240.0 "sudo find /var/www/html -name AdminNotificationService.php"
 
         rm deploy_key.pem
 

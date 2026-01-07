@@ -562,7 +562,7 @@ Announcement (お知らせ)
 ### インフラ
 - **サーバー**: AWS EC2 (Ubuntu)
 - **インスタンスID**: i-061a146fcb1cc54ae
-- **IPアドレス**: 54.64.54.226
+- **IPアドレス**: 13.158.240.0 (Elastic IP)
 - **データベース**: SQLite
 - **Webサーバー**: Nginx + PHP 8.3-FPM
 
