@@ -22,8 +22,8 @@ class MarketingDashboard extends Page
 
     public function mount(): void
     {
-        // デフォルトで過去6ヶ月を設定（月別トレンド表示のため）
-        $this->startDateA = now()->subMonths(6)->format('Y-m-d');
+        // デフォルトは今月（パフォーマンス考慮・サーバークラッシュ防止）
+        $this->startDateA = now()->startOfMonth()->format('Y-m-d');
         $this->endDateA = now()->format('Y-m-d');
     }
 

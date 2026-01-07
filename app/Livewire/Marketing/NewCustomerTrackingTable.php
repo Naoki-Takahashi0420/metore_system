@@ -41,6 +41,8 @@ class NewCustomerTrackingTable extends Component
 
     protected $listeners = ['filtersUpdated' => 'handleFiltersUpdated'];
 
+    public bool $isLoading = true;
+
     public function mount(
         ?string $startDate = null,
         ?string $endDate = null,
@@ -55,7 +57,16 @@ class NewCustomerTrackingTable extends Component
         $aiService = new MarketingAIAnalysisService();
         $this->aiAvailable = $aiService->isAvailable();
 
+        // データは遅延読み込み（ページ表示後に読み込む）
+    }
+
+    /**
+     * ページ表示後にデータを読み込む（wire:init で呼び出し）
+     */
+    public function initializeData(): void
+    {
         $this->loadData();
+        $this->isLoading = false;
     }
 
     public function handleFiltersUpdated(array $filters): void
