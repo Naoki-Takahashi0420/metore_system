@@ -1,0 +1,78 @@
+name: Check New Customer Issue
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check customer data
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+        EC2_HOST: 13.158.240.0
+        EC2_USER: ubuntu
+      run: |
+        echo "$EC2_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
+        echo "=== 新規顧客判定の調査 ==="
+
+        echo ""
+        echo "【1】井上孝史（09099676256）の予約履歴"
+        sudo sqlite3 /var/www/html/database/database.sqlite "
+          SELECT c.id, c.name, r.reservation_date, r.status, r.store_id
+          FROM customers c
+          LEFT JOIN reservations r ON c.id = r.customer_id
+          WHERE c.phone = '09099676256'
+          ORDER BY r.reservation_date;
+        "
+
+        echo ""
+        echo "【2】秋吉範隆（08043636790）の予約履歴"
+        sudo sqlite3 /var/www/html/database/database.sqlite "
+          SELECT c.id, c.name, r.reservation_date, r.status, r.store_id
+          FROM customers c
+          LEFT JOIN reservations r ON c.id = r.customer_id
+          WHERE c.phone = '08043636790'
+          ORDER BY r.reservation_date;
+        "
+
+        echo ""
+        echo "【3】今月初来店と判定された顧客（最初の5件）"
+        sudo sqlite3 /var/www/html/database/database.sqlite "
+          SELECT customer_id, MIN(reservation_date) as first_visit
+          FROM reservations
+          WHERE status = 'completed'
+            AND customer_id IS NOT NULL
+          GROUP BY customer_id
+          HAVING MIN(reservation_date) >= date('now', 'start of month')
+          LIMIT 5;
+        "
+
+        echo ""
+        echo "【4】上記顧客の全予約履歴を確認"
+        sudo sqlite3 /var/www/html/database/database.sqlite "
+          WITH new_customers AS (
+            SELECT customer_id
+            FROM reservations
+            WHERE status = 'completed'
+              AND customer_id IS NOT NULL
+            GROUP BY customer_id
+            HAVING MIN(reservation_date) >= date('now', 'start of month')
+            LIMIT 5
+          )
+          SELECT c.name, c.phone, r.reservation_date, r.status
+          FROM reservations r
+          JOIN customers c ON r.customer_id = c.id
+          WHERE r.customer_id IN (SELECT customer_id FROM new_customers)
+          ORDER BY c.name, r.reservation_date;
+        "
+
+        echo ""
+        echo "==========================="
+        EOF
+
+        rm deploy_key.pem
