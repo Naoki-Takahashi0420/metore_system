@@ -176,9 +176,9 @@
                     {{ $invoice->fcStore->company_contact_person }} 様<br>
                 @endif
                 @if($invoice->fcStore->company_postal_code)
-                    〒{{ $invoice->fcStore->company_postal_code }}<br>
+                    {{ $invoice->fcStore->company_postal_code }}<br>
                 @elseif($invoice->fcStore->postal_code)
-                    〒{{ $invoice->fcStore->postal_code }}<br>
+                    {{ $invoice->fcStore->postal_code }}<br>
                 @endif
                 @if($invoice->fcStore->company_address)
                     {{ $invoice->fcStore->company_address }}<br>
@@ -198,9 +198,9 @@
             <div class="company-info">
                 <div class="company-name">{{ $invoice->headquartersStore->company_name ?? $invoice->headquartersStore->name }}</div>
                 @if($invoice->headquartersStore->company_postal_code)
-                    〒{{ $invoice->headquartersStore->company_postal_code }}<br>
+                    {{ $invoice->headquartersStore->company_postal_code }}<br>
                 @elseif($invoice->headquartersStore->postal_code)
-                    〒{{ $invoice->headquartersStore->postal_code }}<br>
+                    {{ $invoice->headquartersStore->postal_code }}<br>
                 @endif
                 @if($invoice->headquartersStore->company_address)
                     {{ $invoice->headquartersStore->company_address }}<br>
