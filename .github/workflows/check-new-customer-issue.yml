@@ -21,74 +21,52 @@ jobs:
         cd /var/www/html
 
         echo "=========================================="
-        echo "【林徹様の詳細調査】"
+        echo "【林徹様（ID: 3954）の回数券調査】"
         echo "=========================================="
 
-        echo "=== 林（1文字）で検索 ==="
-        sqlite3 database/database.sqlite "SELECT id, last_name, first_name, phone, email FROM customers WHERE last_name = '林' LIMIT 10;"
+        echo "=== 林徹様の回数券 ==="
+        sqlite3 database/database.sqlite "SELECT ct.id, ct.customer_id, tp.name, ct.total_count, ct.used_count, (ct.total_count - ct.used_count) as remaining, ct.status, ct.created_at
+        FROM customer_tickets ct
+        JOIN ticket_plans tp ON ct.ticket_plan_id = tp.id
+        WHERE ct.customer_id = 3954;"
 
         echo ""
-        echo "=== 徹で検索 ==="
-        sqlite3 database/database.sqlite "SELECT id, last_name, first_name, phone, email FROM customers WHERE first_name LIKE '%徹%' LIMIT 10;"
-
-        echo ""
-        echo "=== 新宿店(store_id=3)で最近キャンセルした回数券使用予約 ==="
-        sqlite3 database/database.sqlite "SELECT r.id, r.reservation_date, r.status, r.customer_ticket_id, c.last_name, c.first_name, r.cancel_reason, r.updated_at
-        FROM reservations r
-        JOIN customers c ON r.customer_id = c.id
-        WHERE r.store_id = 3
-        AND r.status IN ('cancelled', 'canceled')
-        AND r.customer_ticket_id IS NOT NULL
-        ORDER BY r.updated_at DESC
-        LIMIT 20;"
-
-        echo ""
-        echo "=========================================="
-        echo "【奈良場宏一様の詳細調査】"
-        echo "=========================================="
-
-        echo "=== 回数券ID 30 の使用履歴を詳しく調査 ==="
-        echo "--- customer_ticket_id=30 を使用した全予約 ---"
-        sqlite3 database/database.sqlite "SELECT r.id, r.reservation_date, r.status, r.customer_ticket_id, r.updated_at, r.cancel_reason
-        FROM reservations r
-        WHERE r.customer_ticket_id = 30
-        ORDER BY r.reservation_date;"
-
-        echo ""
-        echo "--- 奈良場様の全予約履歴（キャンセル含む） ---"
-        sqlite3 database/database.sqlite "SELECT r.id, r.reservation_date, r.status, r.customer_ticket_id, m.name, r.cancel_reason, r.updated_at
+        echo "=== 林徹様の全予約履歴 ==="
+        sqlite3 database/database.sqlite "SELECT r.id, r.reservation_date, r.status, r.customer_ticket_id, r.paid_with_ticket, m.name as menu, r.cancel_reason, r.updated_at
         FROM reservations r
         LEFT JOIN menus m ON r.menu_id = m.id
-        WHERE r.customer_id = 3363
+        WHERE r.customer_id = 3954
         ORDER BY r.reservation_date DESC;"
 
         echo ""
         echo "=========================================="
-        echo "【管理者通知重複の詳細調査】"
+        echo "【奈良場宏一様のused_count修正】"
         echo "=========================================="
 
-        echo "=== キューワーカーの状態 ==="
-        ps aux | grep -E "queue:work|horizon" | grep -v grep || echo "キューワーカーなし"
+        echo "=== 修正前の状態 ==="
+        sqlite3 database/database.sqlite "SELECT id, customer_id, plan_name, total_count, used_count, (total_count - used_count) as remaining, status FROM customer_tickets WHERE id = 30;"
 
         echo ""
-        echo "=== queue_monitor テーブルの確認 ==="
-        sqlite3 database/database.sqlite ".tables" | grep -i queue || echo "queueテーブルなし"
+        echo "=== 回数券ID 30を使用した予約数を確認 ==="
+        sqlite3 database/database.sqlite "SELECT COUNT(*) as actual_usage FROM reservations WHERE customer_ticket_id = 30 AND status NOT IN ('cancelled', 'canceled');"
 
         echo ""
-        echo "=== jobs テーブルの確認 ==="
-        sqlite3 database/database.sqlite "SELECT COUNT(*) as job_count FROM jobs;" 2>/dev/null || echo "jobsテーブルなし"
+        echo "=== used_count を正しい値（2）に修正 ==="
+        sqlite3 database/database.sqlite "UPDATE customer_tickets SET used_count = 2 WHERE id = 30;"
 
         echo ""
-        echo "=== failed_jobs テーブルの確認 ==="
-        sqlite3 database/database.sqlite "SELECT COUNT(*) as failed_count FROM failed_jobs;" 2>/dev/null || echo "failed_jobsテーブルなし"
-
-        echo ""
-        echo "=== 直近のReservationCreated イベント発火ログ ==="
-        sudo grep -i "ReservationCreated\|handleReservationCreated" /var/www/html/storage/logs/laravel-$(date +%F).log 2>/dev/null | tail -20 || echo "ログなし"
+        echo "=== 修正後の状態 ==="
+        sqlite3 database/database.sqlite "SELECT id, customer_id, plan_name, total_count, used_count, (total_count - used_count) as remaining, status FROM customer_tickets WHERE id = 30;"
 
         echo ""
         echo "=========================================="
-        echo "調査完了"
+        echo "【宮脇瞳様の回数券確認（前回修正済み）】"
+        echo "=========================================="
+        sqlite3 database/database.sqlite "SELECT id, customer_id, plan_name, total_count, used_count, (total_count - used_count) as remaining, status FROM customer_tickets WHERE id = 37;"
+
+        echo ""
+        echo "=========================================="
+        echo "調査・修正完了"
         echo "=========================================="
         EOF
 
