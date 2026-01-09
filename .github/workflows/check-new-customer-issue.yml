@@ -18,50 +18,27 @@ jobs:
         chmod 600 deploy_key.pem
 
         ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
-        echo "=== 新宿店 回数券キャンセル調査 ==="
+        echo "=== 回数券ID:37 返却処理 ==="
 
         echo ""
-        echo "【1】店舗一覧"
-        sudo sqlite3 /var/www/html/database/database.sqlite "SELECT id, name FROM stores;"
-
-        echo ""
-        echo "【2】新宿店のキャンセル済み予約で回数券使用のもの"
+        echo "【1】返却前の状態"
         sudo sqlite3 -header /var/www/html/database/database.sqlite "
-          SELECT r.id, c.last_name || c.first_name as customer, r.reservation_date, r.status,
-                 r.paid_with_ticket, r.customer_ticket_id
-          FROM reservations r
-          JOIN customers c ON r.customer_id = c.id
-          JOIN stores s ON r.store_id = s.id
-          WHERE s.name LIKE '%新宿%'
-            AND r.status IN ('cancelled', 'canceled')
-            AND (r.paid_with_ticket = 1 OR r.customer_ticket_id IS NOT NULL)
-          ORDER BY r.reservation_date DESC
-          LIMIT 20;
+          SELECT id, plan_name, total_count, used_count, (total_count - used_count) as remaining
+          FROM customer_tickets WHERE id = 37;
         "
 
         echo ""
-        echo "【3】回数券使用履歴（新宿店・キャンセル関連）"
-        sudo sqlite3 -header /var/www/html/database/database.sqlite "
-          SELECT tuh.id, tuh.customer_ticket_id, tuh.reservation_id, tuh.used_at,
-                 tuh.is_cancelled, tuh.cancelled_at, tuh.cancel_reason
-          FROM ticket_usage_histories tuh
-          JOIN customer_tickets ct ON tuh.customer_ticket_id = ct.id
-          WHERE ct.store_id IN (SELECT id FROM stores WHERE name LIKE '%新宿%')
-          ORDER BY tuh.used_at DESC
-          LIMIT 20;
+        echo "【2】used_countを1減らす"
+        sudo sqlite3 /var/www/html/database/database.sqlite "
+          UPDATE customer_tickets SET used_count = used_count - 1 WHERE id = 37 AND used_count > 0;
         "
+        echo "UPDATE完了"
 
         echo ""
-        echo "【4】新宿店の回数券（残回数確認）"
+        echo "【3】返却後の状態"
         sudo sqlite3 -header /var/www/html/database/database.sqlite "
-          SELECT ct.id, c.last_name || c.first_name as customer, ct.plan_name,
-                 ct.total_count, ct.used_count, ct.remaining_count, ct.status
-          FROM customer_tickets ct
-          JOIN customers c ON ct.customer_id = c.id
-          WHERE ct.store_id IN (SELECT id FROM stores WHERE name LIKE '%新宿%')
-            AND ct.status = 'active'
-          ORDER BY ct.created_at DESC
-          LIMIT 20;
+          SELECT id, plan_name, total_count, used_count, (total_count - used_count) as remaining
+          FROM customer_tickets WHERE id = 37;
         "
 
         echo ""
