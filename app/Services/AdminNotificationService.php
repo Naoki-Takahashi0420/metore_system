@@ -10,6 +10,7 @@ use App\Services\Sms\SmsService;
 use App\Services\EmailService;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 
 class AdminNotificationService
@@ -28,6 +29,17 @@ class AdminNotificationService
      */
     public function notifyNewReservation(Reservation $reservation): void
     {
+        // 二重送信防止: 5分間の重複キャッシュチェック
+        $dedupeKey = "admin_notify:new_reservation:{$reservation->id}";
+        if (!Cache::add($dedupeKey, true, now()->addMinutes(5))) {
+            \Log::warning('⚠️ 管理者通知スキップ（重複）', [
+                'deduplication_key' => $dedupeKey,
+                'reservation_id' => $reservation->id,
+                'reason' => 'Duplicate within 5 minutes'
+            ]);
+            return;
+        }
+
         // 店舗スタッフが対面で対応した予約は管理者通知もスキップ
         // ダッシュボードからの予約も通知不要（店舗が直接作成しているため）
         $skipSources = ['phone', 'walk_in', 'admin'];
@@ -71,17 +83,28 @@ class AdminNotificationService
      */
     public function notifyReservationCancelled(Reservation $reservation): void
     {
+        // 二重送信防止: 5分間の重複キャッシュチェック
+        $dedupeKey = "admin_notify:reservation_cancelled:{$reservation->id}";
+        if (!Cache::add($dedupeKey, true, now()->addMinutes(5))) {
+            \Log::warning('⚠️ 管理者キャンセル通知スキップ（重複）', [
+                'deduplication_key' => $dedupeKey,
+                'reservation_id' => $reservation->id,
+                'reason' => 'Duplicate within 5 minutes'
+            ]);
+            return;
+        }
+
         $store = $reservation->store;
         $customer = $reservation->customer;
-        
+
         $admins = $this->getStoreAdmins($store);
-        
+
         $message = $this->buildCancellationMessage($reservation, $customer);
-        
+
         foreach ($admins as $admin) {
             $this->sendNotification($admin, $message, 'cancellation');
         }
-        
+
         Log::info('Admin notification sent for reservation cancellation', [
             'reservation_id' => $reservation->id,
             'store_id' => $store->id
@@ -96,6 +119,18 @@ class AdminNotificationService
      */
     public function notifyReservationChanged(array $oldReservationData, Reservation $newReservation): void
     {
+        // 二重送信防止: 5分間の重複キャッシュチェック
+        $reservationId = $oldReservationData['id'] ?? $newReservation->id;
+        $dedupeKey = "admin_notify:reservation_changed:{$reservationId}";
+        if (!Cache::add($dedupeKey, true, now()->addMinutes(5))) {
+            \Log::warning('⚠️ 管理者変更通知スキップ（重複）', [
+                'deduplication_key' => $dedupeKey,
+                'reservation_id' => $reservationId,
+                'reason' => 'Duplicate within 5 minutes'
+            ]);
+            return;
+        }
+
         $store = $newReservation->store;
         $customer = $newReservation->customer;
 
