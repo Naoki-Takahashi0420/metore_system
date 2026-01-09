@@ -168,10 +168,10 @@ class Reservation extends Model
         
         static::updating(function ($reservation) {
             // ステータスがキャンセルに変更された場合、回数券を返却
+            // 注意: customer_ticket_idが設定されていれば返却（paid_with_ticketフラグに依存しない）
             if ($reservation->isDirty('status') &&
                 in_array($reservation->status, ['cancelled', 'canceled']) &&
                 !in_array($reservation->getOriginal('status'), ['cancelled', 'canceled']) &&
-                $reservation->paid_with_ticket &&
                 $reservation->customer_ticket_id) {
 
                 $ticket = CustomerTicket::find($reservation->customer_ticket_id);
