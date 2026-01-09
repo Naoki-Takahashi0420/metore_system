@@ -21,73 +21,70 @@ jobs:
         cd /var/www/html
 
         echo "=========================================="
-        echo "【テーブル構造確認】"
+        echo "【林徹様の詳細調査】"
         echo "=========================================="
 
-        echo "=== customers テーブル構造 ==="
-        sqlite3 database/database.sqlite ".schema customers" | head -30
+        echo "=== 林（1文字）で検索 ==="
+        sqlite3 database/database.sqlite "SELECT id, last_name, first_name, phone, email FROM customers WHERE last_name = '林' LIMIT 10;"
 
         echo ""
-        echo "=== customer_tickets テーブル構造 ==="
-        sqlite3 database/database.sqlite ".schema customer_tickets"
+        echo "=== 徹で検索 ==="
+        sqlite3 database/database.sqlite "SELECT id, last_name, first_name, phone, email FROM customers WHERE first_name LIKE '%徹%' LIMIT 10;"
+
+        echo ""
+        echo "=== 新宿店(store_id=3)で最近キャンセルした回数券使用予約 ==="
+        sqlite3 database/database.sqlite "SELECT r.id, r.reservation_date, r.status, r.customer_ticket_id, c.last_name, c.first_name, r.cancel_reason, r.updated_at
+        FROM reservations r
+        JOIN customers c ON r.customer_id = c.id
+        WHERE r.store_id = 3
+        AND r.status IN ('cancelled', 'canceled')
+        AND r.customer_ticket_id IS NOT NULL
+        ORDER BY r.updated_at DESC
+        LIMIT 20;"
 
         echo ""
         echo "=========================================="
-        echo "【回数券キャンセル返却調査】"
+        echo "【奈良場宏一様の詳細調査】"
         echo "=========================================="
 
-        echo ""
-        echo "=== 1. 林徹様の調査 ==="
-        echo "--- 顧客情報 ---"
-        sqlite3 database/database.sqlite "SELECT id, last_name, first_name, phone, email FROM customers WHERE (last_name || first_name) LIKE '%林徹%' OR last_name LIKE '%林%' LIMIT 5;"
+        echo "=== 回数券ID 30 の使用履歴を詳しく調査 ==="
+        echo "--- customer_ticket_id=30 を使用した全予約 ---"
+        sqlite3 database/database.sqlite "SELECT r.id, r.reservation_date, r.status, r.customer_ticket_id, r.updated_at, r.cancel_reason
+        FROM reservations r
+        WHERE r.customer_ticket_id = 30
+        ORDER BY r.reservation_date;"
 
         echo ""
-        echo "--- 林徹様の回数券（customer_tickets） ---"
-        sqlite3 database/database.sqlite "SELECT ct.id, ct.customer_id, tp.name as plan_name, ct.total_count, ct.used_count, (ct.total_count - ct.used_count) as remaining, ct.status, ct.created_at
-        FROM customer_tickets ct
-        JOIN ticket_plans tp ON ct.ticket_plan_id = tp.id
-        WHERE ct.customer_id IN (SELECT id FROM customers WHERE (last_name || first_name) LIKE '%林徹%' OR last_name LIKE '%林%');"
-
-        echo ""
-        echo "--- 林徹様の全予約（回数券関連） ---"
-        sqlite3 database/database.sqlite "SELECT r.id, r.reservation_date, r.status, r.customer_ticket_id, r.paid_with_ticket, m.name as menu_name, r.updated_at
+        echo "--- 奈良場様の全予約履歴（キャンセル含む） ---"
+        sqlite3 database/database.sqlite "SELECT r.id, r.reservation_date, r.status, r.customer_ticket_id, m.name, r.cancel_reason, r.updated_at
         FROM reservations r
         LEFT JOIN menus m ON r.menu_id = m.id
-        WHERE r.customer_id IN (SELECT id FROM customers WHERE (last_name || first_name) LIKE '%林徹%' OR last_name LIKE '%林%')
-        ORDER BY r.reservation_date DESC LIMIT 15;"
-
-        echo ""
-        echo "=== 2. 奈良場宏一様の調査 ==="
-        echo "--- 顧客情報 ---"
-        sqlite3 database/database.sqlite "SELECT id, last_name, first_name, phone, email FROM customers WHERE (last_name || first_name) LIKE '%奈良場%' OR last_name LIKE '%奈良場%' LIMIT 5;"
-
-        echo ""
-        echo "--- 奈良場宏一様の回数券（customer_tickets） ---"
-        sqlite3 database/database.sqlite "SELECT ct.id, ct.customer_id, tp.name as plan_name, ct.total_count, ct.used_count, (ct.total_count - ct.used_count) as remaining, ct.status, ct.created_at
-        FROM customer_tickets ct
-        JOIN ticket_plans tp ON ct.ticket_plan_id = tp.id
-        WHERE ct.customer_id IN (SELECT id FROM customers WHERE (last_name || first_name) LIKE '%奈良場%' OR last_name LIKE '%奈良場%');"
-
-        echo ""
-        echo "--- 奈良場宏一様の全予約（回数券関連） ---"
-        sqlite3 database/database.sqlite "SELECT r.id, r.reservation_date, r.status, r.customer_ticket_id, r.paid_with_ticket, m.name as menu_name, r.updated_at
-        FROM reservations r
-        LEFT JOIN menus m ON r.menu_id = m.id
-        WHERE r.customer_id IN (SELECT id FROM customers WHERE (last_name || first_name) LIKE '%奈良場%' OR last_name LIKE '%奈良場%')
-        ORDER BY r.reservation_date DESC LIMIT 15;"
+        WHERE r.customer_id = 3363
+        ORDER BY r.reservation_date DESC;"
 
         echo ""
         echo "=========================================="
-        echo "【管理者通知の重複原因調査】"
+        echo "【管理者通知重複の詳細調査】"
         echo "=========================================="
 
+        echo "=== キューワーカーの状態 ==="
+        ps aux | grep -E "queue:work|horizon" | grep -v grep || echo "キューワーカーなし"
+
         echo ""
-        echo "=== 重複ログ詳細（直近5件の予約ID毎） ==="
-        for id in 3835 3834 3833 3830 3829; do
-          echo "--- 予約ID: $id ---"
-          grep "reservation_id.:.$id" /var/www/html/storage/logs/laravel-$(date +%F).log 2>/dev/null | grep -i "admin\|notification" | head -5
-          echo ""
-        done
+        echo "=== queue_monitor テーブルの確認 ==="
+        sqlite3 database/database.sqlite ".tables" | grep -i queue || echo "queueテーブルなし"
+
+        echo ""
+        echo "=== jobs テーブルの確認 ==="
+        sqlite3 database/database.sqlite "SELECT COUNT(*) as job_count FROM jobs;" 2>/dev/null || echo "jobsテーブルなし"
+
+        echo ""
+        echo "=== failed_jobs テーブルの確認 ==="
+        sqlite3 database/database.sqlite "SELECT COUNT(*) as failed_count FROM failed_jobs;" 2>/dev/null || echo "failed_jobsテーブルなし"
+
+        echo ""
+        echo "=== 直近のReservationCreated イベント発火ログ ==="
+        sudo grep -i "ReservationCreated\|handleReservationCreated" /var/www/html/storage/logs/laravel-$(date +%F).log 2>/dev/null | tail -20 || echo "ログなし"
 
         echo ""
         echo "=========================================="
