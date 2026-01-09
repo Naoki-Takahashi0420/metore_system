@@ -21,52 +21,35 @@ jobs:
         cd /var/www/html
 
         echo "=========================================="
-        echo "【林徹様（ID: 3954）の回数券調査】"
-        echo "=========================================="
-
-        echo "=== 林徹様の回数券 ==="
-        sqlite3 database/database.sqlite "SELECT ct.id, ct.customer_id, tp.name, ct.total_count, ct.used_count, (ct.total_count - ct.used_count) as remaining, ct.status, ct.created_at
-        FROM customer_tickets ct
-        JOIN ticket_plans tp ON ct.ticket_plan_id = tp.id
-        WHERE ct.customer_id = 3954;"
-
-        echo ""
-        echo "=== 林徹様の全予約履歴 ==="
-        sqlite3 database/database.sqlite "SELECT r.id, r.reservation_date, r.status, r.customer_ticket_id, r.paid_with_ticket, m.name as menu, r.cancel_reason, r.updated_at
-        FROM reservations r
-        LEFT JOIN menus m ON r.menu_id = m.id
-        WHERE r.customer_id = 3954
-        ORDER BY r.reservation_date DESC;"
-
-        echo ""
-        echo "=========================================="
-        echo "【奈良場宏一様のused_count修正】"
+        echo "【奈良場宏一様のused_count修正（Laravel経由）】"
         echo "=========================================="
 
         echo "=== 修正前の状態 ==="
-        sqlite3 database/database.sqlite "SELECT id, customer_id, plan_name, total_count, used_count, (total_count - used_count) as remaining, status FROM customer_tickets WHERE id = 30;"
+        sudo -u www-data php artisan tinker --execute="echo \App\Models\CustomerTicket::find(30)->toJson(JSON_PRETTY_PRINT);"
 
         echo ""
-        echo "=== 回数券ID 30を使用した予約数を確認 ==="
-        sqlite3 database/database.sqlite "SELECT COUNT(*) as actual_usage FROM reservations WHERE customer_ticket_id = 30 AND status NOT IN ('cancelled', 'canceled');"
+        echo "=== used_count を 2 に修正 ==="
+        sudo -u www-data php artisan tinker --execute="\$t = \App\Models\CustomerTicket::find(30); \$t->used_count = 2; \$t->save(); echo 'Updated: ' . \$t->toJson(JSON_PRETTY_PRINT);"
 
         echo ""
-        echo "=== used_count を正しい値（2）に修正 ==="
-        sqlite3 database/database.sqlite "UPDATE customer_tickets SET used_count = 2 WHERE id = 30;"
-
-        echo ""
-        echo "=== 修正後の状態 ==="
-        sqlite3 database/database.sqlite "SELECT id, customer_id, plan_name, total_count, used_count, (total_count - used_count) as remaining, status FROM customer_tickets WHERE id = 30;"
+        echo "=== 修正後の確認 ==="
+        sudo -u www-data php artisan tinker --execute="echo \App\Models\CustomerTicket::find(30)->toJson(JSON_PRETTY_PRINT);"
 
         echo ""
         echo "=========================================="
-        echo "【宮脇瞳様の回数券確認（前回修正済み）】"
+        echo "【管理者通知2回送信の原因調査】"
         echo "=========================================="
-        sqlite3 database/database.sqlite "SELECT id, customer_id, plan_name, total_count, used_count, (total_count - used_count) as remaining, status FROM customer_tickets WHERE id = 37;"
+
+        echo "=== 本番環境のQUEUE_CONNECTION設定 ==="
+        sudo grep "QUEUE_CONNECTION" /var/www/html/.env
+
+        echo ""
+        echo "=== 直近の管理者通知送信ログ（予約3835） ==="
+        sudo grep "3835" /var/www/html/storage/logs/laravel-$(date +%F).log | grep -i "admin\|notification" | head -20
 
         echo ""
         echo "=========================================="
-        echo "調査・修正完了"
+        echo "修正完了"
         echo "=========================================="
         EOF
 
