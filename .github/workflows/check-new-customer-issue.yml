@@ -18,28 +18,27 @@ jobs:
         chmod 600 deploy_key.pem
 
         ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
-        echo "=== 回数券ID:37 返却処理 ==="
+        echo "=== 直近24時間のエラーログ調査 ==="
 
         echo ""
-        echo "【1】返却前の状態"
-        sudo sqlite3 -header /var/www/html/database/database.sqlite "
-          SELECT id, plan_name, total_count, used_count, (total_count - used_count) as remaining
-          FROM customer_tickets WHERE id = 37;
-        "
+        echo "【1】今日のLaravelエラーログ"
+        sudo grep -i "error\|exception\|fatal" /var/www/html/storage/logs/laravel-$(date +%F).log 2>/dev/null | tail -50 || echo "エラーなし"
 
         echo ""
-        echo "【2】used_countを1減らす"
-        sudo sqlite3 /var/www/html/database/database.sqlite "
-          UPDATE customer_tickets SET used_count = used_count - 1 WHERE id = 37 AND used_count > 0;
-        "
-        echo "UPDATE完了"
+        echo "【2】昨日のLaravelエラーログ"
+        sudo grep -i "error\|exception\|fatal" /var/www/html/storage/logs/laravel-$(date -d "yesterday" +%F).log 2>/dev/null | tail -30 || echo "エラーなし"
 
         echo ""
-        echo "【3】返却後の状態"
-        sudo sqlite3 -header /var/www/html/database/database.sqlite "
-          SELECT id, plan_name, total_count, used_count, (total_count - used_count) as remaining
-          FROM customer_tickets WHERE id = 37;
-        "
+        echo "【3】Nginxエラーログ（直近50行）"
+        sudo tail -50 /var/log/nginx/error.log
+
+        echo ""
+        echo "【4】PHP-FPMエラーログ"
+        sudo tail -30 /var/log/php8.3-fpm.log 2>/dev/null || echo "ログなし"
+
+        echo ""
+        echo "【5】システムログ（エラー関連）"
+        sudo journalctl --since "24 hours ago" -p err --no-pager | tail -30
 
         echo ""
         echo "==========================="
