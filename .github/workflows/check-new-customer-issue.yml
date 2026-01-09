@@ -18,57 +18,50 @@ jobs:
         chmod 600 deploy_key.pem
 
         ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i deploy_key.pem ${EC2_USER}@${EC2_HOST} << 'EOF'
-        echo "=== 新規顧客判定の調査 ==="
+        echo "=== 新宿店 回数券キャンセル調査 ==="
 
         echo ""
-        echo "【1】井上孝史（09099676256）の予約履歴"
-        sudo sqlite3 /var/www/html/database/database.sqlite "
-          SELECT c.id, c.last_name || c.first_name as name, r.reservation_date, r.status, r.store_id
-          FROM customers c
-          LEFT JOIN reservations r ON c.id = r.customer_id
-          WHERE c.phone = '09099676256'
-          ORDER BY r.reservation_date;
-        "
+        echo "【1】店舗一覧"
+        sudo sqlite3 /var/www/html/database/database.sqlite "SELECT id, name FROM stores;"
 
         echo ""
-        echo "【2】秋吉範隆（08043636790）の予約履歴"
-        sudo sqlite3 /var/www/html/database/database.sqlite "
-          SELECT c.id, c.last_name || c.first_name as name, r.reservation_date, r.status, r.store_id
-          FROM customers c
-          LEFT JOIN reservations r ON c.id = r.customer_id
-          WHERE c.phone = '08043636790'
-          ORDER BY r.reservation_date;
-        "
-
-        echo ""
-        echo "【3】今月初来店と判定された顧客（最初の5件）"
-        sudo sqlite3 /var/www/html/database/database.sqlite "
-          SELECT customer_id, MIN(reservation_date) as first_visit
-          FROM reservations
-          WHERE status = 'completed'
-            AND customer_id IS NOT NULL
-          GROUP BY customer_id
-          HAVING MIN(reservation_date) >= date('now', 'start of month')
-          LIMIT 5;
-        "
-
-        echo ""
-        echo "【4】上記顧客の全予約履歴を確認"
-        sudo sqlite3 /var/www/html/database/database.sqlite "
-          WITH new_customers AS (
-            SELECT customer_id
-            FROM reservations
-            WHERE status = 'completed'
-              AND customer_id IS NOT NULL
-            GROUP BY customer_id
-            HAVING MIN(reservation_date) >= date('now', 'start of month')
-            LIMIT 5
-          )
-          SELECT c.last_name || c.first_name, c.phone, r.reservation_date, r.status
+        echo "【2】新宿店のキャンセル済み予約で回数券使用のもの"
+        sudo sqlite3 -header /var/www/html/database/database.sqlite "
+          SELECT r.id, c.last_name || c.first_name as customer, r.reservation_date, r.status,
+                 r.paid_with_ticket, r.customer_ticket_id
           FROM reservations r
           JOIN customers c ON r.customer_id = c.id
-          WHERE r.customer_id IN (SELECT customer_id FROM new_customers)
-          ORDER BY c.last_name, r.reservation_date;
+          JOIN stores s ON r.store_id = s.id
+          WHERE s.name LIKE '%新宿%'
+            AND r.status IN ('cancelled', 'canceled')
+            AND (r.paid_with_ticket = 1 OR r.customer_ticket_id IS NOT NULL)
+          ORDER BY r.reservation_date DESC
+          LIMIT 20;
+        "
+
+        echo ""
+        echo "【3】回数券使用履歴（新宿店・キャンセル関連）"
+        sudo sqlite3 -header /var/www/html/database/database.sqlite "
+          SELECT tuh.id, tuh.customer_ticket_id, tuh.reservation_id, tuh.used_at,
+                 tuh.is_cancelled, tuh.cancelled_at, tuh.cancel_reason
+          FROM ticket_usage_histories tuh
+          JOIN customer_tickets ct ON tuh.customer_ticket_id = ct.id
+          WHERE ct.store_id IN (SELECT id FROM stores WHERE name LIKE '%新宿%')
+          ORDER BY tuh.used_at DESC
+          LIMIT 20;
+        "
+
+        echo ""
+        echo "【4】新宿店の回数券（残回数確認）"
+        sudo sqlite3 -header /var/www/html/database/database.sqlite "
+          SELECT ct.id, c.last_name || c.first_name as customer, ct.plan_name,
+                 ct.total_count, ct.used_count, ct.remaining_count, ct.status
+          FROM customer_tickets ct
+          JOIN customers c ON ct.customer_id = c.id
+          WHERE ct.store_id IN (SELECT id FROM stores WHERE name LIKE '%新宿%')
+            AND ct.status = 'active'
+          ORDER BY ct.created_at DESC
+          LIMIT 20;
         "
 
         echo ""
