@@ -238,6 +238,22 @@ class CustomerTicket extends Model
             return false;
         }
 
+        // 同じ予約IDに対する既存の有効な使用履歴があるかチェック（重複防止）
+        if ($reservationId) {
+            $existingUsage = $this->usageHistory()
+                ->where('reservation_id', $reservationId)
+                ->where('is_cancelled', false)
+                ->exists();
+
+            if ($existingUsage) {
+                \Log::info('🎫 回数券使用スキップ（既に消費済み）', [
+                    'ticket_id' => $this->id,
+                    'reservation_id' => $reservationId,
+                ]);
+                return true; // 既に消費済みなので成功扱い
+            }
+        }
+
         // 利用回数を増やす
         $this->increment('used_count', $count);
 

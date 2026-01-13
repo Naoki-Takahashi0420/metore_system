@@ -2197,18 +2197,8 @@ class PublicReservationController extends Controller
                     'new_time' => $validated['time']
                 ]);
 
-                // 日程変更通知を送信（顧客と管理者の両方に）
-                try {
-                    event(new \App\Events\ReservationChanged($oldReservationData, $existingReservation));
-                    \Log::info('✅ イベント発火成功');
-                } catch (\Exception $e) {
-                    \Log::error('❌ イベント発火エラー', [
-                        'error' => $e->getMessage(),
-                        'file' => $e->getFile(),
-                        'line' => $e->getLine()
-                    ]);
-                    // イベントエラーは無視して処理を続行
-                }
+                // 日程変更通知はReservationObserverで自動発火されるため、ここでは発火しない
+                // （二重送信防止のため削除 - 2026-01-13）
 
                 // セッションをクリア
                 Session::forget('change_reservation_id');

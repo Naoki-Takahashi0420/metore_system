@@ -688,11 +688,9 @@ class ReservationController extends Controller
             'end_time' => $newEndTime->format('H:i:s')
         ]);
 
-        // 顧客の変更回数を更新
-        $customer->increment('change_count');
-
-        // 変更通知を送信（配列形式で渡す）
-        event(new ReservationChanged($oldReservationData, $reservation));
+        // 顧客の変更回数はReservationObserverで自動更新されるため、ここでは更新しない
+        // 変更通知もReservationObserverで自動発火されるため、ここでは発火しない
+        // （二重送信・二重カウント防止のため削除 - 2026-01-13）
 
         return response()->json([
             'success' => true,
@@ -816,11 +814,9 @@ class ReservationController extends Controller
 
         $reservation->save();
 
-        // 顧客の変更回数を更新
-        $customer->increment('change_count');
-
-        // 予約変更通知を送信（配列形式で渡す）
-        event(new ReservationChanged($oldReservationData, $reservation));
+        // 顧客の変更回数はReservationObserverで自動更新されるため、ここでは更新しない
+        // 変更通知もReservationObserverで自動発火されるため、ここでは発火しない
+        // （二重送信・二重カウント防止のため削除 - 2026-01-13）
 
         return response()->json([
             'success' => true,
