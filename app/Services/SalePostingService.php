@@ -133,26 +133,9 @@ class SalePostingService
                 $this->createSaleItem($sale, 'product', $product);
             }
 
-            // 回数券の場合は使用履歴を記録
-            if ($paymentSource === PaymentSource::TICKET->value && $reservation->customer_ticket_id) {
-                $ticket = CustomerTicket::findOrFail($reservation->customer_ticket_id);
-
-                // 残数チェック
-                if ($ticket->remaining_count < 1) {
-                    throw new \Exception("回数券の残数が不足しています。（残り: {$ticket->remaining_count}回）");
-                }
-
-                // 有効期限チェック
-                if ($ticket->expires_at && $ticket->expires_at->isPast()) {
-                    throw new \Exception("回数券の有効期限が切れています。（有効期限: {$ticket->expires_at->format('Y/m/d')}）");
-                }
-
-                // 使用履歴を記録
-                $used = $ticket->use($reservation->id, 1); // 1回分消費
-                if (!$used) {
-                    throw new \Exception("回数券の使用処理に失敗しました。");
-                }
-            }
+            // 回数券の消費は予約作成時に行われるため、売上計上時は消費しない
+            // キャンセル時は返却される（CustomerTicket::refund()）
+            // （2026-01-14 変更: 二重消費バグ対応）
 
             // 注意: 予約経由のサブスク利用計上では next_billing_date を更新しない
             // next_billing_date は月額料金の計上時のみ更新される（DailyClosing等）
