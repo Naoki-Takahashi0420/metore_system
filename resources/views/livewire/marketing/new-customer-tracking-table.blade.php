@@ -1007,7 +1007,7 @@
                 @if(!empty($nextReservationHandlerDetails['details']))
                     <div class="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
                         <h3 class="text-md font-bold text-gray-700 dark:text-gray-300 mb-2">
-                            次回予約獲得詳細リスト（インセンティブ計算用）
+                            次回予約獲得詳細リスト【{{ $visitNumber }}回目】（インセンティブ計算用）
                             <span class="text-sm font-normal text-gray-500 ml-2">全{{ $nextReservationHandlerDetails['total_count'] ?? 0 }}件</span>
                         </h3>
                         <p class="text-xs text-gray-500 mb-4">カルテの対応者(handled_by)を元に、誰がどの顧客の次回予約を獲得したかを表示（サブスク・回数券以外）</p>
@@ -1030,8 +1030,8 @@
                                         <th class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-left">対応者</th>
                                         <th class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-left">顧客名</th>
                                         <th class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-left">媒体</th>
-                                        <th class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-center">1回目来店日</th>
-                                        <th class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-center">2回目来店日</th>
+                                        <th class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-center">{{ $visitNumber }}回目来店日</th>
+                                        <th class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-center">{{ $visitNumber + 1 }}回目来店日</th>
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white dark:bg-gray-900">
@@ -1040,8 +1040,8 @@
                                             <td class="border border-gray-300 dark:border-gray-600 px-3 py-2 font-medium whitespace-nowrap">{{ $detail['handler'] }}</td>
                                             <td class="border border-gray-300 dark:border-gray-600 px-3 py-2 whitespace-nowrap">{{ $detail['customer_name'] }}</td>
                                             <td class="border border-gray-300 dark:border-gray-600 px-3 py-2">{{ $detail['source'] }}</td>
-                                            <td class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-center">{{ $detail['visit1_date'] }}</td>
-                                            <td class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-center">{{ $detail['visit2_date'] ?: '-' }}</td>
+                                            <td class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-center">{{ $detail['visit_date'] }}</td>
+                                            <td class="border border-gray-300 dark:border-gray-600 px-3 py-2 text-center">{{ $detail['next_visit_date'] ?: '-' }}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>

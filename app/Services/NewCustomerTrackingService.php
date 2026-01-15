@@ -668,24 +668,32 @@ class NewCustomerTrackingService
 
     /**
      * 次回予約獲得の対応者別詳細リスト（インセンティブ計算用）
+     *
+     * @param int $visitNumber 回数（1回目、2回目、3回目）
      */
     public function getNextReservationHandlerDetails(
         ?string $startDate = null,
         ?string $endDate = null,
-        ?int $storeId = null
+        ?int $storeId = null,
+        int $visitNumber = 1
     ): array {
         $tracking = $this->getNewCustomerTracking($startDate, $endDate, $storeId);
 
+        $resultKey = "visit{$visitNumber}_result";
+        $handlerKey = "visit{$visitNumber}_handler";
+        $dateKey = "visit{$visitNumber}_date";
+        $nextDateKey = "visit" . ($visitNumber + 1) . "_date";
+
         // 次回予約ありの顧客のみ（サブスク・回数券以外で次回予約がある）
-        $nextReservations = $tracking->filter(function ($row) {
-            return $row['visit1_result'] === self::RESULT_NEXT_RESERVATION;
+        $nextReservations = $tracking->filter(function ($row) use ($resultKey) {
+            return ($row[$resultKey] ?? null) === self::RESULT_NEXT_RESERVATION;
         });
 
         $handlerSummary = [];
         $detailList = [];
 
         foreach ($nextReservations as $row) {
-            $handler = $row['visit1_handler'] ?? '不明';
+            $handler = $row[$handlerKey] ?? '不明';
 
             if (!isset($handlerSummary[$handler])) {
                 $handlerSummary[$handler] = [
@@ -699,8 +707,8 @@ class NewCustomerTrackingService
                 'customer_name' => $row['customer_name'] ?? '',
                 'handler' => $handler,
                 'source' => $row['source'] ?? '',
-                'visit1_date' => $row['visit1_date'] ?? '',
-                'visit2_date' => $row['visit2_date'] ?? '',
+                'visit_date' => $row[$dateKey] ?? '',
+                'next_visit_date' => $row[$nextDateKey] ?? '',
             ];
         }
 

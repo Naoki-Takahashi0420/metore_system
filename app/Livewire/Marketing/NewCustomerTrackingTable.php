@@ -171,7 +171,8 @@ class NewCustomerTrackingTable extends Component
         $this->nextReservationHandlerDetails = $service->getNextReservationHandlerDetails(
             $this->startDate,
             $this->endDate,
-            $this->storeId
+            $this->storeId,
+            $this->visitNumber
         );
 
         // 月別集計
