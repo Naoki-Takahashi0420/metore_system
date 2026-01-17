@@ -66,6 +66,19 @@ class FixBatchBillingSales extends Command
 
                 $correctSaleDate = Carbon::createFromDate($correctYear, $correctMonth, $billingDay);
 
+                // もし計算結果が今日より後なら、さらに1ヶ月前（12月分だった）
+                $today = Carbon::parse('2026-01-17');
+                if ($correctSaleDate->gt($today)) {
+                    $correctSaleDate = $correctSaleDate->copy()->subMonthNoOverflow();
+                    // 月末調整
+                    $lastDayOfPrevMonth = $correctSaleDate->daysInMonth;
+                    if ($billingDay > $lastDayOfPrevMonth) {
+                        $correctSaleDate = $correctSaleDate->endOfMonth();
+                    } else {
+                        $correctSaleDate = $correctSaleDate->startOfMonth()->day($billingDay);
+                    }
+                }
+
                 $customerName = $sale->customer?->full_name ?? '不明';
 
                 $this->line("  {$customerName}: {$sale->sale_date->format('Y-m-d')} → {$correctSaleDate->format('Y-m-d')}");
