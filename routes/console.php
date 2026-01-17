@@ -47,6 +47,11 @@ Schedule::command('health:check')
     ->dailyAt('00:05') // 毎日午前0時5分に実行（日付変更直後）
     ->description('日次ヘルスチェック：ログ権限・DB・キュー確認');
 
+// サブスク自動請求（毎日午前6時に実行）
+Schedule::command('subscription:bill')
+    ->dailyAt('06:00') // 毎日午前6時に実行
+    ->description('サブスク契約の自動請求');
+
 // FC本部管理：支払期限リマインダー（3日前）
 Schedule::command('fc:payment-reminder')
     ->dailyAt('09:00') // 毎日午前9時に実行
