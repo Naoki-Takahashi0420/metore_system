@@ -34,16 +34,16 @@ class BillSubscriptions extends Command
             ->toArray();
 
         // 請求対象のサブスク契約を取得
-        // 1. 初回請求: billing_start_date <= 今日 かつ next_billing_date IS NULL（まだ請求されていない）
-        // 2. 継続請求: next_billing_date <= 今日（過去分も含む）
+        // 1. 初回請求: billing_start_date = 今日 かつ next_billing_date IS NULL（まだ請求されていない）
+        // 2. 継続請求: next_billing_date = 今日（完全一致のみ）
         $subscriptions = CustomerSubscription::where(function ($query) use ($billingDate) {
                 // 初回請求（まだ一度も請求されていない）
                 $query->where(function ($q) use ($billingDate) {
-                    $q->whereDate('billing_start_date', '<=', $billingDate)
+                    $q->whereDate('billing_start_date', $billingDate)
                       ->whereNull('next_billing_date');
                 })
-                // または継続請求
-                ->orWhereDate('next_billing_date', '<=', $billingDate);
+                // または継続請求（完全一致のみ）
+                ->orWhereDate('next_billing_date', $billingDate);
             })
             ->where('status', 'active')
             ->whereNotIn('id', $postedSubscriptionIds)
